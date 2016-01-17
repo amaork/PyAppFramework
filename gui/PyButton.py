@@ -18,15 +18,18 @@ class BaseButton(QPushButton):
     def __init__(self, width, height, turnOn = False, shortCut = "", parent=None):
         QWidget.__init__(self,parent)
         
+        self.on = turnOn
         self.setCheckable(True)
         self.setChecked(turnOn)                
         self.setMinimumSize(width, height)
         self.setShortcut(QKeySequence(self.tr(shortCut)))
         
     def turnOn(self):
+        self.on = True
         self.setChecked(True)
         
     def turnOff(self):
+        self.on = False
         self.setChecked(False)
 
 class TextButton(BaseButton):
@@ -41,18 +44,28 @@ class TextButton(BaseButton):
         self.textLength = max(len(self.text[0]), len(self.text[1]), 1)  
         
     def drawText(self, painter, rect):
-        painter.setPen(self.textColor[self.isChecked()]);
+        painter.setPen(self.textColor[self.getState()]);
         painter.setFont(QFont("Arial", min(rect.width() / self.textLength / 0.618, rect.height() * 0.618)));
-        painter.drawText(rect, Qt.AlignCenter, self.tr(self.text[self.isChecked()]))
+        painter.drawText(rect, Qt.AlignCenter, self.tr(self.text[self.getState()]))
         
     def getBrush(self):
-        return QBrush(self.drawColor[self.isChecked()], Qt.SolidPattern)
+        return QBrush(self.drawColor[self.getState()], Qt.SolidPattern)
+    
+    def getState(self):
+        return self.isChecked() if self.isCheckable() else self.on
     
 class RectButton(TextButton):
     def __init__(self, width, height, turnOn = False, text = ("", ""), shortCut = "", parent=None):
         QWidget.__init__(self,parent)
         
         super(RectButton, self).__init__(width, height, turnOn, text, shortCut)
+        
+        #sizePolicy = self.sizePolicy()
+        #sizePolicy.setHorizontalStretch(2)
+        #sizePolicy.setVerticalStretch(1)
+        #sizePolicy.setHorizontalPolicy(QSizePolicy.Preferred)
+        #sizePolicy.setVerticalPolicy(QSizePolicy.Preferred)
+        #self.setSizePolicy(sizePolicy)
         
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -71,6 +84,13 @@ class RoundButton(TextButton):
         QWidget.__init__(self,parent)
         
         super(RoundButton, self).__init__(dia, dia, turnOn, text, shortCut)
+        
+        #sizePolicy = self.sizePolicy()
+        #sizePolicy.setHorizontalStretch(1)
+        #sizePolicy.setVerticalStretch(1)
+        #sizePolicy.setHorizontalPolicy(QSizePolicy.Preferred)
+        #sizePolicy.setVerticalPolicy(QSizePolicy.Preferred)
+        #self.setSizePolicy(sizePolicy)
         
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -121,12 +141,31 @@ class IconButton(BaseButton):
         if len(self.iconData) == 2 and len(self.iconData[idx]):
             pixmap.loadFromData(self.iconData[idx], self.iconFormat[idx])
             painter.drawPixmap(self.rect(), pixmap)
-            
-            
+                     
+class LedButton(RoundButton):
+    def __init__(self, dia, turnOn = False, text = ("", ""), shortCut = "", parent=None):
+        QWidget.__init__(self,parent)
+        
+        super(LedButton, self).__init__(dia, turnOn, text, shortCut)
+        self.setCheckable(False)
 
-
-app = QApplication(sys.argv)
-QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
-demo = RoundButton(256, False, ("打开","关闭"))
-demo.show()
-app.exec_()
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
+    widget = QWidget()
+    ledButton = LedButton(30)
+    rectButton = RectButton(64, 30, False, ("打开","关闭"))
+    roundButton = RoundButton(30, False, ("打开","关闭"))
+    layout = QHBoxLayout()
+    layout.addWidget(rectButton)
+    layout.addWidget(RectButton(64, 30, False, ("打开","关闭")))
+    layout.addWidget(RectButton(64, 30, False, ("打开","关闭")))
+    layout.addWidget(RectButton(64, 30, False, ("打开","关闭")))
+    layout.addWidget(roundButton)
+    layout.addWidget(ledButton)
+    widget.setLayout(layout)
+    
+    ledButton.turnOn()
+    
+    widget.show()
+    app.exec_()
