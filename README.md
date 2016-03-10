@@ -1,16 +1,16 @@
-PyQt4Framework
+PyAppFramework
 ========
 
-PyQt4 Application Framework (Python 2.7)
+Python Application Framework (Python 2.7)
 
 ## Description
 
-A concise easy to use PyQt4 GUI Application Framework, make you build yourself PyQt application easier
+A concise easy to use PySide GUI Application Framework, make you build yourself application easier
 
 ## Request
 
 - Python 2.7 
-- PyQt4
+- PySide
 - tendo
 
 ## Feature
