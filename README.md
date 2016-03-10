@@ -13,6 +13,11 @@ A concise easy to use PySide GUI Application Framework, make you build yourself 
 - PySide
 - tendo
 
+## Modules
+
+- gui PySide base GUI elements
+
+
 ## Feature
 
 - Support Qt timerEvent、closeEvent
