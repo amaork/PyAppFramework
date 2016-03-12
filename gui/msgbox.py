@@ -1,28 +1,30 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import sys
 from PySide.QtGui import *
+from types import StringTypes
 
-__all__ = ['showQuestionBox', 'showMessageBox', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN']
-
+__all__ = ['showQuestionBox', 'showMessageBox', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
 
 # Message box types
 MB_TYPE_ERR = "error"
 MB_TYPE_INFO = "info"
 MB_TYPE_WARN = "warning"
-MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN)
+MB_TYPE_QUESTION = "question"
+MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN, MB_TYPE_QUESTION)
 
 
 def showQuestionBox(parent, title, context):
     """ Show a Question message box and return result
 
-    :param parent:Message parent
+    :param parent: Message parent
     :param title: Message title
     :param context: Message title
-    :return:
+    :return: if press ok return true, else return false
     """
 
     # Type check
-    if not isinstance(title, str) or not isinstance(context, str):
+    if not isinstance(title, StringTypes) or not isinstance(context, StringTypes):
         return False
 
     ret = QMessageBox.question(parent, parent.tr(title), parent.tr(context), QMessageBox.Ok | QMessageBox.Cancel)
@@ -42,7 +44,7 @@ def showMessageBox(parent, msg_type, context, title="", result=False):
     """
 
     # Type check
-    if msg_type not in MB_TYPES or not isinstance(title, str) or not isinstance(context, str):
+    if msg_type not in MB_TYPES or not isinstance(title, StringTypes) or not isinstance(context, StringTypes):
         return False
 
     # Using default title
@@ -55,5 +57,43 @@ def showMessageBox(parent, msg_type, context, title="", result=False):
         QMessageBox.critical(parent, parent.tr(title), parent.tr(context))
     elif msg_type == MB_TYPE_WARN:
         QMessageBox.warning(parent, parent.tr(title), parent.tr(context))
+    elif msg_type == MB_TYPE_QUESTION:
+        return showQuestionBox(parent, title, context)
 
     return result
+
+
+class DemoWidget(QWidget):
+    def __init__(self, parent=None):
+        super(DemoWidget, self).__init__(parent)
+
+        self.messageType = QComboBox()
+        for typeName in MB_TYPES:
+            self.messageType.addItem(typeName)
+
+        self.titleEdit = QLineEdit("Message Title")
+        self.contextEdit = QLineEdit("This is message context")
+        self.contextEdit.setMaximumWidth(300)
+        self.showMessage = QPushButton("Show Message")
+        self.showMessage.clicked.connect(self.slotShowMessageBox)
+
+        layout = QHBoxLayout()
+        layout.addWidget(QLabel("Select message type"))
+        layout.addWidget(self.messageType)
+        layout.addWidget(self.titleEdit)
+        layout.addWidget(self.contextEdit)
+        layout.addWidget(self.showMessage)
+
+        self.setLayout(layout)
+        self.setWindowTitle("MessageBox Demo")
+
+    def slotShowMessageBox(self):
+        showMessageBox(self, self.messageType.currentText().encode("ascii"),
+                       self.contextEdit.text().encode("ascii"), self.titleEdit.text().encode("ascii"))
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = DemoWidget()
+    window.show()
+    sys.exit(app.exec_())

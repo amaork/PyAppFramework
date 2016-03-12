@@ -41,9 +41,11 @@ class TextButton(BaseButton):
     def __init__(self, width, height, turnOn=False, text=("", ""), shortCut=""):
         super(TextButton, self).__init__(width, height, turnOn, shortCut)
         self.text = text
+        self.setText(text[turnOn])
         self.drawColor = (Qt.red, Qt.green)
         self.textColor = (Qt.white, Qt.black)
         self.textLength = max(len(self.text[0]), len(self.text[1]), 1)
+        self.clicked.connect(self.slotChangeText)
 
     def drawText(self, painter, rect):
         painter.setPen(self.textColor[self.getState()])
@@ -55,6 +57,12 @@ class TextButton(BaseButton):
 
     def getState(self):
         return self.isChecked() if self.isCheckable() else self.on
+
+    def slotChangeText(self):
+        if self.getState():
+            self.setText(self.text[1])
+        else:
+            self.setText(self.text[0])
 
 
 class RectButton(TextButton):
@@ -142,12 +150,13 @@ if __name__ == '__main__':
     widget = QWidget()
     widget.setMinimumSize(400, 120)
     widget.setMaximumSize(400, 150)
+    widget.setWindowTitle("Button Demo")
 
     # Button
     rButton = RectButton(50, 50, False, ["R", "R"])
     gButton = RectButton(50, 50, False, ["G", "G"])
     bButton = RectButton(50, 50, False, ["B", "B"])
-    signalButton = RectButton(200, 50, False, ["Signal", "Signal"])
+    signalButton = TextButton(200, 50, False, ["Signal ON", "Signal OFF"])
     buttonGroup = (signalButton, rButton, gButton, bButton)
 
     # Led
@@ -172,4 +181,4 @@ if __name__ == '__main__':
     widget.setLayout(layout)
 
     widget.show()
-    app.exec_()
+    sys.exit(app.exec_())
