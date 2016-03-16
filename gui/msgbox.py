@@ -4,7 +4,8 @@ import sys
 from PySide.QtGui import *
 from types import StringTypes
 
-__all__ = ['showQuestionBox', 'showMessageBox', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
+__all__ = ['showQuestionBox', 'showMessageBox',
+           'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
 
 # Message box types
 MB_TYPE_ERR = "error"
@@ -61,39 +62,3 @@ def showMessageBox(parent, msg_type, context, title="", result=False):
         return showQuestionBox(parent, title, context)
 
     return result
-
-
-class DemoWidget(QWidget):
-    def __init__(self, parent=None):
-        super(DemoWidget, self).__init__(parent)
-
-        self.messageType = QComboBox()
-        for typeName in MB_TYPES:
-            self.messageType.addItem(typeName)
-
-        self.titleEdit = QLineEdit("Message Title")
-        self.contextEdit = QLineEdit("This is message context")
-        self.contextEdit.setMaximumWidth(300)
-        self.showMessage = QPushButton("Show Message")
-        self.showMessage.clicked.connect(self.slotShowMessageBox)
-
-        layout = QHBoxLayout()
-        layout.addWidget(QLabel("Select message type"))
-        layout.addWidget(self.messageType)
-        layout.addWidget(self.titleEdit)
-        layout.addWidget(self.contextEdit)
-        layout.addWidget(self.showMessage)
-
-        self.setLayout(layout)
-        self.setWindowTitle("MessageBox Demo")
-
-    def slotShowMessageBox(self):
-        showMessageBox(self, self.messageType.currentText().encode("ascii"),
-                       self.contextEdit.text().encode("ascii"), self.titleEdit.text().encode("ascii"))
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = DemoWidget()
-    window.show()
-    sys.exit(app.exec_())
