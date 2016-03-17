@@ -14,13 +14,16 @@ import types
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'updateListWidget', 'updateTableWidget', 'ListWidgetDefStyle']
+__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget',
+           'updateListWidget', 'updateTableWidget', 'ListWidgetDefStyle']
 
 ListWidgetDefStyle = {"font": "Times New Roman", "size": 14, "color": QColor(51, 153, 255)}
 
 
 class PaintWidget(QWidget):
     def __init__(self, parent=None):
+        """Base class provide basic draw functions and get widget message """
+
         super(PaintWidget, self).__init__(parent)
 
     def getXRatio(self, maxValue):
@@ -48,30 +51,43 @@ class PaintWidget(QWidget):
         y = self.cursor().pos().y()
         return x, y
 
+    def getCursorLum(self):
+        """Get current cursor position luminance
+
+        :return:
+        """
+        x, y = self.getCursorPos()
+        color = QColor(QPixmap().grabWindow(self.winId()).toImage().pixel(x, y))
+        return max(color.red(), color.green(), color.blue())
+
     def getDynamicTextPos(self, fontSize, textSize):
         """Get dynamic text position
 
         :param fontSize: Font size
         :param textSize: Text length
-        :return:QPointF
+        :return:QPoint
+        :return:QPoint
         """
         if not isinstance(fontSize, int) or not isinstance(textSize, int):
-            return QPointF(self.width() / 2, self.height() / 2)
+            return QPoint(self.width() / 2, self.height() / 2)
 
         # Get mouse position
         x, y = self.getCursorPos()
 
+        # Offset
+        offset = 3
+
         if x < self.width() / 2:
-            tx = x + fontSize * 3
+            tx = x + fontSize * offset
         else:
-            tx = x - (textSize - 2) * fontSize
+            tx = x - (textSize + offset - 1) * fontSize
 
         if y < self.height() / 2:
-            ty = y + fontSize * 3
+            ty = y + fontSize * offset
         else:
-            ty = y - fontSize * 2
+            ty = y - fontSize * (offset - 1)
 
-        return QPointF(tx, ty)
+        return QPoint(tx, ty)
 
     def drawDynamicText(self, painter, font, color, text):
         """Draw dynamic text follow mouse movement
@@ -92,8 +108,11 @@ class PaintWidget(QWidget):
         painter.setPen(QPen(color))
         painter.drawText(self.getDynamicTextPos(font.pointSize(), len(text)), text)
 
+    def drawSquare(self, painter, color, start, side):
+        return self.drawRectangle(painter, color, start, side, side)
+
     def drawRectangle(self, painter, color, start, width, height):
-        """
+        """Draw Rectangle at start point
 
         :param painter:QPainter
         :param color: Rectangle background color
@@ -105,13 +124,25 @@ class PaintWidget(QWidget):
         if not isinstance(painter, QPainter) or not self.isColor(color):
             return False
 
-        if not isinstance(start, QPointF) or not self.isValidWidth(width) or not self.isValidHeight(height):
+        if not isinstance(start, QPoint) or not self.isValidWidth(width) or not self.isValidHeight(height):
             return False
 
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(QColor(color)))
         painter.drawRect(start.x(), start.y(), width, height)
         return True
+
+    def drawCenterRect(self, painter, color, width, height):
+        if not self.isValidWidth(width) or not self.isValidHeight(height):
+            return False
+
+        x = self.rect().center().x()
+        y = self.rect().center().y()
+        start = QPoint(x - width / 2, y - height / 2)
+        return self.drawRectangle(painter, color, start, width, height)
+
+    def drawCenterSquare(self, painter, color, side):
+        return self.drawCenterRect(painter, color, side, side)
 
     def drawBackground(self, painter, color):
         if not isinstance(painter, QPainter) or not self.isColor(color):
@@ -139,7 +170,7 @@ class PaintWidget(QWidget):
             return False
 
         painter.setPen(QPen(color))
-        painter.drawLine(QPointF(xs, y), QPointF(xe, y))
+        painter.drawLine(QPoint(xs, y), QPoint(xe, y))
 
     def drawVerticalLine(self, painter, color, x, ys, ye):
         """
@@ -158,7 +189,40 @@ class PaintWidget(QWidget):
             return False
 
         painter.setPen(QPen(color))
-        painter.drawLine(QPointF(x, ys), QPointF(x, ye))
+        painter.drawLine(QPoint(x, ys), QPoint(x, ye))
+
+    @staticmethod
+    def adjustColorBrightness(color, brightness):
+        """Adjust color brightness
+
+        :param color: QColor
+        :param brightness: brightness value (0 - 255)
+        :return:success return after just color, else Qt.back
+        """
+
+        if not PaintWidget.isColor(color) or not PaintWidget.isNumber(brightness):
+            return QColor(Qt.black)
+
+        if brightness < 0 or brightness > 255:
+            return QColor(Qt.black)
+
+        color = QColor(color)
+        if color.black():
+            color.setRed(255 - brightness)
+            color.setGreen(255 - brightness)
+            color.setBlue(255 - brightness)
+            return color
+
+        if color.red():
+            color.setRed(brightness)
+
+        if color.green():
+            color.setGreen(brightness)
+
+        if color.blue():
+            color.setBlue(brightness)
+
+        return color
 
     @staticmethod
     def isColor(color):
@@ -208,13 +272,25 @@ class PaintWidget(QWidget):
 class ColorWidget(PaintWidget):
     colorMax = 255.0
 
-    # When color changed will send is signal
+    # When color changed will send is signal, r, g, b value
     colorChanged = Signal(int, int, int)
 
     # When mouse release send this signal
     colorStopChange = Signal(int, int, int)
 
     def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+        """Color grab widget double click mouse left button change color, mouse horizontal move change color brightness
+
+        ColorWidget provide two signal 'colorChanged' and 'colorStopChange', when mouse horizontal moved, the color
+        will changed, the 'colorChanged' signal will send. 'colorStopChange' signal will send when the mouse is stop .
+
+        Signal: colorChanged(int r, int g, int b)
+        Signal: colorStopChange(int r, int g, int b)
+
+        :param font: Color r, g, b value display font
+        :param parent:
+        :return:None double click mouse right button will exit
+        """
         super(ColorWidget, self).__init__(parent)
         # Enter full screen mode
         self.showFullScreen()
@@ -231,10 +307,6 @@ class ColorWidget(PaintWidget):
                            (Qt.magenta, Qt.white), (Qt.yellow, Qt.black), (Qt.white, Qt.black), (Qt.black, Qt.white)]
 
     def getColor(self):
-        """Get a color from color table
-
-        :return:
-        """
         self.colorIndex += 1
         if self.colorIndex >= len(self.colorTable):
             self.colorIndex = 0
@@ -272,10 +344,11 @@ class ColorWidget(PaintWidget):
 
     def mouseReleaseEvent(self, ev):
         # Send color changed signal
-        value = self.getXRatio(self.colorMax)
-        color = ColorWidget.adjustColor(self.getBackgroundColor(), value)
-        self.colorChanged.emit(color.red(), color.green(), color.blue())
-        self.colorStopChange.emit(color.red(), color.green(), color.blue())
+        if ev.button() == Qt.LeftButton:
+            value = self.getXRatio(self.colorMax)
+            color = ColorWidget.adjustColorBrightness(self.getBackgroundColor(), value)
+            self.colorChanged.emit(color.red(), color.green(), color.blue())
+            self.colorStopChange.emit(color.red(), color.green(), color.blue())
 
     def mouseMoveEvent(self, ev):
         # Update re paint
@@ -284,7 +357,8 @@ class ColorWidget(PaintWidget):
     def paintEvent(self, ev):
         painter = QPainter(self)
         value = self.getXRatio(self.colorMax)
-        color = ColorWidget.adjustColor(self.getBackgroundColor(), value)
+        color = ColorWidget.adjustColorBrightness(self.getBackgroundColor(), value)
+        textColor = Qt.white if self.getCursorLum() < 64 else self.getForegroundColor()
         text = "R:{0:d}, G:{1:d}, B{2:d}".format(color.red(), color.green(), color.blue())
 
         # Send color changed signal
@@ -292,52 +366,7 @@ class ColorWidget(PaintWidget):
 
         # Draw cross line and cursor pos
         self.drawBackground(painter, color)
-        if value < 64:
-            color = QColor(Qt.white)
-        else:
-            color = self.getForegroundColor()
-
-        self.drawDynamicText(painter, self.font, color, text)
-
-    @staticmethod
-    def checkColor(color):
-        if not ColorWidget.isColor(color):
-            return None
-
-        if isinstance(color, Qt.GlobalColor):
-            color = QColor(color)
-
-        return color
-
-    @staticmethod
-    def analysisColor(color):
-        color = ColorWidget.checkColor(color)
-        if not isinstance(color, QColor):
-            return 0, 0, 0
-
-        return color.red() > 0, color.green() > 0, color.blue() > 0
-
-    @staticmethod
-    def adjustColor(color, value):
-        color = ColorWidget.checkColor(color)
-        if not isinstance(color, QColor):
-            return QColor(Qt.white)
-
-        if not isinstance(value, int) or (value < 0 or value > 255):
-            return color
-
-        colorSet = ColorWidget.analysisColor(color)
-
-        if colorSet[0]:
-            color.setRed(value)
-
-        if colorSet[1]:
-            color.setGreen(value)
-
-        if colorSet[2]:
-            color.setBlue(value)
-
-        return color
+        self.drawDynamicText(painter, self.font, textColor, text)
 
 
 class CursorWidget(ColorWidget):
@@ -348,27 +377,35 @@ class CursorWidget(ColorWidget):
     cursorStopChange = Signal(int, int)
 
     def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+        """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
+
+        CursorWidget provide two signal 'cursorChanged' and 'cursorStopChange', when mouse moved, the cursor position
+        will changed, the 'cursorChanged' signal will send. 'cursorStopChange' signal will send when the mouse is stop .
+
+        Signal: cursorChanged(int x, int y, int backgroundColor)
+        Signal: cursorStopChange(int x, int y, int backgroundColor)
+
+        1 signal inherited from ColorWidget: colorChanged
+
+        :param font:Cursor position display font
+        :param parent:
+        :return:
+        """
         super(CursorWidget, self).__init__(font, parent)
         self.color = (Qt.white, Qt.black)
         x, y = self.getCursorPos()
-        self.oldPos = QPoint(x, y)
-        self.oldColor = self.getBackgroundColor()
+        self.oldColor = self.getForegroundColor()
 
     def mouseReleaseEvent(self, ev):
-        # Only watch left button
-        if ev.button() == Qt.RightButton:
-            return
-
         # Send color changed signal
         if self.getBackgroundColor() != self.oldColor:
             color = self.getBackgroundColor()
             self.colorChanged.emit(color.red(), color.green(), color.blue())
 
         # Mouse release and cursor position changed send mouse pos
-        if ev.pos() != self.oldPos:
+        if ev.button() == Qt.LeftButton:
             x = ev.pos().x()
             y = ev.pos().y()
-            self.oldPos = ev.pos()
             self.cursorChanged.emit(x, y)
             self.cursorStopChange.emit(x, y)
 
@@ -392,6 +429,15 @@ class RgbWidget(PaintWidget):
     rgbChanged = Signal(bool, bool, bool)
 
     def __init__(self, parent=None):
+        """ RGB color control widget, double click the color zone will turn of or turn off this color.
+
+        When color states changed will send 'rgbChanged' signal
+
+        Signal:rgbChanged(bool rState, bool gState, bool bState)
+
+        :param parent:
+        :return:
+        """
         super(RgbWidget, self).__init__(parent)
         self.showFullScreen()
         self.rgb = [True, True, True]
@@ -414,7 +460,6 @@ class RgbWidget(PaintWidget):
 
         # Right button exit
         elif ev.button() == Qt.RightButton:
-            # self.rgbChanged.emit(self.rgb[0], self.rgb[1], self.rgb[2])
             self.close()
 
     def paintEvent(self, ev):
@@ -428,7 +473,125 @@ class RgbWidget(PaintWidget):
                 color = Qt.black
                 self.drawHorizontalLine(painter, QColor(Qt.white), idx * self.part - 1, 0, self.width())
 
-            self.drawRectangle(painter, color, QPointF(0, idx * self.part), self.width(), self.part)
+            self.drawRectangle(painter, color, QPoint(0, idx * self.part), self.width(), self.part)
+
+
+class LumWidget(PaintWidget):
+    # Lum max value
+    lumMax = 255.0
+
+    # When lum changed will send this signal hi, low, mode
+    lumChanged = Signal(int, int, int)
+    lumStopChange = Signal(int, int, int)
+
+    # Lum mode
+    CE1_MODE = 1
+    CE2_MODE = 2
+    LF_MODE = 3
+    UD_MODE = 4
+    CT_MODE = 5
+    LUM_MODE = (CE1_MODE, CE2_MODE, LF_MODE, UD_MODE, CT_MODE)
+
+    def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+        """Luminance grab widget, double click mouse left button change mode, mouse moved change windows Luminance
+
+        Press mouse left button, then move mouse will change the low luminance
+        Press mouse right button, then move mouse will change the high luminance
+
+        LumWidget provide 2 signal 'lumChanged' and 'lumStopChange', when mouse moved, the windows Luminance
+        will changed, the 'lumChanged' signal will send. 'lumStopChange' signal will send when the mouse is stop .
+
+        Signal: lumChanged(int hi, int low, int mode)
+        Signal: lumStopChange(int hi, int low, int mode)
+
+        :param font:Windows Luminance display font
+        :param parent:
+        :return:
+        """
+        super(LumWidget, self).__init__(parent)
+        self.showFullScreen()
+
+        if isinstance(font, QFont):
+            self.font = QFont("Times New Roman", 10)
+
+        # Default is center windows
+        self.lumIndex = 0
+        self.lumMode = self.CE1_MODE
+
+        # Default adjust low lum
+        self.adjustHigh = False
+        self.lum = [0, int(self.lumMax)]
+        self.oldLum = [int(self.lumMax), 0]
+
+    def getLumMode(self):
+        self.lumIndex += 1
+        if self.lumIndex >= len(self.LUM_MODE):
+            self.lumIndex = 0
+
+        return self.LUM_MODE[self.lumIndex]
+
+    def getLowLum(self):
+        return QColor(self.lum[0], self.lum[0], self.lum[0])
+
+    def getHighLum(self):
+        return QColor(self.lum[1], self.lum[1], self.lum[1])
+
+    def mouseMoveEvent(self, ev):
+        self.lum[self.adjustHigh] = self.getXRatio(self.lumMax)
+        self.update()
+
+    def mousePressEvent(self, ev):
+        # If left key press adjust low
+        if ev.button() == Qt.LeftButton:
+            self.adjustHigh = False
+        # Right button press adjust high
+        elif ev.button() == Qt.RightButton:
+            self.adjustHigh = True
+
+    def mouseReleaseEvent(self, ev):
+        if self.lum != self.oldLum:
+            self.oldLum = self.lum
+            self.lumChanged.emit(self.lum[1], self.lum[0], self.lumMode)
+            self.lumStopChange.emit(self.lum[1], self.lum[0], self.lumMode)
+
+    def mouseDoubleClickEvent(self, ev):
+        # Left button change background color
+        if ev.button() == Qt.LeftButton:
+            self.lumMode = self.getLumMode()
+            self.lum = [0, int(self.lumMax)]
+            self.update()
+
+        # Right button exit
+        elif ev.button() == Qt.RightButton:
+            self.close()
+
+    def paintEvent(self, ev):
+        painter = QPainter(self)
+        self.drawBackground(painter, self.getLowLum())
+        textColor = Qt.white if self.getCursorLum() < 64 else Qt.black
+        text = "Hi:{0:d} Low:{1:d}".format(int(self.lum[1]), int(self.lum[0]))
+
+        # Send lum changed signal
+        self.lumChanged.emit(self.lum[1], self.lum[0], self.lumMode)
+
+        if self.lumMode == self.CE1_MODE:
+            self.drawCenterSquare(painter, self.getHighLum(), self.height() / 2)
+        elif self.lumMode == self.CE2_MODE:
+            self.drawCenterRect(painter, self.getHighLum(), self.width() / 2, self.height() / 2)
+        elif self.lumMode == self.LF_MODE:
+            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width() / 2, self.height())
+        elif self.lumMode == self.UD_MODE:
+            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width(), self.height() / 2)
+        elif self.lumMode == self.CT_MODE:
+            side = self.height() / 7
+            self.drawBackground(painter, QColor(127, 127, 127))
+            self.drawCenterSquare(painter, self.getHighLum(), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side / 2, side), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side / 2, side * 5), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side * 2.5, side * 3), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 + side * 1.5, side * 3), side)
+
+        self.drawDynamicText(painter, self.font, textColor, text)
 
 
 def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):

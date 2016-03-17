@@ -95,48 +95,48 @@ class Demo(QMainWindow):
         super(Demo, self).__init__()
         frameStyle = QFrame.Sunken | QFrame.Panel
 
-        self.layout = QGridLayout()
-
         self.listWidget = ListDemoWidget()
         self.listWidget.setHidden(True)
         self.listLabel = QLabel()
         self.listLabel.setFrameStyle(frameStyle)
+        self.listButton = QPushButton("Get list")
+        self.listButton.clicked.connect(self.showWidget)
+        self.listWidget.itemSelected.connect(self.setItem)
 
         self.colorWidget = ColorWidget()
         self.colorWidget.setHidden(True)
         self.colorLabel = QLabel()
         self.colorLabel.setFrameStyle(frameStyle)
+        self.colorButton = QPushButton("Get color")
+        self.colorButton.clicked.connect(self.showWidget)
+        self.colorWidget.colorChanged.connect(self.setColor)
 
         self.cursorWidget = CursorWidget()
         self.cursorWidget.setHidden(True)
         self.cursorLabel = QLabel()
         self.cursorLabel.setFrameStyle(frameStyle)
+        self.cursorButton = QPushButton("Get cursor")
+        self.cursorButton.clicked.connect(self.showWidget)
+        self.cursorWidget.colorChanged.connect(self.setColor)
+        self.cursorWidget.cursorChanged.connect(self.setCursor)
 
         self.rgbWidget = RgbWidget()
         self.rgbWidget.setHidden(True)
         self.rgbLabel = QLabel()
         self.rgbLabel.setFrameStyle(frameStyle)
-
-        self.listButton = QPushButton("Get list")
-
-        self.colorButton = QPushButton("Get color")
-        self.colorButton.setToolTip("Double click exit")
-
-        self.cursorButton = QPushButton("Get cursor")
-        self.cursorButton.setToolTip("Double click exit")
-
-        self.rgbButton = QPushButton("Get rgb state")
-
+        self.rgbButton = QPushButton("Get rgb")
         self.rgbButton.clicked.connect(self.showWidget)
-        self.listButton.clicked.connect(self.showWidget)
-        self.colorButton.clicked.connect(self.showWidget)
-        self.cursorButton.clicked.connect(self.showWidget)
-        self.rgbWidget.rgbChanged.connect(self.setRGB)
-        self.listWidget.itemSelected.connect(self.setItem)
-        self.colorWidget.colorChanged.connect(self.setColor)
-        self.cursorWidget.colorChanged.connect(self.setColor)
-        self.cursorWidget.cursorChanged.connect(self.setCursor)
+        self.rgbWidget.rgbChanged.connect(self.setRgb)
 
+        self.lumWidget = LumWidget()
+        self.lumWidget.setHidden(True)
+        self.lumLabel = QLabel()
+        self.lumLabel.setFrameStyle(frameStyle)
+        self.lumButton = QPushButton("Get lum")
+        self.lumButton.clicked.connect(self.showWidget)
+        self.lumWidget.lumChanged.connect(self.setLum)
+
+        self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
         self.layout.addWidget(self.colorButton, 1, 0)
@@ -145,6 +145,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.cursorLabel, 2, 1)
         self.layout.addWidget(self.rgbButton, 3, 0)
         self.layout.addWidget(self.rgbLabel, 3, 1)
+        self.layout.addWidget(self.lumButton, 4, 0)
+        self.layout.addWidget(self.lumLabel, 4, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -159,15 +161,20 @@ class Demo(QMainWindow):
             self.cursorWidget.setHidden(False)
         elif self.sender() == self.rgbButton:
             self.rgbWidget.setHidden(False)
+        elif self.sender() == self.lumButton:
+            self.lumWidget.setHidden(False)
 
-    def setRGB(self, r, g, b):
-        self.rgbLabel.setText("R:{0:b} G:{1:b} B{2:b}".format(r, g, b))
+    def setLum(self, hi, low, mode):
+        self.lumLabel.setText("M:{0:d} Hi:{1:d} Low:{2:d}".format(mode, hi, low))
+
+    def setRgb(self, r, g, b):
+        self.rgbLabel.setText("R:{0:b} G:{1:b} B:{2:b}".format(r, g, b))
 
     def setItem(self, item):
         self.listLabel.setText(item)
 
     def setColor(self, r, g, b):
-        self.colorLabel.setText("R:{0:d} G{1:d} B{2:d}".format(r, g, b))
+        self.colorLabel.setText("R:{0:d} G:{1:d} B:{2:d}".format(r, g, b))
 
     def setCursor(self, x, y):
         self.cursorLabel.setText("X:{0:d} Y:{1:d}".format(x, y))
