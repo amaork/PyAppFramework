@@ -6,15 +6,16 @@ Class Tree
 PaintWidget
     |------RgbWidget
     |------LumWidget
+    |------ImageWidget
     |------ColorWidget
                 |------CursorWidget
 """
-
 import types
+import os.path
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget',
+__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'updateListWidget', 'updateTableWidget', 'ListWidgetDefStyle']
 
 ListWidgetDefStyle = {"font": "Times New Roman", "size": 14, "color": QColor(51, 153, 255)}
@@ -89,6 +90,27 @@ class PaintWidget(QWidget):
 
         return QPoint(tx, ty)
 
+    def drawCenterText(self, painter, font, color, text):
+        """Draw dynamic text follow mouse movement
+
+        :param painter:
+        :param font: Text Font
+        :param color: Text color
+        :param text: draw text
+        :return:
+        """
+        if not isinstance(painter, QPainter) or not isinstance(font, QFont) or not self.isColor(color):
+            print "TypeError"
+            return False
+
+        if not isinstance(text, types.StringTypes):
+            print "TextError"
+            return False
+
+        painter.setFont(font)
+        painter.setPen(QPen(QColor(color)))
+        painter.drawText(self.rect(), Qt.AlignCenter, self.tr(text))
+
     def drawDynamicText(self, painter, font, color, text):
         """Draw dynamic text follow mouse movement
 
@@ -105,7 +127,7 @@ class PaintWidget(QWidget):
             return False
 
         painter.setFont(font)
-        painter.setPen(QPen(color))
+        painter.setPen(QPen(QColor(color)))
         painter.drawText(self.getDynamicTextPos(font.pointSize(), len(text)), text)
 
     def drawSquare(self, painter, color, start, side):
@@ -223,6 +245,52 @@ class PaintWidget(QWidget):
             color.setBlue(brightness)
 
         return color
+
+    @staticmethod
+    def getColorMode(color):
+        """Return color mode, blue -> 1, red -> 4 white -> 7
+
+        :param color:
+        :return:
+        """
+
+        if not PaintWidget.isColor(color):
+            return 0
+
+        mode = 0
+        color = QColor(color)
+
+        if color.red():
+            mode |= 4
+
+        if color.green():
+            mode |= 2
+
+        if color.blue():
+            mode |= 1
+
+        return mode
+
+    @staticmethod
+    def getRgbMode(r, g, b):
+        """From rgb to rgb mode (255, 0, 0) -> 4 (True, True, True) -> 7
+
+        :param r: Red color value or is red set boolean value
+        :param g: Green color value or is red set boolean value
+        :param b: Blue color value or is set boolean value
+        :return:
+        """
+        mode = 0
+        if r:
+            mode |= 4
+
+        if g:
+            mode |= 2
+
+        if b:
+            mode |= 1
+
+        return mode
 
     @staticmethod
     def isColor(color):
@@ -371,10 +439,10 @@ class ColorWidget(PaintWidget):
 
 class CursorWidget(ColorWidget):
     # When cursor changed will send this signal
-    cursorChanged = Signal(int, int)
+    cursorChanged = Signal(int, int, int)
 
     # When cursor stop changed will send this signal
-    cursorStopChange = Signal(int, int)
+    cursorStopChange = Signal(int, int, int)
 
     def __init__(self, font=QFont("Times New Roman", 10), parent=None):
         """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
@@ -393,7 +461,6 @@ class CursorWidget(ColorWidget):
         """
         super(CursorWidget, self).__init__(font, parent)
         self.color = (Qt.white, Qt.black)
-        x, y = self.getCursorPos()
         self.oldColor = self.getForegroundColor()
 
     def mouseReleaseEvent(self, ev):
@@ -406,8 +473,8 @@ class CursorWidget(ColorWidget):
         if ev.button() == Qt.LeftButton:
             x = ev.pos().x()
             y = ev.pos().y()
-            self.cursorChanged.emit(x, y)
-            self.cursorStopChange.emit(x, y)
+            self.cursorChanged.emit(x, y, self.getColorMode(self.getBackgroundColor()))
+            self.cursorStopChange.emit(x, y, self.getColorMode(self.getBackgroundColor()))
 
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -415,7 +482,7 @@ class CursorWidget(ColorWidget):
         text = "X:{0:d}, Y:{1:d}".format(x, y)
 
         # Cursor changed
-        self.cursorChanged.emit(x, y)
+        self.cursorChanged.emit(x, y, self.getColorMode(self.getBackgroundColor()))
 
         # Draw cross line and cursor pos
         self.drawBackground(painter, self.getBackgroundColor())
@@ -592,6 +659,135 @@ class LumWidget(PaintWidget):
             self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 + side * 1.5, side * 3), side)
 
         self.drawDynamicText(painter, self.font, textColor, text)
+
+
+class ImageWidget(PaintWidget):
+    def __init__(self, width=0, height=0, zoomIn=False, parent=None):
+        """ImageWidget provide 3 method to draw a image
+
+        drawFromFs  :   load a image from filesystem and show it
+        drawFromMem :   load a image form memory data and show it
+        drawFromText:   Dynamic draw a image with text
+
+        :param width:
+        :param height:
+        :param zoomIn:
+        :param parent:
+        :return:
+        """
+        super(ImageWidget, self).__init__(parent)
+        self.supportFormats = [str(name) for name in QImageReader.supportedImageFormats()]
+
+        # Default setting
+        self.text = ""
+        self.textColor = Qt.black
+        self.bgColor = Qt.lightGray
+        self.textFont = QFont("Times New Roman", width/16)
+
+        # Draw image using
+        self.image = QImage()
+
+        # For grab cursor position pixel
+        self.zoomIn = zoomIn
+        self.zoomInFlag = False
+        self.zoomInPattern = QPixmap()
+
+        self.setMinimumSize(width, height)
+        self.setMaximumSize(width, height)
+
+    @Slot(str)
+    def drawFromFs(self, filePath):
+        """Load a image from filesystem, then display it
+
+        :param filePath: Image file path
+        :return:
+        """
+        if not isinstance(filePath, types.StringTypes) or not os.path.isfile(filePath):
+            print "File path:{0:s} is not exist!".format(filePath)
+            return False
+
+        image = QImageReader(filePath)
+        if not len(image.format()):
+            print "File is not a image file:{0:s}".format(image.errorString())
+            return False
+
+        # Load image file to memory
+        self.image = image.read()
+        self.update()
+        return True
+
+    @Slot(object, object)
+    def drawFromMem(self, data, imageFormat="bmp"):
+        """Load image form memory
+
+        :param data: Image data
+        :param imageFormat: Image format
+        :return:
+        """
+        if not isinstance(data, str) or len(data) == 0:
+            print "Invalid image data:{0:s}".format(type(data))
+            return False
+
+        if not isinstance(imageFormat, str) or imageFormat not in self.supportFormats:
+            print "Invalid image format:{0:s}".format(imageFormat)
+            return False
+
+        # Clear loadImageFromFs data
+        self.image = QImage.fromData(data, imageFormat)
+        self.update()
+        return True
+
+    @Slot(str)
+    def drawFromText(self, text, textColor=Qt.black, bgColor=Qt.lightGray, fontSize=40):
+        """Draw a text message in the center of the widget
+
+        :param text: Text context
+        :param textColor: Text color
+        :param bgColor: Widget background color
+        :param fontSize: fontSize
+        :return:
+        """
+        if not isinstance(text, types.StringTypes):
+            print "Text is not a string:{0:s}".format(type(text))
+            return False
+
+        if len(text) == 0:
+            return False
+
+        if self.isColor(bgColor):
+            self.bgColor = bgColor
+
+        if self.isColor(textColor):
+            self.textColor = textColor
+
+        if isinstance(fontSize, int):
+            self.textFont.setPointSize(fontSize)
+
+        # From text max length get max text size
+        textMaxLength = max([len(t) for t in text.split('\n')])
+        fontMaxWidth = round(self.width() / textMaxLength)
+
+        if self.textFont.pointSize() > fontMaxWidth:
+            self.textFont.setPointSize(fontMaxWidth)
+
+        if all(ord(c) < 128 for c in text):
+            self.text = str(text)
+        else:
+            self.text = text.encode("utf-8")
+
+        self.image = QImage()
+        self.update()
+
+    def paintEvent(self, ev):
+        painter = QPainter(self)
+
+        # Is image show it
+        if not self.image.isNull():
+            painter.drawImage(self.rect(), self.image)
+        # Draw text and show
+        else:
+            self.drawBackground(painter, self.bgColor)
+            self.drawCenterText(painter, self.textFont, self.textColor, self.text)
 
 
 def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):

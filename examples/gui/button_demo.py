@@ -38,7 +38,13 @@ class DemoWidget(QWidget):
         if buttonText == "RoundButton":
             button = RoundButton(200, text=buttonTextGroup)
         elif buttonText == "IconButton":
-            files, _ = QFileDialog.getOpenFileNames(self, "Select icon images", "", "All Files (*)")
+            all  = ""
+            for name in  QImageReader.supportedImageFormats():
+                all += "*.{0:s} ".format(name)
+            files, _ = QFileDialog.getOpenFileNames(self,
+                                                    "Select icon images",
+                                                    "../images",
+                                                    "Images({0:s})".format(all))
             if len(files) == 2:
                 button = IconButton(icon=(files[0], files[1]))
         else:

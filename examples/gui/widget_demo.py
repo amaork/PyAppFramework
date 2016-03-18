@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 sys.path.append("../../../")
 from PyAppFramework.gui.widget import *
@@ -7,7 +8,7 @@ from PySide.QtCore import *
 
 
 class ListDemoWidget(QWidget):
-    itemSelected = Signal(str)
+    itemSelected = Signal(str, QColor, QColor, int)
 
     def __init__(self, parent=None):
         super(ListDemoWidget, self).__init__(parent)
@@ -91,6 +92,10 @@ class ListDemoWidget(QWidget):
 
 
 class Demo(QMainWindow):
+    drawText = Signal(str)
+    drawFromFs = Signal(str)
+    drawFromMem = Signal(object, object)
+
     def __init__(self):
         super(Demo, self).__init__()
         frameStyle = QFrame.Sunken | QFrame.Panel
@@ -136,6 +141,27 @@ class Demo(QMainWindow):
         self.lumButton.clicked.connect(self.showWidget)
         self.lumWidget.lumChanged.connect(self.setLum)
 
+        self.imageWidget = ImageWidget(640, 480)
+        self.imageWidget.setHidden(True)
+
+        self.imageFsLabel = QLabel()
+        self.imageFsLabel.setFrameStyle(frameStyle)
+        self.imageFsButton = QPushButton("Show image(fs)")
+        self.imageFsButton.clicked.connect(self.showImage)
+        self.drawFromFs.connect(self.imageWidget.drawFromFs)
+
+        self.imageMemLabel = QLabel()
+        self.imageMemLabel.setFrameStyle(frameStyle)
+        self.imageMemButton = QPushButton("Show image(mem)")
+        self.imageMemButton.clicked.connect(self.showImage)
+        self.drawFromMem.connect(self.imageWidget.drawFromMem)
+
+        self.imageTextLabel = QLabel()
+        self.imageTextLabel.setFrameStyle(frameStyle)
+        self.imageTextButton = QPushButton("Show image(text)")
+        self.imageTextButton.clicked.connect(self.showImage)
+        self.drawText.connect(self.imageWidget.drawFromText)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -147,6 +173,12 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.rgbLabel, 3, 1)
         self.layout.addWidget(self.lumButton, 4, 0)
         self.layout.addWidget(self.lumLabel, 4, 1)
+        self.layout.addWidget(self.imageFsButton, 5, 0)
+        self.layout.addWidget(self.imageFsLabel, 5, 1)
+        self.layout.addWidget(self.imageMemButton, 6, 0)
+        self.layout.addWidget(self.imageMemLabel, 6, 1)
+        self.layout.addWidget(self.imageTextButton, 7, 0)
+        self.layout.addWidget(self.imageTextLabel, 7, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -164,6 +196,29 @@ class Demo(QMainWindow):
         elif self.sender() == self.lumButton:
             self.lumWidget.setHidden(False)
 
+    def showImage(self):
+        if self.sender() == self.imageFsButton:
+            file, _ = QFileDialog.getOpenFileName(self, "Select image", "../images", "All Files (*)")
+            self.drawFromFs.emit(file)
+            self.imageWidget.setHidden(False)
+        elif self.sender() == self.imageMemButton:
+            file, _ = QFileDialog.getOpenFileName(self, "Select image", "../images", "All Files (*)")
+            if os.path.isfile(file):
+                data = ""
+                with open(file, "rb") as fp:
+                    data = fp.read()
+
+                image = QImageReader(file)
+                self.drawFromMem.emit(data, str(image.format()))
+                # self.imageWidget.drawFromMem(data, str(image.format()))
+                self.imageWidget.setHidden(False)
+        elif self.sender() == self.imageTextButton:
+            text, ok = QInputDialog.getText(self, "Please enter text", "Text:",
+                                        QLineEdit.Normal, QDir.home().dirName())
+            if ok:
+                self.drawText.emit(text)
+                self.imageWidget.setHidden(False)
+
     def setLum(self, hi, low, mode):
         self.lumLabel.setText("M:{0:d} Hi:{1:d} Low:{2:d}".format(mode, hi, low))
 
@@ -176,11 +231,12 @@ class Demo(QMainWindow):
     def setColor(self, r, g, b):
         self.colorLabel.setText("R:{0:d} G:{1:d} B:{2:d}".format(r, g, b))
 
-    def setCursor(self, x, y):
-        self.cursorLabel.setText("X:{0:d} Y:{1:d}".format(x, y))
+    def setCursor(self, x, y, colorMode):
+        self.cursorLabel.setText("C:{0:d} X:{1:d} Y:{2:d}".format(colorMode, x, y))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     window = Demo()
     window.show()
     sys.exit(app.exec_())
