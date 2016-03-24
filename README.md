@@ -17,16 +17,14 @@ A concise easy to use PySide GUI Application Framework, make you build yourself 
 
 
 ## Feature
-
-- Support Qt timerEvent、closeEvent
-- StatusBar support custom message display (color,timeout)
-- QFileDialog support Chinese path, easy get file open/save path
-- Simple UiMailBox (FIFO) inside, support several message type, make async comm easier
-
+- Cross-platform: Windows、Linux、Mac OS X
+- Provide several self define Qt widget, make create cross platform application more easier and fast
+- Provide several internet and serial basic protocol, you can base this build more complex up level protocol
 
 ## Modules
 
-- gui PySide base GUI elements
+- gui: PySide base self define GUI elements
+- protocol: basic internet and serial protocol
 
 
 
