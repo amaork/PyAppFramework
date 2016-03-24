@@ -232,7 +232,7 @@ class Demo(QMainWindow):
         self.colorLabel.setText("R:{0:d} G:{1:d} B:{2:d}".format(r, g, b))
 
     def setCursor(self, x, y, colorMode):
-        self.cursorLabel.setText("C:{0:d} X:{1:d} Y:{2:d}".format(colorMode, x, y))
+        self.cursorLabel.setText("C:{0:x} X:{1:d} Y:{2:d}".format(colorMode, x, y))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

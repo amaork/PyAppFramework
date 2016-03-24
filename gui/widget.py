@@ -272,6 +272,14 @@ class PaintWidget(QWidget):
         return mode
 
     @staticmethod
+    def getColorRawValue(color):
+        if not PaintWidget.isColor(color):
+            return 0
+
+        color = QColor(color)
+        return color.rgb() & 0xffffff
+
+    @staticmethod
     def getRgbMode(r, g, b):
         """From rgb to rgb mode (255, 0, 0) -> 4 (True, True, True) -> 7
 
@@ -473,8 +481,8 @@ class CursorWidget(ColorWidget):
         if ev.button() == Qt.LeftButton:
             x = ev.pos().x()
             y = ev.pos().y()
-            self.cursorChanged.emit(x, y, self.getColorMode(self.getBackgroundColor()))
-            self.cursorStopChange.emit(x, y, self.getColorMode(self.getBackgroundColor()))
+            self.cursorChanged.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
+            self.cursorStopChange.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
 
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -482,7 +490,7 @@ class CursorWidget(ColorWidget):
         text = "X:{0:d}, Y:{1:d}".format(x, y)
 
         # Cursor changed
-        self.cursorChanged.emit(x, y, self.getColorMode(self.getBackgroundColor()))
+        self.cursorChanged.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
 
         # Draw cross line and cursor pos
         self.drawBackground(painter, self.getBackgroundColor())
