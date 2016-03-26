@@ -8,6 +8,9 @@ import os
 import ftplib
 
 
+__all__ = ['FTPClient']
+
+
 class FTPClient(object):
     def __init__(self, addr, port=21, username="anonymous", password="anonymous@", timeout=30, verbose=False):
         """FTP client base ftplib, support recursive download, upload, delete whole directory
