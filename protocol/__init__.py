@@ -1,1 +1,1 @@
-__all__ = ['ftp', 'crc16']
+__all__ = ['ftp', 'crc16', 'stransfer']
