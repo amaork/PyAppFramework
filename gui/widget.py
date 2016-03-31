@@ -3,6 +3,8 @@
 """
 Class Tree
 
+TableWidget
+
 PaintWidget
     |------RgbWidget
     |------LumWidget
@@ -15,10 +17,14 @@ import os.path
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'updateListWidget', 'updateTableWidget', 'ListWidgetDefStyle']
+__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget', 'TableWidget',
+           'updateListWidget', 'ListWidgetDefStyle']
 
 ListWidgetDefStyle = {"font": "Times New Roman", "size": 14, "color": QColor(51, 153, 255)}
+
+
+def __type_error(correct, error):
+    print "TypeError, should be: {0:s}, actually is: {1:s}".format(type(correct), type(error))
 
 
 class PaintWidget(QWidget):
@@ -690,7 +696,7 @@ class ImageWidget(PaintWidget):
         self.text = ""
         self.textColor = Qt.black
         self.bgColor = Qt.lightGray
-        self.textFont = QFont("Times New Roman", width/16)
+        self.textFont = QFont("Times New Roman", width / 16)
 
         # Draw image using
         self.image = QImage()
@@ -798,6 +804,314 @@ class ImageWidget(PaintWidget):
             self.drawCenterText(painter, self.textFont, self.textColor, self.text)
 
 
+class TableWidget(QTableWidget):
+    def __init__(self, max_column, hide_header=False, parent=None):
+        """Create a QTableWidget
+
+        :param max_column: max column number
+        :param hide_header: hide vertical and horizontal header
+        :param parent:
+        :return:
+        """
+        super(TableWidget, self).__init__(parent)
+
+        self.setColumnCount(max_column)
+        self.hideHeaders(hide_header)
+
+    def __checkRow(self, row):
+        if not isinstance(row, int):
+            print "TypeError:{0:s}".format(type(row))
+            return False
+
+        if row >= self.rowCount() or row < 0:
+            print "Row range error, max row: {0:d}".format(self.rowCount())
+            return False
+
+        return True
+
+    def __checkColumn(self, column):
+        if not isinstance(column, int):
+            print "TypeError:{0:s}".format(type(column))
+            return False
+
+        if column >= self.columnCount() or column < 0:
+            print "Column range error, max column: {0:d}".format(self.columnCount())
+            return False
+
+        return True
+
+    @Slot(bool)
+    def hideHeaders(self, hide):
+        self.hideRowHeader(hide)
+        self.hideColumnHeader(hide)
+
+    @Slot(bool)
+    def hideRowHeader(self, hide):
+        self.verticalHeader().setVisible(not hide)
+
+    @Slot(bool)
+    def hideColumnHeader(self, hide):
+        self.horizontalHeader().setVisible(not hide)
+
+    def frozenItem(self, row, column, frozen):
+        """Frozen or unfroze a item
+
+        :param row: item row number
+        :param column: item column number
+        :param frozen: True -> Frozen, False -> Unfrozen
+        :return: True / False
+        """
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return False
+
+        flags = QTableWidgetItem("").flags()
+        flags = flags & ~Qt.ItemIsEditable if frozen else flags
+
+        item = self.takeItem(row, column)
+        item.setFlags(flags)
+        self.setItem(row, column, item)
+        return True
+
+    def frozenRow(self, row, frozen):
+        """Frozen or unfrozen a row item
+
+        :param row: row number start from 0
+        :param frozen: True -> Frozen, False -> Unfrozen
+        :return: True / False
+        """
+        for column in range(self.columnCount()):
+            if not self.frozenItem(row, column, frozen):
+                return False
+
+        return True
+
+    def frozenColumn(self, column, frozen):
+        """Frozen or unfrozen a column item
+
+        :param column: column number
+        :param frozen: True -> Frozen, False -> Unfrozen
+        :return: True / False
+        """
+        for row in range(self.rowCount()):
+            if not self.frozenItem(row, column, frozen):
+                return False
+
+        return True
+
+    def swapRow(self, src, dst):
+        """Swap src and dst row data
+
+        :param src: src row number
+        :param dst: dst row number
+        :return:
+        """
+        if not self.__checkRow(src):
+            print "Source row number[{0:d}] out of range".format(src)
+            return
+
+        if not self.__checkRow(dst):
+            print "Destination row number[0:d] out of range".format(dst)
+            return
+
+        for index in range(self.columnCount()):
+            src_item = self.takeItem(src, index)
+            dst_item = self.takeItem(dst, index)
+            self.setItem(src, index, dst_item)
+            self.setItem(dst, index, src_item)
+
+        # Select dst row
+        self.selectRow(dst)
+
+    def swapColumn(self, src, dst):
+        """Swap src and dst column data
+
+        :param src: source column number
+        :param dst: destination column number
+        :return:
+        """
+
+        if not self.__checkColumn(src):
+            print "Source column number[{0:d}] out of range".format(src)
+            return
+
+        if not self.__checkColumn(dst):
+            print "Destination column number[0:d] out of range".format(dst)
+            return
+
+        for index in range(self.rowCount()):
+            src_item = self.takeItem(index, src)
+            dst_item = self.takeItem(index, dst)
+            self.setItem(index, src, dst_item)
+            self.setItem(index, dst, src_item)
+
+        # Select destination column
+        self.selectColumn(dst)
+
+    @Slot()
+    def rowMoveUp(self):
+        row = self.currentRow()
+        if row == 0: return
+        self.swapRow(row, row - 1)
+
+    @Slot()
+    def rowMoveDown(self):
+        row = self.currentRow()
+        if row == self.rowCount() - 1: return
+        self.swapRow(row, row + 1)
+
+    @Slot()
+    def columnMoveLeft(self):
+        column = self.currentColumn()
+        if column == 0: return
+        self.swapColumn(column, column - 1)
+
+    @Slot()
+    def columnMoveRight(self):
+        column = self.currentColumn()
+        if column == self.columnCount() - 1: return
+        self.swapColumn(column, column + 1)
+
+    def addRow(self, data):
+        if not hasattr(data, "__iter__"):
+            print "TypeError: item should a iterable"
+            return False
+
+        if len(data) > self.columnCount():
+            print "Item length too much"
+            return False
+
+        # Increase row count
+        current = self.rowCount()
+        self.setRowCount(current + 1)
+
+        # Add data to row
+        for idx, item_data in enumerate(data):
+            try:
+
+                item = QTableWidgetItem(self.tr(str(item_data)))
+                self.setItem(current, idx, item)
+
+            except ValueError, e:
+
+                print "TableWidget addItem error: {0:s}".format(e)
+                continue
+
+        # Select current item
+        self.selectRow(current)
+
+    def setRowHeader(self, data):
+        if not hasattr(data, "__iter__"):
+            print "TypeError: item should a iterable"
+            return False
+
+        if len(data) > self.rowCount():
+            print "Item length too much"
+            return False
+
+        for row, text in enumerate(data):
+            if not isinstance(text, str): continue
+            self.takeVerticalHeaderItem(row)
+            header = QTableWidgetItem(self.tr(text))
+            self.setVerticalHeaderItem(row, header)
+
+        self.hideRowHeader(False)
+
+    def setColumnHeader(self, data):
+        if not hasattr(data, "__iter__"):
+            print "TypeError: item should a iterable"
+            return False
+
+        if len(data) > self.columnCount():
+            print "Item length too much"
+            return False
+
+        for column, text in enumerate(data):
+            if not isinstance(text, str): continue
+            self.takeHorizontalHeaderItem(column)
+            header = QTableWidgetItem(self.tr(text))
+            self.setHorizontalHeaderItem(column, header)
+
+        self.hideColumnHeader(False)
+
+    def setRowAlignment(self, row, alignment):
+        if not isinstance(alignment, Qt.AlignmentFlag):
+            print "TypeError:{0:s}".format(type(alignment))
+            return False
+
+        if not self.__checkRow(row):
+            return False
+
+        for column in range(self.columnCount()):
+            item = self.takeItem(row, column)
+            item.setTextAlignment(alignment)
+            self.setItem(row, column, item)
+
+        return True
+
+    def setColumnAlignment(self, column, alignment):
+        if not isinstance(alignment, Qt.AlignmentFlag):
+            print "TypeError:{0:s}".format(type(alignment))
+            return False
+
+        if not self.__checkColumn(column):
+            return False
+
+        for row in range(self.rowCount()):
+            item = self.takeItem(row, column)
+            item.setTextAlignment(alignment)
+            self.setItem(row, column, item)
+
+        return True
+
+    def setTableAlignment(self, alignment):
+        for row in range(self.rowCount()):
+            if not self.setRowAlignment(row, alignment):
+                return False
+
+        return True
+
+    @Slot()
+    def setRowSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+    @Slot()
+    def setItemSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectItems)
+
+    @Slot()
+    def setColumnSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectColumns)
+
+    def getRowData(self, row):
+        if not self.__checkRow(row):
+            return []
+
+        data = list()
+        for column in range(self.columnCount()):
+            item = self.item(row, column)
+            data.append(item.text())
+
+        return data
+
+    def getColumnData(self, column):
+        if not self.__checkColumn(column):
+            return []
+
+        data = list()
+        for row in range(self.rowCount()):
+            item = self.item(row, column)
+            data.append(item.text())
+
+        return data
+
+    def getTableData(self):
+        data = list()
+        for row in range(self.rowCount()):
+            data.append(self.getRowData(row))
+
+        return data
+
+
 def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):
     """Update QListWidget add items to widget and select item than call a callback function
 
@@ -856,52 +1170,3 @@ def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callbac
         callback(widget.currentItem())
 
     return selectRow
-
-
-def updateTableWidget(widget, rowSize, columnSize, data, select=0, style=ListWidgetDefStyle):
-    """Update QTableWidget
-
-    :param widget: QTableWidget
-    :param rowSize: table widget row size
-    :param columnSize: table widget column size
-    :param data: table data
-    :param select: default select table
-    :param style: select item
-    :return:
-    """
-
-    # Type check
-    if not isinstance(widget, QTableWidget) or not isinstance(rowSize, int) or not isinstance(columnSize, int):
-        print "TypeCheckError"
-        return False
-
-    # Data check
-    # print len(data), len(data[0]), rowSize, columnSize
-    if not hasattr(data, "__iter__") or len(data) != rowSize or len(data[0]) != columnSize:
-        print "TypeCheckError"
-        return False
-
-    # Set stylesheet
-    if isinstance(style, dict) and "font" in style and "size" in style:
-        widget.setFont(QFont(style.get("font"), style.get("size")))
-
-    # Set table size
-    widget.setRowCount(rowSize)
-    widget.setColumnCount(columnSize)
-
-    # Add data to table
-    item = ""
-    for row, rowData in enumerate(data):
-        for column, columnData in enumerate(rowData):
-            if isinstance(columnData, int):
-                item = "{0:d}".format(columnData)
-            elif isinstance(columnData, str):
-                item = columnData
-            elif isinstance(columnData, float):
-                item = "{0:.2f}".format(columnData)
-
-            widget.setItem(row, column, QTableWidgetItem(item))
-
-    # Select item
-    if select < widget.rowCount():
-        widget.selectRow(select)

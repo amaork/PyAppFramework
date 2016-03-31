@@ -91,6 +91,197 @@ class ListDemoWidget(QWidget):
         self.itemSelected.emit(text)
 
 
+class TableWidgetTest(QWidget):
+    def __init__(self, parent=None):
+        super(TableWidgetTest, self).__init__(parent)
+
+        # Create
+        self.new = QPushButton("Create")
+        self.new.clicked.connect(self.__slotCreateTable)
+        self.new_row = QPushButton("Create Row")
+        self.new_row.clicked.connect(self.__slotNewRow)
+
+        # Frozen/unfrozen row
+        self.frozen_row = QPushButton("Frozen Row")
+        self.frozen_row.clicked.connect(self.__slotFrozenRow)
+        self.unfrozen_row = QPushButton("Unfrozen Row")
+        self.unfrozen_row.clicked.connect(self.__slotUnfrozenRow)
+
+        # Frozen/unfrozen column
+        self.frozen_column = QPushButton("Frozen Column")
+        self.frozen_column.clicked.connect(self.__slotFrozenColumn)
+        self.unfrozen_column = QPushButton("Unfrozen Column")
+        self.unfrozen_column.clicked.connect(self.__slotUnfrozenColumn)
+
+        # Item move
+        self.row_move_up = QPushButton("Row move up")
+        self.row_move_down = QPushButton("Row move down")
+
+        self.column_move_left = QPushButton("Column move left")
+        self.column_move_right = QPushButton("Column move right")
+
+        self.set_row_header = QPushButton("Set row header")
+        self.set_row_header.clicked.connect(self.__slotSetRowHeader)
+        self.set_column_header = QPushButton("Set column header")
+        self.set_column_header.clicked.connect(self.__slotSetColumnHeader)
+
+        self.set_row_alignment = QPushButton("Set row alignment")
+        self.set_row_alignment.clicked.connect(self.__slotSetRowAlignment)
+        self.set_column_alignment = QPushButton("Set column alignment")
+        self.set_column_alignment.clicked.connect(self.__slotSetColumnAlignment)
+
+        self.set_center_alignment = QPushButton("Set AlignHCenter")
+        self.set_center_alignment.clicked.connect(self.__slotSetTableAlignHCenter)
+        self.set_justify_alignment = QPushButton("Set AlignJustify")
+        self.set_justify_alignment.clicked.connect(self.__slotSetTableAlignJustify)
+
+        self.set_row_select_mode = QPushButton("Set row select mode")
+        self.set_column_select_mode = QPushButton("Set column select mode")
+        self.set_item_select_mode = QPushButton("Set item select mode")
+
+        self.get_table_data = QPushButton("Get table data")
+        self.get_table_data.clicked.connect(self.__slotGetTableData)
+        self.get_row_data = QPushButton("Get row data")
+        self.get_row_data.clicked.connect(self.__slotGetRowData)
+        self.get_column_data = QPushButton("Get column data")
+        self.get_column_data.clicked.connect(self.__slotGetColumnData)
+
+        self.hide_row_header = QPushButton("Hide Row Header")
+        self.hide_row_header.setCheckable(True)
+        self.hide_column_header = QPushButton("Hide Column Header")
+        self.hide_column_header.setCheckable(True)
+
+
+        self.all_btn = (self.new, self.new_row,
+                        self.frozen_row, self.unfrozen_row,
+                        self.frozen_column, self.unfrozen_column,
+                        self.row_move_up, self.row_move_down,
+                        self.column_move_left, self.column_move_right,
+                        self.set_row_header, self.set_column_header,
+                        self.set_row_alignment, self.set_column_alignment,
+                        self.set_center_alignment, self.set_justify_alignment,
+                        self.set_row_select_mode, self.set_column_select_mode,
+                        self.set_item_select_mode, self.get_table_data,
+                        self.get_row_data, self.get_column_data,
+                        self.hide_row_header, self.hide_column_header)
+
+        self.table_layout = QVBoxLayout()
+        self.data = QTextEdit()
+        self.data.setMaximumHeight(100)
+        self.data.setHidden(True)
+        self.button_layout = QHBoxLayout()
+
+        for idx in range(0, len(self.all_btn), 2):
+            layout = QVBoxLayout()
+            for i in range(2):
+                btn = self.all_btn[idx + i]
+                btn.setDisabled(True)
+                layout.addWidget(btn)
+            self.button_layout.addLayout(layout)
+
+        self.new.setEnabled(True)
+
+        layout = QVBoxLayout()
+        layout.addLayout(self.table_layout)
+        layout.addLayout(self.button_layout)
+        self.setLayout(layout)
+        self.setWindowTitle("TableWidget Test")
+
+    def __get_text(self, title, lable):
+        text, ok = QInputDialog.getText(self, title, lable, QLineEdit.Normal, QDir.home().dirName())
+        return text if ok else "Header"
+
+    def __get_number(self, title, label, default, min_value, max_value):
+        i, ok = QInputDialog.getInteger(self, title, label, default, min_value, max_value, 1)
+        return i
+
+    def __slotCreateTable(self):
+        max_column = self.__get_number("Please enter max column number", "Column count", 5, 1, 100)
+        self.table = TableWidget(max_column, True)
+        self.table_layout.addWidget(self.table)
+        self.table_layout.addWidget(self.data)
+        self.data.setHidden(False)
+        self.row_move_up.clicked.connect(self.table.rowMoveUp)
+        self.row_move_down.clicked.connect(self.table.rowMoveDown)
+        self.column_move_left.clicked.connect(self.table.columnMoveLeft)
+        self.column_move_right.clicked.connect(self.table.columnMoveRight)
+        self.hide_row_header.toggled.connect(self.table.hideRowHeader)
+        self.hide_column_header.toggled.connect(self.table.hideColumnHeader)
+        self.set_row_select_mode.clicked.connect(self.table.setRowSelectMode)
+        self.set_item_select_mode.clicked.connect(self.table.setItemSelectMode)
+        self.set_column_select_mode.clicked.connect(self.table.setColumnSelectMode)
+        for btn in self.all_btn: btn.setEnabled(True)
+        self.new.setDisabled(True)
+
+    def __slotNewRow(self):
+        count = self.table.rowCount()
+        column = self.table.columnCount()
+        self.table.addRow(range(count * column, (count + 1) * column))
+
+    def __slotFrozenRow(self):
+        row = self.__get_number("Please enter will frozen row number:", "Row",
+                                1, 1, self.table.rowCount())
+        self.table.frozenRow(row - 1, True)
+
+    def __slotUnfrozenRow(self):
+        row = self.__get_number("Please enter will unfrozen row number:", "Row",
+                                1, 1, self.table.rowCount())
+        self.table.frozenRow(row - 1, False)
+
+    def __slotFrozenColumn(self):
+        column = self.__get_number("Please enter will frozen row number:", "Column",
+                                1, 1, self.table.columnCount())
+        self.table.frozenColumn(column - 1, True)
+
+    def __slotUnfrozenColumn(self):
+        column = self.__get_number("Please enter will unfrozen row number:", "Column",
+                                1, 1, self.table.columnCount())
+        self.table.frozenColumn(column - 1, False)
+
+    def __slotSetRowHeader(self):
+        text = self.__get_text("Please enter row header:", "Row header:")
+        headers = list()
+        for index in range(self.table.rowCount()):
+            headers.append("{0:s} {1:d}".format(text.encode("utf-8"), index))
+
+        self.table.setRowHeader(headers)
+
+    def __slotSetColumnHeader(self):
+        text = self.__get_text("Please enter column header:", "Column header:")
+        headers = list()
+        for index in range(self.table.columnCount()):
+            headers.append("{0:s} {1:d}".format(text.encode("utf-8"), index))
+
+        self.table.setColumnHeader(headers)
+
+    def __slotSetRowAlignment(self):
+        self.table.setRowAlignment(self.table.currentRow(), Qt.AlignCenter)
+
+    def __slotSetColumnAlignment(self):
+        self.table.setColumnAlignment(self.table.currentColumn(), Qt.AlignCenter)
+
+    def __slotSetTableAlignHCenter(self):
+        self.table.setTableAlignment(Qt.AlignCenter)
+
+    def __slotSetTableAlignJustify(self):
+        self.table.setTableAlignment(Qt.AlignJustify)
+
+    def __slotGetRowData(self):
+        data = [d.encode("utf-8") for d in self.table.getRowData(self.table.currentRow())]
+        self.data.setText("{0:s}".format(data))
+
+    def __slotGetColumnData(self):
+        data = [d.encode("utf-8") for d in self.table.getColumnData(self.table.currentColumn())]
+        self.data.setText("{0:s}".format(data))
+
+    def __slotGetTableData(self):
+        data = self.table.getTableData()
+        self.data.setText("")
+        for row in data:
+            row = [d.encode("utf-8") for d in row]
+            self.data.append("{0:s}".format(row))
+
+
 class Demo(QMainWindow):
     drawText = Signal(str)
     drawFromFs = Signal(str)
@@ -162,6 +353,13 @@ class Demo(QMainWindow):
         self.imageTextButton.clicked.connect(self.showImage)
         self.drawText.connect(self.imageWidget.drawFromText)
 
+        self.tableWidget = TableWidgetTest()
+        self.tableWidget.setHidden(True)
+        self.tableLabel = QLabel()
+        self.tableLabel.setFrameStyle(frameStyle)
+        self.tableButton = QPushButton("Get table")
+        self.tableButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -179,6 +377,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.imageMemLabel, 6, 1)
         self.layout.addWidget(self.imageTextButton, 7, 0)
         self.layout.addWidget(self.imageTextLabel, 7, 1)
+        self.layout.addWidget(self.tableButton, 8, 0)
+        self.layout.addWidget(self.tableLabel, 8, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -195,6 +395,8 @@ class Demo(QMainWindow):
             self.rgbWidget.setHidden(False)
         elif self.sender() == self.lumButton:
             self.lumWidget.setHidden(False)
+        elif self.sender() == self.tableButton:
+            self.tableWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
