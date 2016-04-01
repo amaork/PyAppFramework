@@ -146,6 +146,11 @@ class TableWidgetTest(QWidget):
         self.get_column_data = QPushButton("Get column data")
         self.get_column_data.clicked.connect(self.__slotGetColumnData)
 
+        self.set_row_as_int = QPushButton("Set row as int")
+        self.set_row_as_int.clicked.connect(self.__slotSetAsIntType)
+        self.set_row_as_double = QPushButton("Set row as double")
+        self.set_row_as_double.clicked.connect(self.__slotSetAsDoubleType)
+
         self.hide_row_header = QPushButton("Hide Row Header")
         self.hide_row_header.setCheckable(True)
         self.hide_column_header = QPushButton("Hide Column Header")
@@ -162,6 +167,7 @@ class TableWidgetTest(QWidget):
                         self.set_center_alignment, self.set_justify_alignment,
                         self.set_row_select_mode, self.set_column_select_mode,
                         self.set_item_select_mode, self.get_table_data,
+                        self.set_row_as_int, self.set_row_as_double,
                         self.get_row_data, self.get_column_data,
                         self.hide_row_header, self.hide_column_header)
 
@@ -212,6 +218,7 @@ class TableWidgetTest(QWidget):
         self.set_column_select_mode.clicked.connect(self.table.setColumnSelectMode)
         for btn in self.all_btn: btn.setEnabled(True)
         self.new.setDisabled(True)
+
 
     def __slotNewRow(self):
         count = self.table.rowCount()
@@ -281,6 +288,11 @@ class TableWidgetTest(QWidget):
             row = [d.encode("utf-8") for d in row]
             self.data.append("{0:s}".format(row))
 
+    def __slotSetAsIntType(self):
+        print self.table.setRowDataFilter(self.table.currentRow(), QSpinBox(), 1, 100)
+
+    def __slotSetAsDoubleType(self):
+        print self.table.setRowDataFilter(self.table.currentRow(), QDoubleSpinBox(), 0.1, 100.0)
 
 class Demo(QMainWindow):
     drawText = Signal(str)

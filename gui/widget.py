@@ -840,6 +840,15 @@ class TableWidget(QTableWidget):
 
         return True
 
+    def __copyWidget(self, widget):
+        if not isinstance(widget, QAbstractSpinBox):
+            return widget
+
+        temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
+        temp.setRange(widget.minimum(), widget.maximum())
+        temp.setValue(widget.value())
+        return temp
+
     @Slot(bool)
     def hideHeaders(self, hide):
         self.hideRowHeader(hide)
@@ -852,6 +861,42 @@ class TableWidget(QTableWidget):
     @Slot(bool)
     def hideColumnHeader(self, hide):
         self.horizontalHeader().setVisible(not hide)
+
+    @Slot()
+    def rowMoveUp(self):
+        row = self.currentRow()
+        if row == 0: return
+        self.swapRow(row, row - 1)
+
+    @Slot()
+    def rowMoveDown(self):
+        row = self.currentRow()
+        if row == self.rowCount() - 1: return
+        self.swapRow(row, row + 1)
+
+    @Slot()
+    def columnMoveLeft(self):
+        column = self.currentColumn()
+        if column == 0: return
+        self.swapColumn(column, column - 1)
+
+    @Slot()
+    def columnMoveRight(self):
+        column = self.currentColumn()
+        if column == self.columnCount() - 1:return
+        self.swapColumn(column, column + 1)
+
+    @Slot()
+    def setRowSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+    @Slot()
+    def setItemSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectItems)
+
+    @Slot()
+    def setColumnSelectMode(self):
+        self.setSelectionBehavior(QAbstractItemView.SelectColumns)
 
     def frozenItem(self, row, column, frozen):
         """Frozen or unfroze a item
@@ -870,6 +915,13 @@ class TableWidget(QTableWidget):
         item = self.takeItem(row, column)
         item.setFlags(flags)
         self.setItem(row, column, item)
+        return True
+
+    def frozenTable(self, frozen):
+        for row in range(self.rowCount()):
+            if not self.frozenRow(row, frozen):
+                return False
+
         return True
 
     def frozenRow(self, row, frozen):
@@ -898,6 +950,38 @@ class TableWidget(QTableWidget):
 
         return True
 
+    def swapItem(self, src_row, src_column, dst_row, dst_column):
+        if not self.__checkRow(src_row) or not self.__checkRow(dst_row):
+            print "Row number[{0:d}, {1:d}] out of range".format(src_row, dst_row)
+            return False
+
+        if not self.__checkColumn(src_column) or not self.__checkColumn(dst_column):
+            print "Column number[{0:d}, {1:d}] out of range".format(src_column, dst_column)
+            return False
+
+        src_item = self.takeItem(src_row, src_column)
+        src_widget = self.__copyWidget(self.cellWidget(src_row, src_column))
+
+        dst_item = self.takeItem(dst_row, dst_column)
+        dst_widget =self.__copyWidget(self.cellWidget(dst_row, dst_column))
+
+        if isinstance(src_widget, QWidget) and isinstance(dst_widget, QWidget):
+            self.removeCellWidget(src_row, src_column)
+            self.removeCellWidget(dst_row, dst_column)
+            self.setCellWidget(src_row, src_column, dst_widget)
+            self.setCellWidget(dst_row, dst_column, src_widget)
+        elif isinstance(src_widget, QWidget) and not isinstance(dst_widget, QWidget):
+            self.removeCellWidget(src_row, src_column)
+            self.setCellWidget(dst_row, dst_column, src_widget)
+            self.setItem(src_row, src_column, dst_item)
+        elif isinstance(dst_widget, QWidget) and not isinstance(src_widget, QWidget):
+            self.removeCellWidget(dst_row, dst_column)
+            self.setCellWidget(src_row, src_column, dst_widget)
+            self.setItem(dst_row, dst_column, src_item)
+        else:
+            self.setItem(src_row, src_column, dst_item)
+            self.setItem(dst_row, dst_column, src_item)
+
     def swapRow(self, src, dst):
         """Swap src and dst row data
 
@@ -905,19 +989,9 @@ class TableWidget(QTableWidget):
         :param dst: dst row number
         :return:
         """
-        if not self.__checkRow(src):
-            print "Source row number[{0:d}] out of range".format(src)
-            return
 
-        if not self.__checkRow(dst):
-            print "Destination row number[0:d] out of range".format(dst)
-            return
-
-        for index in range(self.columnCount()):
-            src_item = self.takeItem(src, index)
-            dst_item = self.takeItem(dst, index)
-            self.setItem(src, index, dst_item)
-            self.setItem(dst, index, src_item)
+        for column in range(self.columnCount()):
+            self.swapItem(src, column, dst, column)
 
         # Select dst row
         self.selectRow(dst)
@@ -930,46 +1004,11 @@ class TableWidget(QTableWidget):
         :return:
         """
 
-        if not self.__checkColumn(src):
-            print "Source column number[{0:d}] out of range".format(src)
-            return
-
-        if not self.__checkColumn(dst):
-            print "Destination column number[0:d] out of range".format(dst)
-            return
-
-        for index in range(self.rowCount()):
-            src_item = self.takeItem(index, src)
-            dst_item = self.takeItem(index, dst)
-            self.setItem(index, src, dst_item)
-            self.setItem(index, dst, src_item)
+        for row in range(self.rowCount()):
+           self.swapItem(row, src, row, dst)
 
         # Select destination column
         self.selectColumn(dst)
-
-    @Slot()
-    def rowMoveUp(self):
-        row = self.currentRow()
-        if row == 0: return
-        self.swapRow(row, row - 1)
-
-    @Slot()
-    def rowMoveDown(self):
-        row = self.currentRow()
-        if row == self.rowCount() - 1: return
-        self.swapRow(row, row + 1)
-
-    @Slot()
-    def columnMoveLeft(self):
-        column = self.currentColumn()
-        if column == 0: return
-        self.swapColumn(column, column - 1)
-
-    @Slot()
-    def columnMoveRight(self):
-        column = self.currentColumn()
-        if column == self.columnCount() - 1: return
-        self.swapColumn(column, column + 1)
 
     def addRow(self, data):
         if not hasattr(data, "__iter__"):
@@ -1009,7 +1048,8 @@ class TableWidget(QTableWidget):
             return False
 
         for row, text in enumerate(data):
-            if not isinstance(text, str): continue
+            if not isinstance(text, str):
+                continue
             self.takeVerticalHeaderItem(row)
             header = QTableWidgetItem(self.tr(text))
             self.setVerticalHeaderItem(row, header)
@@ -1026,7 +1066,8 @@ class TableWidget(QTableWidget):
             return False
 
         for column, text in enumerate(data):
-            if not isinstance(text, str): continue
+            if not isinstance(text, str):
+                continue
             self.takeHorizontalHeaderItem(column)
             header = QTableWidgetItem(self.tr(text))
             self.setHorizontalHeaderItem(column, header)
@@ -1070,46 +1111,74 @@ class TableWidget(QTableWidget):
 
         return True
 
-    @Slot()
-    def setRowSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+    def setItemDataFilter(self, row, column, filters, minimum, maximum):
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return False
 
-    @Slot()
-    def setItemSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectItems)
+        if not isinstance(filters, QAbstractSpinBox) or (type(minimum) != type(maximum)):
+            print "Filter TypeError:{0:s}".format(type(filters))
+            return False
 
-    @Slot()
-    def setColumnSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectColumns)
+        if type(maximum) != type(maximum):
+            print "Filter range error"
+            return False
+
+        data = QSpinBox() if isinstance(filters, QSpinBox) else QDoubleSpinBox()
+        data.setRange(minimum, maximum)
+        value = self.getItemData(row, column)
+        try:
+
+            value = int(value) if isinstance(filters, QSpinBox) else float(value)
+            data.setValue(value)
+
+        except ValueError, e:
+            pass
+
+        self.setCellWidget(row, column, data)
+        return True
+
+    def setRowDataFilter(self, row, filters, minimum, maximum):
+        for column in range(self.columnCount()):
+            if not self.setItemDataFilter(row, column, filters, minimum, maximum):
+                return False
+
+        return True
+
+    def setColumnDataFilter(self, column, filters, minimum, maximum):
+        for row in range(self.rowCount()):
+           if not self.setItemDataFilter(row, column, filters, minimum, maximum):
+                return False
+
+        return True
+
+    def setTableDataFilter(self, filters, minimum, maximum):
+        for row in range(self.rowCount()):
+            if not self.setRowDataFilter(row, filters, minimum, maximum):
+                return False
+
+        return True
+
+    def getItemData(self, row, column):
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return None
+
+        item = self.item(row, column)
+        widget = self.cellWidget(row, column)
+        if isinstance(widget, QSpinBox):
+            return str(widget.value())
+        elif isinstance(widget, QDoubleSpinBox):
+            return str(widget.value())
+        else:
+            return item.text()
 
     def getRowData(self, row):
-        if not self.__checkRow(row):
-            return []
-
-        data = list()
-        for column in range(self.columnCount()):
-            item = self.item(row, column)
-            data.append(item.text())
-
-        return data
+        return [self.getItemData(row, column) for column in range(self.columnCount())]
 
     def getColumnData(self, column):
-        if not self.__checkColumn(column):
-            return []
-
-        data = list()
-        for row in range(self.rowCount()):
-            item = self.item(row, column)
-            data.append(item.text())
-
-        return data
+        return [self.getItemData(row, column) for row in range(self.rowCount())]
 
     def getTableData(self):
-        data = list()
-        for row in range(self.rowCount()):
-            data.append(self.getRowData(row))
-
-        return data
+        return [self.getRowData(row) for row in range(self.rowCount())]
 
 
 def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):
