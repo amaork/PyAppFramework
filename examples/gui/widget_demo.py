@@ -151,6 +151,11 @@ class TableWidgetTest(QWidget):
         self.set_row_as_double = QPushButton("Set row as double")
         self.set_row_as_double.clicked.connect(self.__slotSetAsDoubleType)
 
+        self.set_row_as_bool = QPushButton("Set row as bool")
+        self.set_row_as_bool.clicked.connect(self.__slotSetAsBoolType)
+        self.set_row_as_list = QPushButton("Set row as list")
+        self.set_row_as_list.clicked.connect(self.__slotSetAsListType)
+
         self.hide_row_header = QPushButton("Hide Row Header")
         self.hide_row_header.setCheckable(True)
         self.hide_column_header = QPushButton("Hide Column Header")
@@ -168,6 +173,7 @@ class TableWidgetTest(QWidget):
                         self.set_row_select_mode, self.set_column_select_mode,
                         self.set_item_select_mode, self.get_table_data,
                         self.set_row_as_int, self.set_row_as_double,
+                        self.set_row_as_bool, self.set_row_as_list,
                         self.get_row_data, self.get_column_data,
                         self.hide_row_header, self.hide_column_header)
 
@@ -289,10 +295,16 @@ class TableWidgetTest(QWidget):
             self.data.append("{0:s}".format(row))
 
     def __slotSetAsIntType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), QSpinBox(), 1, 100)
+        print self.table.setRowDataFilter(self.table.currentRow(), (1, 100))
 
     def __slotSetAsDoubleType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), QDoubleSpinBox(), 0.1, 100.0)
+        print self.table.setRowDataFilter(self.table.currentRow(), (0.1, 100.0))
+
+    def __slotSetAsBoolType(self):
+        print self.table.setRowDataFilter(self.table.currentRow(), (False, "信号"))
+
+    def __slotSetAsListType(self):
+        print self.table.setRowDataFilter(self.table.currentRow(), ["VESA", "JEIDA", "VIMM"])
 
 class Demo(QMainWindow):
     drawText = Signal(str)

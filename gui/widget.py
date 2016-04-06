@@ -12,10 +12,14 @@ PaintWidget
     |------ColorWidget
                 |------CursorWidget
 """
+import sys
 import types
 import os.path
 from PySide.QtCore import *
 from PySide.QtGui import *
+sys.path.append("../../")
+from PyAppFramework.core.datatype import str2number, str2float
+
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget', 'TableWidget',
            'updateListWidget', 'ListWidgetDefStyle']
@@ -841,12 +845,24 @@ class TableWidget(QTableWidget):
         return True
 
     def __copyWidget(self, widget):
-        if not isinstance(widget, QAbstractSpinBox):
-            return widget
+        temp = widget
 
-        temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
-        temp.setRange(widget.minimum(), widget.maximum())
-        temp.setValue(widget.value())
+        if isinstance(widget, QAbstractSpinBox):
+            temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
+            temp.setRange(widget.minimum(), widget.maximum())
+            temp.setEnabled(widget.isEnabled())
+            temp.setValue(widget.value())
+        elif isinstance(widget, QCheckBox):
+            temp = QCheckBox()
+            temp.setText(widget.text())
+            temp.setChecked(widget.isChecked())
+            temp.setEnabled(widget.isEnabled())
+        elif isinstance(widget, QComboBox):
+            temp = QComboBox()
+            temp.addItems([widget.itemText(x) for x in range(widget.count())])
+            temp.setCurrentIndex(widget.currentIndex())
+            temp.setEnabled(widget.isEnabled())
+
         return temp
 
     @Slot(bool)
@@ -909,12 +925,21 @@ class TableWidget(QTableWidget):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
-        flags = QTableWidgetItem("").flags()
-        flags = flags & ~Qt.ItemIsEditable if frozen else flags
-
+        # Item
         item = self.takeItem(row, column)
-        item.setFlags(flags)
-        self.setItem(row, column, item)
+        if isinstance(item, QTableWidgetItem):
+            flags = QTableWidgetItem("").flags()
+            flags = flags & ~Qt.ItemIsEditable if frozen else flags
+            item.setFlags(flags)
+            self.setItem(row, column, item)
+
+        # Widget:
+        widget = self.__copyWidget(self.cellWidget(row, column))
+        if isinstance(widget, QWidget):
+            widget.setDisabled(frozen)
+            self.removeCellWidget(row, column)
+            self.setCellWidget(row, column, widget)
+
         return True
 
     def frozenTable(self, frozen):
@@ -965,22 +990,30 @@ class TableWidget(QTableWidget):
         dst_item = self.takeItem(dst_row, dst_column)
         dst_widget =self.__copyWidget(self.cellWidget(dst_row, dst_column))
 
+        # Both CellWidget
         if isinstance(src_widget, QWidget) and isinstance(dst_widget, QWidget):
             self.removeCellWidget(src_row, src_column)
             self.removeCellWidget(dst_row, dst_column)
             self.setCellWidget(src_row, src_column, dst_widget)
             self.setCellWidget(dst_row, dst_column, src_widget)
+        # Src is CellWidget dst is not
         elif isinstance(src_widget, QWidget) and not isinstance(dst_widget, QWidget):
             self.removeCellWidget(src_row, src_column)
             self.setCellWidget(dst_row, dst_column, src_widget)
-            self.setItem(src_row, src_column, dst_item)
+            if isinstance(dst_item, QTableWidgetItem):
+                self.setItem(src_row, src_column, dst_item)
+        # Dst is CellWidget src is not
         elif isinstance(dst_widget, QWidget) and not isinstance(src_widget, QWidget):
             self.removeCellWidget(dst_row, dst_column)
             self.setCellWidget(src_row, src_column, dst_widget)
-            self.setItem(dst_row, dst_column, src_item)
+            if isinstance(src_item, QTableWidgetItem):
+                self.setItem(dst_row, dst_column, src_item)
         else:
-            self.setItem(src_row, src_column, dst_item)
-            self.setItem(dst_row, dst_column, src_item)
+            if isinstance(dst_item, QTableWidgetItem):
+                self.setItem(src_row, src_column, dst_item)
+
+            if isinstance(src_item, QTableWidgetItem):
+                self.setItem(dst_row, dst_column, src_item)
 
     def swapRow(self, src, dst):
         """Swap src and dst row data
@@ -1010,7 +1043,14 @@ class TableWidget(QTableWidget):
         # Select destination column
         self.selectColumn(dst)
 
-    def addRow(self, data):
+    def addRow(self, data, property=None):
+        """Add a row and set row property data
+
+        :param data: row data should be a iterable object
+        :param property: row hidden property data
+        :return:
+        """
+
         if not hasattr(data, "__iter__"):
             print "TypeError: item should a iterable"
             return False
@@ -1027,7 +1067,12 @@ class TableWidget(QTableWidget):
         for idx, item_data in enumerate(data):
             try:
 
-                item = QTableWidgetItem(self.tr(str(item_data)))
+                if not isinstance(item_data, types.StringTypes):
+                    item_data = str(item_data)
+
+                item = QTableWidgetItem(self.tr(item_data))
+                if property:
+                    item.setData(Qt.UserRole, property)
                 self.setItem(current, idx, item)
 
             except ValueError, e:
@@ -1111,49 +1156,75 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def setItemDataFilter(self, row, column, filters, minimum, maximum):
+    def setItemDataFilter(self, row, column, filters):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
-        if not isinstance(filters, QAbstractSpinBox) or (type(minimum) != type(maximum)):
-            print "Filter TypeError:{0:s}".format(type(filters))
-            return False
-
-        if type(maximum) != type(maximum):
-            print "Filter range error"
-            return False
-
-        data = QSpinBox() if isinstance(filters, QSpinBox) else QDoubleSpinBox()
-        data.setRange(minimum, maximum)
-        value = self.getItemData(row, column)
         try:
 
-            value = int(value) if isinstance(filters, QSpinBox) else float(value)
-            data.setValue(value)
+            if isinstance(filters, tuple) and len(filters) == 2:
+                # Number type
+                if type(filters[0]) == type(filters[1]):
+                    if isinstance(filters[0], int):
+                        widget = QSpinBox()
+                    elif isinstance(filters[0], float):
+                        widget = QDoubleSpinBox()
+                    else:
+                        return False
 
-        except ValueError, e:
-            pass
+                    widget.setRange(filters[0], filters[1])
+                    value = self.getItemData(row, column).encode("utf-8")
+                    value = str2number(value) if isinstance(filters[0], int) else str2float(value)
+                    widget.setValue(value)
+                    self.takeItem(row, column)
+                    self.setCellWidget(row, column, widget)
 
-        self.setCellWidget(row, column, data)
-        return True
+                # Bool type
+                elif isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
+                    widget = QCheckBox(self.tr(filters[1]))
+                    widget.setChecked(filters[0])
+                    self.takeItem(row, column)
+                    self.setCellWidget(row, column, widget)
+            # list
+            elif isinstance(filters, list):
+                widget = QComboBox()
+                widget.addItems(filters)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, widget)
+            # Normal
+            elif isinstance(filters, types.StringTypes):
+                widget = self.cellWidget(row, column)
+                if isinstance(widget, QWidget):
+                    self.removeCellWidget(row, column)
+                item = QTableWidgetItem(filters)
+                self.takeItem(row, column)
+                self.setItem(row, column, item)
+            else:
+                return False
 
-    def setRowDataFilter(self, row, filters, minimum, maximum):
+            return True
+
+        except StandardError, e:
+            print "Set table item filter error:{0:s}".format(e)
+            return False
+
+    def setRowDataFilter(self, row, filters):
         for column in range(self.columnCount()):
-            if not self.setItemDataFilter(row, column, filters, minimum, maximum):
+            if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
 
-    def setColumnDataFilter(self, column, filters, minimum, maximum):
+    def setColumnDataFilter(self, column, filters):
         for row in range(self.rowCount()):
-           if not self.setItemDataFilter(row, column, filters, minimum, maximum):
+           if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
 
-    def setTableDataFilter(self, filters, minimum, maximum):
+    def setTableDataFilter(self, filters):
         for row in range(self.rowCount()):
-            if not self.setRowDataFilter(row, filters, minimum, maximum):
+            if not self.setRowDataFilter(row, filters):
                 return False
 
         return True
@@ -1168,18 +1239,39 @@ class TableWidget(QTableWidget):
             return str(widget.value())
         elif isinstance(widget, QDoubleSpinBox):
             return str(widget.value())
-        else:
+        elif isinstance(widget, QCheckBox):
+            return str(widget.isChecked())
+        elif isinstance(widget, QComboBox):
+            return str(widget.currentIndex())
+        elif isinstance(item, QTableWidgetItem):
             return item.text()
+        else:
+            return ""
+
+    def getItemProperty(self, row, column):
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return None
+
+        item = self.item(row, column)
+        return item.data(Qt.UserRole)
 
     def getRowData(self, row):
         return [self.getItemData(row, column) for column in range(self.columnCount())]
 
+    def getRowProperty(self, row):
+        return [self.getItemProperty(row, column) for column in range(self.columnCount())]
+
     def getColumnData(self, column):
         return [self.getItemData(row, column) for row in range(self.rowCount())]
+
+    def getColumnProperty(self, column):
+        return [self.getItemProperty(row, column) for row in range(self.rowCount())]
 
     def getTableData(self):
         return [self.getRowData(row) for row in range(self.rowCount())]
 
+    def getTableProperty(self):
+        return [self.getRowProperty(row) for row in range(self.rowCount())]
 
 def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):
     """Update QListWidget add items to widget and select item than call a callback function
