@@ -14,17 +14,61 @@ __all__ = ['ComboBoxGroup']
 class ComboBoxGroup(QObject):
     sequenceChanged = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, template, autoCreate=False, ordered=False, parent=None):
         super(ComboBoxGroup, self).__init__(parent)
 
         self.__group = list()
+
+        if not isinstance(template, QComboBox):
+            print "Template TypeError: {0:s}".format(type(template))
+            self.__template = None
+            return
+
+        if template.count() <= 1:
+            print "ComboBox template data at least needs 2 items"
+            return
+
+        self.__template = template
+        texts = [template.itemText(x) for x in range(template.count())]
+
+        if not autoCreate:
+            return
+
+        # Auto create QCombBox item
+        for index in range(template.count()):
+            item = QComboBox()
+            item.addItems(texts)
+            if ordered:
+                item.setCurrentIndex(index)
+            item.currentIndexChanged.connect(self.slotDataChanged)
+            self.__group.append(item)
+
+    def __typeCheck(self, item):
+        if not self.__template:
+            print "TypeError: template is None"
+            return False
+
+        if not isinstance(item, QComboBox):
+            print "TypeError: {0:x}".format(type(item))
+            return False
+
+        if item.count() != self.__template.count():
+            print "QComboBox count mismatch"
+            return False
+
+        for index in range(item.count()):
+            if item.itemText(index) != self.__template.itemText(index):
+                print "QComboBox item text mismatch"
+                return False
+
+        return True
 
     def __indexCheck(self, index):
         if not isinstance(index, int):
             print "TypeError:{0:s}".format(type(index))
             return False
 
-        if index >= len(self.__group) or index < 0:
+        if index >= self.count() or index < 0:
             print "IndexError: out of range"
             return False
 
@@ -47,19 +91,22 @@ class ComboBoxGroup(QObject):
         return None
 
     def __findUnusedIndex(self):
-        if len(self.__group) == 0:
+        if self.count() == 0:
             return None
 
         values = [item.currentIndex() for item in self.__group]
         values.sort()
-        if values == range(len(self.__group)):
+        if values == range(self.count()):
             return None
 
-        for index in range(len(self.__group)):
+        for index in range(self.count()):
             if values.count(index) == 0:
                 return index
 
         return None
+
+    def count(self):
+        return len(self.__group)
 
     def items(self):
         """Get all ComboBox items in group"""
@@ -76,52 +123,29 @@ class ComboBoxGroup(QObject):
 
         return self.__group[idx]
 
-    def takeItem(self, idx):
-        """Remove QComboBox item from group and return item
+    def setEditable(self, editable):
+        for item in self.items():
+            item.setEnabled(editable)
 
-        :param idx: index
-        :return: None or QComboBox
-        """
-        if not self.__indexCheck(idx):
-            return None
-
-        item = self.itemAt(idx)
-        self.removeComboBox(item)
-        return item
-
-    def addComboBox(self, box):
+    def addComboBox(self, box, ordered=False):
         """And a QComboBox to group
 
         :param box: QComboBox item
+        :param ordered: Set QComboBox ordered in group
         :return: True / False
         """
-        if not isinstance(box, QComboBox):
-            print "TypeError:{0:s}".format(type(box))
+
+        if not self.__typeCheck(box):
             return False
 
-        if box in self.__group:
-            print "Item already in group"
+        if self.count() == self.__template.count():
             return False
+
+        if ordered:
+            box.setCurrentIndex(self.count())
 
         self.__group.append(box)
         box.currentIndexChanged.connect(self.slotDataChanged)
-        return True
-
-    def removeComboBox(self, box):
-        """Remove QComboBox item from group
-
-        :param box: QComboBox
-        :return: True / False
-        """
-        if not isinstance(box, QComboBox):
-            print "TypeError:{0:s}".format(type(box))
-            return False
-
-        if box not in self.__group:
-            return False
-
-        box.currentIndexChanged.disconnect(self.slotDataChanged)
-        self.__group.remove(box)
         return True
 
     def slotDataChanged(self):
@@ -159,7 +183,7 @@ class ComboBoxGroup(QObject):
             print "TypeError:{0:s}".format(type(sequence))
             return False
 
-        if len(sequence) != len(self.__group):
+        if len(sequence) != self.count():
             print "Sequence length error"
             return False
 
