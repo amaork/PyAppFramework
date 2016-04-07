@@ -8,6 +8,9 @@ __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'str2float', 'str2numb
 
 
 def str2float(text):
+    if isinstance(text, float):
+        return text
+
     if not isinstance(text, types.StringTypes):
         print "TypeError:{0:s}".format(type(text))
         return 0
@@ -22,6 +25,9 @@ def str2float(text):
 
 
 def str2number(text):
+    if isinstance(text, int):
+        return text
+
     if not isinstance(text, types.StringTypes):
         print "TypeError:{0:s}".format(type(text))
         return 0
@@ -36,6 +42,10 @@ def str2number(text):
             return int(text, 16)
         elif text.startswith("0"):
             return int(text, 8)
+        elif text == "true":
+            return 1
+        elif text == "false":
+            return 0
         elif text.endswith("k") or text.endswith("kb"):
             return int(text.split("k")[0]) * 1024
         elif text.endswith("m") or text.endswith("mb"):
