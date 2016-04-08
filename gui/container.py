@@ -454,6 +454,38 @@ class ComponentManager(QObject):
             component.setValue(str2number(data))
 
     @staticmethod
+    def findParentLayout(obj, top):
+        if not isinstance(obj, QWidget) or not isinstance(top, QLayout):
+            return None
+
+        for index in range(top.count()):
+            item = top.itemAt(index)
+            if not isinstance(item, QLayoutItem):
+                continue
+
+            widget = item.widget()
+
+            # Item is QWidget
+            if isinstance(widget, QWidget):
+                # Found object in top layout
+                if widget == obj:
+                    return top
+                # QWidget has sub widgets
+                elif isinstance(widget.layout(), QLayout):
+                    layout = ComponentManager.findParentLayout(obj, widget.layout())
+                    if layout:
+                        return layout
+            # Item is layout
+            elif isinstance(item.layout(), QLayout):
+                layout = ComponentManager.findParentLayout(obj, item.layout())
+                if layout:
+                    return layout
+            else:
+                continue
+
+        return None
+
+    @staticmethod
     def getAllComponents(obj):
         """Get object specified object all components
 
@@ -508,6 +540,66 @@ class ComponentManager(QObject):
             return []
 
         return self.getAllComponents(self.__object)
+
+    def getParentLayout(self, obj):
+        if obj not in self.getAll():
+            return None
+
+        return self.findParentLayout(obj, self.__object)
+
+    def findRowSibling(self, obj):
+        layout = self.getParentLayout(obj)
+        if not isinstance(layout, QGridLayout):
+            print "Only QGridLayout support find row sibling:{0:s}".format(type(layout))
+            return []
+
+        for row in range(layout.rowCount()):
+            for column in range(layout.columnCount()):
+                item = layout.itemAt(row * layout.columnCount() + column)
+                if isinstance(item, QLayoutItem) and item.widget() == obj:
+                    return [layout.itemAt(row * layout.columnCount() + column).widget()
+                            for column in range(layout.columnCount())]
+
+        return []
+
+    def findColumnSibling(self, obj):
+        layout = self.getParentLayout(obj)
+        if not isinstance(layout, QGridLayout):
+            print "Only QGridLayout support find column sibling:{0:s}".format(type(layout))
+            return []
+
+        for row in range(layout.rowCount()):
+            for column in range(layout.columnCount()):
+                item = layout.itemAt(row * layout.columnCount() + column)
+                if isinstance(item, QLayoutItem) and item.widget() == obj:
+                    return [layout.itemAt(row * layout.columnCount() + column).widget()
+                            for row in range(layout.rowCount() - 1)]
+
+        return []
+
+    def getNextSibling(self, obj):
+        layout = self.getParentLayout(obj)
+        if not isinstance(layout, QLayout):
+            return None
+
+        components = self.getAllComponents(layout)
+        index = components.index(obj)
+        if index >= len(components) - 2:
+            return None
+        else:
+            return components[index + 1]
+
+    def getPrevSibling(self, obj):
+        layout = self.getParentLayout(obj)
+        if not isinstance(layout, QLayout):
+            return None
+
+        components = self.getAllComponents(layout)
+        index = components.index(obj)
+        if index == 0:
+            return None
+        else:
+            return components[index -  1]
 
     def getByType(self, types):
         """Get types specified type components
