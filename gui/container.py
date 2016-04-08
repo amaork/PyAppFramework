@@ -224,6 +224,9 @@ class ComponentManager(QObject):
         else:
             self.__object = None
 
+        # For dynamic bind usage
+        self.__binding = dict()
+
         # Watch all component data changed event
         self.__initSignalAndSlots()
 
@@ -250,44 +253,16 @@ class ComponentManager(QObject):
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
 
-    def slotDataChanged(self):
-        if self.sender() in self.getAll():
-            self.dataChanged.emit()
+    def __bindTypeCheck(self, sender, receiver):
+        if not isinstance(sender, QSpinBox) and not isinstance(sender, QDoubleSpinBox):
+            print "TypeError, binSpinBox needs two QSpinbox or QDoubleSpinbox objects:{0:s}".format(type(sender))
+            return False
 
-    @staticmethod
-    def getAllComponents(obj):
-        """Get object specified object all components
+        if not isinstance(receiver, QSpinBox) and not isinstance(receiver, QDoubleSpinBox):
+            print "TypeError, binSpinBox needs two QSpinbox or QDoubleSpinbox objects:{0:s}".format(type(dstSpinBox))
+            return False
 
-        :param obj: should be a QWidget or Layout
-        :return:
-        """
-        components = list()
-        if isinstance(obj, QWidget) and isinstance(obj.layout(), QLayout):
-            layout = obj.layout()
-        elif isinstance(obj, QLayout) and obj.count() > 0:
-            layout = obj
-        else:
-            return []
-
-        # Traversal all component
-        for index in range(layout.count()):
-            item = layout.itemAt(index)
-            if not isinstance(item, QLayoutItem):
-                continue
-
-            widget = item.widget()
-            # Is a QWidget
-            if isinstance(widget, QWidget):
-                components.append(widget)
-                components.extend(ComponentManager.getAllComponents(widget))
-                continue
-
-            sublayout = item.layout()
-            # Is a QLayout
-            if isinstance(sublayout, QLayout):
-                components.extend(ComponentManager.getAllComponents(sublayout))
-
-        return components
+        return True
 
     def __getComponentsWithType(self, types):
         if isinstance(types, type):
@@ -347,6 +322,58 @@ class ComponentManager(QObject):
                 component.setPlainText(data)
         elif isinstance(component, QDial):
             component.setValue(str2number(data))
+
+    @staticmethod
+    def getAllComponents(obj):
+        """Get object specified object all components
+
+        :param obj: should be a QWidget or Layout
+        :return:
+        """
+        components = list()
+        if isinstance(obj, QWidget) and isinstance(obj.layout(), QLayout):
+            layout = obj.layout()
+        elif isinstance(obj, QLayout) and obj.count() > 0:
+            layout = obj
+        else:
+            return []
+
+        # Traversal all component
+        for index in range(layout.count()):
+            item = layout.itemAt(index)
+            if not isinstance(item, QLayoutItem):
+                continue
+
+            widget = item.widget()
+            # Is a QWidget
+            if isinstance(widget, QWidget):
+                components.append(widget)
+                components.extend(ComponentManager.getAllComponents(widget))
+                continue
+
+            sublayout = item.layout()
+            # Is a QLayout
+            if isinstance(sublayout, QLayout):
+                components.extend(ComponentManager.getAllComponents(sublayout))
+
+        return components
+
+    def slotDataChanged(self):
+        sender = self.sender()
+        if sender not in self.getAll():
+            return
+
+        # Emit dataChanged signal
+        self.dataChanged.emit()
+
+        # Object bind process
+        if sender in self.__binding.keys():
+            receiver, ratio = self.__binding.get(sender)
+            if not self.__bindTypeCheck(sender, receiver):
+                return
+
+            if ratio:
+                receiver.setValue(sender.value() * ratio)
 
     def getAll(self):
         if not self.__object:
@@ -455,5 +482,47 @@ class ComponentManager(QObject):
 
             if value:
                 self.__setComponentData(component, value)
+
+        return True
+
+    def bindSpinBox(self, key, sender, receiver, ratio, bilateral=False):
+        """Bind two spinbox, when one spinbox is changes another will linkage
+
+        :param key: property key
+        :param sender: sender Spinbox value
+        :param receiver: receiver Spinbox value
+        :param ratio: linkage ratio
+        :param bilateral: linkage is bilateral setting
+        :return:
+        """
+
+        senderSpinBox = self.getByValue(key, sender)
+        receiverSpinBox = self.getByValue(key, receiver)
+
+        if not self.__bindTypeCheck(senderSpinBox, receiverSpinBox):
+            return False
+
+        if not isinstance(ratio, int) and not isinstance(ratio, float):
+            print "TypeError, binSpinBox ratio should be a number or float:{0:s}".format(type(ratio))
+            return False
+
+        # Bind two SpinBox range
+        receiverSpinBox.setRange(senderSpinBox.minimum() * ratio, senderSpinBox.maximum() * ratio)
+
+        # Set dst SpinBox decimals
+        if isinstance(ratio, float):
+            receiverSpinBox.setDecimals(len(str(ratio).split('.')[-1]))
+            receiverSpinBox.setSingleStep(ratio)
+
+        # Bind
+        if bilateral:
+            senderSpinBox.setEnabled(True)
+            receiverSpinBox.setEnabled(True)
+            self.__binding[senderSpinBox] = (receiverSpinBox, ratio)
+            self.__binding[receiverSpinBox] = (senderSpinBox, 1.0 / ratio)
+        else:
+            senderSpinBox.setEnabled(True)
+            receiverSpinBox.setEnabled(False)
+            self.__binding[senderSpinBox] = (receiverSpinBox, ratio)
 
         return True
