@@ -362,7 +362,7 @@ class ComponentManager(QObject):
             return False
 
         if data and len(data) == sender.count() and isinstance(data[sender.currentIndex()], types.StringTypes):
-            receiver.setText(self.tr(data[sender.currentIndex()]))
+            receiver.setText(data[sender.currentIndex()])
 
         return True
 
@@ -394,9 +394,9 @@ class ComponentManager(QObject):
 
         return True
 
-    def __getComponentsWithType(self, types):
-        if isinstance(types, type):
-            components = self.getByType(types)
+    def __getComponentsWithType(self, componentType):
+        if isinstance(componentType, type):
+            components = self.getByType(componentType)
         else:
             components = self.getAll()
 
@@ -406,7 +406,7 @@ class ComponentManager(QObject):
         if isinstance(component, QSpinBox):
             return str(component.value())
         elif isinstance(component, QDoubleSpinBox):
-            return  str(component.value())
+            return str(component.value())
         elif isinstance(component, QComboBox):
             return str(component.currentIndex())
         elif isinstance(component, QCheckBox):
@@ -443,10 +443,10 @@ class ComponentManager(QObject):
             component.setChecked(str2number(data))
         elif isinstance(component, QLineEdit):
             if isinstance(data, types.StringTypes):
-                component.setText(self.tr(data))
+                component.setText(data)
         elif isinstance(component, QTextEdit):
             if isinstance(data, types.StringTypes):
-                component.setText(self.tr(data))
+                component.setText(data)
         elif isinstance(component, QPlainTextEdit):
             if isinstance(data, types.StringTypes):
                 component.setPlainText(data)
@@ -599,51 +599,51 @@ class ComponentManager(QObject):
         if index == 0:
             return None
         else:
-            return components[index -  1]
+            return components[index - 1]
 
-    def getByType(self, types):
-        """Get types specified type components
+    def getByType(self, componentType):
+        """Get componentType specified type components
 
-        :param types: component type
+        :param componentType: component type
         :return: matched objects
         """
 
-        if not isinstance(types, type):
-            print "TypeError:{0:s}".format(type(types))
+        if not isinstance(componentType, type):
+            print "TypeError:{0:s}".format(type(componentType))
             return []
 
         components = list()
         for component in self.getAll():
-            if isinstance(component, types):
+            if isinstance(component, componentType):
                 components.append(component)
 
         return components
 
-    def getByValue(self, key, value, types=None):
-        """Get types specified component property key  is value
+    def getByValue(self, key, value, componentType=None):
+        """Get componentType specified component property key  is value
 
         :param key: property key
         :param value: property keys value
-        :param types: component types
+        :param componentType: component componentType
         :return:
         """
 
-        if not isinstance(key, str) or not isinstance(value, str):
+        if not isinstance(key, str) or not isinstance(value, types.StringTypes):
             print "Property TypeError:{0:s}, {1:s}".format(type(key), type(value))
             return None
 
         # Search by property
-        for component in self.__getComponentsWithType(types):
+        for component in self.__getComponentsWithType(componentType):
             if component.property(key) == value:
                 return component
 
         return None
 
-    def findKey(self, key, types=None):
-        """find component with types specified type, and key specified property key
+    def findKey(self, key, componentType=None):
+        """find component with componentType specified type, and key specified property key
 
         :param key: property key
-        :param types: component type
+        :param componentType: component type
         :return:
         """
 
@@ -652,38 +652,38 @@ class ComponentManager(QObject):
             return []
 
         lst = list()
-        for component in self.__getComponentsWithType(types):
+        for component in self.__getComponentsWithType(componentType):
             if component.property(key):
                 lst.append(component)
 
         return lst
 
-    def findValue(self, key, searchValue, types=None):
-        """Find component with types specified types and property key hast value
+    def findValue(self, key, searchValue, componentType=None):
+        """Find component with componentType specified types and property key hast value
 
         :param key: property key
         :param searchValue: property value key value
-        :param types: component types
+        :param componentType: component types
         :return:
         """
         lst = list()
-        for component in self.findKey(key, types):
+        for component in self.findKey(key, componentType):
             value = component.property(key)
             if value is not None and searchValue in value:
                 lst.append(component)
 
         return lst
 
-    def getData(self, key, types=None):
+    def getData(self, key, componentType=None):
         data = dict()
         components = list()
 
-        if hasattr(types, "__iter__"):
-            for t in types:
+        if hasattr(componentType, "__iter__"):
+            for t in componentType:
                 if isinstance(t, type):
                     components.extend(self.findKey(key, t))
         else:
-            components = self.findKey(key, types)
+            components = self.findKey(key, componentType)
 
         for component in components:
             value = component.property(key)
@@ -786,7 +786,7 @@ class ComponentManager(QObject):
         :param key: property key
         :param sender: QComboBox property value
         :param receiver: QLabel property value
-        :param labels:  QLabel texts
+        :param texts:  QLabel texts
         :return:
         """
 
