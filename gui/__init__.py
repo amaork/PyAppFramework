@@ -1,1 +1,1 @@
-__all__ = ['button', 'msgbox', 'widget', 'container']
+__all__ = ['button', 'msgbox', 'widget', 'container', 'binder']
