@@ -11,6 +11,7 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 
 sys.path.append("../../")
+from PyAppFramework.gui.binder import *
 from PyAppFramework.core.datatype import str2number, str2float
 
 __all__ = ['ComboBoxGroup', 'ComponentManager']
@@ -213,33 +214,15 @@ class ComboBoxGroup(QObject):
 class ComponentManager(QObject):
     dataChanged = Signal()
 
-    __supportBinder = {
-
-        QSpinBox: (QSpinBox, QDoubleSpinBox),
-        QDoubleSpinBox: (QSpinBox, QDoubleSpinBox),
-        QComboBox: (QComboBox, QLabel, QSpinBox, QDoubleSpinBox),
-    }
-
-    def __init__(self, obj, parent=None):
+    def __init__(self, layout, parent=None):
         super(ComponentManager, self).__init__(parent)
 
-        # Get object layout
-        if isinstance(obj, QWidget) and isinstance(obj.layout(), QLayout):
-            self.__object = obj.layout()
-        elif isinstance(obj, QLayout) and obj.count() > 0:
-            self.__object = obj
-        else:
-            self.__object = None
+        assert isinstance(layout, QLayout), "TypeError:{0:s}".format(type(layout))
+
+        self.__object = layout
 
         # For dynamic bind usage
-        self.__bindingList = dict()
-        self.__bindingProcess = [
-
-            self.__spinBoxBindProcess,
-            self.__comboBoxBindProcess,
-            self.__comboBoxBindLabelProcess,
-            self.__comboBoxBindSpinBoxProcess,
-        ]
+        self.__bindingList = list()
 
         # Watch all component data changed event
         self.__initSignalAndSlots()
@@ -266,133 +249,6 @@ class ComponentManager(QObject):
                 component.dateTimeChanged.connect(self.slotDataChanged)
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
-
-    def __bindTypeCheck(self, sender, receiver):
-        receivers = self.__supportBinder.get(type(sender))
-        if receivers is None:
-            print "Sender type unsupported:{0:s}".format(type(sender))
-            return False
-
-        if type(receiver) not in receivers:
-            print "Receiver type unsupported:{0:s}".format(type(receiver))
-            return False
-
-        return True
-
-    def __bind(self, sender, receiver, data):
-        """Bind sender and receiver
-
-        :param sender: Sender object
-        :param receiver: Receiver object
-        :param data: bind data
-        :return:
-        """
-        receivers = self.__bindingList.get(sender)
-        if receivers is None:
-            receivers = [(receiver, data)]
-        elif isinstance(receivers, list):
-            receivers.append((receiver, data))
-
-        self.__bindingList[sender] = receivers
-
-    def __getBindReceivers(self, sender):
-        """Get bind receivers list
-
-        :param sender:Sender object
-        :return:
-        """
-        receivers = self.__bindingList.get(sender)
-        if isinstance(receivers, list):
-            return receivers
-        else:
-            return []
-
-    def __isBinding(self, sender):
-        """Check if object is bind
-
-        :param sender:
-        :return:
-        """
-        return sender in self.__bindingList
-
-    def __bindProcess(self, sender):
-        # Process each receivers
-        for receiver in self.__getBindReceivers(sender):
-            if not isinstance(receiver, tuple):
-                continue
-
-            # Get receiver and it's data
-            receiver, data = receiver
-            if not self.__bindTypeCheck(sender, receiver):
-                continue
-
-            # Process
-            for handle in self.__bindingProcess:
-                if not hasattr(handle, "__call__"):
-                    continue
-
-                if handle(sender, receiver, data):
-                    break
-
-    def __spinBoxBindProcess(self, sender, receiver, data):
-        if not isinstance(sender, QSpinBox) and not isinstance(sender, QDoubleSpinBox):
-            return False
-
-        if not isinstance(receiver, QSpinBox) and not isinstance(receiver, QDoubleSpinBox):
-            return False
-
-        if isinstance(data, int) or isinstance(data, float):
-            receiver.setValue(sender.value() * data)
-
-        return True
-
-    def __comboBoxBindProcess(self, sender, receiver, data):
-        if not isinstance(sender, QComboBox) or not isinstance(receiver, QComboBox):
-            return False
-
-        if data and sender.count() == receiver.count() and sender.count():
-            receiver.setCurrentIndex(sender.count() - sender.currentIndex() - 1)
-        else:
-            receiver.setCurrentIndex(sender.currentIndex())
-
-        return True
-
-    def __comboBoxBindLabelProcess(self, sender, receiver, data):
-        if not isinstance(sender, QComboBox) or not isinstance(receiver, QLabel):
-            return False
-
-        if data and len(data) == sender.count() and isinstance(data[sender.currentIndex()], types.StringTypes):
-            receiver.setText(data[sender.currentIndex()])
-
-        return True
-
-    def __comboBoxBindSpinBoxProcess(self, sender, receiver, data):
-        if not isinstance(sender, QComboBox):
-            return False
-
-        if not isinstance(receiver, QSpinBox) and not isinstance(receiver, QDoubleSpinBox):
-            return False
-
-        if hasattr(data, "__iter__") and len(data) == sender.count():
-            setting = data[sender.currentIndex()]
-
-            # Setting range and step
-            if hasattr(setting, "__iter__"):
-                for num in setting:
-                    if not isinstance(num, int) and not isinstance(num, float):
-                        return True
-
-                if len(setting) == 3:
-                    receiver.setSingleStep(setting[2])
-                    receiver.setRange(setting[0], setting[1])
-                elif len(setting) == 2:
-                    receiver.setRange(setting[0], setting[1])
-
-            # Setting value
-            elif isinstance(setting, int) or isinstance(sender, float):
-                receiver.setRange(setting, setting)
-
-        return True
 
     def __getComponentsWithType(self, componentType):
         if isinstance(componentType, type):
@@ -528,17 +384,7 @@ class ComponentManager(QObject):
         # Emit dataChanged signal
         self.dataChanged.emit()
 
-        # Object bind process
-        if not self.__isBinding(sender):
-            return
-
-        # Process bind
-        self.__bindProcess(sender)
-
     def getAll(self):
-        if not self.__object:
-            return []
-
         return self.getAllComponents(self.__object)
 
     def getParentLayout(self, obj):
@@ -705,79 +551,50 @@ class ComponentManager(QObject):
 
         return True
 
-    def bindSpinBox(self, key, sender, receiver, ratio, bilateral=False):
+    def bindSpinBox(self, key, sender, receiver, factor, enable=False):
         """Bind two spinbox, when one spinbox is changes another will linkage
 
         :param key: property key
         :param sender: sender Spinbox property value
         :param receiver: receiver Spinbox property value
-        :param ratio: linkage ratio
-        :param bilateral: linkage is bilateral setting
+        :param factor: linkage factor
+        :param enable: enable receiver
         :return:
         """
 
         senderSpinBox = self.getByValue(key, sender)
         receiverSpinBox = self.getByValue(key, receiver)
 
-        if not self.__bindTypeCheck(senderSpinBox, receiverSpinBox):
-            return False
-
-        if not isinstance(ratio, int) and not isinstance(ratio, float):
-            print "TypeError, binSpinBox ratio should be a number or float:{0:s}".format(type(ratio))
-            return False
-
-        # Bind two SpinBox range
-        receiverSpinBox.setRange(senderSpinBox.minimum() * ratio, senderSpinBox.maximum() * ratio)
-
-        # Set dst SpinBox decimals
-        if isinstance(ratio, float):
-            receiverSpinBox.setDecimals(len(str(ratio).split('.')[-1]))
-            receiverSpinBox.setSingleStep(ratio)
-
-        # Bind
-        if bilateral:
-            senderSpinBox.setEnabled(True)
-            receiverSpinBox.setEnabled(True)
-            self.__bind(senderSpinBox, receiverSpinBox, ratio)
-            self.__bind(receiverSpinBox, senderSpinBox, 1.0 / ratio)
+        senderBinder = SpinBoxBinder(senderSpinBox)
+        if senderBinder.bindSpinBox(receiverSpinBox, factor):
+            self.__bindingList.append(senderBinder)
         else:
-            senderSpinBox.setEnabled(True)
-            receiverSpinBox.setEnabled(False)
-            self.__bind(senderSpinBox, receiverSpinBox, ratio)
+            return False
 
+        receiverSpinBox.setEnabled(enable)
         return True
 
-    def bindComboBox(self, key, sender, receiver, reverse=False, bilateral=False):
+    def bindComboBox(self, key, sender, receiver, reverse=False, enable=False):
         """Bind two ComboBox, on changed, another changed too
 
         :param key: property key
         :param sender: Sender comboBox property value
         :param receiver:  Receiver ComboBox property value
-        :param bilateral: if is set, sender can be receive and receive can be sender
+        :param enable: disable or enable receiver
         :param reverse:
         :return:
         """
 
-        senderComboBox = self.getByValue(key, sender)
-        receiverComboBox = self.getByValue(key, receiver)
+        senderComboBox = self.getByValue(key, sender, QComboBox)
+        receiverComboBox = self.getByValue(key, receiver, QComboBox)
 
-        if not self.__bindTypeCheck(senderComboBox, receiverComboBox):
-            return False
-
-        if senderComboBox.count() != receiverComboBox.count():
-            print "Two bind ComboBox count number should same!"
-            return False
-
-        if bilateral:
-            senderComboBox.setEnabled(True)
-            receiverComboBox.setEnabled(True)
-            self.__bind(senderComboBox, receiverComboBox, reverse)
-            self.__bind(receiverComboBox, senderComboBox, reverse)
+        senderBinder = ComboBoxBinder(senderComboBox)
+        if senderBinder.bindComboBox(receiverComboBox, reverse):
+            self.__bindingList.append(senderBinder)
         else:
-            senderComboBox.setEnabled(True)
-            receiverComboBox.setEnabled(False)
-            self.__bind(senderComboBox, receiverComboBox, receiver)
+            return False
 
+        receiverComboBox.setEnabled(enable)
         return True
 
     def bindComboBoxWithLabel(self, key, sender, receiver, texts):
@@ -790,22 +607,15 @@ class ComponentManager(QObject):
         :return:
         """
 
-        comboBox = self.getByValue(key, sender, QComboBox)
         label = self.getByValue(key, receiver, QLabel)
+        comboBox = self.getByValue(key, sender, QComboBox)
 
-        if not self.__bindTypeCheck(comboBox, label):
+        binder = ComboBoxBinder(comboBox)
+        if binder.bindLabel(label, texts):
+            self.__bindingList.append(binder)
+        else:
             return False
 
-        if not hasattr(texts, "__iter__") or comboBox.count() != len(texts):
-            print "Label texts type error:{0:s}".format(type(texts))
-            return False
-
-        for text in texts:
-            if not isinstance(text, types.StringTypes):
-                print "Label text type error:{0:s}".format(type(text))
-                return False
-
-        self.__bind(comboBox, label, texts)
         return True
 
     def bindComboBoxWithSpinBox(self, key, sender, receiver, limit):
@@ -822,15 +632,13 @@ class ComponentManager(QObject):
         :return:
         """
 
-        comboBox = self.getByValue(key, sender, QComboBox)
         spinBox = self.getByValue(key, receiver)
+        comboBox = self.getByValue(key, sender, QComboBox)
 
-        if not self.__bindTypeCheck(comboBox, spinBox):
+        binder = ComboBoxBinder(comboBox)
+        if binder.bindSpinBox(spinBox, limit):
+            self.__bindingList.append(binder)
+        else:
             return False
 
-        if not hasattr(limit, "__iter__") or len(limit) != comboBox.count():
-            print "Limit data type error:{0:s}".format(type(limit))
-            return False
-
-        self.__bind(comboBox, spinBox, limit)
         return True

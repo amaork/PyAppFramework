@@ -64,7 +64,7 @@ class SpinBoxBinder(QObject):
         return True
 
     def eventProcess(self, value):
-        if not isinstance(value, int) or not isinstance(value, float):
+        if not isinstance(value, int) and not isinstance(value, float):
             return
 
         for receiver, factor in self.__binding:
