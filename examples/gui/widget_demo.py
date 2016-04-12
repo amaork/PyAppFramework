@@ -8,88 +8,57 @@ from PySide.QtCore import *
 
 
 class ListDemoWidget(QWidget):
-    itemSelected = Signal(str, QColor, QColor, int)
-
     def __init__(self, parent=None):
         super(ListDemoWidget, self).__init__(parent)
 
-        self.font = ListWidgetDefStyle.get("font")
-        self.size = ListWidgetDefStyle.get("size")
-        self.color = ListWidgetDefStyle.get("color")
-        self.styleSheet = {"font": self.font, "size": self.size, "color": self.color}
-
         # Elements
-        self.listWidget = QListWidget()
         self.fontButton = QPushButton("Font")
-        self.colorButton = QPushButton("Color")
         self.addButton = QPushButton("Add item")
-        self.markButton = QPushButton("Mark item")
-
-        for idx in range(11):
-            self.listWidget.addItem("Item{0:d}".format(idx))
+        self.getButton = QPushButton("Get data")
+        self.getMarkButton = QPushButton("Get mark item")
+        self.listData = QTextEdit()
+        self.listWidget = ListWidget()
+        self.listWidget.setItems(zip(["Item{0:d}".format(i) for i in range(10)], range(10)))
 
         # Signal and slots
         self.addButton.clicked.connect(self.slotAddItem)
         self.fontButton.clicked.connect(self.slotGetFont)
-        self.markButton.clicked.connect(self.slotMarkItem)
-        self.colorButton.clicked.connect(self.slotGetColor)
-        self.listWidget.doubleClicked.connect(self.slotSelectItem)
+        self.getButton.clicked.connect(self.slotGetData)
+        self.getMarkButton.clicked.connect(self.slotGetMarkItem)
+        self.listWidget.itemDoubleClicked.connect(self.listWidget.markItem)
 
         # Layout
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.fontButton)
-        button_layout.addWidget(self.colorButton)
-        button_layout.addWidget(self.markButton)
         button_layout.addWidget(self.addButton)
+        button_layout.addWidget(self.getButton)
+        button_layout.addWidget(self.getMarkButton)
 
         layout = QVBoxLayout()
         layout.addWidget(self.listWidget)
         layout.addLayout(button_layout)
+        layout.addWidget(self.listData)
 
         self.setLayout(layout)
         self.setWindowTitle("ListWidget Dialog Demo")
 
-    def getListItems(self):
-        items = []
-        for idx in range(self.listWidget.count()):
-            items.append(self.listWidget.item(idx).text())
-
-        return items
-
-    def getCurrentItem(self):
-        return self.listWidget.currentItem().text()
-
     def slotGetFont(self):
-        font, ok = QFontDialog.getFont(QFont(ListWidgetDefStyle.get("font")), self)
+        font, ok = QFontDialog.getFont(self)
         if ok:
-            self.font = font.family()
-            self.size = font.pointSize()
-            updateListWidget(self.listWidget, self.getListItems(), self.getCurrentItem(),
-                             {"font": self.font, "size": self.size, "color": self.color})
-
-    def slotGetColor(self):
-        self.color = QColorDialog.getColor(self.color, self)
-        updateListWidget(self.listWidget, self.getListItems(), self.getCurrentItem(),
-                         {"font": self.font, "size": self.size, "color": self.color})
+            self.listWidget.setFont(font)
 
     def slotAddItem(self):
         text, ok = QInputDialog.getText(self, "Please enter items text", "Text:",
                                         QLineEdit.Normal, QDir.home().dirName())
 
         if ok:
-            items = self.getListItems()
-            items.append(text)
-            updateListWidget(self.listWidget, items, text, {"font": self.font, "size": self.size, "color": self.color})
+            self.listWidget.addItem(text)
 
-    def slotMarkItem(self):
-        updateListWidget(self.listWidget, self.getListItems(), self.getCurrentItem(),
-                         {"font": self.font, "size": self.size, "color": self.color})
+    def slotGetData(self):
+        self.listData.setText("{0:s}".format(zip(self.listWidget.getItems(), self.listWidget.getItemsData())))
 
-    def slotSelectItem(self, item):
-        text = self.getCurrentItem()
-        self.slotMarkItem()
-        self.itemSelected.emit(text)
-
+    def slotGetMarkItem(self):
+        self.listData.setText("{0:s}".format(self.listWidget.getMarkItem()))
 
 class TableWidgetTest(QWidget):
     def __init__(self, parent=None):
@@ -321,7 +290,6 @@ class Demo(QMainWindow):
         self.listLabel.setFrameStyle(frameStyle)
         self.listButton = QPushButton("Get list")
         self.listButton.clicked.connect(self.showWidget)
-        self.listWidget.itemSelected.connect(self.setItem)
 
         self.colorWidget = ColorWidget()
         self.colorWidget.setHidden(True)
@@ -450,9 +418,6 @@ class Demo(QMainWindow):
 
     def setRgb(self, r, g, b):
         self.rgbLabel.setText("R:{0:b} G:{1:b} B:{2:b}".format(r, g, b))
-
-    def setItem(self, item):
-        self.listLabel.setText(item)
 
     def setColor(self, r, g, b):
         self.colorLabel.setText("R:{0:d} G:{1:d} B:{2:d}".format(r, g, b))

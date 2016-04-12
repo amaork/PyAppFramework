@@ -31,7 +31,7 @@ class DemoWidget(QWidget):
 
     def slotShowMessageBox(self):
         showMessageBox(self, self.messageType.currentText().encode("ascii"),
-                       self.contextEdit.text().encode("ascii"), self.titleEdit.text().encode("ascii"))
+                       self.titleEdit.text().encode("ascii"), self.contextEdit.text().encode("ascii"))
 
 
 if __name__ == "__main__":

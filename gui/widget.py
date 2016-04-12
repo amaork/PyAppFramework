@@ -21,14 +21,8 @@ sys.path.append("../../")
 from PyAppFramework.core.datatype import str2number, str2float
 
 
-__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget', 'TableWidget',
-           'updateListWidget', 'ListWidgetDefStyle']
-
-ListWidgetDefStyle = {"font": "Times New Roman", "size": 14, "color": QColor(51, 153, 255)}
-
-
-def __type_error(correct, error):
-    print "TypeError, should be: {0:s}, actually is: {1:s}".format(type(correct), type(error))
+__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
+           'TableWidget', 'ListWidget']
 
 
 class PaintWidget(QWidget):
@@ -1273,61 +1267,95 @@ class TableWidget(QTableWidget):
     def getTableProperty(self):
         return [self.getRowProperty(row) for row in range(self.rowCount())]
 
-def updateListWidget(widget, items, select="", style=ListWidgetDefStyle, callback=None):
-    """Update QListWidget add items to widget and select item than call a callback function
 
-    :param widget: QListWidget
-    :param items: QListWidget items data
-    :param select: select item
-    :param style: Item stylesheet
-    :param callback: callback function
-    :return: return select item number
-    """
+class ListWidget(QListWidget):
+    def __init__(self, unique=False, markColor=QColor(51, 153, 255), parent=None):
+        super(ListWidget, self).__init__(parent)
 
-    selectRow = 0
+        self.__unique = unique
+        if isinstance(markColor, (QColor, Qt.GlobalColor)):
+            self.__markColor = markColor
+        else:
+            self.__markColor = QColor(51, 153, 255)
 
-    # Type check
-    if not isinstance(widget, QListWidget) or not hasattr(items, "__iter__"):
-        print "TypeCheckError"
-        return 0
+    @Slot(object)
+    def markItem(self, item):
+        if not isinstance(item, QListWidgetItem):
+            return False
 
-    if len(items) and not isinstance(items[0], types.StringTypes):
-        print "TypeCheckError"
-        return 0
+        # Get item row
+        row = self.row(item)
 
-    if len(select) and not isinstance(select, types.StringTypes):
-        print "TypeCheckError"
-        return 0
+        if row < 0 or row >= self.count():
+            return False
 
-    # Remove list old items
-    for _ in range(widget.count()):
-        widget.removeItemWidget(widget.item(0))
-        widget.takeItem(0)
+        # Reset row items
+        self.setItems(zip(self.getItems(), self.getItemsData()))
 
-    # If style is set change item style
-    if isinstance(style, dict) and "font" in style and "size" in style:
-        widget.setFont(QFont(style.get("font"), style.get("size")))
+        # Get will marked item
+        markItem = self.takeItem(row)
+        if not isinstance(markItem, QListWidgetItem):
+            return False
 
-    # Add items to widget, if select is set mark it's selected
-    for idx, name in enumerate(items):
-        # Create a item
+        # Change it background color
+        brush = QBrush(QColor(self.__markColor))
+        markItem.setBackground(brush)
+
+        # Insert item to list
+        self.insertItem(row, markItem)
+        return True
+
+    def getMarkItem(self):
+        for index in range(self.count()):
+            item = self.item(index)
+            if not isinstance(item, QListWidgetItem):
+                continue
+
+            if item.background() == self.__markColor:
+                return item.text()
+
+        return None
+
+    def addItem(self, name, data=None):
+        if not isinstance(name, types.StringTypes):
+            print "TypeError: {0:s}".format(type(name))
+            return False
+
+        if self.__unique and name in self.getItems():
+            print "Same name item is exist"
+            return False
+
         item = QListWidgetItem(name)
+        if data is not None:
+            item.setData(Qt.UserRole, data)
 
-        # Change select row
-        if name == select:
-            selectRow = idx
+        super(ListWidget, self).addItem(item)
+        self.setCurrentItem(item)
+        return True
 
-            # If has style change it
-            if isinstance(style, dict) and "color" in style:
-                item.setBackground(QBrush(style.get("color")))
+    def setItems(self, items):
+        if not isinstance(items, (list, tuple)):
+            print "Items data type error:{0:s}".format(type(items))
+            return False
 
-        widget.addItem(item)
+        # Remove old items
+        for _ in range(self.count()):
+            item = self.takeItem(0)
+            self.removeItemWidget(item)
 
-    # Select row
-    widget.setCurrentRow(selectRow)
+        # Add items data to ListWidget
+        for data in items:
+            if isinstance(data, tuple) and len(data) == 2 and isinstance(data[0], types.StringTypes):
+                self.addItem(data[0], data[1])
+            elif isinstance(data, types.StringTypes):
+                self.addItem(data)
+            else:
+                continue
 
-    # Call callback
-    if hasattr(callback, "__call__"):
-        callback(widget.currentItem())
+        return True
 
-    return selectRow
+    def getItems(self):
+        return [self.item(i).text() for i in range(self.count())]
+
+    def getItemsData(self):
+        return [self.item(i).data(Qt.UserRole) for i in range(self.count())]

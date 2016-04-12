@@ -33,13 +33,13 @@ def showQuestionBox(parent, title, context):
     return False if ret == QMessageBox.Cancel else True
 
 
-def showMessageBox(parent, msg_type, context, title="", result=False):
+def showMessageBox(parent, msg_type, title, context, result=False):
     """Show a QMessage box
 
     :param parent: Message box parent
     :param msg_type: Message type
-    :param context: Message context
     :param title: Message title
+    :param context: Message context
     :param result: result
     :return: result
     """
@@ -47,10 +47,6 @@ def showMessageBox(parent, msg_type, context, title="", result=False):
     # Type check
     if msg_type not in MB_TYPES or not isinstance(title, StringTypes) or not isinstance(context, StringTypes):
         return False
-
-    # Using default title
-    if len(title) == 0:
-        title = msg_type[0].upper() + msg_type[1:]
 
     if msg_type == MB_TYPE_INFO:
         QMessageBox.information(parent, parent.tr(title), parent.tr(context))
