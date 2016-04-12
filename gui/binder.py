@@ -13,15 +13,14 @@ class SpinBoxBinder(QObject):
     def __init__(self, spinbox, parent=None):
         super(SpinBoxBinder, self).__init__(parent)
 
-        assert isinstance(spinbox, QSpinBox) or isinstance(spinbox, QDoubleSpinBox), \
-            "TypeError:{0:s}".format(type(spinbox))
+        assert isinstance(spinbox, (QSpinBox, QDoubleSpinBox)), "TypeError:{0:s}".format(type(spinbox))
 
         self.__binding = list()
         self.__spinbox = spinbox
         self.__spinbox.valueChanged.connect(self.eventProcess)
 
     def __remap(self, factor, value):
-        if isinstance(factor, int) or isinstance(factor, float):
+        if isinstance(factor, (int, float)):
             return value * factor
         elif hasattr(factor, "__call__"):
             return factor(value)
@@ -33,7 +32,7 @@ class SpinBoxBinder(QObject):
             print "Bind error, object type error:{0:s}".format(type(obj))
             return False
 
-        if not isinstance(factor, int) and not isinstance(factor, float) and not hasattr(factor, "__call__"):
+        if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
             print "Bind error, factor type error{0:s}".format(type(factor))
             return False
 
@@ -41,11 +40,11 @@ class SpinBoxBinder(QObject):
         return True
 
     def bindSpinBox(self, obj, factor):
-        if not isinstance(obj, QSpinBox) and not isinstance(obj, QDoubleSpinBox):
+        if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
             print "Bind error, object type error:{0:s}".format(type(obj))
             return False
 
-        if not isinstance(factor, int) and not isinstance(factor, float) and not hasattr(factor, "__call__"):
+        if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
             print "Bind error, factor type error{0:s}".format(type(factor))
             return False
 
@@ -64,12 +63,12 @@ class SpinBoxBinder(QObject):
         return True
 
     def eventProcess(self, value):
-        if not isinstance(value, int) and not isinstance(value, float):
+        if not isinstance(value, (int, float)):
             return
 
         for receiver, factor in self.__binding:
             # QSpinBox or QDoubleSpinBox
-            if isinstance(receiver, QSpinBox) or isinstance(receiver, QDoubleSpinBox):
+            if isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
                 receiver.setValue(self.__remap(factor, value))
 
             # QLabel
@@ -104,7 +103,7 @@ class ComboBoxBinder(QObject):
         return True
 
     def bindSpinBox(self, obj, limit):
-        if not isinstance(obj, QSpinBox) and not isinstance(obj, QDoubleSpinBox):
+        if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
             print "Bind error, object type error:{0:s}".format(type(obj))
             return False
 
@@ -147,13 +146,13 @@ class ComboBoxBinder(QObject):
                     receiver.setText(data[index])
 
             # QSpinBox
-            elif isinstance(receiver, QSpinBox) or isinstance(receiver, QDoubleSpinBox):
+            elif isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
                 setting = data[index]
 
                 # Setting data is a tuple
                 if isinstance(setting, tuple):
                     for num in setting:
-                        if not isinstance(num, int) and not isinstance(num, float):
+                        if not isinstance(num, (int, float)):
                             return
 
                     # Setting range and limit
@@ -165,5 +164,5 @@ class ComboBoxBinder(QObject):
                         receiver.setRange(setting[0], setting[1])
 
                 # Setting value
-                elif isinstance(setting, int) or isinstance(setting, float):
+                elif isinstance(setting, (int, float)):
                     receiver.setRange(setting, setting)

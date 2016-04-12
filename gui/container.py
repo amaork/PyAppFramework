@@ -520,9 +520,10 @@ class ComponentManager(QObject):
 
         return lst
 
-    def getData(self, key, componentType=None):
+    def getData(self, key, componentType=None, exclude=None):
         data = dict()
         components = list()
+        exclude = exclude if isinstance(exclude, (list, tuple)) else []
 
         if hasattr(componentType, "__iter__"):
             for t in componentType:
@@ -533,6 +534,10 @@ class ComponentManager(QObject):
 
         for component in components:
             value = component.property(key)
+
+            if value in exclude:
+                continue
+
             data[value] = self.__getComponentData(component)
 
         return data
