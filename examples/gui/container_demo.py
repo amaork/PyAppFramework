@@ -5,7 +5,6 @@ import sys
 sys.path.append("../../")
 from gui.container import *
 from PySide.QtGui import *
-from PySide.QtCore import *
 
 
 class ComboBoxGroupTest(QWidget):

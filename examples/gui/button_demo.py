@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("../../../")
-from PyAppFramework.gui.button import *
+sys.path.append("../../")
+from gui.button import *
 from PySide.QtGui import *
 from PySide.QtCore import *
+
 
 class DemoWidget(QWidget):
     def __init__(self, parent=None):
@@ -38,7 +39,7 @@ class DemoWidget(QWidget):
         if buttonText == "RoundButton":
             button = RoundButton(200, text=buttonTextGroup)
         elif buttonText == "IconButton":
-            all  = ""
+            all = ""
             for name in  QImageReader.supportedImageFormats():
                 all += "*.{0:s} ".format(name)
             files, _ = QFileDialog.getOpenFileNames(self,

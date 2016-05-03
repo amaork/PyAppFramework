@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("../../../")
-from PyAppFramework.gui.msgbox import *
+sys.path.append("../../")
+from gui.msgbox import *
 from PySide.QtGui import *
 
 
@@ -39,4 +39,3 @@ if __name__ == "__main__":
     window = DemoWidget()
     window.show()
     sys.exit(app.exec_())
-

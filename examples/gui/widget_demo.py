@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-sys.path.append("../../../")
-from PyAppFramework.gui.widget import *
+sys.path.append("../../")
+from gui.widget import *
 from PySide.QtGui import *
 from PySide.QtCore import *
 
@@ -130,7 +130,6 @@ class TableWidgetTest(QWidget):
         self.hide_column_header = QPushButton("Hide Column Header")
         self.hide_column_header.setCheckable(True)
 
-
         self.all_btn = (self.new, self.new_row,
                         self.frozen_row, self.unfrozen_row,
                         self.frozen_column, self.unfrozen_column,
@@ -191,9 +190,9 @@ class TableWidgetTest(QWidget):
         self.set_row_select_mode.clicked.connect(self.table.setRowSelectMode)
         self.set_item_select_mode.clicked.connect(self.table.setItemSelectMode)
         self.set_column_select_mode.clicked.connect(self.table.setColumnSelectMode)
-        for btn in self.all_btn: btn.setEnabled(True)
+        for btn in self.all_btn:
+            btn.setEnabled(True)
         self.new.setDisabled(True)
-
 
     def __slotNewRow(self):
         count = self.table.rowCount()
@@ -212,12 +211,12 @@ class TableWidgetTest(QWidget):
 
     def __slotFrozenColumn(self):
         column = self.__get_number("Please enter will frozen row number:", "Column",
-                                1, 1, self.table.columnCount())
+                                   1, 1, self.table.columnCount())
         self.table.frozenColumn(column - 1, True)
 
     def __slotUnfrozenColumn(self):
         column = self.__get_number("Please enter will unfrozen row number:", "Column",
-                                1, 1, self.table.columnCount())
+                                   1, 1, self.table.columnCount())
         self.table.frozenColumn(column - 1, False)
 
     def __slotSetRowHeader(self):
@@ -274,6 +273,7 @@ class TableWidgetTest(QWidget):
 
     def __slotSetAsListType(self):
         print self.table.setRowDataFilter(self.table.currentRow(), ["VESA", "JEIDA", "VIMM"])
+
 
 class Demo(QMainWindow):
     drawText = Signal(str)

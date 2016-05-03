@@ -18,14 +18,12 @@ def usage():
     print "\t-x\--format\tspecify package file format: {0:s}".format(TarManager.get_support_format())
 
 
-
-
 if __name__ == '__main__':
 
     try:
 
         opts, args = getopt.getopt(sys.argv[1:], "hcxvf:s:d:", ["help", "create", "extract", "verbose",
-                                                               "format=", "src=", "dest="])
+                                                                "format=", "src=", "dest="])
         formats = ""
         verbose = False
         src_path = ""

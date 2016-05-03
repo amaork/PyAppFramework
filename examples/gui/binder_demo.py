@@ -1,21 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import inspect
 sys.path.append("../../")
 from gui.binder import *
 from PySide.QtGui import *
 from PySide.QtCore import *
-
-
-def func1(a):
-    pass
-
-def func2(b):
-    pass
-
-def func3():
-    pass
 
 
 class Demo(QWidget):
@@ -56,7 +45,6 @@ class Demo(QWidget):
         layout.addWidget(combobox2, 1, 3)
         layout.addWidget(combobox_label2, 1, 4)
 
-
         limit = QComboBox()
         limit.addItem("100 - 300, 10")
         limit.addItem("400 - 600, 50")
@@ -68,10 +56,6 @@ class Demo(QWidget):
         layout.addWidget(QLabel("ComboBox bind SpinBox"), 2, 0)
         layout.addWidget(limit, 2, 1)
         layout.addWidget(spinbox, 2, 3)
-
-
-
-
 
         self.setLayout(layout)
 

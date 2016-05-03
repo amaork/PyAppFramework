@@ -1,6 +1,4 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
-import sys
 from PySide.QtGui import *
 from types import StringTypes
 
