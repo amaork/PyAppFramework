@@ -3,8 +3,7 @@
 import os
 import sys
 import getopt
-sys.path.append("../../")
-from misc.tarmanager import TarManager
+from ..misc.tarmanager import TarManager
 
 
 def usage():

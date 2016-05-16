@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import sys
 import ctypes
 import struct
-
-sys.path.append("../../")
-import protocol.crc16 as crc
+from ..protocol import crc16 as crc
 
 
 if __name__ == "__main__":

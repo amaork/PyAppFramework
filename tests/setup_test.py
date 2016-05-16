@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append("../../")
-from misc.setup import get_git_commit_count, get_git_release_hash, get_git_release_date
+from ..misc.setup import get_git_commit_count, get_git_release_hash, get_git_release_date
 
 
 if __name__ == "__main__":

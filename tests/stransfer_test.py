@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-sys.path.append("../../")
-from protocol.stransfer import SerialTransfer
+from ..protocol.stransfer import SerialTransfer
 
 if __name__ == "__main__":
     serial_transfer = SerialTransfer(timeout=3, verbose=True)

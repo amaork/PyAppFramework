@@ -2,8 +2,7 @@
 
 import sys
 
-sys.path.append("../../")
-from gui.container import *
+from ..gui.container import *
 from PySide.QtGui import *
 
 

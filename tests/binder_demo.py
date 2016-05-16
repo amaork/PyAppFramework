@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-sys.path.append("../../")
-from gui.binder import *
+from ..gui.binder import *
 from PySide.QtGui import *
 from PySide.QtCore import *
 

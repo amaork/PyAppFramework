@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("../../")
-from gui.button import *
+from ..gui.button import *
 from PySide.QtGui import *
 from PySide.QtCore import *
+from .images import ImagesPath
 
 
 class DemoWidget(QWidget):
@@ -44,8 +44,8 @@ class DemoWidget(QWidget):
                 all += "*.{0:s} ".format(name)
             files, _ = QFileDialog.getOpenFileNames(self,
                                                     "Select icon images",
-                                                    "../images",
-                                                    "Images({0:s})".format(all))
+                                                    ImagesPath,
+                                                    "Images(*.jpg)")
             if len(files) == 2:
                 button = IconButton(icon=(files[0], files[1]))
         else:

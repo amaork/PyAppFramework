@@ -12,13 +12,12 @@ PaintWidget
     |------ColorWidget
                 |------CursorWidget
 """
-import sys
 import types
 import os.path
 from PySide.QtCore import *
 from PySide.QtGui import *
-sys.path.append("../../")
-from PyAppFramework.core.datatype import str2number, str2float
+
+from ..core.datatype import str2number, str2float
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',

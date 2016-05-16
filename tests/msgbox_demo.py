@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("../../")
-from gui.msgbox import *
+from ..gui.msgbox import *
 from PySide.QtGui import *
 
 

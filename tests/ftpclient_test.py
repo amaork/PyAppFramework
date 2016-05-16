@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import sys
 import socket
-sys.path.append("../../../")
-
-from PyAppFramework.protocol.ftp import FTPClient
+from ..protocol.ftp import FTPClient
 
 if __name__ == '__main__':
     address = socket.gethostbyname("kernel.org")

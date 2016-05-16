@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-sys.path.append("../../")
-from gui.widget import *
+from ..gui.widget import *
 from PySide.QtGui import *
 from PySide.QtCore import *
+from .images import ImagesPath
 
 
 class ListDemoWidget(QWidget):
@@ -392,11 +392,11 @@ class Demo(QMainWindow):
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
-            file, _ = QFileDialog.getOpenFileName(self, "Select image", "../images", "All Files (*)")
+            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*,jpg)")
             self.drawFromFs.emit(file)
             self.imageWidget.setHidden(False)
         elif self.sender() == self.imageMemButton:
-            file, _ = QFileDialog.getOpenFileName(self, "Select image", "../images", "All Files (*)")
+            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*.jpg)")
             if os.path.isfile(file):
                 data = ""
                 with open(file, "rb") as fp:

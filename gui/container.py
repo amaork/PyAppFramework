@@ -4,15 +4,13 @@
 Provide UI elements container
 """
 
-import sys
 import copy
 import types
 from PySide.QtGui import *
 from PySide.QtCore import *
 
-sys.path.append("../../")
-from PyAppFramework.gui.binder import *
-from PyAppFramework.core.datatype import str2number, str2float
+from .binder import *
+from ..core.datatype import str2number, str2float
 
 __all__ = ['ComboBoxGroup', 'ComponentManager']
 

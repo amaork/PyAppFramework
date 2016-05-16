@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import sys
 import ctypes
 import serial
-sys.path.append("../")
 
-from protocol.crc16 import crc16
-from core.datatype import BasicTypeLE
+from .crc16 import crc16
+from ..core.datatype import BasicTypeLE
 
 
 __all__ = ['SerialTransfer']
