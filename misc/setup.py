@@ -31,6 +31,9 @@ def get_dir_file_list(path):
 
     if os.path.isdir(path):
         for filename in os.listdir(path):
+            if filename.endswith(".py") or filename.endswith(".pyc"):
+                continue
+
             full_path = os.path.join(path, filename)
 
             if os.path.isdir(full_path):
@@ -52,7 +55,7 @@ def py2exe_setup_module(subdir):
         print "============================================", os.getcwd()
 
 
-def py2exe_clear_setup(module_list):
+def py2exe_clear_setup(module_list=[]):
     # Generate remove file list
     remove_list = ["dist", "build"]
     for subdir in module_list:
