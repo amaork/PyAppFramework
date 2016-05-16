@@ -1277,6 +1277,18 @@ class ListWidget(QListWidget):
         else:
             self.__markColor = QColor(51, 153, 255)
 
+    def __setItemBackground(self, index, background):
+        if not isinstance(index, int) or not isinstance(background, QBrush):
+            return False
+
+        item = self.takeItem(index)
+        if not isinstance(item, QListWidgetItem):
+            return False
+
+        item.setBackground(background)
+        self.insertItem(index, item)
+        return True
+
     @Slot(object)
     def markItem(self, item):
         if not isinstance(item, QListWidgetItem):
@@ -1288,20 +1300,16 @@ class ListWidget(QListWidget):
         if row < 0 or row >= self.count():
             return False
 
-        # Reset row items
-        self.setItems(zip(self.getItems(), self.getItemsData()))
-
-        # Get will marked item
-        markItem = self.takeItem(row)
-        if not isinstance(markItem, QListWidgetItem):
-            return False
-
-        # Change it background color
         brush = QBrush(QColor(self.__markColor))
-        markItem.setBackground(brush)
 
-        # Insert item to list
-        self.insertItem(row, markItem)
+        # Clear old mark
+        for index in range(self.count()):
+            if self.item(index).background() == brush:
+                self.__setItemBackground(index, QListWidgetItem("").background())
+                break
+
+        self.__setItemBackground(row, brush)
+        self.setCurrentRow(row)
         return True
 
     def getMarkItem(self):
@@ -1338,9 +1346,7 @@ class ListWidget(QListWidget):
             return False
 
         # Remove old items
-        for _ in range(self.count()):
-            item = self.takeItem(0)
-            self.removeItemWidget(item)
+        self.clearItems()
 
         # Add items data to ListWidget
         for data in items:
@@ -1352,6 +1358,11 @@ class ListWidget(QListWidget):
                 continue
 
         return True
+
+    def clearItems(self):
+        for _ in range(self.count()):
+            item = self.takeItem(0)
+            self.removeItemWidget(item)
 
     def getItems(self):
         return [self.item(i).text() for i in range(self.count())]
