@@ -66,20 +66,35 @@ class BasicDataType(object):
         """Get C-style data"""
         return buffer(self)[:]
 
-    def set_cdata(self, cdata, size):
+    def set_cdata(self, cdata):
         """Set C-style data
 
         :param cdata: data
-        :param size: data size
         :return:
         """
-        fit = min(size, ctypes.sizeof(self))
-        ctypes.memmove(ctypes.addressof(self), cdata, fit)
+        size = len(cdata)
+        if size != ctypes.sizeof(self):
+            return False
+
+        ctypes.memmove(ctypes.addressof(self), cdata, size)
+        return True
 
 
 class BasicTypeLE(BasicDataType, ctypes.LittleEndianStructure):
-    pass
+    def __eq__(self, other):
+        if not isinstance(other, BasicTypeLE):
+            return False
+        return self.cdata() == other.cdata()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class BasicTypeBE(BasicDataType, ctypes.BigEndianStructure):
-    pass
+    def __eq__(self, other):
+        if not isinstance(other, BasicTypeBE):
+            return False
+        return self.cdata() == other.cdata()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

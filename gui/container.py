@@ -549,7 +549,7 @@ class ComponentManager(QObject):
             property_key = component.property(key)
             value = data.get(property_key)
 
-            if value:
+            if value is not None:
                 self.__setComponentData(component, value)
 
         return True
