@@ -428,7 +428,7 @@ class ComponentManager(QObject):
 
         components = self.getAllComponents(layout)
         index = components.index(obj)
-        if index >= len(components) - 2:
+        if index >= len(components) - 1:
             return None
         else:
             return components[index + 1]
