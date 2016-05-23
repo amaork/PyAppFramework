@@ -169,10 +169,19 @@ class SerialTransfer(object):
         :return:
         """
 
-        self.port_name = ""
-        self.verbose = verbose
-        self.timeout = timeout
-        self.port = serial.Serial()
+        self.__port_name = ""
+        self.__verbose = verbose
+        self.__timeout = timeout
+        self.__port = serial.Serial()
+
+    def __del__(self):
+        if self.__port.isOpen():
+            self.__port.flushInput()
+            self.__port.flushOutput()
+            self.__port.close()
+
+    def isOk(self):
+        return self.__port.isOpen()
 
     def init(self, port, baudrate, timeout):
         """Serial port init
@@ -185,14 +194,14 @@ class SerialTransfer(object):
 
         try:
 
-            if self.port.isOpen():
+            if self.__port.isOpen():
                 return False, "Error, duplicate init"
 
             # Open serial port and flush input/output
-            self.port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-            self.port.flushInput()
-            self.port.flushOutput()
-            self.port_name = port
+            self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+            self.__port.flushInput()
+            self.__port.flushOutput()
+            self.__port_name = port
 
         except serial.SerialException, e:
             error = "Serial: {0:s} open failed: {1:s}".format(port, e)
@@ -211,7 +220,7 @@ class SerialTransfer(object):
         package_size, global_data = data[0], data[1]
 
         # Verbose
-        if self.verbose:
+        if self.__verbose:
             print "Read init success, package size:{0:d}".format(package_size)
 
         # Read package data
@@ -223,7 +232,7 @@ class SerialTransfer(object):
             else:
                 package_data += data
 
-            if self.verbose:
+            if self.__verbose:
                 print "Read data package[{0:03d}] success".format(package_index)
 
         return True, (global_data, package_data)
@@ -245,7 +254,7 @@ class SerialTransfer(object):
             return False, error
 
         # Verbose
-        if self.verbose:
+        if self.__verbose:
             print "Write init success, package size: {0:d}".format(package_size)
 
         # Write all data
@@ -255,7 +264,7 @@ class SerialTransfer(object):
             if not result:
                 return False, data
 
-            if self.verbose:
+            if self.__verbose:
                 print "Write data package[{0:03d}] success".format(package_index)
 
         return True, ""
@@ -265,11 +274,11 @@ class SerialTransfer(object):
             print "Timeout value type error"
             return False
 
-        self.timeout = timeout
+        self.__timeout = timeout
         return True
 
     def get_timeout(self):
-        return self.timeout
+        return self.__timeout
 
     def __basic_send(self, data):
         """Basic send data
@@ -283,10 +292,10 @@ class SerialTransfer(object):
             if len(data) == 0:
                 return False, "Send Data length error"
 
-            if not self.port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.port_name)
+            if not self.__port.isOpen():
+                return False, "Serial port: {0:x} is not opened".format(self.__port_name)
 
-            if self.port.write(data) != len(data):
+            if self.__port.write(data) != len(data):
                 return False, "Send data error: data sent is not completed"
 
         except serial.SerialException, e:
@@ -309,17 +318,17 @@ class SerialTransfer(object):
             if size == 0:
                 return False, "Receive data length error"
 
-            if not self.port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.port_name)
+            if not self.__port.isOpen():
+                return False, "Serial port: {0:x} is not opened".format(self.__port_name)
 
             while len(data) != size:
 
-                tmp = self.port.read(size - len(data))
+                tmp = self.__port.read(size - len(data))
                 data += tmp
 
                 # Timeout check
                 receive_count += 1
-                if receive_count >= size * self.timeout:
+                if receive_count >= size * self.__timeout:
                     break
 
             return True, data
