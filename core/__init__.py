@@ -1,1 +1,1 @@
-__all__ = ['datatype']
+__all__ = ['datatype', 'uimailbox']

@@ -56,7 +56,7 @@ class BasicMsg(BasicTypeLE):
             return False, self.get_error_desc("E_LEN")
 
         # Init self
-        self.set_cdata(data, size)
+        self.set_cdata(data)
 
         # Crc check
         if crc16(self.cdata()[1:]):
