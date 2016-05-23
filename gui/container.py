@@ -428,7 +428,7 @@ class ComponentManager(QObject):
 
         components = self.getAllComponents(layout)
         index = components.index(obj)
-        if index >= len(components) - 2:
+        if index >= len(components) - 1:
             return None
         else:
             return components[index + 1]
@@ -549,7 +549,7 @@ class ComponentManager(QObject):
             property_key = component.property(key)
             value = data.get(property_key)
 
-            if value:
+            if value is not None:
                 self.__setComponentData(component, value)
 
         return True
