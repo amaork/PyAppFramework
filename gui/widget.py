@@ -802,6 +802,8 @@ class ImageWidget(PaintWidget):
 
 
 class TableWidget(QTableWidget):
+    tableDataChanged = Signal()
+
     def __init__(self, max_column, hide_header=False, parent=None):
         """Create a QTableWidget
 
@@ -837,7 +839,8 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def __copyWidget(self, widget):
+    @staticmethod
+    def __copyWidget(widget):
         temp = widget
 
         if isinstance(widget, QAbstractSpinBox):
@@ -857,6 +860,9 @@ class TableWidget(QTableWidget):
             temp.setEnabled(widget.isEnabled())
 
         return temp
+
+    def __slotWidgetDataChanged(self):
+        self.tableDataChanged.emit()
 
     @Slot(bool)
     def hideHeaders(self, hide):
@@ -981,7 +987,7 @@ class TableWidget(QTableWidget):
         src_widget = self.__copyWidget(self.cellWidget(src_row, src_column))
 
         dst_item = self.takeItem(dst_row, dst_column)
-        dst_widget =self.__copyWidget(self.cellWidget(dst_row, dst_column))
+        dst_widget = self.__copyWidget(self.cellWidget(dst_row, dst_column))
 
         # Both CellWidget
         if isinstance(src_widget, QWidget) and isinstance(dst_widget, QWidget):
@@ -1021,6 +1027,7 @@ class TableWidget(QTableWidget):
 
         # Select dst row
         self.selectRow(dst)
+        self.tableDataChanged.emit()
 
     def swapColumn(self, src, dst):
         """Swap src and dst column data
@@ -1031,16 +1038,17 @@ class TableWidget(QTableWidget):
         """
 
         for row in range(self.rowCount()):
-           self.swapItem(row, src, row, dst)
+            self.swapItem(row, src, row, dst)
 
         # Select destination column
         self.selectColumn(dst)
+        self.tableDataChanged.emit()
 
-    def addRow(self, data, property=None):
+    def addRow(self, data, property_=None):
         """Add a row and set row property data
 
         :param data: row data should be a iterable object
-        :param property: row hidden property data
+        :param property_: row hidden property data
         :return:
         """
 
@@ -1064,8 +1072,8 @@ class TableWidget(QTableWidget):
                     item_data = str(item_data)
 
                 item = QTableWidgetItem(self.tr(item_data))
-                if property:
-                    item.setData(Qt.UserRole, property)
+                if property_:
+                    item.setData(Qt.UserRole, property_)
                 self.setItem(current, idx, item)
 
             except ValueError, e:
@@ -1169,12 +1177,14 @@ class TableWidget(QTableWidget):
                     value = self.getItemData(row, column).encode("utf-8")
                     value = str2number(value) if isinstance(filters[0], int) else str2float(value)
                     widget.setValue(value)
+                    widget.valueChanged.connect(self.__slotWidgetDataChanged)
                     self.takeItem(row, column)
                     self.setCellWidget(row, column, widget)
 
                 # Bool type
                 elif isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
                     widget = QCheckBox(self.tr(filters[1]))
+                    widget.stateChanged.connect(self.__slotWidgetDataChanged)
                     widget.setChecked(filters[0])
                     self.takeItem(row, column)
                     self.setCellWidget(row, column, widget)
@@ -1182,6 +1192,7 @@ class TableWidget(QTableWidget):
             elif isinstance(filters, list):
                 widget = QComboBox()
                 widget.addItems(filters)
+                widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
             # Normal
@@ -1210,7 +1221,7 @@ class TableWidget(QTableWidget):
 
     def setColumnDataFilter(self, column, filters):
         for row in range(self.rowCount()):
-           if not self.setItemDataFilter(row, column, filters):
+            if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
