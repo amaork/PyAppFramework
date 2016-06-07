@@ -4,7 +4,7 @@ import types
 import ctypes
 
 
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'str2float', 'str2number']
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'str2float', 'str2number', 'new_class', 'new_instance']
 
 
 def str2float(text):
@@ -56,6 +56,24 @@ def str2number(text):
     except ValueError, e:
         print "Str2number error:{0:s}, {1:s}".format(text, e)
         return 0
+
+
+def new_class(name):
+    if not isinstance(name, str):
+        raise TypeError("Class name TypeError:{0:s}".format(type(name)))
+
+    parts = name.split('.')
+    module = ".".join(parts[:-1])
+    cls = __import__(module)
+    for component in parts[1:]:
+        cls = getattr(cls, component)
+
+    return cls
+
+
+def new_instance(name, *args, **kwargs):
+    cls = new_class(name)
+    return cls(*args, **kwargs)
 
 
 class BasicDataType(object):
