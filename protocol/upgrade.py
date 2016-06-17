@@ -4,14 +4,14 @@ import os
 import socket
 import hashlib
 import SocketServer
-from ..core.datatype import str2float
+from ..core.datatype import str2float, str2number
 
 
-NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
 NEW_VERSION_DURL_CMD = "GET_NEWEST_DURL"
+NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
 
 
-__all__ = ['UpgradeClient', 'ThreadedTCPServer', 'UpgradeServerHandler']
+__all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler']
 
 
 class UpgradeClient(object):
@@ -47,12 +47,27 @@ class UpgradeClient(object):
 
     @staticmethod
     def __format_cmd__(cmd, arg):
+        """Internal using format command
+
+        :param cmd: commands
+        :param arg: commands arg
+        :return: return format command
+        """
         return "{0:s}:{1:s}".format(cmd, arg)
 
     def is_connected(self):
+        """Check if success connect upgrade server
+
+        :return: True is connected 
+        """
         return self.__connected
     
     def has_new_version(self, current_ver):
+        """Check if have new version software to upgrade
+
+        :param current_ver: current software version
+        :return: True if has new version else False
+        """
         try:
             
             if not self.is_connected():
@@ -78,10 +93,20 @@ class UpgradeClient(object):
             return False
 
     def get_new_version_info(self):
+        """Get new version software infomaction
+
+        :return: result(True or False), download url, file name, file md5, file size
+        """
+        url = ""
+        name = ""
+        md5 = ""
+        size = 0
+        error = (False, url, name, md5, size)
+
         try:
             
             if not self.is_connected():
-                return ""
+                return error
             
             # Send request to get new version download url
             self.sock.sendall(self.__format_cmd__(NEW_VERSION_DURL_CMD, self.__key))
@@ -90,20 +115,29 @@ class UpgradeClient(object):
             recv = self.sock.recv(1024)
                     
             # Check if it's valid url
-            if "http" in recv:
-                return recv
-            else:
-                return ""
+            if len(recv) == 0 or "http" not in recv or recv.count('#') != 2:
+                return error
+
+            data = recv.split("#")
+            if len(data) != 3:
+                return error
+
+            url = data[0]
+            md5 = data[1]
+            size = str2number(data[2])
+            name = os.path.basename(url)
+
+            return True, url, name, md5, size
 
         except StandardError, e:
             print "get_new_version_url Error:{0:s}".format(e)
-            return ""
+            return error
         except socket.error, e:
             print "socket_error: {0:s}".format(e)
-            return ""
+            return error
 
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
 
@@ -117,11 +151,6 @@ class UpgradeServerHandler(SocketServer.BaseRequestHandler):
     
     # Upgrade server base url
     UPGRADE_SERVER_BASE_URL = "http://127.0.0.0:8888/"
-    
-    # Support upgrade software
-    support_software = [
-        'pg816_timing_editor',
-    ]
     
     # TCP handler
     def handle(self):
@@ -162,10 +191,6 @@ class UpgradeServerHandler(SocketServer.BaseRequestHandler):
         """
 
         package_dir = os.path.join(self.UPGRADE_PACKAGE_DIR, name)
-        
-        # Do not support
-        # if name not in self.support_software:
-        #     return 0.0
         
         # Do not have new
         if not os.path.isdir(package_dir):

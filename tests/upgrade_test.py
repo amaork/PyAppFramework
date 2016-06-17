@@ -2,7 +2,7 @@
 
 import sys
 import threading
-from ..protocol.upgrade import UpgradeClient, ThreadedTCPServer, UpgradeServerHandler
+from ..protocol.upgrade import UpgradeClient, UpgradeServer, UpgradeServerHandler
 
 
 def client_test(name, server, port):
@@ -27,7 +27,7 @@ def server_test():
     HOST, PORT = '0.0.0.0', 9999
 
     # Create a tcp server
-    server = ThreadedTCPServer((HOST, PORT), UpgradeServerHandler)
+    server = UpgradeServer((HOST, PORT), UpgradeServerHandler)
 
     # Start thread with the server
     server_thread = threading.Thread(target=server.serve_forever)
