@@ -22,7 +22,7 @@ class TarManager(object):
         "bz2": ":bz2",
     }
     
-    operDict = {
+    operateDict = {
         
         "read": "r",
         "write": "w",
@@ -50,20 +50,35 @@ class TarManager(object):
     @staticmethod
     def get_support_format():
         return TarManager.formatDict.keys()
-    
+
     @staticmethod
-    def package(path, name, fmt="", verbose=False):
+    def __core_pack(tar, path, verbose):
+        if not isinstance(tar, tarfile.TarFile) or not os.path.isfile(path):
+            return
+
+        if verbose:
+            print path[2:]
+
+        tar.add(path)
+
+    @staticmethod
+    def pack(path, name, fmt="", extensions=list(), filters=None, verbose=False):
         """Package directory to a tarfile
 
         :param path: directory path
         :param name: package name
         :param fmt: package formats
+        :param extensions: if set only pack those extension names
+        :param filters: if set when filter is true will packed
         :param verbose: show verbose message
         :return: success return (True, "")  else (False, error)
         """
 
         result = (True, "")
         current_path = os.getcwd()
+
+        filters = filters if hasattr(filters, "__call__") else None
+        extensions = extensions if isinstance(extensions, list) else ()
     
         try:
         
@@ -90,23 +105,35 @@ class TarManager(object):
             os.chdir(path)
         
             # Create package file
-            tar_file = tarfile.open(name, TarManager.operDict.get("write") + TarManager.formatDict.get(formats))
+            tar_file = tarfile.open(name, TarManager.operateDict.get("write") + TarManager.formatDict.get(formats))
             
             # Print package info
             if verbose:
                 print "{0:s} -> {1:s}".format(os.path.abspath(path), name)
-        
+
             # Traversal all files in path add to tarFile
             for root, dirs, files in os.walk('.'):
                 for file_name in files:
+                    extension_name = file_name.split(".")[-1]
                     full_path = os.path.join(root, file_name)
-                
-                    # Verbose message
-                    if verbose:
-                        print full_path[2:]
-                        
-                    tar_file.add(full_path)
-                
+
+                    # File extension name is in extension
+                    if len(extensions) and extension_name in extensions:
+                        TarManager.__core_pack(tar_file, full_path, verbose)
+                        continue
+
+                    # File name is pass the filter
+                    if filters and filters(extension_name):
+                        TarManager.__core_pack(tar_file, full_path, verbose)
+                        continue
+
+                    # No in extensions and not in filters
+                    if len(extensions) or filters:
+                        continue
+
+                    # Do not has extension and filters pack all
+                    TarManager.__core_pack(tar_file, full_path, verbose)
+
             # Close tarFile
             tar_file.close()
     
@@ -121,12 +148,12 @@ class TarManager(object):
             return result
 
     @staticmethod
-    def unpackage(file_path, unpackage_path="", fmt=""):
-        """Unpackage file_path specified file to unpacakge_path
+    def unpack(file_path, unpack_path="", fmt=""):
+        """Unpack file_path specified file to unpack_path
 
         :return:
         :param file_path: Tar file path
-        :param unpackage_path: Unpackage path
+        :param unpack_path: Unpack path
         :param fmt: package format
         :return: result, error
         """
@@ -154,16 +181,16 @@ class TarManager(object):
                 result = False, "Unknown package format:{0:s}".format(file_path)
                 raise
         
-            # Check unpackage directory
-            if len(unpackage_path) == 0:
-                unpackage_path = os.path.basename(file_path.split(".")[0])
+            # Check unpack directory
+            if len(unpack_path) == 0:
+                unpack_path = os.path.basename(file_path.split(".")[0])
 
-            if not os.path.isdir(unpackage_path):
-                os.makedirs(unpackage_path)
+            if not os.path.isdir(unpack_path):
+                os.makedirs(unpack_path)
             
             # Open as tarfile and extractall and close finally
-            tar_file = tarfile.open(file_path, TarManager.operDict.get("read") + TarManager.formatDict.get(formats))
-            tar_file.extractall(unpackage_path)
+            tar_file = tarfile.open(file_path, TarManager.operateDict.get("read") + TarManager.formatDict.get(formats))
+            tar_file.extractall(unpack_path)
             tar_file.close()
     
         except IOError, e:

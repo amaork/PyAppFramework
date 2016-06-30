@@ -95,10 +95,10 @@ if __name__ == '__main__':
 
         # Operate
         if package_operate:
-            print TarManager.package(src_path, dest_path, formats, verbose)
+            print TarManager.pack(src_path, dest_path, formats, verbose)
 
         if unpackage_operate:
-            print TarManager.unpackage(src_path, fmt=formats)
+            print TarManager.unpack(src_path, fmt=formats)
 
     except getopt.GetoptError, e:
         print "Error:{0:s}".format(e)
