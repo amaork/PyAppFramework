@@ -4,7 +4,10 @@ import types
 import ctypes
 
 
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'str2float', 'str2number', 'new_class', 'new_instance']
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE',
+           'str2float', 'str2number',
+           'new_class', 'new_instance',
+           'ip4_check']
 
 
 def str2float(text):
@@ -74,6 +77,27 @@ def new_class(name):
 def new_instance(name, *args, **kwargs):
     cls = new_class(name)
     return cls(*args, **kwargs)
+
+
+def ip4_check(addr):
+    if not isinstance(addr, str):
+        return False
+
+    try:
+
+        data = addr.split(".")
+        if len(data) != 4:
+            return False
+
+        for num in data:
+            if not (0 <= int(num) < 255):
+                return False
+
+        return True
+
+    except ValueError:
+
+        return False
 
 
 class BasicDataType(object):
