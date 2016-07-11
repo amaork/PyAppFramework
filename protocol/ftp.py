@@ -139,15 +139,17 @@ class FTPClient(object):
         
         return flist
         
-    def download_dir(self, remote_dir, local_dir):
+    def download_dir(self, remote_dir, local_dir, exclude=None):
         """Recursive download remote directory data to local dir without remote dir name equal cp remoteDir/* localDir/
 
         :param remote_dir: remote directory path
         :param local_dir: local directory path
+        :param exclude: exclude list
         :return:
         """
 
         pwd = ""
+        exclude = exclude if isinstance(exclude, (list, tuple)) else list()
                
         try:
             
@@ -161,17 +163,19 @@ class FTPClient(object):
         
             # Recursive download all files
             for fileName in self.ftp.nlst("."):
+
+                if fileName in exclude:
+                    continue
                 
                 # file is a directory
                 if self.is_dir(fileName):
 
                     # Recursive call self download all
-                    result = self.download_dir(fileName, os.path.join(local_dir, fileName))
+                    result = self.download_dir(fileName, os.path.join(local_dir, fileName), exclude)
                     if not result[0]:
                         return result
                 # Normal file call download file
                 else:
-                    
                     result = self.download_file(self.ftp.pwd() + '/' + fileName, local_dir)
                     if not result[0]:
                         return result
