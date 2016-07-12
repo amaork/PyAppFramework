@@ -235,15 +235,17 @@ class FTPClient(object):
 
         return True, "Success"
            
-    def upload_dir(self, local_dir, remote_dir):
+    def upload_dir(self, local_dir, remote_dir, exclude=None):
         """Recursive upload local dir to remote, if remote dir is not exist create it, else replace all files
 
         :param local_dir: Local path, will upload
         :param remote_dir: FTP Server remote path, receive upload data
+        :param exclude: file name in exclude will not uploaded
         :return:
         """
 
         pwd = ""
+        exclude = exclude if isinstance(exclude, (list, tuple)) else list()
         
         try:
             
@@ -261,12 +263,15 @@ class FTPClient(object):
                 
             # Recursive upload local file
             for fileName in os.listdir('.'):
+
+                if fileName in exclude:
+                    continue
                                 
                 # fileName is a directory
                 if os.path.isdir(os.path.abspath(fileName)):
                                                              
                     # Recursive Call self upload all
-                    result = self.upload_dir(fileName, remote_dir + "/" + fileName)
+                    result = self.upload_dir(fileName, remote_dir + "/" + fileName, exclude)
                     if not result[0]:
                         return result
                 

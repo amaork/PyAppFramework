@@ -79,11 +79,12 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func, args=()):
+    def __init__(self, func, args=(), kwargs=None):
         """Call #func specified function with #args
 
         :param func: Callback function
         :param args:  Callback function args
+        :param kwargs: Callback function args
         :return:
         """
         super(CallbackFuncMail, self).__init__()
@@ -91,6 +92,7 @@ class CallbackFuncMail(BaseUiMail):
         assert isinstance(args, tuple), "CallbackFunc mail args TypeError:{0:s}".format(type(args))
         self.__func = func
         self.__args = args
+        self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
         
     @property
     def callback(self):
@@ -99,6 +101,10 @@ class CallbackFuncMail(BaseUiMail):
     @property
     def args(self):
         return self.__args
+
+    @property
+    def kwargs(self):
+        return self.__kwargs
 
 
 class UiMailBox(QObject):
@@ -157,10 +163,7 @@ class UiMailBox(QObject):
 
         # Callback function
         elif isinstance(mail, CallbackFuncMail):
-            if len(mail.args):
-                mail.callback(mail.args)
-            else:
-                mail.callback()
+            mail.callback(*mail.args, **mail.kwargs)
         else:
             return False
 
