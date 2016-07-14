@@ -673,16 +673,17 @@ class LumWidget(PaintWidget):
 
 
 class ImageWidget(PaintWidget):
-    def __init__(self, width=0, height=0, zoomIn=False, parent=None):
+    def __init__(self, width=0, height=0, zoomInRatio=0, zoomInArea=20, parent=None):
         """ImageWidget provide 3 method to draw a image
 
         drawFromFs  :   load a image from filesystem and show it
         drawFromMem :   load a image form memory data and show it
         drawFromText:   Dynamic draw a image with text
 
-        :param width:
-        :param height:
-        :param zoomIn:
+        :param width: widget fixed width
+        :param height:widget fixed height
+        :param zoomInRatio: zoom in ratio 0 is turn off
+        :param zoomInArea: zoom in area width and height
         :param parent:
         :return:
         """
@@ -699,9 +700,12 @@ class ImageWidget(PaintWidget):
         self.image = QImage()
 
         # For grab cursor position pixel
-        self.zoomIn = zoomIn
+        self.zoomInX = 0
+        self.zoomInY = 0
         self.zoomInFlag = False
         self.zoomInPattern = QPixmap()
+        self.zoomInArea = zoomInArea if isinstance(zoomInArea, int) else 20
+        self.zoomInRatio = zoomInRatio if isinstance(zoomInRatio, int) else 0
 
         self.setMinimumSize(width, height)
         self.setMaximumSize(width, height)
@@ -800,6 +804,51 @@ class ImageWidget(PaintWidget):
             self.drawBackground(painter, self.bgColor)
             self.drawCenterText(painter, self.textFont, self.textColor, self.text)
 
+        # If zoom in flag superimposed zoom in pattern
+        if self.zoomInFlag:
+            if self.zoomInX < self.width() / 2:
+                x = self.zoomInX + 15
+            else:
+                x = self.zoomInX - 15 - self.zoomInPattern.width()
+
+            if self.zoomInY < self.height() / 2:
+                y = self.zoomInY + 15
+            else:
+                y = self.zoomInY - 15 - self.zoomInPattern.height()
+
+            painter.drawPixmap(x, y, self.zoomInPattern)
+
+    def mouseMoveEvent(self, ev):
+        if not self.zoomInRatio:
+            return
+
+        # Clear zoom in flag
+        self.zoomInFlag = False
+
+        self.zoomInX = ev.x()
+        self.zoomInY = ev.y()
+        ratio = self.zoomInRatio
+
+        # Cursor move out of the range
+        if self.zoomInX < -8 or self.zoomInX >= self.width() \
+                or self.zoomInY < -8 or self.zoomInY >= self.height():
+            self.update()
+            return
+
+        # Grab cursor pointer pattern
+        sample = QPixmap()
+        sample = sample.grabWidget(self, self.zoomInX, self.zoomInY, self.zoomInArea, self.zoomInArea)
+        self.zoomInPattern = sample.scaled(sample.width() * ratio, sample.height() * ratio, Qt.KeepAspectRatio)
+
+        # Update call paintEvent
+        self.zoomInFlag = True
+        self.update()
+
+    def mouseReleaseEvent(self, ev):
+        # Mouse release will clear zoom in flag
+        self.zoomInFlag = False
+        self.update()
+
 
 class TableWidget(QTableWidget):
     tableDataChanged = Signal()
@@ -880,25 +929,29 @@ class TableWidget(QTableWidget):
     @Slot()
     def rowMoveUp(self):
         row = self.currentRow()
-        if row == 0: return
+        if row == 0:
+            return
         self.swapRow(row, row - 1)
 
     @Slot()
     def rowMoveDown(self):
         row = self.currentRow()
-        if row == self.rowCount() - 1: return
+        if row == self.rowCount() - 1:
+            return
         self.swapRow(row, row + 1)
 
     @Slot()
     def columnMoveLeft(self):
         column = self.currentColumn()
-        if column == 0: return
+        if column == 0:
+            return
         self.swapColumn(column, column - 1)
 
     @Slot()
     def columnMoveRight(self):
         column = self.currentColumn()
-        if column == self.columnCount() - 1:return
+        if column == self.columnCount() - 1:
+            return
         self.swapColumn(column, column + 1)
 
     @Slot()
