@@ -1210,6 +1210,39 @@ class TableWidget(QTableWidget):
 
         return True
 
+    def setItemData(self, row, column, data):
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return False
+
+        try:
+
+            item = self.takeItem(row, column)
+            widget = self.__copyWidget(self.cellWidget(row, column))
+
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, long, float)):
+                widget.setValue(data)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
+            elif isinstance(widget, QCheckBox) and isinstance(data, bool):
+                widget.setChecked(data)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
+            elif isinstance(widget, QComboBox) and isinstance(data, (int, long)) and data < widget.count():
+                widget.setCurrentIndex(data)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
+            elif isinstance(item, QTableWidgetItem) and isinstance(data, types.StringTypes):
+                item.setText(self.tr(data))
+                self.setItem(row, column, item)
+            else:
+                return False
+
+            return True
+
+        except StandardError, e:
+            print "Set table item data error:{0:s}".format(e)
+            return False
+
     def setItemDataFilter(self, row, column, filters):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
