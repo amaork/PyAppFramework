@@ -1386,10 +1386,30 @@ class ListWidget(QListWidget):
         self.insertItem(index, item)
         return True
 
-    @Slot(object)
-    def markItem(self, item):
+    def __setItemForeground(self, index, foreground):
+        if not isinstance(index, int) or not isinstance(foreground, QBrush):
+            return False
+
+        item = self.takeItem(index)
         if not isinstance(item, QListWidgetItem):
             return False
+
+        item.setForeground(foreground)
+        self.insertItem(index, item)
+        return True
+
+    @Slot(object)
+    def markItem(self, item, background=True):
+        """Mark item background or foreground with different color
+
+        :param item: witch item to marked
+        :param background: if background set will mark background else foreground
+        :return: success, return true else false
+        """
+        if not isinstance(item, QListWidgetItem):
+            return False
+
+        markItem = self.__setItemBackground if background else self.__setItemForeground
 
         # Get item row
         row = self.row(item)
@@ -1401,21 +1421,32 @@ class ListWidget(QListWidget):
 
         # Clear old mark
         for index in range(self.count()):
-            if self.item(index).background() == brush:
+
+            if background and self.item(index).background() == brush:
                 self.__setItemBackground(index, QListWidgetItem("").background())
                 break
+            elif not background and self.item(index).foreground() == brush:
+                self.__setItemForeground(index, QListWidgetItem("").foreground())
+                break
 
-        self.__setItemBackground(row, brush)
+        markItem(row, brush)
         self.setCurrentRow(row)
         return True
 
-    def getMarkItem(self):
+    def getMarkedItem(self, background=True):
+        """Get marked item text
+
+        :param background: if set will return marked background item text else foreground item text
+        :return:
+        """
         for index in range(self.count()):
             item = self.item(index)
             if not isinstance(item, QListWidgetItem):
                 continue
 
-            if item.background() == self.__markColor:
+            if background and item.background() == self.__markColor:
+                return item.text()
+            elif not background and item.foreground() == self.__markColor:
                 return item.text()
 
         return None
