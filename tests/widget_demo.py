@@ -60,6 +60,7 @@ class ListDemoWidget(QWidget):
     def slotGetMarkItem(self):
         self.listData.setText("{0:s}".format(self.listWidget.getMarkedItem()))
 
+
 class TableWidgetTest(QWidget):
     def __init__(self, parent=None):
         super(TableWidgetTest, self).__init__(parent)
