@@ -112,19 +112,36 @@ class RectButton(BaseButton):
         self.drawColor = (Qt.red, Qt.green)
         self.textColor = self.drawColor[1], self.drawColor[0]
 
-        if isinstance(text, tuple) and len(text) == 2:
-            self.text = text
-
-        if isinstance(color, tuple) and len(color) == 2:
-            self.drawColor = color
-            self.textColor = self.drawColor[1], self.drawColor[0]
-
+        self.setText(text)
+        self.setColor(color)
         self.textLength = max(len(self.text[0]), len(self.text[1]), 1)
 
     def draw(self, painter, rect):
         painter.setPen(self.textColor[self.getState()])
         painter.setFont(QFont("Times New Roman", min(rect.width() / self.textLength / 0.618, rect.height() * 0.618)))
         painter.drawText(rect, Qt.AlignCenter, self.tr(self.text[self.getState()]))
+
+    def setText(self, text):
+        if not isinstance(text, (list, tuple)) or len(text) != 2:
+            return False
+
+        if not isinstance(text[0], types.StringTypes) or not isinstance(text[1], types.StringTypes):
+            return False
+
+        self.text = text
+        self.update()
+        return True
+
+    def setColor(self, colors):
+        if not isinstance(colors, (list, tuple)) or len(colors) != 2:
+            return False
+
+        if not isinstance(colors[0], (QColor, Qt.GlobalColor)) or not isinstance(colors[1], (QColor, Qt.GlobalColor)):
+            return False
+
+        self.drawColor = colors
+        self.textColor = self.drawColor[1], self.drawColor[0]
+        self.update()
 
     def getBrush(self):
         return QBrush(self.drawColor[self.getState()], Qt.SolidPattern)

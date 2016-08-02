@@ -9,29 +9,36 @@ __all__ = ['SimpleColorDialog']
 
 
 class SimpleColorDialog(QDialog):
-    def __init__(self, same=False, parent=None):
+    def __init__(self, basic=False, color=Qt.black, parent=None):
         """Simple color dialog
 
-        :param same: if same is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
+        :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
+        :param color: init color
         :param parent:
         :return:
         """
         super(SimpleColorDialog, self).__init__(parent)
+        assert isinstance(color, (QColor, Qt.GlobalColor)), "Color TypeError:{0:s}".format(type(color))
 
         self.__initUi()
-        self.__color = ""
-        self.__same = same
+        self.__basic = basic
         self.__selected = False
-        self.__updateColor(QColor(Qt.red))
+        self.__color = QColor(color)
+        self.__updateColor(self.__color)
 
     def __initUi(self):
         # Color select buttons
-        colorLayout = QHBoxLayout()
-        colorLayout.addWidget(QLabel(self.tr("颜色")))
-        for color in (Qt.black, Qt.red, Qt.blue, Qt.magenta, Qt.yellow, Qt.green, Qt.cyan, Qt.white):
-            button = RectButton(32, 24, color=(color, color))
-            button.clicked.connect(self.slotChangeColor)
-            colorLayout.addWidget(button)
+        colorLayout = QGridLayout()
+        colors = (Qt.black, Qt.red, Qt.blue, Qt.magenta, Qt.yellow, Qt.green, Qt.cyan, Qt.white)
+        for row, depth in enumerate((255, 127, 64)):
+            colorLayout.addWidget(QLabel("{0:d}".format(depth)), row, 0)
+            for column, color in enumerate(colors):
+                c = QColor(color)
+                r, g, b = (depth if x else x for x in self.convertToRgb(c))
+                c = QColor(r, g, b)
+                button = RectButton(32, 24, color=(c, c))
+                button.clicked.connect(self.slotChangeColor)
+                colorLayout.addWidget(button, row, column + 1)
 
         # Color depth slider
         depthLayout = QHBoxLayout()
@@ -82,9 +89,18 @@ class SimpleColorDialog(QDialog):
         self.setWindowTitle(self.tr("请选择颜色"))
 
     def __getColor(self):
+        """Get select color setting
+
+        :return: r, g, b
+        """
         return self.__color.red(), self.__color.green(), self.__color.blue()
 
     def __setColor(self, color):
+        """Save color and update spinbox color
+
+        :param color: select color
+        :return: true or false
+        """
         if not isinstance(color, QColor):
             return False
 
@@ -95,18 +111,31 @@ class SimpleColorDialog(QDialog):
         return True
 
     def __getCurrentColor(self):
+        """Get ui spinbox color setting
+
+        :return: r, g, b
+        """
         r = self.__red.value()
         b = self.__blue.value()
         g = self.__green.value()
         return r, g, b
 
     def __updateColor(self, color):
+        """Update ui elements setting
+
+        :param color:
+        :return:
+        """
         if not isinstance(color, QColor):
             return
 
         self.__setColor(color)
-        self.__depth.setValue(255)
-        if self.__same:
+        value = max(self.convertToRgb(color))
+        self.slotChangeDepth(value)
+        self.__depth.setValue(value)
+
+        # Basic mode
+        if self.__basic:
             r, g, b = self.__getColor()
             self.__red.setEnabled(r)
             self.__blue.setEnabled(b)
@@ -121,10 +150,11 @@ class SimpleColorDialog(QDialog):
         if not isinstance(btn, RectButton):
             return
 
+        # Update select color
         self.__updateColor(btn.getBrush().color())
 
     def slotChangeDepth(self, value):
-        if self.__same or self.sender() == self.__depth:
+        if self.__basic or self.sender() == self.__depth:
             r, g, b = self.__getColor()
             if r:
                 self.__red.setValue(value)
@@ -143,19 +173,26 @@ class SimpleColorDialog(QDialog):
             r, g, b = self.__getCurrentColor()
             return QColor(r, g, b)
         else:
-            return QColor(Qt.black)
+            return self.__color
 
     @staticmethod
-    def getColor(parent):
-        panel = SimpleColorDialog(parent=parent)
+    def getColor(parent, color=Qt.red):
+        panel = SimpleColorDialog(color=color, parent=parent)
         panel.exec_()
         return panel.getSelectColor()
 
     @staticmethod
-    def getSameColor(parent):
-        panel = SimpleColorDialog(True, parent)
+    def getBasicColor(parent, color=Qt.red):
+        panel = SimpleColorDialog(True, color, parent)
         panel.exec_()
         return panel.getSelectColor()
+
+    @staticmethod
+    def convertToRgb(color):
+        if not isinstance(color, QColor):
+            return 0, 0, 0
+
+        return color.red(), color.green(), color.blue()
 
     @staticmethod
     def convertToIndexColor(color):
@@ -163,9 +200,7 @@ class SimpleColorDialog(QDialog):
             return 0, 0
 
         index = 0
-        r = color.red()
-        g = color.green()
-        b = color.blue()
+        r, g, b = SimpleColorDialog.convertToRgb(color)
 
         if r:
             index |= 4

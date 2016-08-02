@@ -66,7 +66,7 @@ class ColorDialogTest(QWidget):
         self.__diffColor.setStyleSheet("background:rgb({0:d}, {1:d}, {2:d})".format(r, g, b))
 
     def __slotSelectSameColor(self):
-        color = SimpleColorDialog.getSameColor(self)
+        color = SimpleColorDialog.getBasicColor(self)
         r = color.red()
         g = color.green()
         b = color.blue()
