@@ -2,15 +2,15 @@
 
 import os
 import socket
+import httplib
 import hashlib
+import threading
 import SocketServer
+import SimpleHTTPServer
 from ..core.datatype import str2float, str2number
-
 
 NEW_VERSION_DURL_CMD = "GET_NEWEST_DURL"
 NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
-
-
 __all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler']
 
 
@@ -93,7 +93,7 @@ class UpgradeClient(object):
             return False
 
     def get_new_version_info(self):
-        """Get new version software infomaction
+        """Get new version software information
 
         :return: result(True or False), download url, file name, file md5, file size
         """
@@ -137,96 +137,184 @@ class UpgradeClient(object):
             return error
 
 
-class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+# Upgrade File server provide upgrade file download services
+class UpgradeFileServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
 
-class UpgradeServerHandler(SocketServer.BaseRequestHandler):
-    
-    # Upgrade package suffix
+# Upgrade server built in inquire service and file download service
+class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     UPGRADE_PACKAGE_SUFFIX = ".tbz2"
-    
-    # Upgrade packages store dir
-    UPGRADE_PACKAGE_DIR ="/home/amaork/software_upgrade_server"
-    
-    # Upgrade server base url
-    UPGRADE_SERVER_BASE_URL = "http://127.0.0.0:8888/"
-    
+    FILE_SERVER_ROOT = "upgrade_package_repo"
+
+    def __init__(self, upgrade_server_port=9999, file_server_port=8888, file_server_root=FILE_SERVER_ROOT):
+        SocketServer.TCPServer.__init__(self, ("0.0.0.0", upgrade_server_port), UpgradeServerHandler)
+
+        assert isinstance(file_server_port, int), "File server port TypeError:{0:s}".format(file_server_port)
+        assert isinstance(file_server_root, str), "File server root TypeError:{0:s}".format(file_server_root)
+
+        # Init http file server
+        assert self.__initHTTPFileServer(file_server_port, file_server_root), "Init upgrade http file server failed!"
+
+        self.__file_server = "http://{0:s}:{1:d}".format(self.__getHostIPAddr(), file_server_port)
+        print "Upgrade server init success:\nInquire server:{0:s}\nDownload server:{1:s}".format(
+            (self.__getHostIPAddr(), upgrade_server_port), (self.__getHostIPAddr(), file_server_port)
+        )
+
+    @staticmethod
+    def __getHostIPAddr():
+        """Get host ip address
+
+        :return:
+        """
+        return socket.gethostbyname(socket.gethostname())
+
+    def __initHTTPFileServer(self, port, root):
+        """Init a http file server
+
+        :param: file server port
+        :param: file server root dir
+        :return: do not return
+        """
+        try:
+
+            # Check root, if is not exist create it
+            if not os.path.isdir(root):
+                os.makedirs(root)
+
+            # Enter file server root
+            os.chdir(root)
+
+            # Create a file server instance
+            self.__httpd = UpgradeFileServer((self.__getHostIPAddr(), port), SimpleHTTPServer.SimpleHTTPRequestHandler)
+
+            # Create a threading serve it
+            th = threading.Thread(target=self.__httpd.serve_forever, name="Upgrade file server")
+            th.setDaemon(True)
+            th.start()
+            return True
+
+        except StandardError, e:
+            print "Init HttpFileServer error:{0:s}".format(e)
+            return False
+
+    @staticmethod
+    def testHTTPFileServer(server):
+        try:
+
+            if not isinstance(server, tuple) or len(server) != 2:
+                return False
+
+            addr, port = server
+            if not isinstance(addr, str) or not isinstance(port, int):
+                return False
+
+            server = "{0:s}:{1:d}".format(addr, port)
+
+            test = httplib.HTTPConnection(server)
+            test.request("HEAD", "")
+            if test.getresponse().status == 200:
+                return True
+            else:
+                return False
+
+        except socket.error, e:
+            print "Test http server:{0:s}, error:{1:s}".format(server, e)
+            return False
+
+    def get_file_server_address(self):
+        return self.__file_server
+
+    def get_newest_version(self, software):
+        """Get newest software version
+
+        :param software: software name
+        :return: software newest version
+        """
+
+        package_dir = software
+
+        # Do not have new
+        if not os.path.isdir(package_dir):
+            return 0.0
+
+        try:
+
+            # Get software upgrade package dir all upgrade files
+            file_list = filter(lambda name: self.UPGRADE_PACKAGE_SUFFIX in name, os.listdir(package_dir))
+            version_list = [float(os.path.splitext(name)[0]) for name in file_list]
+            newest_version = str2float(max(version_list))
+            return newest_version
+
+        except StandardError, e:
+            print "get_newest_version Error: {0:s}".format(e)
+            return 0.0
+
+    def get_newest_version_durl(self, software):
+        """Get newest software download address
+
+        :param software: software name
+        :return: software info and download url
+        """
+
+        try:
+
+            file_md5 = ""
+
+            # First get software newest version
+            newest_version = self.get_newest_version(software)
+
+            if newest_version == 0.0:
+                return "No new version to download"
+
+            # Get newest version download path
+            file_name = str(newest_version) + self.UPGRADE_PACKAGE_SUFFIX
+            local_file_path = os.path.join(software, file_name)
+            download_url = os.path.join(self.__file_server, local_file_path)
+
+            if os.path.isfile(local_file_path):
+                file_md5 = hashlib.md5(open(local_file_path, 'rb').read()).hexdigest()
+
+            return download_url + '#' + file_md5 + '#' + str(os.path.getsize(local_file_path))
+
+        except StandardError, e:
+            return "Get software:{0:s} download url error:{1:s}".format(software, e)
+
+
+class UpgradeServerHandler(SocketServer.BaseRequestHandler):
     # TCP handler
     def handle(self):
         
         while True:
             try:
-            
+
+                # Check server
+                if not isinstance(self.server, UpgradeServer):
+                    break
+
                 # Received data
                 data = self.request.recv(128).strip().split(":")
-        
+
                 # Check request
                 if len(data) != 2:
                     self.request.sendall("Error:unknown request, request format error!")
-                    return False
+                    break
         
                 # Get request and request args
                 request = data[0].upper()
                 req_arg = data[1]
-                
+
+                # TODO: write log
                 # Get newest software version
                 if request == NEW_VERSION_CHECK_CMD:
-                    self.request.sendall(str(self.get_newest_version(req_arg)))
+                    self.request.sendall(str(self.server.get_newest_version(req_arg)))
+                # Get newest version download url
                 elif request == NEW_VERSION_DURL_CMD:
-                    self.request.sendall(self.get_download_url(req_arg))
+                    self.request.sendall(self.server.get_newest_version_durl(req_arg))
                 else:
                     self.request.sendall("Error:unknown request!")
             
             except StandardError, e:
                 self.request.close()
                 print "Error:{0:s}".format(e)
-                continue
-                
-    def get_newest_version(self, name):
-        """Get newest software version
-
-        :param name: software name
-        :return: software newest version
-        """
-
-        package_dir = os.path.join(self.UPGRADE_PACKAGE_DIR, name)
-        
-        # Do not have new
-        if not os.path.isdir(package_dir):
-            return 0.0
-        
-        try:
-        
-            file_list = filter(lambda name: self.UPGRADE_PACKAGE_SUFFIX in name, os.listdir(package_dir))
-            version_list = [float(os.path.splitext(name)[0]) for name in file_list]
-            newest_version = str2float(max(version_list))
-            return newest_version
-                 
-        except StandardError, e:
-            print "get_newest_version Error: {0:s}".format(e)
-            return 0.0
-
-    def get_download_url(self, name):
-        """Get newest software download address
-
-        :param name: software name
-        :return: software info and download url
-        """
-
-        file_md5 = ""
-        # First get software newest version
-        newest_version = self.get_newest_version(name)
-
-        if newest_version == 0.0:
-            return "No newest version to download"
-        
-        # Get newest version download path
-        newest_version_file = str(newest_version) + self.UPGRADE_PACKAGE_SUFFIX
-        download_url = self.UPGRADE_SERVER_BASE_URL + os.path.join(name, newest_version_file)
-        local_file_path = os.path.join(self.UPGRADE_PACKAGE_DIR, os.path.join(name, newest_version_file))
-        
-        if os.path.isfile(local_file_path):
-            file_md5 = hashlib.md5(open(local_file_path, 'rb').read()).hexdigest()
-        
-        return download_url + '#' + file_md5 + '#' + str(os.path.getsize(local_file_path))
+                break

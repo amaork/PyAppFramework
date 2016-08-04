@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import threading
-from ..protocol.upgrade import UpgradeClient, UpgradeServer, UpgradeServerHandler
+from ..protocol.upgrade import UpgradeClient, UpgradeServer
 
 
 def client_test(name, server, port):
@@ -22,29 +21,22 @@ def client_test(name, server, port):
         test_cnt -= 1
 
 
-def server_test():
-    # Server setting
-    HOST, PORT = '0.0.0.0', 9999
-
+def server_test(root=UpgradeServer.FILE_SERVER_ROOT):
     # Create a tcp server
-    server = UpgradeServer((HOST, PORT), UpgradeServerHandler)
-
-    # Start thread with the server
-    server_thread = threading.Thread(target=server.serve_forever)
-
-    # Start server
-    server_thread.start()
-
-    # Print info
-    print "Software upgrade multi-threading server is running!"
-
+    server = UpgradeServer(file_server_root=root)
+    server.serve_forever()
 
 if __name__ == '__main__':
+    # Client mode
     if len(sys.argv) == 4:
         client_test(sys.argv[1], sys.argv[2], sys.argv[3])
+    # Server mode default root
     elif len(sys.argv) == 2 and sys.argv[1] == "server":
         server_test()
+    # Server mode specified root
+    elif len(sys.argv) == 3 and sys.argv[1] == "server":
+        server_test(sys.argv[2])
     else:
-        print "Usage: {0:s} server"
-        print "Usage: {0:s} software_name, server_address, server_port".format(sys.argv[0])
+        print "Usage: {0:s} <server> [root]".format(sys.argv[0])
+        print "Usage: {0:s} <software_name> <server_address> <server_port>".format(sys.argv[0])
         sys.exit(-1)
