@@ -1343,7 +1343,7 @@ class TableWidget(QTableWidget):
             return None
 
         item = self.item(row, column)
-        return item.data(Qt.UserRole)
+        return item.data(Qt.UserRole) if isinstance(item, QTableWidgetItem) else None
 
     def getRowData(self, row):
         return [self.getItemData(row, column) for column in range(self.columnCount())]

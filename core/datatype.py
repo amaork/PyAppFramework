@@ -22,7 +22,7 @@ def str2float(text):
 
         return float(text)
 
-    except ValueError, e:
+    except StandardError, e:
         print "Str2float error:{0:s}, {1:s}".format(text, e)
         return 0.0
 
@@ -56,7 +56,7 @@ def str2number(text):
         else:
             return int(text)
 
-    except ValueError, e:
+    except StandardError, e:
         print "Str2number error:{0:s}, {1:s}".format(text, e)
         return 0
 
