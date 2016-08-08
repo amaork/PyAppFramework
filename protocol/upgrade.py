@@ -156,18 +156,29 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         # Init http file server
         assert self.__initHTTPFileServer(file_server_port, file_server_root), "Init upgrade http file server failed!"
 
-        self.__file_server = "http://{0:s}:{1:d}".format(self.__getHostIPAddr(), file_server_port)
+        self.__file_server = "http://{0:s}:{1:d}".format(self.getHostIPAddr(), file_server_port)
         print "Upgrade server init success:\nInquire server:{0:s}\nDownload server:{1:s}".format(
-            (self.__getHostIPAddr(), upgrade_server_port), (self.__getHostIPAddr(), file_server_port)
+            (self.getHostIPAddr(), upgrade_server_port), (self.getHostIPAddr(), file_server_port)
         )
 
     @staticmethod
-    def __getHostIPAddr():
+    def getHostIPAddr():
         """Get host ip address
 
         :return:
         """
-        return socket.gethostbyname(socket.gethostname())
+        try:
+
+            for addr in socket.gethostbyname_ex(socket.gethostname())[2]:
+                if not addr.startswith("127."):
+                    return addr
+
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 53))
+            return s.getsockname()[0]
+        except socket.error, e:
+            print "getHostIPAddr error:{0:s}".format(e)
+            return socket.gethostbyname(socket.gethostname())
 
     def __initHTTPFileServer(self, port, root):
         """Init a http file server
@@ -186,7 +197,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             os.chdir(root)
 
             # Create a file server instance
-            self.__httpd = UpgradeFileServer((self.__getHostIPAddr(), port), SimpleHTTPServer.SimpleHTTPRequestHandler)
+            self.__httpd = UpgradeFileServer((self.getHostIPAddr(), port), SimpleHTTPServer.SimpleHTTPRequestHandler)
 
             # Create a threading serve it
             th = threading.Thread(target=self.__httpd.serve_forever, name="Upgrade file server")
@@ -269,8 +280,8 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
             # Get newest version download path
             file_name = str(newest_version) + self.UPGRADE_PACKAGE_SUFFIX
-            local_file_path = os.path.join(software, file_name)
-            download_url = os.path.join(self.__file_server, local_file_path)
+            local_file_path = software + "/" + file_name
+            download_url = self.__file_server + "/" + local_file_path
 
             if os.path.isfile(local_file_path):
                 file_md5 = hashlib.md5(open(local_file_path, 'rb').read()).hexdigest()
