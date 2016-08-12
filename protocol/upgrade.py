@@ -116,6 +116,7 @@ class UpgradeClient(object):
                     
             # Check if it's valid url
             if len(recv) == 0 or "http" not in recv or recv.count('#') != 2:
+                print "Error:{0:s}".format(recv)
                 return error
 
             data = recv.split("#")
@@ -253,7 +254,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
             # Get software upgrade package dir all upgrade files
             file_list = filter(lambda name: self.UPGRADE_PACKAGE_SUFFIX in name, os.listdir(package_dir))
-            version_list = [float(os.path.splitext(name)[0]) for name in file_list]
+            version_list = [str2float(os.path.splitext(name)[0]) for name in file_list]
             newest_version = str2float(max(version_list))
             return newest_version
 
@@ -273,13 +274,19 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             file_md5 = ""
 
             # First get software newest version
-            newest_version = self.get_newest_version(software)
+            version = self.get_newest_version(software)
 
-            if newest_version == 0.0:
+            if version == 0.0:
                 return "No new version to download"
 
             # Get newest version download path
-            file_name = str(newest_version) + self.UPGRADE_PACKAGE_SUFFIX
+            for name in filter(lambda x: self.UPGRADE_PACKAGE_SUFFIX in x, os.listdir(software)):
+                if str2float(os.path.splitext(name)[0]) == version:
+                    file_name = name
+                    break
+            else:
+                return "Do not found software:{0:s}, newest version:{1:f}".format(software, version)
+
             local_file_path = software + "/" + file_name
             download_url = self.__file_server + "/" + local_file_path
 
