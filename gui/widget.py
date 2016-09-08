@@ -473,6 +473,27 @@ class CursorWidget(ColorWidget):
         super(CursorWidget, self).__init__(font, parent)
         self.color = (Qt.white, Qt.black)
         self.oldColor = self.getForegroundColor()
+        self.remap_width, self.remap_height = self.width(), self.height()
+
+    def __remapCursor(self, x, y):
+        px = 1 if x == 0 else self.remap_width * 1.0 / self.width() * (x + 1)
+        py = 1 if y == 0 else self.remap_height * 1.0 / self.height() * (y + 1)
+        return int(round(px)) - 1, int(round(py)) - 1
+
+    def setRemap(self, width, height):
+        """Set cursor remap width and height
+
+        :param width: remap width
+        :param height: remap height
+        :return:
+        """
+        if not isinstance(width, int) or not isinstance(height, int):
+            print "setRemap TypeError:{0:s}, {1:s}".format(type(width), type(height))
+            return False
+
+        self.remap_width = width
+        self.remap_height = height
+        return True
 
     def mouseReleaseEvent(self, ev):
         # Send color changed signal
@@ -484,16 +505,18 @@ class CursorWidget(ColorWidget):
         if ev.button() == Qt.LeftButton:
             x = ev.pos().x()
             y = ev.pos().y()
-            self.cursorChanged.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
-            self.cursorStopChange.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
+            rx, ry = self.__remapCursor(x, y)
+            self.cursorChanged.emit(rx, ry, self.getColorRawValue(self.getBackgroundColor()))
+            self.cursorStopChange.emit(rx, ry, self.getColorRawValue(self.getBackgroundColor()))
 
     def paintEvent(self, ev):
         painter = QPainter(self)
         x, y = self.getCursorPos()
-        text = "X:{0:d}, Y:{1:d}".format(x, y)
+        rx, ry = self.__remapCursor(x, y)
+        text = "X:{0:d}, Y:{1:d}".format(rx, ry)
 
         # Cursor changed
-        self.cursorChanged.emit(x, y, self.getColorRawValue(self.getBackgroundColor()))
+        self.cursorChanged.emit(rx, ry, self.getColorRawValue(self.getBackgroundColor()))
 
         # Draw cross line and cursor pos
         self.drawBackground(painter, self.getBackgroundColor())
