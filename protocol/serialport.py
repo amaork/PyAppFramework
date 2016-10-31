@@ -7,7 +7,7 @@ from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
 
 
-__all__ = ['SerialTransfer']
+__all__ = ['SerialPort', 'SerialTransfer']
 
 
 class BasicMsg(BasicTypeLE):
@@ -161,54 +161,18 @@ class ErrorAckMsg(WriteAckMsg):
 
 
 class SerialTransfer(object):
-    def __init__(self, timeout=1, verbose=False):
+    def __init__(self, port, baudrate, timeout=1, verbose=False):
         """"Init a serial port transfer object
 
+        :param port: Serial port name
+        :param baudrate: comm baudrate
         :param timeout: peer byte timeout value
         :param verbose: verbose message output
         :return:
         """
 
-        self.__port_name = ""
         self.__verbose = verbose
-        self.__timeout = timeout
-        self.__port = serial.Serial()
-
-    def __del__(self):
-        if self.__port.isOpen():
-            self.__port.flushInput()
-            self.__port.flushOutput()
-            self.__port.close()
-
-    def isOk(self):
-        return self.__port.isOpen()
-
-    def init(self, port, baudrate, timeout):
-        """Serial port init
-
-        :param port: Serial port name
-        :param baudrate: comm baudrate
-        :param timeout: timeout value
-        :return: result, error
-        """
-
-        try:
-
-            if self.__port.isOpen():
-                return False, "Error, duplicate init"
-
-            # Open serial port and flush input/output
-            self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-            self.__port.flushInput()
-            self.__port.flushOutput()
-            self.__port_name = port
-
-        except serial.SerialException, e:
-            error = "Serial: {0:s} open failed: {1:s}".format(port, e)
-            print error
-            return False, error
-
-        return True, port
+        self.__port = SerialPort(port, baudrate, timeout)
 
     def read(self):
         # Send r_init request
@@ -269,73 +233,6 @@ class SerialTransfer(object):
 
         return True, ""
 
-    def set_timeout(self, timeout):
-        if not isinstance(timeout, int):
-            print "Timeout value type error"
-            return False
-
-        self.__timeout = timeout
-        return True
-
-    def get_timeout(self):
-        return self.__timeout
-
-    def __basic_send(self, data):
-        """Basic send data
-
-        :param data: will send data
-        :return: result/error
-        """
-
-        try:
-
-            if len(data) == 0:
-                return False, "Send Data length error"
-
-            if not self.__port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.__port_name)
-
-            if self.__port.write(data) != len(data):
-                return False, "Send data error: data sent is not completed"
-
-        except serial.SerialException, e:
-            return False, "Send data exception: {0:s}".format(e)
-
-        return True, ""
-
-    def __basic_receive(self, size):
-        """Basic receive data
-
-        :param size: receive data size
-        :return: result/receive data
-        """
-
-        data = ""
-        receive_count = 0
-
-        try:
-
-            if size == 0:
-                return False, "Receive data length error"
-
-            if not self.__port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.__port_name)
-
-            while len(data) != size:
-
-                tmp = self.__port.read(size - len(data))
-                data += tmp
-
-                # Timeout check
-                receive_count += 1
-                if receive_count >= size * self.__timeout:
-                    break
-
-            return True, data
-
-        except serial.SerialException, e:
-            return False, "Send data exception: {0:s}".format(e)
-
     def __basic_transfer(self, req, ack):
         """Basic transfer
 
@@ -351,12 +248,12 @@ class SerialTransfer(object):
             return False, "TypeCheckError:{0:s}, {1:s}".format(type(req), type(ack))
 
         # Send request
-        result, error = self.__basic_send(req.cdata())
+        result, error = self.__port.send(req.cdata())
         if not result:
             return result, error
 
         # Receive ack
-        result, data = self.__basic_receive(ctypes.sizeof(ack))
+        result, data = self.__port.recv(ctypes.sizeof(ack))
         if not result:
             return result, data
 
@@ -438,3 +335,76 @@ class SerialTransfer(object):
             return result, error
         else:
             return True, ""
+
+
+class SerialPort(object):
+    def __init__(self, port, baudrate, timeout=None):
+        assert isinstance(port, str), "Serial port TypeError:{0:s}".format(type(port))
+        assert isinstance(baudrate, (int, long)), "Serial port baudrate TypeError:{0:s}".format(type(baudrate))
+        assert isinstance(timeout, (int, float)), "Serial port timeout TypeError:{0:s}".format(type(timeout))
+
+        self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+        self.__port.flushInput()
+        self.__port.flushOutput()
+
+    def __del__(self):
+        if self.__port.isOpen():
+            self.__port.flushInput()
+            self.__port.flushOutput()
+            self.__port.close()
+
+    def __str__(self):
+        return "{0:s}, baudrate:{1:d}}".format(self.__port.port, self.__port.baudrate)
+
+    def send(self, data):
+        """Basic send data
+
+        :param data: will send data
+        :return: result, error
+        """
+
+        try:
+
+            if len(data) == 0:
+                return False, "Sending Data length error"
+
+            if not self.__port.isOpen():
+                return False, "Serial port: {0:x} is not opened".format(self.__port.port)
+
+            if self.__port.write(data) != len(data):
+                return False, "Send data error: data sent is not completed"
+
+            return True, ""
+
+        except serial.SerialException, e:
+            return False, "Send data exception: {0:s}".format(e)
+
+    def recv(self, size, timeout=None):
+        """Basic receive data
+
+        :param size: receive data size
+        :param timeout: receive data timeout
+        :return: result/receive data
+        """
+
+        data = ""
+
+        try:
+
+            if size == 0:
+                return False, "Receive data length error"
+
+            if not self.__port.isOpen():
+                return False, "Serial port: {0:x} is not opened".format(self.__port.port)
+
+            if isinstance(timeout, (int, float)):
+                self.__port.timeout = timeout
+
+            while len(data) != size:
+                tmp = self.__port.read(size - len(data))
+                data += tmp
+
+            return True, data
+
+        except serial.SerialException, e:
+            return False, "Receive data exception: {0:s}".format(e)

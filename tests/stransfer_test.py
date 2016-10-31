@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from ..protocol.stransfer import SerialTransfer
+from ..protocol.serialport import SerialTransfer
 
 if __name__ == "__main__":
-    serial_transfer = SerialTransfer(timeout=3, verbose=True)
-    print serial_transfer.init("COM10", 38400, 0.02)
+    serial_transfer = SerialTransfer("COM5", 38400, 1, True)
 
     # Read test
     result, data = serial_transfer.read()
