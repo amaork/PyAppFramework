@@ -339,10 +339,6 @@ class SerialTransfer(object):
 
 class SerialPort(object):
     def __init__(self, port, baudrate, timeout=None):
-        assert isinstance(port, str), "Serial port TypeError:{0:s}".format(type(port))
-        assert isinstance(baudrate, (int, long)), "Serial port baudrate TypeError:{0:s}".format(type(baudrate))
-        assert isinstance(timeout, (int, float)), "Serial port timeout TypeError:{0:s}".format(type(timeout))
-
         self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
         self.__port.flushInput()
         self.__port.flushOutput()
