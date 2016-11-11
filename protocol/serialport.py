@@ -352,6 +352,10 @@ class SerialPort(object):
     def __str__(self):
         return "{0:s}, baudrate:{1:d}}".format(self.__port.port, self.__port.baudrate)
 
+    @property
+    def raw_port(self):
+        return self.__port
+
     def send(self, data):
         """Basic send data
 
@@ -398,6 +402,10 @@ class SerialPort(object):
 
             while len(data) != size:
                 tmp = self.__port.read(size - len(data))
+
+                if len(tmp) == 0:
+                    return False, "Receive data timeout!"
+
                 data += tmp
 
             return True, data
