@@ -14,20 +14,20 @@ __all__ = ['TarManager']
 
 
 class TarManager(object):
-    
+
     formatDict = {
-        
+
         "tar": ":",
         "gz": ":gz",
         "bz2": ":bz2",
     }
-    
+
     operateDict = {
-        
+
         "read": "r",
         "write": "w",
     }
-    
+
     def __init__(self):
         pass
 
@@ -79,9 +79,9 @@ class TarManager(object):
 
         filters = filters if hasattr(filters, "__call__") else None
         extensions = extensions if isinstance(extensions, list) else ()
-    
+
         try:
-        
+
             # Make sure path is a dir
             if not os.path.isdir(path):
                 result = False, "Path: {0:s} is not a directory".format(path)
@@ -90,23 +90,23 @@ class TarManager(object):
             # Check name
             if not os.path.isdir(os.path.dirname(name)):
                 name = os.path.join(current_path, os.path.basename(name))
-                
+
             # Get file format
             if len(fmt) and fmt in TarManager.get_support_format():
                 formats = fmt
             else:
                 formats = TarManager.get_file_format(name)
-           
+
             if len(formats) == 0:
                 result = False, "Unknown package format: {0:s}".format(os.path.basename(name))
                 raise
-        
+
             # Entry package directory
             os.chdir(path)
-        
+
             # Create package file
             tar_file = tarfile.open(name, TarManager.operateDict.get("write") + TarManager.formatDict.get(formats))
-            
+
             # Print package info
             if verbose:
                 print "{0:s} -> {1:s}".format(os.path.abspath(path), name)
@@ -136,13 +136,13 @@ class TarManager(object):
 
             # Close tarFile
             tar_file.close()
-    
+
         except OSError, e:
             result = False, "Change work dir error:{0:S}".format(e)
-        
+
         except tarfile.TarError, e:
             result = False, "Create tar file error:{0:s}".format(e)
-        
+
         finally:
             os.chdir(current_path)
             return result
@@ -159,14 +159,14 @@ class TarManager(object):
         """
 
         result = (True, "")
-    
+
         try:
-        
+
             # Check tar file path
             if not os.path.isfile(file_path):
                 result = False, "Tar file: {0:s} is not exist".format(file_path)
                 raise
-        
+
             # Check tar file format
             if not tarfile.is_tarfile(file_path):
                 result = False, "Package:{0:s} is not a tarfile".format(file_path)
@@ -180,35 +180,35 @@ class TarManager(object):
             if len(formats) == 0:
                 result = False, "Unknown package format:{0:s}".format(file_path)
                 raise
-        
+
             # Check unpack directory
             if len(unpack_path) == 0:
                 unpack_path = os.path.basename(file_path.split(".")[0])
 
             if not os.path.isdir(unpack_path):
                 os.makedirs(unpack_path)
-            
+
             # Open as tarfile and extractall and close finally
             tar_file = tarfile.open(file_path, TarManager.operateDict.get("read") + TarManager.formatDict.get(formats))
             tar_file.extractall(unpack_path)
             tar_file.close()
-    
+
         except IOError, e:
-        
+
             result = False, 'Extract failed：IOError, {0:s}'.format(e)
-            
+
         except OSError, e:
-        
+
             result = False, 'Extract failed：OSError, {0:s}'.format(e)
-        
+
         except tarfile.TarError, e:
-            
+
             result = False, 'Extract failed：TarError, {0:s}'.format(e)
 
         except shutil.Error, e:
-        
+
             result = False, 'Extract failed：Shutil.Error, {0:s}'.format(e)
-    
+
         finally:
-            
+
             return result

@@ -93,7 +93,7 @@ class CallbackFuncMail(BaseUiMail):
         self.__func = func
         self.__args = args
         self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
-        
+
     @property
     def callback(self):
         return self.__func
