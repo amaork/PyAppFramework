@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-
 import types
-from PySide.QtGui import QColor, QWidget
-from PySide.QtCore import Qt, Signal, Slot, QObject
+from threading import Timer
 from ..gui.msgbox import MB_TYPES, showMessageBox
+from PySide.QtCore import Qt, Signal, Slot, QObject
+from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
 
 
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
@@ -79,19 +79,22 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func, args=(), kwargs=None):
+    def __init__(self, func, timeout=0, args=(), kwargs=None):
         """Call #func specified function with #args
 
         :param func: Callback function
         :param args:  Callback function args
+        :param timeout: Callback function timeout
         :param kwargs: Callback function args
         :return:
         """
         super(CallbackFuncMail, self).__init__()
         assert hasattr(func, "__call__"), "CallbackFunc mail func TypeError is not callable"
         assert isinstance(args, tuple), "CallbackFunc mail args TypeError:{0:s}".format(type(args))
+        assert isinstance(timeout, int), "CallbackFunc mail timeout TypeError:{0:s}".format(type(timeout))
         self.__func = func
         self.__args = args
+        self.__timeout = timeout
         self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
 
     @property
@@ -105,6 +108,10 @@ class CallbackFuncMail(BaseUiMail):
     @property
     def kwargs(self):
         return self.__kwargs
+
+    @property
+    def timeout(self):
+        return self.__timeout
 
 
 class UiMailBox(QObject):
@@ -146,13 +153,28 @@ class UiMailBox(QObject):
         if isinstance(mail, StatusBarMail):
             if hasattr(self.__parent, "ui") and hasattr(self.__parent.ui, "statusbar"):
                 color = "rgb({0:d},{1:d},{2:d})".format(mail.color.red(), mail.color.green(), mail.color.blue())
-                self.__parent.ui.statusbar.showMessage(self.tr(mail.context), mail.timeout)
-                self.__parent.ui.statusbar.setStyleSheet(
-                    "QStatusBar{"
-                    "padding-left:8px;"
-                    "background:rgba(0,0,0,0);"
-                    "color:%s;"
-                    "font-weight:bold;}" % color)
+                # Main windows has status bar
+                if isinstance(self.__parent.ui.statusbar, QStatusBar):
+                    self.__parent.ui.statusbar.showMessage(self.tr(mail.context), mail.timeout)
+                    self.__parent.ui.statusbar.setStyleSheet(
+                        "QStatusBar{"
+                        "padding-left:8px;"
+                        "background:rgba(0,0,0,0);"
+                        "color:%s;"
+                        "font-weight:bold;}" % color)
+                # Widget has label named as statusbar
+                elif isinstance(self.__parent.ui.statusbar, QLabel):
+                    self.__parent.ui.statusbar.setText(self.tr(mail.context))
+                    self.__parent.ui.statusbar.setStyleSheet(
+                        "color:{0:s};padding-top:8px;font-weight:bold;".format(color)
+                    )
+                    # If specified timeout using callback function clear text
+                    if mail.timeout:
+                        status_mail = StatusBarMail(Qt.blue, "")
+                        self.send(CallbackFuncMail(self.send, mail.timeout / 1000, args=(status_mail,)))
+                else:
+                    print "Do not support StatusBarMail!"
+
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
             showMessageBox(self.__parent, mail.type, mail.title, mail.context)
@@ -163,7 +185,12 @@ class UiMailBox(QObject):
 
         # Callback function
         elif isinstance(mail, CallbackFuncMail):
-            mail.callback(*mail.args, **mail.kwargs)
+            if mail.timeout:
+                timer = Timer(mail.timeout, mail.callback, mail.args, mail.kwargs)
+                timer.start()
+            else:
+                # Timeout is zero call it immediately
+                mail.callback(*mail.args, **mail.kwargs)
         else:
             return False
 
