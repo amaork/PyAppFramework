@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from PySide.QtGui import *
-from PySide.QtCore import *
 from .button import RectButton
+from PySide.QtCore import Qt
+from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QPushButton, QSplitter, \
+    QVBoxLayout, QHBoxLayout, QGridLayout
 
 
 __all__ = ['SimpleColorDialog']

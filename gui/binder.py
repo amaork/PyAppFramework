@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-
 import types
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide.QtCore import QObject
+from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox
 
 
 __all__ = ['SpinBoxBinder', 'ComboBoxBinder']
@@ -19,7 +18,8 @@ class SpinBoxBinder(QObject):
         self.__spinbox = spinbox
         self.__spinbox.valueChanged.connect(self.eventProcess)
 
-    def __remap(self, factor, value):
+    @staticmethod
+    def __remap(factor, value):
         if isinstance(factor, (int, float)):
             return value * factor
         elif hasattr(factor, "__call__"):

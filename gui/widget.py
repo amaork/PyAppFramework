@@ -14,8 +14,10 @@ PaintWidget
 """
 import types
 import os.path
-from PySide.QtCore import *
-from PySide.QtGui import *
+from PySide.QtCore import Qt, Signal, Slot, QPoint
+from PySide.QtGui import QImage, QImageReader, QPainter, QPixmap, QPen, QBrush, QFont, QColor, \
+    QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QAbstractSpinBox, \
+    QAbstractItemView, QTableWidgetItem, QListWidgetItem, QListWidget, QTableWidget, QWidget
 
 from ..core.datatype import str2number, str2float
 

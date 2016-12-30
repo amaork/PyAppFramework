@@ -6,8 +6,10 @@ Provide UI elements container
 
 import copy
 import types
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide.QtCore import QObject, Signal
+from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, \
+    QLabel, QLineEdit, QTextEdit, QPlainTextEdit, QDateTimeEdit, QWidget, QLayout, QLayoutItem, QGridLayout
+
 
 from .binder import *
 from ..core.datatype import str2number, str2float
@@ -256,7 +258,8 @@ class ComponentManager(QObject):
 
         return components
 
-    def __getComponentData(self, component):
+    @staticmethod
+    def __getComponentData(component):
         if isinstance(component, QSpinBox):
             return str(component.value())
         elif isinstance(component, QDoubleSpinBox):
@@ -280,7 +283,8 @@ class ComponentManager(QObject):
         else:
             return ""
 
-    def __setComponentData(self, component, data):
+    @staticmethod
+    def __setComponentData(component, data):
         if isinstance(component, QSpinBox):
             component.setValue(str2number(data))
         elif isinstance(component, QDoubleSpinBox):

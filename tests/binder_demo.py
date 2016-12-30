@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import sys
-from ..gui.binder import *
-from PySide.QtGui import *
-from PySide.QtCore import *
+from ..gui.binder import SpinBoxBinder, ComboBoxBinder
+from PySide.QtCore import QTextCodec
+from PySide.QtGui import QWidget, QGridLayout, QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QApplication
 
 
 class Demo(QWidget):

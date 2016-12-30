@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import *
 from types import StringTypes
+from PySide.QtGui import QMessageBox
 
 __all__ = ['showQuestionBox', 'showMessageBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
@@ -47,6 +47,7 @@ def showMessageBox(parent, msg_type, title, context, result=False):
         return False
 
     if msg_type == MB_TYPE_INFO:
+        result = True
         QMessageBox.information(parent, parent.tr(title), parent.tr(context))
     elif msg_type == MB_TYPE_ERR:
         QMessageBox.critical(parent, parent.tr(title), parent.tr(context))

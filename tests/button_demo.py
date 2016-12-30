@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
-from ..gui.button import *
-from PySide.QtGui import *
-from PySide.QtCore import *
 from .images import ImagesPath
+from PySide.QtCore import QTextCodec
+from ..gui.button import RectButton, RoundButton, IconButton, StateButton, TextButton
+from PySide.QtGui import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, QPushButton, QLabel, \
+    QImageReader, QFileDialog, QApplication
 
 
 class DemoWidget(QWidget):

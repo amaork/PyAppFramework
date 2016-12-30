@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-
 import sys
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide.QtCore import QTextCodec
 from ..gui.dialog import SimpleColorDialog
 from ..gui.container import ComponentManager
+from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget
 
 
 class ColorDialogTest(QWidget):

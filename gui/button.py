@@ -10,11 +10,10 @@ BaseButton
                 |------RoundButton
                             |------StateButton
 """
-
-from PySide.QtCore import *
-from PySide.QtGui import *
-import os.path
 import types
+import os.path
+from PySide.QtCore import Signal, Qt, QSize
+from PySide.QtGui import QPushButton, QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen
 
 
 __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton']

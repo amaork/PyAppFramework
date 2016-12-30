@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-from ..gui.msgbox import *
-from PySide.QtGui import *
+from ..gui.msgbox import showMessageBox, MB_TYPES
+from PySide.QtGui import QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout, QApplication, QComboBox
 
 
 class DemoWidget(QWidget):

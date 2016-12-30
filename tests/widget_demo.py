@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-from ..gui.widget import *
-from PySide.QtGui import *
-from PySide.QtCore import *
 from .images import ImagesPath
+from PySide.QtCore import Qt, QTextCodec, Signal, QDir
+from ..gui.widget import ImageWidget, ListWidget, TableWidget, ColorWidget, CursorWidget, LumWidget, RgbWidget
+from PySide.QtGui import QWidget, QApplication, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, \
+    QTextEdit, QInputDialog, QMainWindow, QFrame, QFileDialog, QImageReader, QLineEdit, QFontDialog
 
 
 class ListDemoWidget(QWidget):
