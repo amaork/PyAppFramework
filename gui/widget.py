@@ -400,7 +400,7 @@ class ColorWidget(PaintWidget):
         :param color:(QColor, QColor)
         :return:
         """
-        if not isinstance(color, tuple) or len(color) != 2:
+        if not isinstance(color, (tuple, list)) or len(color) != 2:
             return False
 
         if not isinstance(color[0], QColor) or not isinstance(color[1], QColor):
@@ -1274,7 +1274,7 @@ class TableWidget(QTableWidget):
 
         try:
 
-            if isinstance(filters, tuple) and len(filters) == 2:
+            if isinstance(filters, (tuple, list)) and len(filters) == 2:
                 # Number type
                 if type(filters[0]) == type(filters[1]):
                     if isinstance(filters[0], int):
@@ -1503,7 +1503,7 @@ class ListWidget(QListWidget):
 
         # Add items data to ListWidget
         for data in items:
-            if isinstance(data, tuple) and len(data) == 2 and isinstance(data[0], types.StringTypes):
+            if isinstance(data, (tuple, list)) and len(data) == 2 and isinstance(data[0], types.StringTypes):
                 self.addItem(data[0], data[1])
             elif isinstance(data, types.StringTypes):
                 self.addItem(data)

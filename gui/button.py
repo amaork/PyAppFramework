@@ -51,7 +51,7 @@ class TextButton(BaseButton):
         self.toggled.connect(self.slotChangeView)
 
         self.text = ("", "")
-        if isinstance(text, tuple) and len(text) == 2:
+        if isinstance(text, (tuple, list)) and len(text) == 2:
             self.text = text
             self.setText(self.tr(text[0]))
 
@@ -73,7 +73,7 @@ class IconButton(BaseButton):
         self.iconData = []
         self.iconSize = QSize(-1, -1)
 
-        if isinstance(icon, tuple) and len(icon) == 2:
+        if isinstance(icon, (tuple, list)) and len(icon) == 2:
             # Get icon size
             icon1 = QImageReader(icon[0])
             icon2 = QImageReader(icon[1])

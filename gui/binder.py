@@ -94,7 +94,7 @@ class ComboBoxBinder(QObject):
             print "Bind error, object type error:{0:s}".format(type(obj))
             return False
 
-        if not isinstance(text, tuple) and len(text) != self.__combobox.count():
+        if not isinstance(text, (tuple, list)) and len(text) != self.__combobox.count():
             print "Bind error, text type or count error"
             return False
 
@@ -107,7 +107,7 @@ class ComboBoxBinder(QObject):
             print "Bind error, object type error:{0:s}".format(type(obj))
             return False
 
-        if not isinstance(limit, tuple) and len(limit) != self.__combobox.count():
+        if not isinstance(limit, (tuple, list)) and len(limit) != self.__combobox.count():
             print "Bind error, text type or count error"
             return False
 
@@ -150,7 +150,7 @@ class ComboBoxBinder(QObject):
                 setting = data[index]
 
                 # Setting data is a tuple
-                if isinstance(setting, tuple):
+                if isinstance(setting, (tuple, list)):
                     for num in setting:
                         if not isinstance(num, (int, float)):
                             return

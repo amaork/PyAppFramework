@@ -214,7 +214,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def testHTTPFileServer(server):
         try:
 
-            if not isinstance(server, tuple) or len(server) != 2:
+            if not isinstance(server, (tuple, list)) or len(server) != 2:
                 return False
 
             addr, port = server
