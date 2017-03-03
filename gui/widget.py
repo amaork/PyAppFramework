@@ -1303,6 +1303,9 @@ class TableWidget(QTableWidget):
             elif isinstance(filters, list):
                 widget = QComboBox()
                 widget.addItems(filters)
+                value = self.getItemData(row, column).encode("utf-8")
+                value = str2number(value) if isinstance(filters[0], int) else str2float(value)
+                widget.setCurrentIndex(value)
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)

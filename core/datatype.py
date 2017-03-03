@@ -3,9 +3,9 @@
 import json
 import types
 import ctypes
+import xml.etree.ElementTree as XmlElementTree
 
-
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml',
            'str2float', 'str2number',
            'new_class', 'new_instance',
            'ip4_check']
@@ -203,3 +203,50 @@ class DynamicObject(object):
         :return:
         """
         return json.dumps(self.__dict__)
+
+
+class ComparableXml(XmlElementTree.Element):
+    def __init__(self, **kwargs):
+        super(ComparableXml, self).__init__(**kwargs)
+
+    def __eq__(self, other):
+        return self.xml2string(self) == self.xml2string(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    @staticmethod
+    def string_strip(data):
+        if not isinstance(data, str):
+            return None
+
+        return "".join([s.strip() for s in data.split("\n")])
+
+    @staticmethod
+    def xml2string(xml, encode="utf-8"):
+        """Xml to string with specified encode
+
+        :param xml: xml Element object
+        :param encode: encode type
+        :return: string
+        """
+        if not isinstance(xml, XmlElementTree.Element):
+            print "xml2string error is not xml element object"
+            return None
+
+        data = XmlElementTree.tostring(xml, encode).strip()
+        return ComparableXml.string_strip(data)
+
+    @staticmethod
+    def string2xml(data):
+        """String to xml Element object
+
+        :param data: string with xml element
+        :return: xml Element object
+        """
+        if not isinstance(data, str):
+            print "string2xml error is not a valid string"
+            return None
+
+        data = ComparableXml.string_strip(data)
+        return XmlElementTree.fromstring(data)
