@@ -7,7 +7,7 @@ from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
 
 
-__all__ = ['SerialPort', 'SerialTransfer']
+__all__ = ['SerialPort', 'SerialTransfer', 'ReadAckMsg']
 
 
 class BasicMsg(BasicTypeLE):
@@ -64,8 +64,9 @@ class BasicMsg(BasicTypeLE):
 
         # Ack check
         if self.ack == self.__ERR_ACK:
-            if self.args in [err[0] for err in self.__ERR_CODE.values()]:
-                return False, self.get_error_desc(self.args)
+            for err, code in self.__ERR_CODE.items():
+                if self.args == code[0]:
+                    return False, self.get_error_desc(err)
             else:
                 return False, self.get_error_desc("E_UNKNOWN")
 
@@ -81,6 +82,9 @@ class ReadReqMsg(BasicMsg):
     # Read data request
     DATA_REQ = 0xb
 
+    # Read done request
+    DATA_DONE = 0xe
+
     _fields_ = [
         ('len',     ctypes.c_ubyte),
         ('req',     ctypes.c_ubyte),
@@ -94,6 +98,15 @@ class ReadReqMsg(BasicMsg):
         self.req = req
         self.args = args
         self.crc16 = self.calc_crc()
+
+    def is_init_request(self):
+        return self.req == self.INIT_REQ
+
+    def is_data_request(self):
+        return self.req == self.DATA_REQ
+
+    def is_done_request(self):
+        return self.req == self.DATA_DONE
 
 
 class ReadAckMsg(BasicMsg):
@@ -111,6 +124,11 @@ class ReadAckMsg(BasicMsg):
     # Get payload data
     def get_data_payload(self):
         return buffer(self)[4: 4 + self.PAYLOAD_SIZE]
+
+    # Set payload data
+    def set_data_payload(self, cdata):
+        size = min(len(cdata), ctypes.sizeof(self.payload))
+        ctypes.memmove(ctypes.addressof(self.payload), cdata, size)
 
 
 class WriteReqMsg(BasicMsg):
