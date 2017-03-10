@@ -12,18 +12,22 @@ PaintWidget
     |------ColorWidget
                 |------CursorWidget
 """
+import copy
 import types
 import os.path
+from serial import Serial
+from .misc import SerialPortSelector
+from .container import ComponentManager
 from PySide.QtCore import Qt, Signal, Slot, QPoint
 from PySide.QtGui import QImage, QImageReader, QPainter, QPixmap, QPen, QBrush, QFont, QColor, \
-    QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QAbstractSpinBox, \
+    QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QAbstractSpinBox, QGridLayout, QLabel, \
     QAbstractItemView, QTableWidgetItem, QListWidgetItem, QListWidget, QTableWidget, QWidget
 
 from ..core.datatype import str2number, str2float
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'TableWidget', 'ListWidget']
+           'TableWidget', 'ListWidget', 'SerialPortSettingWidget']
 
 
 class PaintWidget(QWidget):
@@ -1525,3 +1529,109 @@ class ListWidget(QListWidget):
 
     def getItemsData(self):
         return [self.item(i).data(Qt.UserRole) for i in range(self.count())]
+
+
+class SerialPortSettingWidget(QWidget):
+    # Options
+    OPTIONS = {
+
+        "baudrate": {
+
+            "text": "波特率",
+            "values": Serial.BAUDRATES
+        },
+
+        "bytesize": {
+
+            "text": "数据位",
+            "values": Serial.BYTESIZES
+        },
+
+        "parity": {
+
+            "text": "校验位",
+            "values": Serial.PARITIES
+        },
+
+        "stopbits": {
+
+            "text": "停止位",
+            "values": Serial.STOPBITS
+        },
+
+        "timeout": {
+
+            "text": "超时（ms）",
+            "values": [0, 9999]
+        }
+    }
+    ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
+    DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
+
+    def __init__(self, settings=DEFAULTS, parent=None):
+        """Serial port configure dialog
+
+        :param settings: serial port settings
+        :param parent:
+        """
+        settings = settings or self.DEFAULTS
+        super(SerialPortSettingWidget, self).__init__(parent)
+
+        layout = QGridLayout()
+
+        # If specified port select it
+        port = SerialPortSelector()
+        port.setProperty("name", "port")
+        select_port = settings.get("port")
+        if select_port is not None:
+            port.setSelectedPort(select_port)
+
+        # Add port to dialog
+        layout.addWidget(QLabel(self.tr("串口")), 0, 0)
+        layout.addWidget(port, 0, 1)
+
+        # If specified it add option to dialog
+        for index, option in enumerate(self.ALL_OPTIONS):
+            if option not in settings:
+                continue
+
+            # Get option settings
+            value = settings.get(option)
+            text = self.OPTIONS.get(option).get("text")
+            values = self.OPTIONS.get(option).get("values")
+
+            # Create option element
+            element = QComboBox() if isinstance(values, tuple) else QSpinBox()
+            if isinstance(element, QComboBox):
+                # If user settings is invalid then using default settings
+                value = self.DEFAULTS.get(option) if value not in values else value
+                element.addItems(map(str, values))
+                element.setCurrentIndex(values.index(value))
+            else:
+                element.setRange(values[0], values[1])
+                element.setValue(value)
+
+            # Set option property
+            label = QLabel(self.tr(text))
+            element.setProperty("name", option)
+
+            # Layout direction setting
+            layout.addWidget(label, index + 1, 0)
+            layout.addWidget(element, index + 1, 1)
+
+        self.setLayout(layout)
+        self.__uiManager = ComponentManager(layout)
+
+    def getSetting(self):
+        settings = copy.deepcopy(self.DEFAULTS)
+        for item in self.__uiManager.findKey("name"):
+            if isinstance(item, QComboBox):
+                value = item.property("name")
+                if value == "port" and item.currentIndex() == 0:
+                    settings[value] = None
+                else:
+                    settings[value] = item.currentText()
+            elif isinstance(item, QSpinBox):
+                settings[item.property("name")] = item.value()
+
+        return settings

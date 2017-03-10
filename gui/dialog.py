@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-
 from .button import RectButton
+from .widget import SerialPortSettingWidget
 from PySide.QtCore import Qt
 from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QPushButton, QSplitter, \
     QVBoxLayout, QHBoxLayout, QGridLayout
 
 
-__all__ = ['SimpleColorDialog']
+__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog']
 
 
 class SimpleColorDialog(QDialog):
@@ -213,3 +213,57 @@ class SimpleColorDialog(QDialog):
             index |= 1
 
         return index, max(r, g, b)
+
+
+class SerialPortSettingDialog(QDialog):
+    def __init__(self, settings=SerialPortSettingWidget.DEFAULTS, parent=None):
+        """Serial port configure dialog
+
+        :param settings: serial port settings
+        :param parent:
+        """
+        settings = settings or self.DEFAULTS
+        super(SerialPortSettingDialog, self).__init__(parent)
+
+        self.__confirm = False
+        self.__initUi(settings)
+        self.__initSignalAndSlots()
+
+    def __initUi(self, settings):
+        layout = QVBoxLayout()
+        self.__widget = SerialPortSettingWidget(settings)
+        self.__confirm = QPushButton(self.tr("确认"))
+        self.__cancel = QPushButton(self.tr("取消"))
+        buttons = QHBoxLayout()
+        buttons.addWidget(QSplitter())
+        buttons.addWidget(self.__confirm)
+        buttons.addWidget(self.__cancel)
+
+        layout.addWidget(self.__widget)
+        layout.addLayout(buttons)
+        layout.addWidget(QSplitter())
+        layout.addLayout(buttons)
+
+        self.setLayout(layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle(self.tr("串口配置对话框"))
+
+    def __initSignalAndSlots(self):
+        self.__confirm.clicked.connect(self.slotClose)
+        self.__cancel.clicked.connect(self.slotClose)
+
+    def slotClose(self):
+        self.__confirm = True if self.sender() == self.__confirm else False
+        self.close()
+
+    def getSerialSetting(self):
+        if not self.__confirm:
+            return None
+
+        return self.__widget.getSetting()
+
+    @staticmethod
+    def getSetting(parent, settings=SerialPortSettingWidget.DEFAULTS):
+        dialog = SerialPortSettingDialog(settings, parent)
+        dialog.exec_()
+        return dialog.getSerialSetting()
