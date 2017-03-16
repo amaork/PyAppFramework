@@ -1623,7 +1623,7 @@ class SerialPortSettingWidget(QWidget):
         self.__uiManager = ComponentManager(layout)
 
     def getSetting(self):
-        settings = copy.deepcopy(self.DEFAULTS)
+        settings = dict()
         for item in self.__uiManager.findKey("name"):
             if isinstance(item, QComboBox):
                 value = item.property("name")

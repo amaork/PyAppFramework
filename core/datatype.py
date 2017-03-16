@@ -12,7 +12,7 @@ __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'Comp
 
 
 def str2float(text):
-    if isinstance(text, float):
+    if isinstance(text, (int, long, float)):
         return text
 
     if not isinstance(text, types.StringTypes):
@@ -29,7 +29,7 @@ def str2float(text):
 
 
 def str2number(text):
-    if isinstance(text, int):
+    if isinstance(text, (bool, int, long, float)):
         return text
 
     if not isinstance(text, types.StringTypes):
@@ -189,6 +189,7 @@ class DynamicObject(object):
 
             for key in self._properties:
                 if dict_.get(key) is None:
+                    print "{0:s} Unknown key:{1:s}".format(self.__class__, key)
                     return None
 
             return dict_

@@ -261,15 +261,15 @@ class ComponentManager(QObject):
     @staticmethod
     def __getComponentData(component):
         if isinstance(component, QSpinBox):
-            return str(component.value())
+            return component.value()
         elif isinstance(component, QDoubleSpinBox):
-            return str(component.value())
+            return component.value()
         elif isinstance(component, QComboBox):
-            return str(component.currentIndex())
+            return component.currentIndex()
         elif isinstance(component, QCheckBox):
-            return str(component.isChecked())
+            return component.isChecked()
         elif isinstance(component, QRadioButton):
-            return str(component.isChecked())
+            return component.isChecked()
         elif isinstance(component, QLineEdit):
             return component.text()
         elif isinstance(component, QTextEdit):

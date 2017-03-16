@@ -3,7 +3,7 @@ from .button import RectButton
 from .widget import SerialPortSettingWidget
 from PySide.QtCore import Qt
 from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QPushButton, QSplitter, \
-    QVBoxLayout, QHBoxLayout, QGridLayout
+    QVBoxLayout, QHBoxLayout, QGridLayout, QDialogButtonBox
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog']
@@ -23,7 +23,6 @@ class SimpleColorDialog(QDialog):
 
         self.__initUi()
         self.__basic = basic
-        self.__selected = False
         self.__color = QColor(color)
         self.__updateColor(self.__color)
 
@@ -68,15 +67,9 @@ class SimpleColorDialog(QDialog):
                 valueLayout.addWidget(QSplitter())
 
         # Dialog button
-        self.__ok = QPushButton(self.tr("确定"))
-        self.__ok.clicked.connect(self.slotClose)
-        self.__cancel = QPushButton(self.tr("取消"))
-        self.__cancel.clicked.connect(self.slotClose)
-        buttonLayout = QHBoxLayout()
-        buttonLayout.addWidget(QSplitter())
-        buttonLayout.addWidget(self.__ok)
-        buttonLayout.addWidget(self.__cancel)
-
+        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button.accepted.connect(self.accept)
+        button.rejected.connect(self.reject)
         layout = QVBoxLayout()
         layout.addLayout(colorLayout)
         layout.addLayout(depthLayout)
@@ -84,7 +77,7 @@ class SimpleColorDialog(QDialog):
         layout.addLayout(valueLayout)
         layout.addWidget(QSplitter())
         layout.addWidget(QSplitter())
-        layout.addLayout(buttonLayout)
+        layout.addWidget(button)
 
         self.setLayout(layout)
         self.setWindowTitle(self.tr("请选择颜色"))
@@ -142,10 +135,6 @@ class SimpleColorDialog(QDialog):
             self.__blue.setEnabled(b)
             self.__green.setEnabled(g)
 
-    def slotClose(self):
-        self.__selected = self.sender() == self.__ok
-        self.close()
-
     def slotChangeColor(self):
         btn = self.sender()
         if not isinstance(btn, RectButton):
@@ -170,7 +159,7 @@ class SimpleColorDialog(QDialog):
         self.__preview.setStyleSheet("background:rgb({0:d},{1:d},{2:d})".format(r, g, b))
 
     def getSelectColor(self):
-        if self.__selected:
+        if self.result():
             r, g, b = self.__getCurrentColor()
             return QColor(r, g, b)
         else:
@@ -225,39 +214,23 @@ class SerialPortSettingDialog(QDialog):
         settings = settings or self.DEFAULTS
         super(SerialPortSettingDialog, self).__init__(parent)
 
-        self.__confirm = False
-        self.__initUi(settings)
-        self.__initSignalAndSlots()
-
-    def __initUi(self, settings):
         layout = QVBoxLayout()
         self.__widget = SerialPortSettingWidget(settings)
-        self.__confirm = QPushButton(self.tr("确认"))
-        self.__cancel = QPushButton(self.tr("取消"))
-        buttons = QHBoxLayout()
-        buttons.addWidget(QSplitter())
-        buttons.addWidget(self.__confirm)
-        buttons.addWidget(self.__cancel)
+        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button.accepted.connect(self.accept)
+        button.rejected.connect(self.reject)
 
         layout.addWidget(self.__widget)
-        layout.addLayout(buttons)
         layout.addWidget(QSplitter())
-        layout.addLayout(buttons)
+        layout.addWidget(button)
 
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("串口配置对话框"))
 
-    def __initSignalAndSlots(self):
-        self.__confirm.clicked.connect(self.slotClose)
-        self.__cancel.clicked.connect(self.slotClose)
-
-    def slotClose(self):
-        self.__confirm = True if self.sender() == self.__confirm else False
-        self.close()
-
     def getSerialSetting(self):
-        if not self.__confirm:
+        print self.result()
+        if not self.result():
             return None
 
         return self.__widget.getSetting()
