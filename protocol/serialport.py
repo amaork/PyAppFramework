@@ -192,7 +192,7 @@ class SerialTransfer(object):
         self.__verbose = verbose
         self.__port = SerialPort(port, baudrate, timeout)
 
-    def read(self):
+    def read(self, callback=None):
         # Send r_init request
         result, data = self.__r_init()
         if not result:
@@ -217,13 +217,17 @@ class SerialTransfer(object):
             if self.__verbose:
                 print "Read data package[{0:03d}] success".format(package_index)
 
+            if callback and hasattr(callback, "__call__"):
+                callback((package_index + 1) / (package_size * 1.0) * 100)
+
         return True, (global_data, package_data)
 
-    def write(self, global_data, package_data):
+    def write(self, global_data, package_data, callback=None):
         """Write data
 
         :param global_data: global data
         :param package_data:  package data
+        :param callback: update write percent callback function
         :return:
         """
 
@@ -248,6 +252,9 @@ class SerialTransfer(object):
 
             if self.__verbose:
                 print "Write data package[{0:03d}] success".format(package_index)
+
+            if callback and hasattr(callback, "__call__"):
+                callback((package_index + 1) / (package_size * 1.0) * 100)
 
         return True, ""
 
