@@ -1018,6 +1018,13 @@ class TableWidget(QTableWidget):
         widget = self.__copyWidget(self.cellWidget(row, column))
         if isinstance(widget, QWidget):
             widget.setDisabled(frozen)
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                widget.valueChanged.connect(self.__slotWidgetDataChanged)
+            elif isinstance(widget, QCheckBox):
+                widget.stateChanged.connect(self.__slotWidgetDataChanged)
+            elif isinstance(widget, QComboBox):
+                widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+            self.cellWidget(row, column).setHidden(True)
             self.removeCellWidget(row, column)
             self.setCellWidget(row, column, widget)
 
@@ -1250,14 +1257,20 @@ class TableWidget(QTableWidget):
 
             if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, long, float)):
                 widget.setValue(data)
+                widget.valueChanged.connect(self.__slotWidgetDataChanged)
+                self.cellWidget(row, column).setHidden(True)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
             elif isinstance(widget, QCheckBox) and isinstance(data, bool):
                 widget.setChecked(data)
+                widget.stateChanged.connect(self.__slotWidgetDataChanged)
+                self.cellWidget(row, column).setHidden(True)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
             elif isinstance(widget, QComboBox) and isinstance(data, (int, long)) and data < widget.count():
                 widget.setCurrentIndex(data)
+                widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+                self.cellWidget(row, column).setHidden(True)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
             elif isinstance(item, QTableWidgetItem) and isinstance(data, types.StringTypes):
@@ -1278,26 +1291,23 @@ class TableWidget(QTableWidget):
 
         try:
 
-            if isinstance(filters, (tuple, list)) and len(filters) == 2:
-                # Number type
-                if type(filters[0]) == type(filters[1]):
-                    if isinstance(filters[0], int):
-                        widget = QSpinBox()
-                    elif isinstance(filters[0], float):
-                        widget = QDoubleSpinBox()
-                    else:
-                        return False
+            # Number type int or float
+            if len(filters) == 2 and type(filters[0]) == type(filters[1]) and isinstance(filters[0], (int, float)):
+                if isinstance(filters[0], int):
+                    widget = QSpinBox()
+                elif isinstance(filters[0], float):
+                    widget = QDoubleSpinBox()
 
-                    widget.setRange(filters[0], filters[1])
-                    value = self.getItemData(row, column).encode("utf-8")
-                    value = str2number(value) if isinstance(filters[0], int) else str2float(value)
-                    widget.setValue(value)
-                    widget.valueChanged.connect(self.__slotWidgetDataChanged)
-                    self.takeItem(row, column)
-                    self.setCellWidget(row, column, widget)
+                widget.setRange(filters[0], filters[1])
+                value = self.getItemData(row, column).encode("utf-8")
+                value = str2number(value) if isinstance(filters[0], int) else str2float(value)
+                widget.setValue(value)
+                widget.valueChanged.connect(self.__slotWidgetDataChanged)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, widget)
 
-                # Bool type
-                elif isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
+            # Bool type
+            elif isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
                     widget = QCheckBox(self.tr(filters[1]))
                     widget.stateChanged.connect(self.__slotWidgetDataChanged)
                     widget.setChecked(filters[0])
@@ -1317,6 +1327,7 @@ class TableWidget(QTableWidget):
             elif isinstance(filters, types.StringTypes):
                 widget = self.cellWidget(row, column)
                 if isinstance(widget, QWidget):
+                    self.cellWidget(row, column).setHidden(True)
                     self.removeCellWidget(row, column)
                 item = QTableWidgetItem(filters)
                 self.takeItem(row, column)
