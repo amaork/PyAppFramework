@@ -10,72 +10,55 @@ from ..core.datatype import BasicTypeLE
 __all__ = ['SerialPort', 'SerialTransfer', 'ReadAckMsg']
 
 
+class ErrorCode(object):
+    E_OK = 0x0
+    E_LEN = 0x1
+    E_CRC = 0x2
+    E_FUNC = 0x3
+    E_DATA = 0x4
+    E_MODE = 0x5
+    E_PROC = 0x6
+    E_UNKNOWN = 0x7
+
+    @staticmethod
+    def get_desc(code):
+        return {
+            ErrorCode.E_OK: "OK",
+            ErrorCode.E_LEN: "E_LEN",
+            ErrorCode.E_CRC: "E_CRC",
+            ErrorCode.E_FUNC: "E_FUNC",
+            ErrorCode.E_DATA: "E_DATA",
+            ErrorCode.E_MODE: "E_MODE",
+            ErrorCode.E_PROC: "E_PROC",
+            ErrorCode.E_UNKNOWN: "E_UNKNOWN",
+        }.get(code, "Unknown")
+
+
 class BasicMsg(BasicTypeLE):
-    # Error ack
-    __ERR_ACK = 0xff
-
-    # Error code
-    __ERR_CODE = {
-
-        "E_OK": (0x0, "Ok"),
-        "E_LEN": (0x1, "Frame length error"),
-        "E_CRC": (0x2, "Frame data crc error"),
-        "E_CODE": (0x3, "Function code error"),
-        "E_DATA": (0x4, "Function data error"),
-        "E_MODE": (0x5, "Peer work mode error"),
-        "E_PROC": (0x6, "Peer process error"),
-        "E_UNKNOWN": (0x7, "Unknown error"),
-    }
-
-    def get_error_desc(self, code):
-        if code in self.__ERR_CODE.keys():
-            return self.__ERR_CODE.get(code)[1]
-        else:
-            return self.get_error_desc("E_UNKNOWN")
-
-    def get_error_code(self, code):
-        if code in self.__ERR_CODE.keys():
-            return self.__ERR_CODE.get(code)[0]
-        else:
-            return self.get_error_code("E_UNKNOWN")
-
     def calc_crc(self):
         return crc16(self.cdata()[1:ctypes.sizeof(self) - 2])
 
     def calc_len(self):
         return ctypes.sizeof(self) - 1
 
-    def init_and_check(self, data, size):
+    def init_and_check(self, data):
         """Init self and check data illegal
 
         :param data: data
-        :param size: data size
-        :return: Init result, error code
+        :return: result or data
         """
-        if size != ctypes.sizeof(self):
-            return False, self.get_error_desc("E_LEN")
-
         # Init self
-        self.set_cdata(data)
+        if not self.set_cdata(data):
+            return False, ErrorCode.get_desc(ErrorCode.E_LEN)
 
         # Crc check
         if crc16(self.cdata()[1:]):
-            return False, self.get_error_desc("E_CRC")
+            return False, ErrorCode.get_desc(ErrorCode.E_CRC)
 
-        # Ack check
-        if self.ack == self.__ERR_ACK:
-            for err, code in self.__ERR_CODE.items():
-                if self.args == code[0]:
-                    return False, self.get_error_desc(err)
-            else:
-                return False, self.get_error_desc("E_UNKNOWN")
-
-        # Ack check
-        return True, self.get_error_desc("E_OK")
+        return True, self
 
 
 class ReadReqMsg(BasicMsg):
-
     # Read init request
     INIT_REQ = 0xa
 
@@ -94,9 +77,9 @@ class ReadReqMsg(BasicMsg):
 
     def __init__(self, req, args):
         super(ReadReqMsg, self).__init__()
-        self.len = self.calc_len()
         self.req = req
         self.args = args
+        self.len = self.calc_len()
         self.crc16 = self.calc_crc()
 
     def is_init_request(self):
@@ -121,6 +104,16 @@ class ReadAckMsg(BasicMsg):
         ('crc16',   ctypes.c_ushort),
     ]
 
+    @staticmethod
+    def create(ack, args, payload):
+        instance = ReadAckMsg()
+        instance.ack = ack
+        instance.args = args
+        instance.len = instance.calc_len()
+        instance.set_data_payload(payload)
+        instance.crc16 = instance.calc_crc()
+        return instance
+
     # Get payload data
     def get_data_payload(self):
         return buffer(self)[4: 4 + self.PAYLOAD_SIZE]
@@ -132,7 +125,6 @@ class ReadAckMsg(BasicMsg):
 
 
 class WriteReqMsg(BasicMsg):
-
     # Write init command
     INIT_REQ = 0xc
 
@@ -152,9 +144,9 @@ class WriteReqMsg(BasicMsg):
 
     def __init__(self, req, args, payload):
         super(WriteReqMsg, self).__init__()
-        self.len = self.calc_len()
         self.req = req
         self.args = args
+        self.len = self.calc_len()
         self.set_payload_data(payload)
         self.crc16 = self.calc_crc()
 
@@ -174,10 +166,6 @@ class WriteAckMsg(BasicMsg):
     ]
 
 
-class ErrorAckMsg(WriteAckMsg):
-    pass
-
-
 class SerialTransfer(object):
     def __init__(self, port, baudrate, timeout=1, verbose=False):
         """"Init a serial port transfer object
@@ -191,6 +179,21 @@ class SerialTransfer(object):
 
         self.__verbose = verbose
         self.__port = SerialPort(port, baudrate, timeout)
+
+    @staticmethod
+    def calc_package_size(data):
+        return 0 if not isinstance(data, str) else len(data) / WriteReqMsg.PAYLOAD_SIZE
+
+    @staticmethod
+    def get_package_data(idx, data):
+        if not isinstance(idx, int) or not isinstance(data, str):
+            return ""
+
+        size = SerialTransfer.calc_package_size(data)
+        if not 0 <= idx < size:
+            return ""
+
+        return data[idx * WriteReqMsg.PAYLOAD_SIZE: (idx + 1) * WriteReqMsg.PAYLOAD_SIZE]
 
     def read(self, callback=None):
         # Send r_init request
@@ -230,11 +233,9 @@ class SerialTransfer(object):
         :param callback: update write percent callback function
         :return:
         """
+        package_size = self.calc_package_size(package_data)
 
-        payload_size = WriteReqMsg.PAYLOAD_SIZE
-        package_size = len(package_data) / payload_size
-
-        # Write init
+        # Send write init request with package total size and global data
         result, error = self.__w_init(package_size, global_data)
         if not result:
             return False, error
@@ -245,8 +246,7 @@ class SerialTransfer(object):
 
         # Write all data
         for package_index in range(package_size):
-            temp_data = package_data[package_index * payload_size: (package_index + 1) * payload_size]
-            result, data = self.__w_data(package_index, temp_data)
+            result, data = self.__w_data(package_index, self.get_package_data(package_index, package_data))
             if not result:
                 return False, data
 
@@ -258,19 +258,19 @@ class SerialTransfer(object):
 
         return True, ""
 
-    def __basic_transfer(self, req, ack):
+    def __basic_transfer(self, req):
         """Basic transfer
 
         :param req: will send request data
-        :param ack: will received ack data
-        :return: result, ack/error
+        :return: result, ack data or error
         """
-
-        error_ack = ErrorAckMsg()
-
         # Type check
-        if not issubclass(req.__class__, BasicMsg) or not issubclass(ack.__class__, BasicMsg):
-            return False, "TypeCheckError:{0:s}, {1:s}".format(type(req), type(ack))
+        if isinstance(req, ReadReqMsg):
+            ack = ReadAckMsg()
+        elif isinstance(req, WriteReqMsg):
+            ack = WriteAckMsg()
+        else:
+            return False, "Request message type error:{0:s}".format(type(req))
 
         # Send request
         result, error = self.__port.send(req.cdata())
@@ -283,29 +283,18 @@ class SerialTransfer(object):
             return result, data
 
         # Check ack data
-        result, error = ack.init_and_check(data, len(data))
-        if not result:
-            # Peer replay a error ack message
-            if error == error_ack.get_error_code("E_LEN") and len(data) == ctypes.sizeof(error_ack):
-                return error_ack.init_and_check(data, len(data))
-
-            return result, error
-
-        # Return ack data
-        return True, ack
+        return ack.init_and_check(data)
 
     def __r_init(self):
         """Launch a read transfer section
 
-        :return:
+        :return: result, data(package_size, global_data) or error
         """
-
-        ack = ReadAckMsg()
         req = ReadReqMsg(ReadReqMsg.INIT_REQ, 0)
 
         # Send read init request and get ack
-        result, data = self.__basic_transfer(req, ack)
-        if not result:
+        result, data = self.__basic_transfer(req)
+        if not result or not isinstance(data, ReadAckMsg):
             return result, data
         else:
             return True, (int(data.args), data.get_data_payload())
@@ -314,18 +303,16 @@ class SerialTransfer(object):
         """Read package_index specified package index
 
         :param package_index:  will read package data
-        :return: result/(package_index, package_data)
+        :return: result, package_data or error
         """
-
-        ack = ReadAckMsg()
         req = ReadReqMsg(ReadReqMsg.DATA_REQ, package_index)
 
         # Send read init request and get ack
-        result, data = self.__basic_transfer(req, ack)
-        if not result:
+        result, data = self.__basic_transfer(req)
+        if not result or not isinstance(data, ReadAckMsg):
             return result, data
         else:
-            return True, ack.get_data_payload()
+            return True, data.get_data_payload()
 
     def __w_init(self, package_size, global_data):
         """Launch a write transfer section
@@ -334,15 +321,7 @@ class SerialTransfer(object):
         :param global_data: global data
         :return:result/error
         """
-
-        ack = WriteAckMsg()
-        req = WriteReqMsg(WriteReqMsg.INIT_REQ, package_size, global_data)
-
-        result, error = self.__basic_transfer(req, ack)
-        if not result:
-            return result, error
-        else:
-            return True, ""
+        return self.__basic_transfer(WriteReqMsg(WriteReqMsg.INIT_REQ, package_size, global_data))
 
     def __w_data(self, package_index, package_data):
         """Write data
@@ -351,15 +330,7 @@ class SerialTransfer(object):
         :param package_data: will write data
         :return:
         """
-
-        ack = WriteAckMsg()
-        req = WriteReqMsg(WriteReqMsg.DATA_REQ, package_index, package_data)
-
-        result, error = self.__basic_transfer(req, ack)
-        if not result:
-            return result, error
-        else:
-            return True, ""
+        return self.__basic_transfer(WriteReqMsg(WriteReqMsg.DATA_REQ, package_index, package_data))
 
 
 class SerialPort(object):
