@@ -2,12 +2,13 @@
 
 import ctypes
 import serial
+from raspi_io import Serial as WebsocketSerial, RaspiSocketTError
 
 from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
 
 
-__all__ = ['SerialPort', 'SerialTransfer', 'ReadAckMsg']
+__all__ = ['SerialPort', 'SerialTransactionProtocol', 'ReadAckMsg']
 
 
 class ErrorCode(object):
@@ -166,19 +167,19 @@ class WriteAckMsg(BasicMsg):
     ]
 
 
-class SerialTransfer(object):
-    def __init__(self, port, baudrate, timeout=1, verbose=False):
+class SerialTransactionProtocol(object):
+    def __init__(self, send, recv, verbose=False):
         """"Init a serial port transfer object
 
-        :param port: Serial port name
-        :param baudrate: comm baudrate
-        :param timeout: peer byte timeout value
+        :param send: serial port send function
+        :param recv: serial port receive function
         :param verbose: verbose message output
         :return:
         """
-
+        assert hasattr(send, "__call__"), "{} send function is not callable".format(self.__class__.__name__)
+        assert hasattr(recv, "__call__"), "{} recv function is not callable".format(self.__class__.__name__)
         self.__verbose = verbose
-        self.__port = SerialPort(port, baudrate, timeout)
+        self.__send, self.__recv = send, recv
 
     @staticmethod
     def calc_package_size(data):
@@ -189,7 +190,7 @@ class SerialTransfer(object):
         if not isinstance(idx, int) or not isinstance(data, str):
             return ""
 
-        size = SerialTransfer.calc_package_size(data)
+        size = SerialTransactionProtocol.calc_package_size(data)
         if not 0 <= idx < size:
             return ""
 
@@ -206,7 +207,7 @@ class SerialTransfer(object):
 
         # Verbose
         if self.__verbose:
-            print "Read init success, package size:{0:d}".format(package_size)
+            print("Read init success, package size:{0:d}".format(package_size))
 
         # Read package data
         package_data = ""
@@ -218,7 +219,7 @@ class SerialTransfer(object):
                 package_data += data
 
             if self.__verbose:
-                print "Read data package[{0:03d}] success".format(package_index)
+                print("Read data package[{0:03d}] success".format(package_index))
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
@@ -242,7 +243,7 @@ class SerialTransfer(object):
 
         # Verbose
         if self.__verbose:
-            print "Write init success, package size: {0:d}".format(package_size)
+            print("Write init success, package size: {0:d}".format(package_size))
 
         # Write all data
         for package_index in range(package_size):
@@ -251,7 +252,7 @@ class SerialTransfer(object):
                 return False, data
 
             if self.__verbose:
-                print "Write data package[{0:03d}] success".format(package_index)
+                print("Write data package[{0:03d}] success".format(package_index))
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
@@ -273,12 +274,12 @@ class SerialTransfer(object):
             return False, "Request message type error:{0:s}".format(type(req))
 
         # Send request
-        result, error = self.__port.send(req.cdata())
+        result, error = self.__send(req.cdata())
         if not result:
             return result, error
 
         # Receive ack
-        result, data = self.__port.recv(ctypes.sizeof(ack))
+        result, data = self.__recv(ctypes.sizeof(ack))
         if not result:
             return result, data
 
@@ -334,16 +335,28 @@ class SerialTransfer(object):
 
 
 class SerialPort(object):
-    def __init__(self, port, baudrate, timeout=None):
-        self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+    def __init__(self, port, baudrate, timeout=0):
+        """Serial port
+
+        :param port: local serial port("COM1" , "/dev/ttyS1"), or WebsocketSerial("xxx.xxx.xxx.xxx", "/dev/ttyS1")
+        :param baudrate:  serial port baudrate
+        :param timeout: serial port timeout
+        """
+        try:
+
+            self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+        except AttributeError:
+            try:
+                self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout)
+            except ValueError:
+                raise serial.SerialException("Open websocket serial port:{} error".format(port))
+            except RaspiSocketTError:
+                raise serial.SerialException("Open websocket serial port:{} timeout".format(port))
+            except RuntimeError as err:
+                raise serial.SerialException(err)
+
         self.__port.flushInput()
         self.__port.flushOutput()
-
-    def __del__(self):
-        if self.__port.isOpen():
-            self.__port.flushInput()
-            self.__port.flushOutput()
-            self.__port.close()
 
     def __str__(self):
         return "{0:s}, baudrate:{1:d}}".format(self.__port.port, self.__port.baudrate)
@@ -351,6 +364,10 @@ class SerialPort(object):
     @property
     def raw_port(self):
         return self.__port
+
+    def flush(self):
+        self.__port.flushInput()
+        self.__port.flushOutput()
 
     def send(self, data):
         """Basic send data
@@ -375,11 +392,10 @@ class SerialPort(object):
         except serial.SerialException, e:
             return False, "Send data exception: {0:s}".format(e)
 
-    def recv(self, size, timeout=None):
+    def recv(self, size):
         """Basic receive data
 
         :param size: receive data size
-        :param timeout: receive data timeout
         :return: result/receive data
         """
 
@@ -392,9 +408,6 @@ class SerialPort(object):
 
             if not self.__port.isOpen():
                 return False, "Serial port: {0:x} is not opened".format(self.__port.port)
-
-            if isinstance(timeout, (int, float)):
-                self.__port.timeout = timeout
 
             while len(data) != size:
                 tmp = self.__port.read(size - len(data))

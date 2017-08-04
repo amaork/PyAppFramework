@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from ..protocol.serialport import SerialTransfer
+from ..protocol.serialport import SerialTransactionProtocol
 
 if __name__ == "__main__":
-    serial_transfer = SerialTransfer("COM5", 38400, 1, True)
+    serial_transfer = SerialTransactionProtocol(("192.168.1.166", "/dev/ttyUSB1"), 38400, 1, True)
 
     # Read test
     result, data = serial_transfer.read()

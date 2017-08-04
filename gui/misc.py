@@ -38,7 +38,7 @@ class SerialPortSelector(QComboBox):
         return self.__selected
 
     def setSelectedPort(self, port):
-        ports = [self.itemText(i) for i in range(1, self.count())]
+        ports = [self.itemData(i) for i in range(1, self.count())]
         if port not in ports:
             return False
 
