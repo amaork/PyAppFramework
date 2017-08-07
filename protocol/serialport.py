@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import ctypes
 import serial
+from threading import Thread
 from raspi_io import Serial as WebsocketSerial, RaspiSocketTError
 
 from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
 
 
-__all__ = ['SerialPort', 'SerialTransactionProtocol', 'ReadAckMsg']
+__all__ = ['SerialPort', 'SerialTransactionProtocol', 'ReadAckMsg', 'SerialPortProtocolSimulate',
+           'SerialTransactionProtocolReadSimulate']
 
 
 class ErrorCode(object):
@@ -168,33 +170,30 @@ class WriteAckMsg(BasicMsg):
 
 
 class SerialTransactionProtocol(object):
-    def __init__(self, send, recv, verbose=False):
+    PAYLOAD_SIZE = 128
+
+    def __init__(self, send, recv):
         """"Init a serial port transfer object
 
         :param send: serial port send function
         :param recv: serial port receive function
-        :param verbose: verbose message output
         :return:
         """
         assert hasattr(send, "__call__"), "{} send function is not callable".format(self.__class__.__name__)
         assert hasattr(recv, "__call__"), "{} recv function is not callable".format(self.__class__.__name__)
-        self.__verbose = verbose
         self.__send, self.__recv = send, recv
 
     @staticmethod
     def calc_package_size(data):
-        return 0 if not isinstance(data, str) else len(data) / WriteReqMsg.PAYLOAD_SIZE
+        return len(data) / SerialTransactionProtocol.PAYLOAD_SIZE
 
     @staticmethod
     def get_package_data(idx, data):
-        if not isinstance(idx, int) or not isinstance(data, str):
-            return ""
-
         size = SerialTransactionProtocol.calc_package_size(data)
         if not 0 <= idx < size:
             return ""
 
-        return data[idx * WriteReqMsg.PAYLOAD_SIZE: (idx + 1) * WriteReqMsg.PAYLOAD_SIZE]
+        return data[idx * SerialTransactionProtocol.PAYLOAD_SIZE: (idx + 1) * SerialTransactionProtocol.PAYLOAD_SIZE]
 
     def read(self, callback=None):
         # Send r_init request
@@ -205,10 +204,6 @@ class SerialTransactionProtocol(object):
         # Get package size and global data
         package_size, global_data = data[0], data[1]
 
-        # Verbose
-        if self.__verbose:
-            print("Read init success, package size:{0:d}".format(package_size))
-
         # Read package data
         package_data = ""
         for package_index in range(package_size):
@@ -217,9 +212,6 @@ class SerialTransactionProtocol(object):
                 return False, data
             else:
                 package_data += data
-
-            if self.__verbose:
-                print("Read data package[{0:03d}] success".format(package_index))
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
@@ -241,18 +233,11 @@ class SerialTransactionProtocol(object):
         if not result:
             return False, error
 
-        # Verbose
-        if self.__verbose:
-            print("Write init success, package size: {0:d}".format(package_size))
-
         # Write all data
         for package_index in range(package_size):
             result, data = self.__w_data(package_index, self.get_package_data(package_index, package_data))
             if not result:
                 return False, data
-
-            if self.__verbose:
-                print("Write data package[{0:03d}] success".format(package_index))
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
@@ -295,10 +280,7 @@ class SerialTransactionProtocol(object):
 
         # Send read init request and get ack
         result, data = self.__basic_transfer(req)
-        if not result or not isinstance(data, ReadAckMsg):
-            return result, data
-        else:
-            return True, (int(data.args), data.get_data_payload())
+        return (True, (int(data.args), data.get_data_payload())) if isinstance(data, ReadAckMsg) else (False, data)
 
     def __r_data(self, package_index):
         """Read package_index specified package index
@@ -310,10 +292,7 @@ class SerialTransactionProtocol(object):
 
         # Send read init request and get ack
         result, data = self.__basic_transfer(req)
-        if not result or not isinstance(data, ReadAckMsg):
-            return result, data
-        else:
-            return True, data.get_data_payload()
+        return (True, data.get_data_payload()) if isinstance(data, ReadAckMsg) else (False, data)
 
     def __w_init(self, package_size, global_data):
         """Launch a write transfer section
@@ -364,6 +343,9 @@ class SerialPort(object):
     @property
     def raw_port(self):
         return self.__port
+
+    def close(self):
+        self.__port.close()
 
     def flush(self):
         self.__port.flushInput()
@@ -421,3 +403,114 @@ class SerialPort(object):
 
         except serial.SerialException, e:
             return False, "Receive data exception: {0:s}".format(e)
+
+
+class SerialPortProtocolSimulate(object):
+    def __init__(self, send, recv, error_handle=print):
+        assert hasattr(send, "__call__"), "{} send function is not callable".format(self.__class__.__name__)
+        assert hasattr(recv, "__call__"), "{} recv function is not callable".format(self.__class__.__name__)
+        self.__running = False
+        self.__sim_thread = Thread()
+        self.__handle = error_handle
+        self.__send, self.__recv = send, recv
+
+    def _get_request_size(self):
+        pass
+
+    def _check_request(self, req):
+        return False, "Unknown request"
+
+    def _get_req_handle(self, req):
+        pass
+
+    def _error_request(self, req):
+        pass
+
+    def __error_handle(self, error):
+        if hasattr(self.__handle, "__call__"):
+            self.__handle(error)
+
+    def __simulate(self):
+        while self.__running:
+            try:
+
+                # Wait request message from serial port
+                result, data = self.__recv(self._get_request_size())
+                if not result:
+                    self.__error_handle("Receive request error:{0:s}".format(data))
+                    continue
+
+                # Check request message
+                result, err_or_req = self._check_request(data)
+                if not result:
+                    error = err_or_req
+                    self.__error_handle("Check request error:{0:s}".format(error))
+                    continue
+
+                # Process request and get ack
+                req = err_or_req
+                handle = self._get_req_handle(req)
+                if callable(handle):
+                    ack = handle(req)
+                else:
+                    ack = self._error_request(req)
+
+                # Ack peer
+                self.__send(ack)
+
+            except serial.SerialException as error:
+                self.__error_handle("SerialPort error:{0:s}".format(type(self).__name__, error))
+
+    def start(self):
+        if self.__running:
+            print("{} is running!".format(self.__class__.__name__))
+            return False
+
+        self.__running = True
+        self.__sim_thread = Thread(target=self.__simulate, name="{}".format(self.__class__.__name__))
+        self.__sim_thread.setDaemon(True)
+        print("{} start running".format(type(self).__name__))
+        self.__sim_thread.start()
+        return True
+
+    def stop(self):
+        self.__running = False
+        self.__sim_thread.join()
+        print("{} is stopped".format(self.__class__.__name__))
+
+
+class SerialTransactionProtocolReadSimulate(SerialPortProtocolSimulate):
+    def __init__(self, send, recv, data, error_handle=print):
+        super(SerialTransactionProtocolReadSimulate, self).__init__(send, recv, error_handle)
+        self.__global_data, self.__config_data = data
+        self.__total_package = SerialTransactionProtocol.calc_package_size(self.__config_data)
+
+    def _get_request_size(self):
+        return ctypes.sizeof(ReadReqMsg)
+
+    def _check_request(self, data):
+        if not isinstance(data, str):
+            return False, "Request data type error!"
+
+        return ReadReqMsg(0, 0).init_and_check(data)
+
+    def _get_req_handle(self, req):
+        if not isinstance(req, ReadReqMsg):
+            return self._check_request
+
+        return {
+
+            ReadReqMsg.INIT_REQ: self.read_init,
+            ReadReqMsg.DATA_REQ: self.read_data,
+
+        }.get(req.req, self._error_request)
+
+    def _error_request(self, req):
+        return ""
+
+    def read_init(self, req):
+        return ReadAckMsg.create(req.req, self.__total_package, self.__global_data).cdata()
+
+    def read_data(self, req):
+        data = SerialTransactionProtocol.get_package_data(req.args, self.__config_data)
+        return ReadAckMsg.create(req.req, req.args, data).cdata()
