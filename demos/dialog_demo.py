@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
 from PySide.QtCore import QTextCodec
-from ..gui.dialog import SimpleColorDialog
 from ..gui.container import ComponentManager
-from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget
+from ..gui.dialog import SimpleColorDialog, SerialPortSettingDialog
+from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QLineEdit
 
 
 class ColorDialogTest(QWidget):
@@ -45,9 +45,16 @@ class ColorDialogTest(QWidget):
         same.addWidget(QLabel(self.tr("Depth")))
         same.addWidget(depth)
 
+        serial = QHBoxLayout()
+        self.__setting = QLineEdit()
+        self.__serial = QPushButton(self.tr("获取串口设置"))
+        serial.addWidget(self.__serial)
+        serial.addWidget(self.__setting)
+
         layout = QVBoxLayout()
         layout.addLayout(same)
         layout.addLayout(diff)
+        layout.addLayout(serial)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("选择颜色"))
         self.setFixedSize(self.sizeHint())
@@ -55,6 +62,10 @@ class ColorDialogTest(QWidget):
     def __initSignalAndSlots(self):
         self.__same.clicked.connect(self.__slotSelectSameColor)
         self.__diff.clicked.connect(self.__slotSelectDiffColor)
+        self.__serial.clicked.connect(self.__slotGetSerialSetting)
+
+    def __slotGetSerialSetting(self):
+        self.__setting.setText("{}".format(SerialPortSettingDialog.getSetting(self)))
 
     def __slotSelectDiffColor(self):
         color = SimpleColorDialog.getColor(self)

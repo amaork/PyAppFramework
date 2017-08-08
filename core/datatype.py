@@ -81,9 +81,6 @@ def new_instance(name, *args, **kwargs):
 
 
 def ip4_check(addr):
-    if not isinstance(addr, str):
-        return False
-
     try:
 
         data = addr.split(".")
@@ -96,7 +93,7 @@ def ip4_check(addr):
 
         return True
 
-    except ValueError:
+    except (ValueError, AttributeError):
 
         return False
 

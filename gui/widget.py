@@ -12,7 +12,6 @@ PaintWidget
     |------ColorWidget
                 |------CursorWidget
 """
-import copy
 import types
 import os.path
 from serial import Serial
@@ -109,11 +108,11 @@ class PaintWidget(QWidget):
         :return:
         """
         if not isinstance(painter, QPainter) or not isinstance(font, QFont) or not self.isColor(color):
-            print "TypeError"
+            print("TypeError")
             return False
 
         if not isinstance(text, types.StringTypes):
-            print "TextError"
+            print("TextError")
             return False
 
         painter.setFont(font)
@@ -494,7 +493,7 @@ class CursorWidget(ColorWidget):
         :return:
         """
         if not isinstance(width, int) or not isinstance(height, int):
-            print "setRemap TypeError:{0:s}, {1:s}".format(type(width), type(height))
+            print("setRemap TypeError:{0:s}, {1:s}".format(type(width), type(height)))
             return False
 
         self.remap_width = width
@@ -747,12 +746,12 @@ class ImageWidget(PaintWidget):
         :return:
         """
         if not isinstance(filePath, types.StringTypes) or not os.path.isfile(filePath):
-            print "File path:{0:s} is not exist!".format(filePath)
+            print("File path:{0:s} is not exist!".format(filePath))
             return False
 
         image = QImageReader(filePath)
         if not len(image.format()):
-            print "File is not a image file:{0:s}".format(image.errorString())
+            print("File is not a image file:{0:s}".format(image.errorString()))
             return False
 
         # Load image file to memory
@@ -769,11 +768,11 @@ class ImageWidget(PaintWidget):
         :return:
         """
         if not isinstance(data, str) or len(data) == 0:
-            print "Invalid image data:{0:s}".format(type(data))
+            print("Invalid image data:{0:s}".format(type(data)))
             return False
 
         if not isinstance(imageFormat, str) or imageFormat not in self.supportFormats:
-            print "Invalid image format:{0:s}".format(imageFormat)
+            print("Invalid image format:{0:s}".format(imageFormat))
             return False
 
         # Clear loadImageFromFs data
@@ -792,7 +791,7 @@ class ImageWidget(PaintWidget):
         :return:
         """
         if not isinstance(text, types.StringTypes):
-            print "Text is not a string:{0:s}".format(type(text))
+            print("Text is not a string:{0:s}".format(type(text)))
             return False
 
         if len(text) == 0:
@@ -897,22 +896,22 @@ class TableWidget(QTableWidget):
 
     def __checkRow(self, row):
         if not isinstance(row, int):
-            print "TypeError:{0:s}".format(type(row))
+            print("TypeError:{0:s}".format(type(row)))
             return False
 
         if row >= self.rowCount() or row < 0:
-            print "Row range error, max row: {0:d}".format(self.rowCount())
+            print("Row range error, max row: {0:d}".format(self.rowCount()))
             return False
 
         return True
 
     def __checkColumn(self, column):
         if not isinstance(column, int):
-            print "TypeError:{0:s}".format(type(column))
+            print("TypeError:{0:s}".format(type(column)))
             return False
 
         if column >= self.columnCount() or column < 0:
-            print "Column range error, max column: {0:d}".format(self.columnCount())
+            print("Column range error, max column: {0:d}".format(self.columnCount()))
             return False
 
         return True
@@ -1065,11 +1064,11 @@ class TableWidget(QTableWidget):
 
     def swapItem(self, src_row, src_column, dst_row, dst_column):
         if not self.__checkRow(src_row) or not self.__checkRow(dst_row):
-            print "Row number[{0:d}, {1:d}] out of range".format(src_row, dst_row)
+            print("Row number[{0:d}, {1:d}] out of range".format(src_row, dst_row))
             return False
 
         if not self.__checkColumn(src_column) or not self.__checkColumn(dst_column):
-            print "Column number[{0:d}, {1:d}] out of range".format(src_column, dst_column)
+            print("Column number[{0:d}, {1:d}] out of range".format(src_column, dst_column))
             return False
 
         src_item = self.takeItem(src_row, src_column)
@@ -1142,11 +1141,11 @@ class TableWidget(QTableWidget):
         """
 
         if not hasattr(data, "__iter__"):
-            print "TypeError: item should a iterable"
+            print("TypeError: item should a iterable")
             return False
 
         if len(data) > self.columnCount():
-            print "Item length too much"
+            print("Item length too much")
             return False
 
         # Increase row count
@@ -1167,7 +1166,7 @@ class TableWidget(QTableWidget):
 
             except ValueError, e:
 
-                print "TableWidget addItem error: {0:s}".format(e)
+                print("TableWidget addItem error: {0:s}".format(e))
                 continue
 
         # Select current item
@@ -1175,11 +1174,11 @@ class TableWidget(QTableWidget):
 
     def setRowHeader(self, data):
         if not hasattr(data, "__iter__"):
-            print "TypeError: item should a iterable"
+            print("TypeError: item should a iterable")
             return False
 
         if len(data) > self.rowCount():
-            print "Item length too much"
+            print("Item length too much")
             return False
 
         for row, text in enumerate(data):
@@ -1193,11 +1192,11 @@ class TableWidget(QTableWidget):
 
     def setColumnHeader(self, data):
         if not hasattr(data, "__iter__"):
-            print "TypeError: item should a iterable"
+            print("TypeError: item should a iterable")
             return False
 
         if len(data) > self.columnCount():
-            print "Item length too much"
+            print("Item length too much")
             return False
 
         for column, text in enumerate(data):
@@ -1211,7 +1210,7 @@ class TableWidget(QTableWidget):
 
     def setRowAlignment(self, row, alignment):
         if not isinstance(alignment, Qt.AlignmentFlag):
-            print "TypeError:{0:s}".format(type(alignment))
+            print("TypeError:{0:s}".format(type(alignment)))
             return False
 
         if not self.__checkRow(row):
@@ -1226,7 +1225,7 @@ class TableWidget(QTableWidget):
 
     def setColumnAlignment(self, column, alignment):
         if not isinstance(alignment, Qt.AlignmentFlag):
-            print "TypeError:{0:s}".format(type(alignment))
+            print("TypeError:{0:s}".format(type(alignment)))
             return False
 
         if not self.__checkColumn(column):
@@ -1282,7 +1281,7 @@ class TableWidget(QTableWidget):
             return True
 
         except StandardError, e:
-            print "Set table item data error:{0:s}".format(e)
+            print("Set table item data error:{0:s}".format(e))
             return False
 
     def setItemDataFilter(self, row, column, filters):
@@ -1338,7 +1337,7 @@ class TableWidget(QTableWidget):
             return True
 
         except StandardError, e:
-            print "Set table item filter error:{0:s}".format(e)
+            print("Set table item filter error:{0:s}".format(e))
             return False
 
     def setRowDataFilter(self, row, filters):
@@ -1496,11 +1495,11 @@ class ListWidget(QListWidget):
 
     def addItem(self, name, data=None):
         if not isinstance(name, types.StringTypes):
-            print "TypeError: {0:s}".format(type(name))
+            print("TypeError: {0:s}".format(type(name)))
             return False
 
         if self.__unique and name in self.getItems():
-            print "Same name item is exist"
+            print("Same name item is exist")
             return False
 
         item = QListWidgetItem(name)
@@ -1513,7 +1512,7 @@ class ListWidget(QListWidget):
 
     def setItems(self, items):
         if not isinstance(items, (list, tuple)):
-            print "Items data type error:{0:s}".format(type(items))
+            print("Items data type error:{0:s}".format(type(items)))
             return False
 
         # Remove old items
@@ -1579,10 +1578,11 @@ class SerialPortSettingWidget(QWidget):
     ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
     DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
 
-    def __init__(self, settings=DEFAULTS, parent=None):
+    def __init__(self, settings=DEFAULTS, remote="", parent=None):
         """Serial port configure dialog
 
         :param settings: serial port settings
+        :param remote: remote serial port address
         :param parent:
         """
         settings = settings or self.DEFAULTS
@@ -1591,7 +1591,7 @@ class SerialPortSettingWidget(QWidget):
         layout = QGridLayout()
 
         # If specified port select it
-        port = SerialPortSelector()
+        port = SerialPortSelector(remote=remote)
         port.setProperty("name", "port")
         select_port = settings.get("port")
         if select_port is not None:
@@ -1616,7 +1616,8 @@ class SerialPortSettingWidget(QWidget):
             if isinstance(element, QComboBox):
                 # If user settings is invalid then using default settings
                 value = self.DEFAULTS.get(option) if value not in values else value
-                element.addItems(map(str, values))
+                for v in values:
+                    element.addItem(str(v), v)
                 element.setCurrentIndex(values.index(value))
             else:
                 element.setRange(values[0], values[1])
@@ -1641,7 +1642,7 @@ class SerialPortSettingWidget(QWidget):
                 if value == "port" and item.currentIndex() == 0:
                     settings[value] = None
                 else:
-                    settings[value] = item.currentText()
+                    settings[value] = item.itemData(item.currentIndex())
             elif isinstance(item, QSpinBox):
                 settings[item.property("name")] = item.value()
 

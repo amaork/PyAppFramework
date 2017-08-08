@@ -3,6 +3,7 @@ import os
 import sys
 from .images import ImagesPath
 from PySide.QtCore import Qt, QTextCodec, Signal, QDir
+from ..gui.widget import SerialPortSettingWidget
 from ..gui.widget import ImageWidget, ListWidget, TableWidget, ColorWidget, CursorWidget, LumWidget, RgbWidget
 from PySide.QtGui import QWidget, QApplication, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, \
     QTextEdit, QInputDialog, QMainWindow, QFrame, QFileDialog, QImageReader, QLineEdit, QFontDialog
@@ -277,6 +278,26 @@ class TableWidgetTest(QWidget):
         print self.table.setRowDataFilter(self.table.currentRow(), ["VESA", "JEIDA", "VIMM"])
 
 
+class SerialSettingWidgetTest(QWidget):
+    def __init__(self, parent=None):
+        super(SerialSettingWidgetTest, self).__init__(parent)
+        self.__text = QTextEdit()
+        self.__setting = SerialPortSettingWidget()
+        get_setting = QPushButton(self.tr("获取串口设置"))
+        get_setting.clicked.connect(self.slotGetSetting)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.__setting)
+        layout.addWidget(get_setting)
+        layout.addWidget(self.__text)
+
+        self.setLayout(layout)
+        self.setWindowTitle(self.tr("串口设置对话框"))
+
+    def slotGetSetting(self):
+        self.__text.setText("{}".format(self.__setting.getSetting()))
+
+
 class Demo(QMainWindow):
     drawText = Signal(str)
     drawFromFs = Signal(str)
@@ -354,6 +375,13 @@ class Demo(QMainWindow):
         self.tableButton = QPushButton("Get table")
         self.tableButton.clicked.connect(self.showWidget)
 
+        self.serialWidget = SerialSettingWidgetTest()
+        self.serialWidget.setHidden(True)
+        self.serialLabel = QLabel()
+        self.serialLabel.setFrameStyle(frameStyle)
+        self.serialButton = QPushButton("Get serial")
+        self.serialButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -373,6 +401,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.imageTextLabel, 7, 1)
         self.layout.addWidget(self.tableButton, 8, 0)
         self.layout.addWidget(self.tableLabel, 8, 1)
+        self.layout.addWidget(self.serialButton, 9, 0)
+        self.layout.addWidget(self.serialLabel, 9, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -391,6 +421,8 @@ class Demo(QMainWindow):
             self.lumWidget.setHidden(False)
         elif self.sender() == self.tableButton:
             self.tableWidget.setHidden(False)
+        elif self.sender() == self.serialButton:
+            self.serialWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
