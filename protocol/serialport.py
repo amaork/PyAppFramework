@@ -324,7 +324,7 @@ class SerialPort(object):
         try:
 
             self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-        except AttributeError:
+        except (AttributeError, ValueError, TypeError):
             try:
                 self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout)
             except ValueError:
