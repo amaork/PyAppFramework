@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from .button import RectButton
 from .widget import SerialPortSettingWidget
-from PySide.QtCore import Qt
-from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QPushButton, QSplitter, \
+from PySide.QtCore import Qt, Slot, QPoint
+from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QProgressDialog, QSplitter, \
     QVBoxLayout, QHBoxLayout, QGridLayout, QDialogButtonBox
 
 
-__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog']
+__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog']
 
 
 class SimpleColorDialog(QDialog):
@@ -240,3 +240,25 @@ class SerialPortSettingDialog(QDialog):
         dialog = SerialPortSettingDialog(settings, remote, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
+
+
+class ProgressDialog(QProgressDialog):
+    def __init__(self, parent, title="操作进度", max_width=350, cancel_button=None):
+        super(ProgressDialog, self).__init__(parent)
+
+        self.setFixedWidth(max_width)
+        self.setWindowFlags(Qt.Dialog)
+        self.setWindowTitle(self.tr(title))
+        if cancel_button is None:
+            self.setCancelButton(None)
+        else:
+            self.setCancelButtonText(self.tr(cancel_button))
+
+    @Slot(int)
+    def setProgress(self, value):
+        self.setValue(value)
+        if value != 100:
+            self.show()
+        x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
+        y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
+        self.move(QPoint(x, y))
