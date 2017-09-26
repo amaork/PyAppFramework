@@ -9,15 +9,15 @@ __all__ = ['ProcessManager']
 class ProcessManager(object):
     SYSTEM = platform.system().lower()
 
-    def __init__(self, name, cmdline, autostart=True):
+    def __init__(self, cmdline, autostart=True):
         """Process manager
 
-        :param name: name
         :param cmdline: command line
         :param autostart: if set auto start program
         """
-        self.__name = name
         self.__cmdline = cmdline
+        self.__path = os.path.dirname(cmdline)
+        self.__name = os.path.basename(cmdline).split(' ')[0]
         if autostart:
             self.resume()
 
@@ -30,8 +30,8 @@ class ProcessManager(object):
         retry = 3
         lst = list()
         name = self.name()
+        path = self.path()
         cmd = os.path.basename(self.cmdline())
-        path = os.path.dirname(self.cmdline())
 
         try:
 
@@ -62,6 +62,9 @@ class ProcessManager(object):
     def name(self):
         return self.__name
 
+    def path(self):
+        return self.__path
+
     def cmdline(self):
         return self.__cmdline
 
@@ -84,7 +87,11 @@ class ProcessManager(object):
         data = cmd.read().strip()
         if not data:
             return []
-        return [int(pid) for pid in data.split(' ')]
+
+        try:
+            return [int(pid) for pid in data.split(' ')]
+        except ValueError:
+            return [int(pid) for pid in data.split('\n')]
 
     @staticmethod
     def kill(name):
