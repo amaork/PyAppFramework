@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import time
 import signal
 import platform
 
@@ -7,6 +8,7 @@ __all__ = ['ProcessManager']
 
 
 class ProcessManager(object):
+    WAIT_TIME = 0.5
     SYSTEM = platform.system().lower()
 
     def __init__(self, cmdline, autostart=True):
@@ -31,10 +33,10 @@ class ProcessManager(object):
         lst = list()
         name = self.name()
         path = self.path()
+        cwd = os.getcwd()
         cmd = os.path.basename(self.cmdline())
 
         try:
-
             if os.path.isdir(path):
                 os.chdir(path)
 
@@ -58,6 +60,8 @@ class ProcessManager(object):
                         os.kill(pid, signal.SIGCONT if run else signal.SIGSTOP)
         except StandardError:
             pass
+        finally:
+            os.chdir(cwd)
 
     def name(self):
         return self.__name
@@ -104,6 +108,8 @@ class ProcessManager(object):
         for pid in ProcessManager.get_pid(name):
             os.kill(pid, kill_signal)
 
+        # Wait process be killed
+        time.sleep(ProcessManager.WAIT_TIME)
         return True if not ProcessManager.get_pid(name) else False
 
     def suspend(self):
@@ -115,6 +121,7 @@ class ProcessManager(object):
 
     def resume(self):
         self.__process_control(True)
+        time.sleep(ProcessManager.WAIT_TIME)
         return True if self.get_pid(self.name()) else False
 
     def terminate(self):
