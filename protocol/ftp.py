@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 FTP client base ftplib,  support recursive download, upload, delete directory and normal files.
 """
@@ -33,7 +32,12 @@ class FTPClient(object):
 
     def __del__(self):
         self.ftp.close()
-        
+
+    @staticmethod
+    def join(path, *paths):
+        org = os.path.join(path, *paths)
+        return org.replace("\\", "/")
+
     def create_new_connection(self):
         """Create a ftp object and connect to server
 
@@ -50,7 +54,7 @@ class FTPClient(object):
             ftp.login(self.username, self.password)
 
         except ftplib.all_errors, e:
-            print "FTP connect to:{0:s} error:{1:s}".format(self.addr, e)
+            print("FTP connect to:{0:s} error:{1:s}".format(self.addr, e))
         
         return ftp
         
@@ -61,18 +65,19 @@ class FTPClient(object):
         :return: return true if path name is a directory
         """
         try:
-                        
-            # Change dir if not error is means an dir
+
+            cwd = self.ftp.pwd()
+            # Try enter directory
             self.ftp.cwd(name)
 
-            self.ftp.cwd("../")
-
+            # Success enter, then return back
+            self.ftp.cwd(cwd)
             return True
-            
+
+        # Enter failed, is not a directory
         except ftplib.all_errors:
-            
             return False
-              
+
     def is_file(self, name):
         """Check if name specified path is a normal file
 
@@ -102,14 +107,13 @@ class FTPClient(object):
             for i in range(len(path_list)):
                 dir_name = ""
                 for j in range(i + 1):
-                    dir_name = dir_name + "/" + path_list[j]
-                
+                    dir_name = self.join(dir_name, path_list[j])
+
                 if not self.is_dir(dir_name):
                     self.ftp.mkd(dir_name)
                     
         except ftplib.all_errors, e:
-            
-            print "Recursive create dirs:{0:s} error:{1:s}".format(path, e)
+            print("Recursive create dirs:{0:s} error:{1:s}".format(path, e))
             return False
             
         return True
@@ -135,16 +139,17 @@ class FTPClient(object):
             lst = ftp.nlst(".")
 
         except ftplib.all_errors, e:
-            print "Get dir:{0:s} file list error:{1:s}".format(path, e)
+            print("Get dir:{0:s} file list error:{1:s}".format(path, e))
         
         return lst
         
-    def download_dir(self, remote_dir, local_dir, exclude=None):
+    def download_dir(self, remote_dir, local_dir, exclude=None, callback=None):
         """Recursive download remote directory data to local dir without remote dir name equal cp remoteDir/* localDir/
 
         :param remote_dir: remote directory path
         :param local_dir: local directory path
         :param exclude: exclude list
+        :param callback: callback before download file
         :return:
         """
 
@@ -162,21 +167,27 @@ class FTPClient(object):
             self.ftp.cwd(remote_dir)
         
             # Recursive download all files
-            for fileName in self.ftp.nlst("."):
+            for file_name in self.ftp.nlst("."):
 
-                if fileName in exclude:
+                if file_name in exclude:
                     continue
                 
                 # file is a directory
-                if self.is_dir(fileName):
+                if self.is_dir(file_name):
 
                     # Recursive call self download all
-                    result = self.download_dir(fileName, os.path.join(local_dir, fileName), exclude)
+                    result = self.download_dir(file_name, os.path.join(local_dir, file_name), exclude, callback)
                     if not result[0]:
                         return result
                 # Normal file call download file
                 else:
-                    result = self.download_file(self.ftp.pwd() + '/' + fileName, local_dir)
+
+                    remote_file = self.join(self.ftp.pwd(), file_name)
+
+                    if callback and hasattr(callback, "__call__"):
+                        callback(remote_file)
+
+                    result = self.download_file(remote_file, local_dir)
                     if not result[0]:
                         return result
                     
@@ -225,7 +236,7 @@ class FTPClient(object):
                 ftp.retrbinary('RETR ' + remote_path, open(local_path + os.path.basename(remote_path), 'wb').write)
                 
             if self.verbose:
-                print "Downloading:{0:s}".format(remote_path)
+                print("Downloading:{0:s}".format(remote_path))
 
         except ftplib.all_errors, e:
             return False, "Download file:{0:s} error:{1:s}".format(remote_path, e)
@@ -235,12 +246,13 @@ class FTPClient(object):
 
         return True, ""
            
-    def upload_dir(self, local_dir, remote_dir, exclude=None):
+    def upload_dir(self, local_dir, remote_dir, exclude=None, callback=None):
         """Recursive upload local dir to remote, if remote dir is not exist create it, else replace all files
 
         :param local_dir: Local path, will upload
         :param remote_dir: FTP Server remote path, receive upload data
         :param exclude: file name in exclude will not uploaded
+        :param callback: callback before upload file
         :return:
         """
 
@@ -262,24 +274,24 @@ class FTPClient(object):
             os.chdir(local_dir)
                 
             # Recursive upload local file
-            for fileName in os.listdir('.'):
+            for file_name in os.listdir('.'):
 
-                if fileName in exclude:
+                if file_name in exclude:
                     continue
                                 
-                # fileName is a directory
-                if os.path.isdir(os.path.abspath(fileName)):
-                                                             
+                # Is a directory
+                if os.path.isdir(os.path.abspath(file_name)):
                     # Recursive Call self upload all
-                    result = self.upload_dir(fileName, remote_dir + "/" + fileName, exclude)
+                    result = self.upload_dir(file_name, self.join(remote_dir, file_name), exclude, callback)
                     if not result[0]:
                         return result
-                
-                # fileName is a normal file
+                # Is a normal file
                 else:
+                    if callback and hasattr(callback, "__call__"):
+                        callback(file_name)
                     
                     # Upload to remote dir same directory
-                    result = self.upload_file(fileName, remote_dir)
+                    result = self.upload_file(file_name, remote_dir)
                     if not result[0]:
                         return result
             
@@ -288,11 +300,10 @@ class FTPClient(object):
                     
         except (IOError, ftplib.error_perm), e:
             return False, "Uploading:{0:s} error:{1:s}".format(os.getcwd(), e)
-
         finally:
             if len(pwd):
                 os.chdir(pwd)
-            
+
     def upload_file(self, local_path, remote_path, remote_name=""):
         """Upload local_path specified file to remote path
 
@@ -325,7 +336,7 @@ class FTPClient(object):
                 self.ftp.storbinary('STOR ' + os.path.basename(local_path), open(local_path, 'rb'))
             
             if self.verbose:
-                print "Uploading:{0:s}".format(os.path.abspath(local_path))
+                print("Uploading:{0:s}".format(os.path.abspath(local_path)))
                 
             return True, ""
             
@@ -358,20 +369,18 @@ class FTPClient(object):
             
             # Enter remote dir
             pwd = self.ftp.pwd()
-            print remote_dir, remove_files, pwd
             self.ftp.cwd(remote_dir)
 
             # Recursive delete all files
-            for fileName in remove_files:
+            for file_name in remove_files:
                 
-                remote_path = remote_dir + "/" + fileName
+                remote_path = self.join(remote_dir, file_name)
 
                 # file is a directory
                 if self.is_dir(remote_path):
 
                     # Directory is empty, just remove it
                     if len(self.get_file_list(remote_path)) == 0:
-                        print self.ftp.pwd()
                         self.ftp.rmd(remote_path)
                         continue
 
@@ -381,14 +390,14 @@ class FTPClient(object):
                         return result
 
                 # file is normal file
-                elif self.is_file(fileName):
-                    self.ftp.delete(fileName)
+                elif self.is_file(file_name):
+                    self.ftp.delete(file_name)
                     
                     if self.verbose:
-                        print "Deleting:{0:s}".format(remote_path)
+                        print("Deleting:{0:s}".format(remote_path))
 
                 else:
-                    print "Path:{0:s} not exist, jump".format(remote_path)
+                    print("Path:{0:s} not exist, jump".format(remote_path))
 
         except ftplib.all_errors, e:
             return False, "Remove files from:{0:s}, error:{1:s}".format(remote_dir, e)
