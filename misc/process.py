@@ -18,8 +18,9 @@ class ProcessManager(object):
         :param autostart: if set auto start program
         """
         self.__cmdline = cmdline
-        self.__path = os.path.dirname(cmdline)
-        self.__name = os.path.basename(cmdline).split(' ')[0]
+        self.__args = ' '.join(cmdline.split(' ')[1:])
+        self.__path = os.path.dirname(cmdline.split(' ')[0])
+        self.__name = os.path.basename(cmdline.split(' ')[0])
         if autostart:
             self.resume()
 
@@ -31,25 +32,29 @@ class ProcessManager(object):
         """
         retry = 3
         lst = list()
-        name = self.name()
-        path = self.path()
         cwd = os.getcwd()
-        cmd = os.path.basename(self.cmdline())
 
         try:
-            if os.path.isdir(path):
-                os.chdir(path)
+
+            # Absolute path, enter path
+            if os.path.isdir(self.path):
+                os.chdir(self.path)
+                if self.is_windows():
+                    cmd = "{} {}".format(self.name, self.args)
+                else:
+                    cmd = "./{} {}".format(self.name, self.args)
+            else:
+                cmd = self.cmdline
 
             # Make program running in background
             if self.is_windows():
-                cmd = "start /b {0:s}".format(cmd)
+                cmd = "start /b {}".format(cmd)
             else:
                 if not cmd.endswith('&'):
                     cmd += ' &'
-                cmd = "./{}".format(cmd)
 
             while not lst and retry > 0:
-                lst = self.get_pid(name)
+                lst = self.get_pid(self.name)
                 if not lst:
                     os.system(cmd)
                     retry -= 1
@@ -63,12 +68,19 @@ class ProcessManager(object):
         finally:
             os.chdir(cwd)
 
+    @property
+    def args(self):
+        return self.__args
+
+    @property
     def name(self):
         return self.__name
 
+    @property
     def path(self):
         return self.__path
 
+    @property
     def cmdline(self):
         return self.__cmdline
 
@@ -114,18 +126,18 @@ class ProcessManager(object):
 
     def suspend(self):
         if self.is_windows():
-            return self.kill(self.name())
+            return self.kill(self.name)
 
         self.__process_control(False)
-        return True if self.get_pid(self.name()) else False
+        return True if self.get_pid(self.name) else False
 
     def resume(self):
         self.__process_control(True)
         time.sleep(ProcessManager.WAIT_TIME)
-        return True if self.get_pid(self.name()) else False
+        return True if self.get_pid(self.name) else False
 
     def terminate(self):
-        return self.kill(self.name())
+        return self.kill(self.name)
 
     def is_running(self):
-        return len(self.get_pid(self.name())) != 0
+        return len(self.get_pid(self.name)) != 0
