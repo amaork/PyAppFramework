@@ -85,7 +85,7 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func, timeout=0, *args, **kwargs):
+    def __init__(self, func, timeout=0, args=(), kwargs=None):
         """Call #func specified function with #args
 
         :param func: Callback function
@@ -103,8 +103,8 @@ class CallbackFuncMail(BaseUiMail):
 
         self.__func = func
         self.__args = args
-        self.__kwargs = kwargs
         self.__timeout = timeout
+        self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
 
     @property
     def callback(self):
