@@ -25,7 +25,7 @@ class SwTimer(object):
     def __callback(self):
         self.lock.acquire()
         self.timer_cnt += 1
-        if callable(self.callback):
+        if self.callback and hasattr(self.callback, "__call__"):
             if self.args:
                 self.callback(self.args)
             else:

@@ -4,14 +4,13 @@ from threading import Timer
 from ..gui.msgbox import MB_TYPES, showMessageBox
 from PySide.QtCore import Qt, Signal, Slot, QObject
 from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
-
-
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
 
 
 class BaseUiMail(object):
     def __init__(self, context=""):
-        assert isinstance(context, types.StringTypes), "Mail context TypeError:{0:s}".format(type(context))
+        if not isinstance(context, types.StringTypes):
+            raise RuntimeError("Mail context TypeError:{0:s}".format(context.__class__.__name__))
         self.__context = context
 
     @property
@@ -29,8 +28,12 @@ class StatusBarMail(BaseUiMail):
         :return:
         """
         super(StatusBarMail, self).__init__(context)
-        assert isinstance(color, (QColor, Qt.GlobalColor)), "StatusBar mail color TypeError:{0:s}".format(type(color))
-        assert isinstance(timeout, int), "StatusBar mail timeout TypeError:{0:s}".format(type(timeout))
+        if not isinstance(color, (QColor, Qt.GlobalColor)):
+            raise RuntimeError("StatusBar mail color TypeError:{0:s}".format(color.__class__.__name__))
+
+        if not isinstance(timeout, int):
+            raise RuntimeError("StatusBar mail timeout TypeError:{0:s}".format(timeout.__class__.__name__))
+
         self.__color = QColor(color)
         self.__timeout = timeout * 1000
 
@@ -53,8 +56,11 @@ class MessageBoxMail(BaseUiMail):
         :return:
         """
         super(MessageBoxMail, self).__init__(context)
-        assert type_ in MB_TYPES, "MessageBox mail message type TypeError:{0:s}".format(type(type_))
-        assert isinstance(title, types.StringTypes), "MessageBox mail title TypeError:{0:s}".format(type(title))
+        if type_ not in MB_TYPES:
+            raise RuntimeError("MessageBox mail message type TypeError:{}".format(type_))
+
+        if not isinstance(title, types.StringTypes):
+            raise RuntimeError("MessageBox mail title TypeError:{0:s}".format(title.__class__.__name__))
 
         self.__type = type_
         self.__title = title
@@ -79,7 +85,7 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func, timeout=0, args=(), kwargs=None):
+    def __init__(self, func, timeout=0, *args, **kwargs):
         """Call #func specified function with #args
 
         :param func: Callback function
@@ -89,13 +95,16 @@ class CallbackFuncMail(BaseUiMail):
         :return:
         """
         super(CallbackFuncMail, self).__init__()
-        assert hasattr(func, "__call__"), "CallbackFunc mail func TypeError is not callable"
-        assert isinstance(args, tuple), "CallbackFunc mail args TypeError:{0:s}".format(type(args))
-        assert isinstance(timeout, int), "CallbackFunc mail timeout TypeError:{0:s}".format(type(timeout))
+        if not hasattr(func, "__call__"):
+            raise RuntimeError("CallbackFunc mail func TypeError is not callable")
+
+        if not isinstance(timeout, int):
+            raise RuntimeError("CallbackFunc mail timeout TypeError:{0:s}".format(timeout.__class__.__name__))
+
         self.__func = func
         self.__args = args
+        self.__kwargs = kwargs
         self.__timeout = timeout
-        self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
 
     @property
     def callback(self):
@@ -123,7 +132,9 @@ class UiMailBox(QObject):
         :return:
         """
         super(UiMailBox, self).__init__(parent)
-        assert isinstance(parent, QWidget), "UiMailBox needs a QWidget:{0:s} as parent".format(type(parent))
+        if not isinstance(parent, QWidget):
+            raise RuntimeError("UiMailBox needs a QWidget as parent")
+
         self.__parent = parent
         self.hasNewMail.connect(self.mailProcess)
 
@@ -173,7 +184,7 @@ class UiMailBox(QObject):
                         status_mail = StatusBarMail(Qt.blue, "")
                         self.send(CallbackFuncMail(self.send, mail.timeout / 1000, args=(status_mail,)))
                 else:
-                    print "Do not support StatusBarMail!"
+                    print("Do not support StatusBarMail!")
 
         # Show a message box
         elif isinstance(mail, MessageBoxMail):

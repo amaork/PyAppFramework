@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import json
 import types
 import ctypes
 import xml.etree.ElementTree as XmlElementTree
-
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml',
            'str2float', 'str2number',
            'new_class', 'new_instance',
@@ -16,15 +14,13 @@ def str2float(text):
         return text
 
     if not isinstance(text, types.StringTypes):
-        print "TypeError:{0:s}".format(type(text))
         return 0
 
     try:
 
         return float(text)
 
-    except StandardError, e:
-        print "Str2float error:{0:s}, {1:s}".format(text, e)
+    except StandardError:
         return 0.0
 
 
@@ -33,7 +29,6 @@ def str2number(text):
         return text
 
     if not isinstance(text, types.StringTypes):
-        print "TypeError:{0:s}".format(type(text))
         return 0
 
     try:
@@ -57,8 +52,7 @@ def str2number(text):
         else:
             return int(text)
 
-    except StandardError, e:
-        print "Str2number error:{0:s}, {1:s}".format(text, e)
+    except StandardError:
         return 0
 
 
@@ -186,13 +180,13 @@ class DynamicObject(object):
 
             for key in self._properties:
                 if dict_.get(key) is None:
-                    print "{0:s} Unknown key:{1:s}".format(self.__class__, key)
+                    print("{0:s} Unknown key:{1:s}".format(self.__class__, key))
                     return None
 
             return dict_
 
-        except ValueError, e:
-            print "Decode object '{0}' has error:{1}".format(type(self), e)
+        except ValueError as e:
+            print("Decode object '{0}' has error:{1}".format(type(self), e))
             return None
 
     def encode(self):
@@ -229,7 +223,7 @@ class ComparableXml(XmlElementTree.Element):
         :return: string
         """
         if not isinstance(xml, XmlElementTree.Element):
-            print "xml2string error is not xml element object"
+            print("xml2string error is not xml element object")
             return None
 
         data = XmlElementTree.tostring(xml, encode).strip()
@@ -243,7 +237,7 @@ class ComparableXml(XmlElementTree.Element):
         :return: xml Element object
         """
         if not isinstance(data, str):
-            print "string2xml error is not a valid string"
+            print("string2xml error is not a valid string")
             return None
 
         data = ComparableXml.string_strip(data)

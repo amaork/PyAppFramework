@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import os
 import socket
 import httplib
@@ -9,6 +8,7 @@ import SocketServer
 import SimpleHTTPServer
 from ..core.datatype import str2float, str2number
 
+
 NEW_VERSION_DURL_CMD = "GET_NEWEST_DURL"
 NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
 __all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler']
@@ -17,10 +17,9 @@ __all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler']
 class UpgradeClient(object):
     def __init__(self, name, addr, port, timeout=3):
         timeout = timeout if isinstance(timeout, int) else 3
-        assert isinstance(name, str), "Name TypeError: {0:s}".format(type(name))
-        assert isinstance(addr, str), "Address TypeError: {0:s}".format(type(addr))
-        assert isinstance(port, int), "Port TypeError: {0:s}".format(type(port))
-        assert 1024 < port <= 65536, "Port range error:{0:d}".format(port)
+        if not isinstance(name, str):
+            raise RuntimeError("Name TypeError: {0:s}".format(type(name)))
+
         self.__key = name
         self.__addr = addr
         self.__port = port
@@ -37,9 +36,9 @@ class UpgradeClient(object):
             # Mark connect success
             self.__connected = True
             
-        except socket.error, e:
+        except (TypeError, socket.error) as e:
             self.__connected = False
-            print "Connect server:{0:s}:{1:d} error:{2:s}".format(self.__addr, self.__port, e)
+            print("Connect server:{0:s}:{1:d} error:{2:s}".format(self.__addr, self.__port, e))
             
     def __del__(self):
         if self.__connected:
@@ -85,11 +84,11 @@ class UpgradeClient(object):
             newest_version = str2float(recv)
             return newest_version > current_ver
 
-        except StandardError, e:
-            print "has_new_version Error:{0:s}".format(e)
+        except StandardError as e:
+            print("has_new_version Error:{0:s}".format(e))
             return False
-        except socket.error, e:
-            print "socket_error: {0:s}".format(e)
+        except socket.error as e:
+            print("socket_error: {0:s}".format(e))
             return False
 
     def get_new_version_info(self):
@@ -116,7 +115,7 @@ class UpgradeClient(object):
                     
             # Check if it's valid url
             if len(recv) == 0 or "http" not in recv or recv.count('#') != 2:
-                print "Error:{0:s}".format(recv)
+                print("Error:{0:s}".format(recv))
                 return error
 
             data = recv.split("#")
@@ -130,11 +129,11 @@ class UpgradeClient(object):
 
             return True, url, name, md5, size
 
-        except StandardError, e:
-            print "get_new_version_url Error:{0:s}".format(e)
+        except StandardError as e:
+            print("get_new_version_url Error:{0:s}".format(e))
             return error
-        except socket.error, e:
-            print "socket_error: {0:s}".format(e)
+        except socket.error as e:
+            print("socket_error: {0:s}".format(e))
             return error
 
 
@@ -151,16 +150,14 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def __init__(self, upgrade_server_port=9999, file_server_port=8888, file_server_root=FILE_SERVER_ROOT):
         SocketServer.TCPServer.__init__(self, ("0.0.0.0", upgrade_server_port), UpgradeServerHandler)
 
-        assert isinstance(file_server_port, int), "File server port TypeError:{0:s}".format(file_server_port)
-        assert isinstance(file_server_root, str), "File server root TypeError:{0:s}".format(file_server_root)
-
         # Init http file server
-        assert self.__initHTTPFileServer(file_server_port, file_server_root), "Init upgrade http file server failed!"
+        if not self.__initHTTPFileServer(file_server_port, file_server_root):
+            raise RuntimeError("Init upgrade http file server failed!")
 
         self.__file_server = "http://{0:s}:{1:d}".format(self.getHostIPAddr(), file_server_port)
-        print "Upgrade server init success:\nInquire server:{0:s}\nDownload server:{1:s}".format(
+        print("Upgrade server init success:\nInquire server:{0:s}\nDownload server:{1:s}".format(
             (self.getHostIPAddr(), upgrade_server_port), (self.getHostIPAddr(), file_server_port)
-        )
+        ))
 
     @staticmethod
     def getHostIPAddr():
@@ -177,8 +174,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 53))
             return s.getsockname()[0]
-        except socket.error, e:
-            print "getHostIPAddr error:{0:s}".format(e)
+        except socket.error:
             return socket.gethostbyname(socket.gethostname())
 
     def __initHTTPFileServer(self, port, root):
@@ -206,8 +202,8 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             th.start()
             return True
 
-        except StandardError, e:
-            print "Init HttpFileServer error:{0:s}".format(e)
+        except StandardError as e:
+            print("Init HttpFileServer error:{0:s}".format(e))
             return False
 
     @staticmethod
@@ -230,8 +226,8 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             else:
                 return False
 
-        except socket.error, e:
-            print "Test http server:{0:s}, error:{1:s}".format(server, e)
+        except socket.error as e:
+            print("Test http server:{0:s}, error:{1:s}".format(server, e))
             return False
 
     def get_file_server_address(self):
@@ -258,8 +254,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             newest_version = str2float(max(version_list))
             return newest_version
 
-        except StandardError, e:
-            print "get_newest_version Error: {0:s}".format(e)
+        except StandardError as e:
             return 0.0
 
     def get_newest_version_durl(self, software):
@@ -295,7 +290,7 @@ class UpgradeServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
             return download_url + '#' + file_md5 + '#' + str(os.path.getsize(local_file_path))
 
-        except StandardError, e:
+        except StandardError as e:
             return "Get software:{0:s} download url error:{1:s}".format(software, e)
 
 
@@ -332,7 +327,7 @@ class UpgradeServerHandler(SocketServer.BaseRequestHandler):
                 else:
                     self.request.sendall("Error:unknown request!")
             
-            except StandardError, e:
+            except StandardError as e:
                 self.request.close()
-                print "Error:{0:s}".format(e)
+                print("Error:{0:s}".format(e))
                 break

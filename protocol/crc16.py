@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-
 __all__ = ['crc16']
 
 
@@ -28,6 +26,7 @@ __CRC_TABLE_HI = [
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41,
     0x00, 0xC1, 0x81, 0x40
 ]
+
 
 __CRC_TABLE_LOW = [
     0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06, 0x07, 0xC7,
@@ -61,21 +60,22 @@ def crc16(data):
     :param data: data string
     :return: return data crc16
 
-    # C algorithm
-    U16 crc16(U8 * frame, U16 len )
-    {
-        U8           ucCRCHi = 0xFF;
-        U8           ucCRCLo = 0xFF;
-        I32          iIndex;
-    
-        while(len--){
-        
-            iIndex = ucCRCLo ^ *( frame++ );
-            ucCRCLo = ( U8 )( ucCRCHi ^ aucCRCHi[iIndex] );
+    C algorithm
+
+    uint16_t crc16(unsigned char* frame, uint16_t len) {
+
+        int32_t  iIndex;
+        unsigned char ucCRCHi = 0xFF;
+        unsigned char ucCRCLo = 0xFF;
+
+        while (len--) {
+
+            iIndex = ucCRCLo ^ *(frame++);
+            ucCRCLo = (unsigned char)(ucCRCHi ^ aucCRCHi[iIndex]);
             ucCRCHi = aucCRCLo[iIndex];
         }
 
-        return ( U16 )( ucCRCHi << 8 | ucCRCLo );
+        return (uint16_t)(ucCRCHi << 8 | ucCRCLo);
     }
     """
 

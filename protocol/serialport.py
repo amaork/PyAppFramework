@@ -361,18 +361,20 @@ class SerialPort(object):
         try:
 
             if len(data) == 0:
-                return False, "Sending Data length error"
+                raise RuntimeError("Sending Data length error")
 
             if not self.__port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.__port.port)
+                raise RuntimeError("Serial port: {0:x} is not opened".format(self.__port.port))
 
             if self.__port.write(data) != len(data):
-                return False, "Send data error: data sent is not completed"
+                raise RuntimeError("Send data error: data sent is not completed")
 
             return True, ""
 
-        except serial.SerialException, e:
+        except serial.SerialException as e:
             return False, "Send data exception: {0:s}".format(e)
+        except RuntimeError as error:
+            return False, error
 
     def recv(self, size):
         """Basic receive data
@@ -386,23 +388,24 @@ class SerialPort(object):
         try:
 
             if size == 0:
-                return False, "Receive data length error"
+                raise RuntimeError("Receive data length error")
 
             if not self.__port.isOpen():
-                return False, "Serial port: {0:x} is not opened".format(self.__port.port)
+                raise RuntimeError("Serial port: {0:x} is not opened".format(self.__port.port))
 
             while len(data) != size:
                 tmp = self.__port.read(size - len(data))
-
                 if len(tmp) == 0:
-                    return False, "Receive data timeout!"
+                    raise RuntimeError("Receive data timeout!")
 
                 data += tmp
 
             return True, data
 
-        except serial.SerialException, e:
+        except serial.SerialException as e:
             return False, "Receive data exception: {0:s}".format(e)
+        except RuntimeError as error:
+            return False, error
 
 
 class SerialPortProtocolSimulate(object):
