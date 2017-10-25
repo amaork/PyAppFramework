@@ -15,12 +15,11 @@ PaintWidget
 import types
 import os.path
 from serial import Serial
+from PySide.QtGui import *
+from PySide.QtCore import *
+
 from .misc import SerialPortSelector
 from .container import ComponentManager
-from PySide.QtCore import Qt, Signal, Slot, QPoint
-from PySide.QtGui import QImage, QImageReader, QPainter, QPixmap, QPen, QBrush, QFont, QColor, \
-    QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QAbstractSpinBox, QGridLayout, QLabel, \
-    QAbstractItemView, QTableWidgetItem, QListWidgetItem, QListWidget, QTableWidget, QWidget
 
 from ..core.datatype import str2number, str2float
 

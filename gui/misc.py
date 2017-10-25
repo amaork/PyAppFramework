@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import platform
+from PySide.QtGui import *
+from PySide.QtCore import *
 import serial.tools.list_ports
-from PySide.QtCore import Signal
-from PySide.QtGui import QComboBox
 from ..core.datatype import ip4_check
 from raspi_io import Query, RaspiSocketTError
-__all__ = ['SerialPortSelector']
+__all__ = ['SerialPortSelector', 'TabBar']
 
 
 class SerialPortSelector(QComboBox):
@@ -79,3 +79,24 @@ class SerialPortSelector(QComboBox):
         self.__selected = self.itemData(idx)
         self.portSelected.emit(self.__selected)
         self.setDisabled(self.__one_shot)
+
+
+class TabBar(QTabBar):
+    def __init__(self, *args, **kwargs):
+        self.tabSize = QSize(kwargs.pop('width'), kwargs.pop('height'))
+        super(TabBar, self).__init__(*args, **kwargs)
+
+    def paintEvent(self, ev):
+        option = QStyleOptionTab()
+        painter = QStylePainter(self)
+        for index in range(self.count()):
+            self.initStyleOption(option, index)
+            tabRect = self.tabRect(index)
+            painter.drawControl(QStyle.CE_TabBarTabShape, option)
+            if self.tabSize.width() > self.tabSize.height():
+                painter.drawText(tabRect, Qt.AlignCenter | Qt.TextDontClip, self.tabText(index))
+            else:
+                painter.drawText(tabRect, Qt.AlignCenter | Qt.TextDontClip, "\n".join(self.tabText(index)))
+
+    def tabSizeHint(self, index):
+        return self.tabSize
