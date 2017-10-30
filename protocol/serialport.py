@@ -9,8 +9,9 @@ from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
 
 
-__all__ = ['SerialPort', 'SerialTransactionProtocol', 'ReadAckMsg', 'SerialPortProtocolSimulate',
-           'SerialTransactionProtocolReadSimulate']
+__all__ = ['SerialPort',
+           'ReadAckMsg', 'SerialPortProtocolSimulate',
+           'SerialTransferProtocol', 'SerialTransferError', 'SerialTransferProtocolReadSimulate']
 
 
 class ErrorCode(object):
@@ -107,6 +108,10 @@ class ReadAckMsg(BasicMsg):
         ('crc16',   ctypes.c_ushort),
     ]
 
+    @property
+    def args(self):
+        return self.args
+
     @staticmethod
     def create(ack, args, payload):
         instance = ReadAckMsg()
@@ -168,87 +173,92 @@ class WriteAckMsg(BasicMsg):
         ('crc16',   ctypes.c_ushort),
     ]
 
+    @property
+    def args(self):
+        return self.args
 
-class SerialTransactionProtocol(object):
+
+class SerialTransferError(Exception):
+    """SerialTransferProtocol error will raise this exception"""
+    pass
+
+
+class SerialTransferProtocol(object):
     PAYLOAD_SIZE = 128
 
     def __init__(self, send, recv):
-        """"Init a serial port transfer object
+        """"Init a serial port transfer protocol object
 
         :param send: serial port send function
         :param recv: serial port receive function
         :return:
         """
-        assert hasattr(send, "__call__"), "{} send function is not callable".format(self.__class__.__name__)
-        assert hasattr(recv, "__call__"), "{} recv function is not callable".format(self.__class__.__name__)
+        if not hasattr(send, "__call__"):
+            raise AttributeError("{} send function is not callable".format(self.__class__.__name__))
+
+        if not hasattr(recv, "__call__"):
+            raise AttributeError("{} recv function is not callable".format(self.__class__.__name__))
+
         self.__send, self.__recv = send, recv
 
     @staticmethod
     def calc_package_size(data):
-        return len(data) / SerialTransactionProtocol.PAYLOAD_SIZE
+        return len(data) / SerialTransferProtocol.PAYLOAD_SIZE
 
     @staticmethod
     def get_package_data(idx, data):
-        size = SerialTransactionProtocol.calc_package_size(data)
+        size = SerialTransferProtocol.calc_package_size(data)
         if not 0 <= idx < size:
             return ""
 
-        return data[idx * SerialTransactionProtocol.PAYLOAD_SIZE: (idx + 1) * SerialTransactionProtocol.PAYLOAD_SIZE]
+        return data[idx * SerialTransferProtocol.PAYLOAD_SIZE: (idx + 1) * SerialTransferProtocol.PAYLOAD_SIZE]
 
-    def read(self, callback=None):
-        # Send r_init request
-        result, data = self.__r_init()
-        if not result:
-            return result, data
+    def recv(self, callback=None):
+        """Receive data
 
-        # Get package size and global data
-        package_size, global_data = data[0], data[1]
+        :param callback: update recv percentage callback callback(percentage)
+        :return: (global data and  package data)
+        """
+        # Send r_init request, get package_size and global data
+        package_size, global_data = self.__r_init()
 
         # Read package data
         package_data = ""
         for package_index in range(package_size):
-            result, data = self.__r_data(package_index)
-            if not result:
-                return False, data
-            else:
-                package_data += data
+            package_data += self.__r_data(package_index)
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
 
-        return True, (global_data, package_data)
+        return global_data, package_data
 
-    def write(self, global_data, package_data, callback=None):
+    def send(self, global_data, package_data, callback=None):
         """Write data
 
         :param global_data: global data
         :param package_data:  package data
         :param callback: update write percent callback function
-        :return:
+        :return: success return true
         """
         package_size = self.calc_package_size(package_data)
 
         # Send write init request with package total size and global data
-        result, error = self.__w_init(package_size, global_data)
-        if not result:
-            return False, error
+        self.__w_init(package_size, global_data)
 
         # Write all data
         for package_index in range(package_size):
-            result, data = self.__w_data(package_index, self.get_package_data(package_index, package_data))
-            if not result:
-                return False, data
+            self.__w_data(package_index, self.get_package_data(package_index, package_data))
 
             if callback and hasattr(callback, "__call__"):
                 callback((package_index + 1) / (package_size * 1.0) * 100)
 
-        return True, ""
+        return True
 
     def __basic_transfer(self, req):
         """Basic transfer
 
         :param req: will send request data
-        :return: result, ack data or error
+        :return: ack data
         """
         # Type check
         if isinstance(req, ReadReqMsg):
@@ -256,31 +266,31 @@ class SerialTransactionProtocol(object):
         elif isinstance(req, WriteReqMsg):
             ack = WriteAckMsg()
         else:
-            return False, "Request message type error:{0:s}".format(type(req))
+            raise SerialTransferError("Request message type error:'{0:s}'".format(req.__class__.__name__))
 
-        # Send request
-        result, error = self.__send(req.cdata())
-        if not result:
-            return result, error
-
-        # Receive ack
-        result, data = self.__recv(ctypes.sizeof(ack))
-        if not result:
-            return result, data
-
-        # Check ack data
-        return ack.init_and_check(data)
+        try:
+            self.__send(req.cdata())
+            data = self.__recv(ctypes.sizeof(ack))
+            success, error = ack.init_and_check(data)
+            if success:
+                return ack
+            else:
+                raise SerialTransferError(error)
+        except serial.SerialException as error:
+            raise SerialTransferError(error)
 
     def __r_init(self):
-        """Launch a read transfer section
+        """Launch a read transfer session
 
-        :return: result, data(package_size, global_data) or error
+        :return: total package_size and global_data
         """
         req = ReadReqMsg(ReadReqMsg.INIT_REQ, 0)
 
         # Send read init request and get ack
-        result, data = self.__basic_transfer(req)
-        return (True, (int(data.args), data.get_data_payload())) if isinstance(data, ReadAckMsg) else (False, data)
+        ack = self.__basic_transfer(req)
+
+        # Return package size data global data
+        return int(ack.args), ack.get_data_payload()
 
     def __r_data(self, package_index):
         """Read package_index specified package index
@@ -291,8 +301,8 @@ class SerialTransactionProtocol(object):
         req = ReadReqMsg(ReadReqMsg.DATA_REQ, package_index)
 
         # Send read init request and get ack
-        result, data = self.__basic_transfer(req)
-        return (True, data.get_data_payload()) if isinstance(data, ReadAckMsg) else (False, data)
+        ack = self.__basic_transfer(req)
+        return ack.get_data_payload()
 
     def __w_init(self, package_size, global_data):
         """Launch a write transfer section
@@ -351,67 +361,56 @@ class SerialPort(object):
         self.__port.flushInput()
         self.__port.flushOutput()
 
-    def send(self, data):
+    def write(self, data):
         """Basic send data
 
         :param data: will send data
-        :return: result, error
+        :return: return write data length
         """
 
-        try:
+        if len(data) == 0:
+            raise serial.SerialException("Sending Data length error")
 
-            if len(data) == 0:
-                raise RuntimeError("Sending Data length error")
+        if not self.__port.isOpen():
+            raise serial.SerialException("Serial port: {0:x} is not opened".format(self.__port.port))
 
-            if not self.__port.isOpen():
-                raise RuntimeError("Serial port: {0:x} is not opened".format(self.__port.port))
+        if self.__port.write(data) != len(data):
+            raise serial.SerialException("Send data error: data sent is not completed")
 
-            if self.__port.write(data) != len(data):
-                raise RuntimeError("Send data error: data sent is not completed")
+        return len(data)
 
-            return True, ""
-
-        except serial.SerialException as e:
-            return False, "Send data exception: {0:s}".format(e)
-        except RuntimeError as error:
-            return False, error
-
-    def recv(self, size):
+    def read(self, size):
         """Basic receive data
 
         :param size: receive data size
-        :return: result/receive data
+        :return: received data or timeout exception
         """
 
+        if size == 0:
+            raise serial.SerialException("Receive data length error")
+
+        if not self.__port.isOpen():
+            raise serial.SerialException("Serial port: {0:x} is not opened".format(self.__port.port))
+
         data = ""
+        while len(data) != size:
+            tmp = self.__port.read(size - len(data))
+            if len(tmp) == 0:
+                raise serial.SerialException("Receive data timeout!")
 
-        try:
+            data += tmp
 
-            if size == 0:
-                raise RuntimeError("Receive data length error")
-
-            if not self.__port.isOpen():
-                raise RuntimeError("Serial port: {0:x} is not opened".format(self.__port.port))
-
-            while len(data) != size:
-                tmp = self.__port.read(size - len(data))
-                if len(tmp) == 0:
-                    raise RuntimeError("Receive data timeout!")
-
-                data += tmp
-
-            return True, data
-
-        except serial.SerialException as e:
-            return False, "Receive data exception: {0:s}".format(e)
-        except RuntimeError as error:
-            return False, error
+        return data
 
 
 class SerialPortProtocolSimulate(object):
     def __init__(self, send, recv, error_handle=print):
-        assert hasattr(send, "__call__"), "{} send function is not callable".format(self.__class__.__name__)
-        assert hasattr(recv, "__call__"), "{} recv function is not callable".format(self.__class__.__name__)
+        if not hasattr(send, "__call__"):
+            raise AttributeError("{} send function is not callable".format(self.__class__.__name__))
+
+        if not hasattr(recv, "__call__"):
+            raise AttributeError("{} recv function is not callable".format(self.__class__.__name__))
+
         self.__running = False
         self.__sim_thread = Thread()
         self.__handle = error_handle
@@ -438,9 +437,10 @@ class SerialPortProtocolSimulate(object):
             try:
 
                 # Wait request message from serial port
-                result, data = self.__recv(self._get_request_size())
-                if not result:
-                    self.__error_handle("Receive request error:{0:s}".format(data))
+                try:
+                    data = self.__recv(self._get_request_size())
+                except serial.SerialException as error:
+                    self.__error_handle("Receive request error:{0:s}".format(error))
                     continue
 
                 # Check request message
@@ -482,11 +482,11 @@ class SerialPortProtocolSimulate(object):
         print("{} is stopped".format(self.__class__.__name__))
 
 
-class SerialTransactionProtocolReadSimulate(SerialPortProtocolSimulate):
+class SerialTransferProtocolReadSimulate(SerialPortProtocolSimulate):
     def __init__(self, send, recv, data, error_handle=print):
-        super(SerialTransactionProtocolReadSimulate, self).__init__(send, recv, error_handle)
+        super(SerialTransferProtocolReadSimulate, self).__init__(send, recv, error_handle)
         self.__global_data, self.__config_data = data
-        self.__total_package = SerialTransactionProtocol.calc_package_size(self.__config_data)
+        self.__total_package = SerialTransferProtocol.calc_package_size(self.__config_data)
 
     def _get_request_size(self):
         return ctypes.sizeof(ReadReqMsg)
@@ -515,5 +515,5 @@ class SerialTransactionProtocolReadSimulate(SerialPortProtocolSimulate):
         return ReadAckMsg.create(req.req, self.__total_package, self.__global_data).cdata()
 
     def read_data(self, req):
-        data = SerialTransactionProtocol.get_package_data(req.args, self.__config_data)
+        data = SerialTransferProtocol.get_package_data(req.args, self.__config_data)
         return ReadAckMsg.create(req.req, req.args, data).cdata()
