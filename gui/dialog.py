@@ -1,32 +1,38 @@
 # -*- coding: utf-8 -*-
+from PySide.QtGui import *
+from PySide.QtCore import *
 from .button import RectButton
 from .widget import SerialPortSettingWidget
-from PySide.QtCore import Qt, Slot, QPoint
-from PySide.QtGui import QDialog, QColor, QLabel, QSpinBox, QSlider, QProgressDialog, QSplitter, \
-    QVBoxLayout, QHBoxLayout, QGridLayout, QDialogButtonBox
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog']
 
 
 class SimpleColorDialog(QDialog):
-    def __init__(self, basic=False, color=Qt.black, parent=None):
+    # This signal is emitted just after the user has clicked OK to select a color to use
+    colorSelected = Signal(QColor)
+    # This signal is emitted just after the user selected a color
+    currentColorChanged = Signal(QColor)
+
+    def __init__(self, basic=False, color=Qt.black, button_box=False, parent=None):
         """Simple color dialog
 
         :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
         :param color: init color
+        :param button_box: with or without ok cancel button box
         :param parent:
         :return:
         """
         super(SimpleColorDialog, self).__init__(parent)
-        assert isinstance(color, (QColor, Qt.GlobalColor)), "Color TypeError:{0:s}".format(type(color))
+        if not isinstance(color, (QColor, Qt.GlobalColor)):
+            raise TypeError("color expect a 'QColor' or 'Qt.GlobalColor' not '{}'".format(color.__class__.__name__))
 
-        self.__initUi()
+        self.__initUi(button_box)
         self.__basic = basic
         self.__color = QColor(color)
         self.__updateColor(self.__color)
 
-    def __initUi(self):
+    def __initUi(self, without_buttons):
         # Color select buttons
         colorLayout = QGridLayout()
         colors = (Qt.black, Qt.red, Qt.blue, Qt.magenta, Qt.yellow, Qt.green, Qt.cyan, Qt.white)
@@ -67,9 +73,6 @@ class SimpleColorDialog(QDialog):
                 valueLayout.addWidget(QSplitter())
 
         # Dialog button
-        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button.accepted.connect(self.accept)
-        button.rejected.connect(self.reject)
         layout = QVBoxLayout()
         layout.addLayout(colorLayout)
         layout.addLayout(depthLayout)
@@ -77,7 +80,11 @@ class SimpleColorDialog(QDialog):
         layout.addLayout(valueLayout)
         layout.addWidget(QSplitter())
         layout.addWidget(QSplitter())
-        layout.addWidget(button)
+        if not without_buttons:
+            button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            button.accepted.connect(self.accept)
+            button.rejected.connect(self.reject)
+            layout.addWidget(button)
 
         self.setLayout(layout)
         self.setWindowTitle(self.tr("请选择颜色"))
@@ -141,7 +148,9 @@ class SimpleColorDialog(QDialog):
             return
 
         # Update select color
-        self.__updateColor(btn.getBrush().color())
+        color = btn.getBrush().color()
+        self.__updateColor(color)
+        self.currentColorChanged.emit(color)
 
     def slotChangeDepth(self, value):
         if self.__basic or self.sender() == self.__depth:
@@ -155,12 +164,16 @@ class SimpleColorDialog(QDialog):
             if b:
                 self.__blue.setValue(value)
 
+        if self.__basic:
+            self.__depth.setValue(value)
         r, g, b = self.__getCurrentColor()
+        self.currentColorChanged.emit(QColor(r, g, b))
         self.__preview.setStyleSheet("background:rgb({0:d},{1:d},{2:d})".format(r, g, b))
 
     def getSelectColor(self):
         if self.result():
             r, g, b = self.__getCurrentColor()
+            self.colorSelected.emit(QColor(r, g, b))
             return QColor(r, g, b)
         else:
             return self.__color
@@ -173,7 +186,7 @@ class SimpleColorDialog(QDialog):
 
     @staticmethod
     def getBasicColor(parent, color=Qt.red):
-        panel = SimpleColorDialog(True, color, parent)
+        panel = SimpleColorDialog(True, color, False, parent)
         panel.exec_()
         return panel.getSelectColor()
 
