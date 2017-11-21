@@ -3,7 +3,7 @@ from __future__ import print_function
 import ctypes
 import serial
 from threading import Thread
-from raspi_io import Serial as WebsocketSerial, RaspiSocketTError
+from raspi_io import Serial as WebsocketSerial, RaspiSocketError
 
 from .crc16 import crc16
 from ..core.datatype import BasicTypeLE
@@ -339,7 +339,7 @@ class SerialPort(object):
                 self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout)
             except ValueError:
                 raise serial.SerialException("Open websocket serial port:{} error".format(port))
-            except RaspiSocketTError:
+            except RaspiSocketError:
                 raise serial.SerialException("Open websocket serial port:{} timeout".format(port))
             except RuntimeError as err:
                 raise serial.SerialException(err)

@@ -4,7 +4,7 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports
 from ..core.datatype import ip4_check
-from raspi_io import Query, RaspiSocketTError
+from raspi_io import Query, RaspiSocketError
 __all__ = ['SerialPortSelector', 'TabBar']
 
 
@@ -69,7 +69,7 @@ class SerialPortSelector(QComboBox):
                 for port in Query(remote).get_serial_list():
                     self.addItem(port, (remote, port))
 
-            except RaspiSocketTError:
+            except RaspiSocketError:
                 pass
 
     def __slotPortSelected(self, idx):
