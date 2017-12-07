@@ -218,18 +218,17 @@ class SimpleColorDialog(QDialog):
 
 
 class SerialPortSettingDialog(QDialog):
-    def __init__(self, settings=SerialPortSettingWidget.DEFAULTS, remote="", parent=None):
+    def __init__(self, settings=SerialPortSettingWidget.DEFAULTS, parent=None):
         """Serial port configure dialog
 
         :param settings: serial port settings
-        :param remote: scan remote serial port
         :param parent:
         """
         settings = settings or self.DEFAULTS
         super(SerialPortSettingDialog, self).__init__(parent)
 
         layout = QVBoxLayout()
-        self.__widget = SerialPortSettingWidget(settings, remote)
+        self.__widget = SerialPortSettingWidget(settings)
         button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
@@ -249,8 +248,8 @@ class SerialPortSettingDialog(QDialog):
         return self.__widget.getSetting()
 
     @staticmethod
-    def getSetting(parent, settings=SerialPortSettingWidget.DEFAULTS, remote=""):
-        dialog = SerialPortSettingDialog(settings, remote, parent)
+    def getSetting(parent, settings=SerialPortSettingWidget.DEFAULTS):
+        dialog = SerialPortSettingDialog(settings, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
 

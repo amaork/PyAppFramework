@@ -1577,11 +1577,10 @@ class SerialPortSettingWidget(QWidget):
     ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
     DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
 
-    def __init__(self, settings=DEFAULTS, remote="", parent=None):
+    def __init__(self, settings=DEFAULTS, parent=None):
         """Serial port configure dialog
 
         :param settings: serial port settings
-        :param remote: remote serial port address
         :param parent:
         """
         settings = settings or self.DEFAULTS
@@ -1590,7 +1589,7 @@ class SerialPortSettingWidget(QWidget):
         layout = QGridLayout()
 
         # If specified port select it
-        port = SerialPortSelector(remote=remote)
+        port = SerialPortSelector()
         port.setProperty("name", "port")
         select_port = settings.get("port")
         if select_port is not None:

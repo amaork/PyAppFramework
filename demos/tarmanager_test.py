@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from ..misc.tarmanager import TarManager
+from ..misc.tarmanager import TarManager, TarManagerError
 
 
 def usage():
@@ -95,10 +95,16 @@ if __name__ == '__main__':
 
         # Operate
         if package_operate:
-            print TarManager.pack(src_path, dest_path, formats, verbose)
+            try:
+                TarManager.pack(src_path, dest_path, formats, verbose)
+            except TarManagerError as error:
+                print("Pack error:{}".format(error))
 
         if unpackage_operate:
-            print TarManager.unpack(src_path, fmt=formats)
+            try:
+                TarManager.unpack(src_path, fmt=formats)
+            except TarManagerError as error:
+                print("Unpack error:{}".format(error))
 
     except getopt.GetoptError, e:
         print "Error:{0:s}".format(e)

@@ -3,24 +3,23 @@ import platform
 from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports
-from ..core.datatype import ip4_check
+from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
 __all__ = ['SerialPortSelector', 'TabBar']
 
 
 class SerialPortSelector(QComboBox):
-    """List current system exist serial port and remote system serial port
+    """List current system exist serial port and LAN raspberry serial port
 
     """
     # When port selected this signal will emit
     portSelected = Signal(object)
 
-    def __init__(self, text="请选择要使用的串口", one_shot=False, remote="", parent=None):
+    def __init__(self, text="请选择要使用的串口", one_shot=False, parent=None):
         """Select serial port
 
         :param text: selector text
         :param one_shot: only could select once
-        :param remote: remote system address for scan raspi_io serial port
         :param parent:
         """
         super(SerialPortSelector, self).__init__(parent)
@@ -32,7 +31,7 @@ class SerialPortSelector(QComboBox):
         self.__system = platform.system().lower()
 
         # Flush current serial port list
-        self.flushSerialPort(remote)
+        self.flushSerialPort()
         self.currentIndexChanged.connect(self.__slotPortSelected)
 
     def getSelectedPort(self):
@@ -48,7 +47,7 @@ class SerialPortSelector(QComboBox):
         self.__slotPortSelected(index)
         return True
 
-    def flushSerialPort(self, remote=""):
+    def flushSerialPort(self):
         self.clear()
         self.__selected = ""
         self.setEnabled(True)
@@ -62,14 +61,14 @@ class SerialPortSelector(QComboBox):
             self.addItem("{0:s}".format(desc).decode("gbk"))
             self.setItemData(index + 1, device)
 
-        # Scan remote system serial port
-        if ip4_check(remote):
+        # Scan LAN raspberry serial port
+        for raspberry in scan_server(0.03):
             try:
 
-                for port in Query(remote).get_serial_list():
-                    self.addItem(port, (remote, port))
+                for port in Query(raspberry).get_serial_list():
+                    self.addItem("{}/{}".format(raspberry, port.split("/")[-1]), (raspberry, port))
 
-            except RaspiSocketError:
+            except (RaspiSocketError, IndexError):
                 pass
 
     def __slotPortSelected(self, idx):
