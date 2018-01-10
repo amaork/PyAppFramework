@@ -21,6 +21,7 @@ class SwTimer(object):
         self.timer_cnt = 0
         self.lock = threading.RLock()
         self.timer = threading.Timer(self.base, self.__callback)
+        self.timer.setDaemon(True)
 
     def __callback(self):
         self.lock.acquire()
