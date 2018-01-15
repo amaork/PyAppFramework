@@ -29,7 +29,10 @@ class FTPClient(object):
         self.ftp = self.create_new_connection()
 
     def __del__(self):
-        self.ftp.close()
+        try:
+            self.ftp.close()
+        except AttributeError:
+            pass
 
     @staticmethod
     def join(path, *paths):
