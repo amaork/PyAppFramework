@@ -5,7 +5,7 @@ from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
-__all__ = ['SerialPortSelector', 'TabBar']
+__all__ = ['SerialPortSelector', 'TabBar', 'updateFilterMenu']
 
 
 class SerialPortSelector(QComboBox):
@@ -99,3 +99,46 @@ class TabBar(QTabBar):
 
     def tabSizeHint(self, index):
         return self.tabSize
+
+
+def updateFilterMenu(options, menu, group, slot, select=None):
+    """Update filter menu
+
+    :param options: menu options
+    :param menu: QMenu
+    :param group: filter action group
+    :param slot: menu filter function
+    :param select: default select action
+    :return:
+    """
+    if not isinstance(options, (list, tuple)):
+        raise TypeError("options require {!r} not {!r}".format(list.__name__, options.__class__.__name__))
+
+    if not isinstance(menu, QMenu):
+        raise TypeError("menu require {!r} not {!r}".format(QMenu.__name__, menu.__class__.__name__))
+
+    if not isinstance(group, QActionGroup):
+        raise TypeError("group require {!r} not {!r}".format(QActionGroup.__name__, group.__class__.__name__))
+
+    if not hasattr(slot, "__call__"):
+        raise TypeError("filter_slot require callable")
+
+    # Remove old actions from menu
+    for action in menu.actions():
+        menu.removeAction(action)
+        group.removeAction(action)
+
+    # Add new actions to menu
+    for option in options:
+        action = QAction(menu.tr(option), menu)
+        action.setCheckable(True)
+        action.setActionGroup(group)
+        action.triggered.connect(slot)
+        menu.addAction(action)
+
+        # Default select all menu
+        if option == select:
+            action.setChecked(True)
+
+        # Update
+        slot()
