@@ -336,7 +336,7 @@ class SerialPort(object):
             self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
         except (AttributeError, ValueError, TypeError):
             try:
-                self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout)
+                self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout, verbose=0)
             except ValueError:
                 raise serial.SerialException("Open websocket serial port:{} error".format(port))
             except RaspiSocketError:
