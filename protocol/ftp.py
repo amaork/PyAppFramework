@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
 import ftplib
-__all__ = ['FTPClient']
+__all__ = ['FTPClient', 'FTPClientError']
+
+
+class FTPClientError(Exception):
+    pass
 
 
 class FTPClient(object):
@@ -25,7 +29,10 @@ class FTPClient(object):
         self.ftp = self.create_new_connection()
 
     def __del__(self):
-        self.ftp.close()
+        try:
+            self.ftp.close()
+        except AttributeError:
+            pass
 
     @staticmethod
     def join(path, *paths):
@@ -42,13 +49,11 @@ class FTPClient(object):
         ftp = ftplib.FTP()
         
         try:
-
             # Connect ftp server
             ftp.connect(host=self.addr, port=self.port, timeout=self.timeout)
             ftp.login(self.username, self.password)
-
         except ftplib.all_errors as e:
-            print("FTP connect to:{0:s} error:{1:s}".format(self.addr, e))
+            raise FTPClientError("FTP connect to:{0:s} error:{1:s}".format(self.addr, e))
         
         return ftp
         
@@ -145,14 +150,12 @@ class FTPClient(object):
         :param local_dir: local directory path
         :param exclude: exclude list
         :param callback: callback before download file
-        :return:
         """
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
                
         try:
-            
             # If local dir is not exist create it
             if not os.path.isdir(local_dir):
                 os.makedirs(local_dir)
@@ -164,37 +167,24 @@ class FTPClient(object):
             # Recursive download all files
             for file_name in self.ftp.nlst("."):
 
+                # Ignored
                 if file_name in exclude:
                     continue
                 
-                # file is a directory
+                # file is a directory recursive call self download all
                 if self.is_dir(file_name):
-
-                    # Recursive call self download all
-                    result = self.download_dir(file_name, os.path.join(local_dir, file_name), exclude, callback)
-                    if not result[0]:
-                        return result
+                    self.download_dir(file_name, os.path.join(local_dir, file_name), exclude, callback)
                 # Normal file call download file
                 else:
-
                     remote_file = self.join(self.ftp.pwd(), file_name)
-
                     if callback and hasattr(callback, "__call__"):
                         callback(remote_file)
+                    self.download_file(remote_file, local_dir)
 
-                    result = self.download_file(remote_file, local_dir)
-                    if not result[0]:
-                        return result
-                    
-            # Success
-            return True, ""
-                                      
         except ftplib.error_perm as e:
-            return False, "Download error remote dir:{0:s} is not exist:{1:s}".format(remote_dir, e)
-
+            raise FTPClientError("Download error remote dir:{0:s} is not exist:{1:s}".format(remote_dir, e))
         except OSError as e:
-            return False, "Download error create local dir:{0:s} error:{1:s}".format(local_dir, e)
-            
+            raise FTPClientError("Download error create local dir:{0:s} error:{1:s}".format(local_dir, e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
@@ -205,14 +195,13 @@ class FTPClient(object):
         :param remote_path: FTP Server file path
         :param local_path: download file path
         :param local_name: local save as file name
-        :return: true or false
         """
 
         try:
             
             # Check local path
             if os.path.isfile(local_path):
-                return False, "Download error local path:{0:s} is not a directory".format(local_path)
+                raise FTPClientError("Download error local path:{0:s} is not a directory".format(local_path))
         
             if not os.path.isdir(local_path):
                 os.makedirs(local_path)
@@ -232,15 +221,11 @@ class FTPClient(object):
                 
             if self.verbose:
                 print("Downloading:{0:s}".format(remote_path))
-
         except ftplib.all_errors as e:
-            return False, "Download file:{0:s} error:{1:s}".format(remote_path, e)
-        
+            raise FTPClientError("Download file:{0:s} error:{1:s}".format(remote_path, e))
         except AttributeError as e:
-            return False, "Download file:{0:s} error:{1:s}".format(remote_path, e)
+            raise FTPClientError("Download file:{0:s} error:{1:s}".format(remote_path, e))
 
-        return True, ""
-           
     def upload_dir(self, local_dir, remote_dir, exclude=None, callback=None):
         """Recursive upload local dir to remote, if remote dir is not exist create it, else replace all files
 
@@ -248,7 +233,6 @@ class FTPClient(object):
         :param remote_dir: FTP Server remote path, receive upload data
         :param exclude: file name in exclude will not uploaded
         :param callback: callback before upload file
-        :return:
         """
 
         pwd = ""
@@ -258,11 +242,11 @@ class FTPClient(object):
             
             # Check local dir
             if not os.path.isdir(local_dir):
-                return False, "Upload dir error local dir:{0:s} is not exist".format(local_dir)
+                raise FTPClientError("Upload dir error local dir:{0:s} is not exist".format(local_dir))
                  
             # Check remote dir
             if self.is_file(remote_dir):
-                return False, "Upload dir error remote dir:{0:s} is not a directory".format(remote_dir)
+                raise FTPClientError("Upload dir error remote dir:{0:s} is not a directory".format(remote_dir))
         
             # Enter local dir
             pwd = os.getcwd()
@@ -274,27 +258,17 @@ class FTPClient(object):
                 if file_name in exclude:
                     continue
                                 
-                # Is a directory
+                # Is a directory, recursive call self upload all
                 if os.path.isdir(os.path.abspath(file_name)):
-                    # Recursive Call self upload all
-                    result = self.upload_dir(file_name, self.join(remote_dir, file_name), exclude, callback)
-                    if not result[0]:
-                        return result
-                # Is a normal file
+                    self.upload_dir(file_name, self.join(remote_dir, file_name), exclude, callback)
                 else:
                     if callback and hasattr(callback, "__call__"):
                         callback(file_name)
-                    
                     # Upload to remote dir same directory
-                    result = self.upload_file(file_name, remote_dir)
-                    if not result[0]:
-                        return result
-            
-            # Success
-            return True, ""
-                    
+                    self.upload_file(file_name, remote_dir)
+
         except (IOError, ftplib.error_perm) as e:
-            return False, "Uploading:{0:s} error:{1:s}".format(os.getcwd(), e)
+            raise FTPClientError("Uploading:{0:s} error:{1:s}".format(os.getcwd(), e))
         finally:
             if len(pwd):
                 os.chdir(pwd)
@@ -305,7 +279,6 @@ class FTPClient(object):
         :param local_path: Local file path
         :param remote_path: Remote path
         :param remote_name: If is not empty will rename to this name
-        :return: true or false
         """
 
         pwd = ""
@@ -314,11 +287,11 @@ class FTPClient(object):
             
             # Local path check
             if not os.path.isfile(local_path):
-                return False, "Upload error, local file:{0:s} doesn't exist".format(local_path)
+                raise FTPClientError("Upload error, local file:{0:s} doesn't exist".format(local_path))
 
             # Remote path check, if remote path isn't a dir create it
             if not self.is_dir(remote_path) and not self.create_dirs(remote_path):
-                return False, "Upload error, remote path:{0:s} is not a directory".format(remote_path)
+                raise FTPClientError("Upload error, remote path:{0:s} is not a directory".format(remote_path))
             
             # Enter remote path
             pwd = self.ftp.pwd()
@@ -333,11 +306,8 @@ class FTPClient(object):
             if self.verbose:
                 print("Uploading:{0:s}".format(os.path.abspath(local_path)))
                 
-            return True, ""
-            
         except ftplib.all_errors as e:
-            return False, "Upload file:{0:s} error:{1:s}".format(os.path.basename(local_path), e)
-        
+            raise FTPClientError("Upload file:{0:s} error:{1:s}".format(os.path.basename(local_path), e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
@@ -348,20 +318,19 @@ class FTPClient(object):
         :param remote_dir: Remote dir
         :param remove_files: Will remove files list
         :param callback: callback before upload file
-        :return: result, error
         """
 
         pwd = ""
 
         # Type check
         if not isinstance(remote_dir, str) or not isinstance(remove_files, list):
-            return False, "Param type check error:{0:s},{1:s}".format(type(remote_dir), type(remove_files))
+            raise FTPClientError("Param type check error:{0:s},{1:s}".format(type(remote_dir), type(remove_files)))
 
         try:
             
             # Check remote dir
             if not self.is_dir(remote_dir):
-                return False, "Remove files error, remote dir:{0:s} is not exist".format(remote_dir)
+                raise FTPClientError("Remove files error, remote dir:{0:s} is not exist".format(remote_dir))
             
             # Enter remote dir
             pwd = self.ftp.pwd()
@@ -374,17 +343,13 @@ class FTPClient(object):
 
                 # file is a directory
                 if self.is_dir(remote_path):
-
                     # Directory is empty, just remove it
                     if len(self.get_file_list(remote_path)) == 0:
                         self.ftp.rmd(remote_path)
                         continue
 
                     # Remove dir file first then remove dir itself
-                    result = self.remove_dir(remote_path)
-                    if not result[0]:
-                        return result
-
+                    self.remove_dir(remote_path)
                 # file is normal file
                 elif self.is_file(file_name):
                     if self.verbose:
@@ -392,21 +357,16 @@ class FTPClient(object):
 
                     if callback and hasattr(callback, "__call__"):
                         callback(remote_path)
-
                     self.ftp.delete(file_name)
-
                 else:
                     print("Path:{0:s} not exist, jump".format(remote_path))
 
         except ftplib.all_errors as e:
-            return False, "Remove files from:{0:s}, error:{1:s}".format(remote_dir, e)
-        
+            raise FTPClientError("Remove files from:{0:s}, error:{1:s}".format(remote_dir, e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
                 
-        return True, ""
-        
     def remove_dir(self, remote_dir):
         """Recursive delete remote dir all files
 
@@ -414,14 +374,9 @@ class FTPClient(object):
         :return: result, error
         """
 
-        result = self.remove_files(remote_dir, self.get_file_list(remote_dir))
-        if not result[0]:
-            return result
-        
+        self.remove_files(remote_dir, self.get_file_list(remote_dir))
+
         try:
             self.ftp.rmd(remote_dir)
-            
         except ftplib.all_errors as e:
-            return False, "Remove dir:{0:s} error:{1:s}".format(remote_dir, e)
-        
-        return True, ""
+            raise FTPClientError("Remove dir:{0:s} error:{1:s}".format(remote_dir, e))
