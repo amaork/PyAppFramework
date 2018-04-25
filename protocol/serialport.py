@@ -273,6 +273,8 @@ class SerialTransferProtocol(object):
             data = self.__recv(ctypes.sizeof(ack))
             success, error = ack.init_and_check(data)
             if success:
+                if ack.ack != req.req:
+                    raise SerialTransferError(ErrorCode.get_desc(ack.args))
                 return ack
             else:
                 raise SerialTransferError(error)
