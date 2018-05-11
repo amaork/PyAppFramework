@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import ftplib
 __all__ = ['FTPClient', 'FTPClientError']
 
@@ -148,12 +149,13 @@ class FTPClient(object):
 
         :param remote_dir: remote directory path
         :param local_dir: local directory path
-        :param exclude: exclude list
+        :param exclude: exclude list file in exclude list do not download, support file extensions such as *.bmp
         :param callback: callback before download file
         """
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
+        extensions = [x[2:] for x in filter(lambda name: re.search("\*.(.*?)", name, re.S), exclude)]
                
         try:
             # If local dir is not exist create it
@@ -166,9 +168,10 @@ class FTPClient(object):
         
             # Recursive download all files
             for file_name in self.ftp.nlst("."):
+                extension_name = file_name.split(".")[-1]
 
                 # Ignored
-                if file_name in exclude:
+                if file_name in exclude or extension_name in extensions:
                     continue
                 
                 # file is a directory recursive call self download all
@@ -231,12 +234,13 @@ class FTPClient(object):
 
         :param local_dir: Local path, will upload
         :param remote_dir: FTP Server remote path, receive upload data
-        :param exclude: file name in exclude will not uploaded
+        :param exclude: exclude list file in exclude list do not upload, support file extensions such as *.bmp
         :param callback: callback before upload file
         """
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
+        extensions = [x[2:] for x in filter(lambda name: re.search("\*.(.*?)", name, re.S), exclude)]
         
         try:
             
@@ -254,8 +258,9 @@ class FTPClient(object):
                 
             # Recursive upload local file
             for file_name in os.listdir('.'):
+                extension_name = file_name.split(".")[-1]
 
-                if file_name in exclude:
+                if file_name in exclude or extension_name in extensions:
                     continue
                                 
                 # Is a directory, recursive call self upload all
