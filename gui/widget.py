@@ -17,6 +17,7 @@ import os.path
 from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
+from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
@@ -934,6 +935,11 @@ class TableWidget(QTableWidget):
             temp.addItems([widget.itemText(x) for x in range(widget.count())])
             temp.setCurrentIndex(widget.currentIndex())
             temp.setEnabled(widget.isEnabled())
+        elif isinstance(widget, QDateTimeEdit):
+            temp = QDateTimeEdit()
+            temp.setDateTime(widget.dateTime())
+            temp.setEnabled(widget.isEnabled())
+            temp.setCalendarPopup(widget.calendarPopup())
 
         return temp
 
@@ -1022,6 +1028,9 @@ class TableWidget(QTableWidget):
                 widget.stateChanged.connect(self.__slotWidgetDataChanged)
             elif isinstance(widget, QComboBox):
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+            elif isinstance(widget, QDateTimeEdit):
+                widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+
             self.cellWidget(row, column).setHidden(True)
             self.removeCellWidget(row, column)
             self.setCellWidget(row, column, widget)
@@ -1274,6 +1283,13 @@ class TableWidget(QTableWidget):
             elif isinstance(item, QTableWidgetItem) and isinstance(data, types.StringTypes):
                 item.setText(self.tr(data))
                 self.setItem(row, column, item)
+            elif isinstance(item, QDateTimeEdit) and isinstance(data, datetime):
+                date = QDate(data.year, data.month, data.day)
+                time = QTime(data.hour, data.minute, data.second)
+                widget.setDateTime(QDateTime(date, time))
+                widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
             else:
                 return False
 
@@ -1289,30 +1305,55 @@ class TableWidget(QTableWidget):
 
         try:
 
-            # Number type int or float
-            if len(filters) == 2 and type(filters[0]) == type(filters[1]) and isinstance(filters[0], (int, float)):
-                if isinstance(filters[0], int):
-                    widget = QSpinBox()
-                elif isinstance(filters[0], float):
-                    widget = QDoubleSpinBox()
+            if not isinstance(filters, (list, tuple, types.StringTypes)):
+                return False
 
-                widget.setRange(filters[0], filters[1])
+            # Normal text
+            if isinstance(filters, types.StringTypes):
+                widget = self.cellWidget(row, column)
+                if isinstance(widget, QWidget):
+                    self.cellWidget(row, column).setHidden(True)
+                    self.removeCellWidget(row, column)
+                item = QTableWidgetItem(filters)
+                self.takeItem(row, column)
+                self.setItem(row, column, item)
+            # Number type QSpinbox(int, int) or QDoubleSpinbox(float, float) set spinbox range
+            elif len(filters) == 2 and type(filters[0]) is type(filters[1]) and isinstance(filters[0], (int, float)):
+                spinbox = QSpinBox() if isinstance(filters[0], int) else QDoubleSpinBox()
+                spinbox.setRange(filters[0], filters[1])
                 value = self.getItemData(row, column).encode("utf-8")
                 value = str2number(value) if isinstance(filters[0], int) else str2float(value)
-                widget.setValue(value)
-                widget.valueChanged.connect(self.__slotWidgetDataChanged)
+                spinbox.setValue(value)
+                spinbox.valueChanged.connect(self.__slotWidgetDataChanged)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, spinbox)
+            # Bool type QCheckBox(bool, "Desc text")
+            elif len(filters) == 2 and isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
+                widget = QCheckBox(self.tr(filters[1]))
+                widget.stateChanged.connect(self.__slotWidgetDataChanged)
+                widget.setChecked(filters[0])
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
+            # Datetime type QDatetimeEdit (datetime.datetime, python_datetime_format, qt_datetime_format)
+            elif len(filters) == 3 and isinstance(filters[0], datetime) and isinstance(filters[2], types.StringTypes):
+                try:
+                    value = self.getItemData(row, column)
+                    datetime.strptime(value, filters[1])
+                    dt = QDateTime.fromString(value, filters[2])
+                except (TypeError, ValueError):
+                    dt = filters[0]
+                    date = QDate(dt.year, dt.month, dt.day)
+                    time = QTime(dt.hour, dt.minute, dt.second)
+                    dt = QDateTime(date, time)
 
-            # Bool type
-            elif isinstance(filters[0], bool) and isinstance(filters[1], types.StringTypes):
-                    widget = QCheckBox(self.tr(filters[1]))
-                    widget.stateChanged.connect(self.__slotWidgetDataChanged)
-                    widget.setChecked(filters[0])
-                    self.takeItem(row, column)
-                    self.setCellWidget(row, column, widget)
-            # list
-            elif isinstance(filters, list):
+                widget = QDateTimeEdit(dt)
+                widget.setCalendarPopup(True)
+                widget.setProperty("format", filters[2])
+                widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, widget)
+            # QComboBox (list) or tuple
+            elif isinstance(filters, (list, tuple)):
                 widget = QComboBox()
                 widget.addItems(filters)
                 value = self.getItemData(row, column).encode("utf-8")
@@ -1321,15 +1362,6 @@ class TableWidget(QTableWidget):
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
-            # Normal
-            elif isinstance(filters, types.StringTypes):
-                widget = self.cellWidget(row, column)
-                if isinstance(widget, QWidget):
-                    self.cellWidget(row, column).setHidden(True)
-                    self.removeCellWidget(row, column)
-                item = QTableWidgetItem(filters)
-                self.takeItem(row, column)
-                self.setItem(row, column, item)
             else:
                 return False
 
@@ -1374,6 +1406,8 @@ class TableWidget(QTableWidget):
             return str(widget.isChecked())
         elif isinstance(widget, QComboBox):
             return str(widget.currentIndex())
+        elif isinstance(widget, QDateTimeEdit):
+            return widget.dateTime().toString(widget.property("format"))
         elif isinstance(item, QTableWidgetItem):
             return item.text()
         else:
