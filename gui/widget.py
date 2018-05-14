@@ -940,6 +940,13 @@ class TableWidget(QTableWidget):
             temp.setDateTime(widget.dateTime())
             temp.setEnabled(widget.isEnabled())
             temp.setCalendarPopup(widget.calendarPopup())
+        elif isinstance(widget, QPushButton):
+            temp = QPushButton(widget.text())
+            for key in widget.dynamicPropertyNames():
+                key = str(key)
+                temp.setProperty(key, widget.property(key))
+                if key == "clicked":
+                    temp.clicked.connect(widget.property(key))
 
         return temp
 
@@ -1280,16 +1287,20 @@ class TableWidget(QTableWidget):
                 self.cellWidget(row, column).setHidden(True)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
-            elif isinstance(item, QTableWidgetItem) and isinstance(data, types.StringTypes):
-                item.setText(self.tr(data))
-                self.setItem(row, column, item)
-            elif isinstance(item, QDateTimeEdit) and isinstance(data, datetime):
+            elif isinstance(widget, QDateTimeEdit) and isinstance(data, datetime):
                 date = QDate(data.year, data.month, data.day)
                 time = QTime(data.hour, data.minute, data.second)
                 widget.setDateTime(QDateTime(date, time))
                 widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
+            elif isinstance(widget, QPushButton) and isinstance(data, object):
+                widget.setProperty("private", data)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
+            elif isinstance(item, QTableWidgetItem) and isinstance(data, types.StringTypes):
+                item.setText(self.tr(data))
+                self.setItem(row, column, item)
             else:
                 return False
 
@@ -1352,6 +1363,15 @@ class TableWidget(QTableWidget):
                 widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
+            # Self-defined type data QPushButton (button_text, callback, private_data)
+            elif len(filters) == 3 and isinstance(filters[0], types.StringType) and hasattr(filters[1], "__call__"):
+                button = QPushButton(self.tr(filters[0]))
+                button.clicked.connect(filters[1])
+                button.setProperty("clicked", filters[1])
+                button.setProperty("private", filters[2])
+                button.setProperty("dataChanged", self.__slotWidgetDataChanged)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, button)
             # QComboBox (list) or tuple
             elif isinstance(filters, (list, tuple)):
                 widget = QComboBox()
@@ -1408,6 +1428,8 @@ class TableWidget(QTableWidget):
             return str(widget.currentIndex())
         elif isinstance(widget, QDateTimeEdit):
             return widget.dateTime().toString(widget.property("format"))
+        elif isinstance(widget, QPushButton):
+            return widget.property("private")
         elif isinstance(item, QTableWidgetItem):
             return item.text()
         else:
