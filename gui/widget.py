@@ -920,7 +920,7 @@ class TableWidget(QTableWidget):
     def __copyWidget(widget):
         temp = widget
 
-        if isinstance(widget, QAbstractSpinBox):
+        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
             temp.setRange(widget.minimum(), widget.maximum())
             temp.setEnabled(widget.isEnabled())
@@ -1419,13 +1419,13 @@ class TableWidget(QTableWidget):
         item = self.item(row, column)
         widget = self.cellWidget(row, column)
         if isinstance(widget, QSpinBox):
-            return str(widget.value())
+            return widget.value()
         elif isinstance(widget, QDoubleSpinBox):
-            return str(widget.value())
+            return widget.value()
         elif isinstance(widget, QCheckBox):
-            return str(widget.isChecked())
+            return widget.isChecked()
         elif isinstance(widget, QComboBox):
-            return str(widget.currentIndex())
+            return widget.currentIndex()
         elif isinstance(widget, QDateTimeEdit):
             return widget.dateTime().toString(widget.property("format"))
         elif isinstance(widget, QPushButton):
