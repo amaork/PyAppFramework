@@ -24,6 +24,12 @@ class SQLiteDatabase(object):
         self.__conn.close()
 
     @staticmethod
+    def dataFormat(k, v, t):
+        t = SQLiteDatabase.detectDataType(t)
+        data = u'{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} = {}'.format(k, v)
+        return data.encode("utf-8")
+
+    @staticmethod
     def detectDataType(type_str):
         if type_str.find("INT") != -1:
             return SQLiteDatabase.TYPE_INTEGER
@@ -96,7 +102,7 @@ class SQLiteDatabase(object):
         return [table_info.get(n)[self.TBL_DEF] for n in column_names]
 
     def getTablePrimaryKey(self, name):
-        """Get table primary key row if do not have pk return 0
+        """Get table primary key column if do not have pk return 0
 
         :param name: table name
         :return: (primary key column, primary key name, primary key data type)
@@ -116,8 +122,8 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError:
             return list()
 
-    def insertRecode(self, name, record):
-        """Insert a recode to table
+    def insertRecord(self, name, record):
+        """Insert a record to table
 
         :param name: table name
         :param record: recode data
@@ -154,7 +160,7 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError as error:
                 raise SQLiteDatabaseError(error)
 
-    def updateRecode(self, name, where, record):
+    def updateRecord(self, name, where, record):
         """Update an exist recode
 
         :param name: table name
@@ -201,3 +207,49 @@ class SQLiteDatabase(object):
             self.__conn.commit()
         except (ValueError, TypeError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
+
+    def deleteRecord(self, name, conditions):
+        """Delete records from table, when conditions matched
+
+        :param name: table name
+        :param conditions: conditions
+        :return: error raise an exception
+        """
+        try:
+
+            self.__cursor.execute("DELETE FROM {} WHERE {};".format(name, conditions))
+
+        except sqlite3.DatabaseError as error:
+            raise SQLiteDatabaseError("Delete error:{}".format(error))
+
+    def selectRecord(self, name, columns=None, conditions=None):
+        """Select record from table and matches conditions
+
+        :param name: table name
+        :param columns: columns name
+        :param conditions: conditions
+        :return: return a list of records
+        """
+        try:
+
+            columns = columns or list()
+            conditions = conditions or ""
+
+            if not isinstance(columns, (list, tuple)):
+                raise TypeError("columns require list or tuple")
+
+            if not isinstance(conditions, (str, unicode)):
+                raise TypeError("conditions require string object")
+
+            # Pre process
+            columns = ", ".join(columns).encode("utf-8") or "*"
+
+            # SQL
+            if not conditions:
+                self.__cursor.execute("SELECT {} FROM {};".format(columns, name))
+            else:
+                self.__cursor.execute("SELECT {} FROM {} WHERE {};".format(columns, name, conditions))
+
+            return self.__cursor.fetchall()
+        except (TypeError, ValueError, sqlite3.DatabaseError) as error:
+            raise SQLiteDatabaseError("Select error:{}".format(error))
