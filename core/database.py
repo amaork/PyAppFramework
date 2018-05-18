@@ -24,9 +24,21 @@ class SQLiteDatabase(object):
         self.__conn.close()
 
     @staticmethod
-    def dataFormat(k, v, t):
+    def conditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
         data = u'{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} = {}'.format(k, v)
+        return data.encode("utf-8")
+
+    @staticmethod
+    def searchConditionFormat(k, v, t):
+        t = SQLiteDatabase.detectDataType(t)
+        data = u'{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} LIKE %{}%'.format(k, v)
+        return data.encode("utf-8")
+
+    @staticmethod
+    def globalSearchConditionFormat(k, v, t):
+        t = SQLiteDatabase.detectDataType(t)
+        data = u'{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} LIKE *{}*'.format(k, v)
         return data.encode("utf-8")
 
     @staticmethod
