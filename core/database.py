@@ -165,15 +165,15 @@ class SQLiteDatabase(object):
 
         :param name: table name
         :param where: recode location
-        :param record: recode data
+        :param record: recode data could be list or dict (with column name and data)
         :return: error raise DatabaseError
         """
         try:
             if not isinstance(where, (list, tuple)):
                 raise TypeError("where require list or tuple type")
 
-            if not isinstance(record, (list, tuple)):
-                raise TypeError("recode require list or tuple type")
+            if not isinstance(record, (list, tuple, dict)):
+                raise TypeError("recode require list or tuple or dict type")
 
             # Get primary key name, data and type
             pk_name, pk_data, pk_type = where
@@ -181,20 +181,36 @@ class SQLiteDatabase(object):
             # Get column name list and types
             column_names = self.getColumnList(name)
             column_types = self.getColumnType(name)
-            if len(column_names) != len(record):
+
+            # Check data length
+            if isinstance(record, (list, tuple)) and len(column_names) != len(record):
                 raise ValueError("recode length dis-matched")
 
             # Pre process record
             recode_data = list()
             blob_records = list()
-            for column, data, type_ in zip(column_names, record, column_types):
-                if type_ == self.TYPE_TEXT:
-                    recode_data.append(u'{} = "{}"'.format(column, data))
-                elif type_ == self.TYPE_BLOB:
-                    blob_records.append(data)
-                    recode_data.append(u"{} = ?".format(column, data))
-                else:
-                    recode_data.append(u"{} = {}".format(column, data))
+
+            # Update all data by sequence
+            if isinstance(record, (list, tuple)):
+                for column, data, type_ in zip(column_names, record, column_types):
+                    if type_ == self.TYPE_TEXT:
+                        recode_data.append(u'{} = "{}"'.format(column, data))
+                    elif type_ == self.TYPE_BLOB:
+                        blob_records.append(data)
+                        recode_data.append(u"{} = ?".format(column, data))
+                    else:
+                        recode_data.append(u"{} = {}".format(column, data))
+            # Update particular data by column name
+            else:
+                for column_name, data in record.items():
+                    type_ = column_types[column_names.index(column_name)]
+                    if type_ == self.TYPE_TEXT:
+                        recode_data.append(u'{} = "{}"'.format(column_name, data))
+                    elif type_ == self.TYPE_BLOB:
+                        blob_records.append(data)
+                        recode_data.append(u"{} = ?".format(column_name, data))
+                    else:
+                        recode_data.append(u"{} = {}".format(column_name, data))
 
             pk_name = pk_name.encode("utf-8")
             recode_data = ", ".join(recode_data).encode("utf-8")
@@ -205,7 +221,7 @@ class SQLiteDatabase(object):
             self.__cursor.execute('UPDATE {} SET {} WHERE {}="{}";'.format(name, recode_data, pk_name, pk_data),
                                   blob_records)
             self.__conn.commit()
-        except (ValueError, TypeError, sqlite3.DatabaseError) as error:
+        except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
 
     def deleteRecord(self, name, conditions):
@@ -218,7 +234,7 @@ class SQLiteDatabase(object):
         try:
 
             self.__cursor.execute("DELETE FROM {} WHERE {};".format(name, conditions))
-
+            self.__conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError("Delete error:{}".format(error))
 
