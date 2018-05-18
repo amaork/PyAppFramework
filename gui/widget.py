@@ -736,7 +736,6 @@ class ImageWidget(PaintWidget):
         self.zoomInRatio = zoomInRatio if isinstance(zoomInRatio, int) else 0
 
         self.setMinimumSize(width, height)
-        self.setMaximumSize(width, height)
 
     @Slot(str)
     def drawFromFs(self, filePath):

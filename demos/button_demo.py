@@ -48,7 +48,7 @@ class DemoWidget(QWidget):
                                                     ImagesPath,
                                                     "Images(*.jpg)")
             if len(files) == 2:
-                button = IconButton(icon=(files[0], files[1]))
+                button = IconButton(icons=(files[0], files[1]))
         else:
             button = self.buttonType[typeIndex](200, 50, text=buttonTextGroup)
 

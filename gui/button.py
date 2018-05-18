@@ -20,7 +20,7 @@ __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton
 
 
 class BaseButton(QPushButton):
-    def __init__(self, width=0, height=0, shortCut="", styleSheet="", parent=None):
+    def __init__(self, width=0, height=0, shortCut="", styleSheet="", tips="", parent=None):
         super(BaseButton, self).__init__(parent)
         if isinstance(shortCut, types.StringTypes) and len(shortCut):
             self.setShortcut(QKeySequence(self.tr(shortCut)))
@@ -30,6 +30,9 @@ class BaseButton(QPushButton):
 
         if isinstance(width, int) and isinstance(height, int):
             self.setMinimumSize(width, height)
+
+        self.setToolTip(tips)
+        self.setStatusTip(tips)
 
     def getState(self):
         return self.isChecked() if self.isCheckable() else False
@@ -45,8 +48,8 @@ class BaseButton(QPushButton):
 
 
 class TextButton(BaseButton):
-    def __init__(self, width=0, height=0, text=("", ""), shortCut="", styleSheet="", parent=None):
-        super(TextButton, self).__init__(width, height, shortCut, styleSheet, parent)
+    def __init__(self, width=0, height=0, text=("", ""), shortCut="", styleSheet="", tips="", parent=None):
+        super(TextButton, self).__init__(width, height, shortCut, styleSheet, tips, parent)
         self.setCheckable(True)
         self.toggled.connect(self.slotChangeView)
 
@@ -66,30 +69,36 @@ class TextButton(BaseButton):
 
 
 class IconButton(BaseButton):
-    def __init__(self, width=0, height=0, icon=("", ""), shortCut="", parent=None):
-        super(IconButton, self).__init__(width, height, shortCut, parent=parent)
+    def __init__(self, icons, shortCut="", tips="", parent=None):
+        if not isinstance(icons, (list, tuple)):
+            raise TypeError("icons require a list or tuple type")
+
+        if len(icons) not in (1, 2):
+            raise ValueError("icons require one or two icon path")
+
+        super(IconButton, self).__init__(0, 0, shortCut, tips=tips, parent=parent)
         self.setCheckable(True)
 
         self.iconData = []
         self.iconSize = QSize(-1, -1)
+        icons = (icons[0], icons[0]) if len(icons) == 1 else icons
 
-        if isinstance(icon, (tuple, list)) and len(icon) == 2:
-            # Get icon size
-            icon1 = QImageReader(icon[0])
-            icon2 = QImageReader(icon[1])
+        # Get icon size
+        icon1 = QImageReader(icons[0])
+        icon2 = QImageReader(icons[1])
 
-            if icon1.size() == icon2.size() and icon1.size() != QSize(-1, -1):
-                self.iconSize = icon1.size()
-                self.setMinimumSize(self.iconSize)
-                self.setMaximumSize(self.iconSize)
+        if icon1.size() == icon2.size() and icon1.size() != QSize(-1, -1):
+            self.iconSize = icon1.size()
+            self.setMinimumSize(self.iconSize)
+            self.setMaximumSize(self.iconSize)
 
-                # Load icon data to memory
-                for i in range(len(icon)):
-                    if os.path.isfile(icon[i]):
-                        with open(icon[i], "rb") as fp:
-                            self.iconData.append(fp.read())
-            else:
-                print "Icon size mismatched or icon is not a image!"
+            # Load icon data to memory
+            for i in range(len(icons)):
+                if os.path.isfile(icons[i]):
+                    with open(icons[i], "rb") as fp:
+                        self.iconData.append(fp.read())
+                else:
+                    print("Icon size mismatched or icon is not a image!")
 
     def paintEvent(self, ev):
         pixmap = QPixmap()
@@ -102,8 +111,8 @@ class IconButton(BaseButton):
 
 
 class RectButton(BaseButton):
-    def __init__(self, width=0, height=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), parent=None):
-        super(RectButton, self).__init__(width, height, shortCut, parent=parent)
+    def __init__(self, width=0, height=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+        super(RectButton, self).__init__(width, height, shortCut, tips=tips, parent=parent)
         self.setCheckable(True)
 
         # Default setting
@@ -159,8 +168,8 @@ class RectButton(BaseButton):
 
 
 class RoundButton(RectButton):
-    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), parent=None):
-        super(RoundButton, self).__init__(diameter, diameter, text, shortCut, color, parent)
+    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+        super(RoundButton, self).__init__(diameter, diameter, text, shortCut, color, tips, parent)
 
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -182,8 +191,8 @@ class StateButton(RoundButton):
     # Single when state changed
     stateChanged = Signal(bool)
 
-    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), parent=None):
-        super(StateButton, self).__init__(diameter, text, shortCut, color, parent)
+    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+        super(StateButton, self).__init__(diameter, text, shortCut, color, tips, parent)
         self.setCheckable(False)
 
         # Internal state
