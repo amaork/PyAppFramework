@@ -226,7 +226,7 @@ class SQLiteDatabase(object):
 
             pk_name = pk_name.encode("utf-8")
             recode_data = ", ".join(recode_data).encode("utf-8")
-            pk_data = pk_data.encode("utf-8") if pk_type == self.TYPE_TEXT else pk_data
+            pk_data = pk_data.encode("utf-8") if self.detectDataType(pk_type) == self.TYPE_TEXT else pk_data
 
             # Update and save
             # print('UPDATE {} SET {} WHERE {}="{}";'.format(name, recode_data, pk_name, pk_data))

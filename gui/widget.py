@@ -918,6 +918,8 @@ class TableWidget(QTableWidget):
     @staticmethod
     def __copyWidget(widget):
         temp = widget
+        if not isinstance(widget, QWidget):
+            return widget
 
         if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
@@ -941,11 +943,13 @@ class TableWidget(QTableWidget):
             temp.setCalendarPopup(widget.calendarPopup())
         elif isinstance(widget, QPushButton):
             temp = QPushButton(widget.text())
-            for key in widget.dynamicPropertyNames():
-                key = str(key)
-                temp.setProperty(key, widget.property(key))
-                if key == "clicked":
-                    temp.clicked.connect(widget.property(key))
+
+        # Copy widget property
+        for key in widget.dynamicPropertyNames():
+            key = str(key)
+            temp.setProperty(key, widget.property(key))
+            if key == "clicked" and isinstance(widget, QPushButton):
+                temp.clicked.connect(widget.property(key))
 
         return temp
 
@@ -1375,8 +1379,12 @@ class TableWidget(QTableWidget):
             elif isinstance(filters, (list, tuple)):
                 widget = QComboBox()
                 widget.addItems(filters)
-                value = self.getItemData(row, column).encode("utf-8")
-                value = str2number(value) if isinstance(filters[0], int) else str2float(value)
+                value = self.getItemData(row, column)
+                try:
+                    value = int(value)
+                except ValueError:
+                    value = filters.index(value) if value in filters else 0
+                    widget.setProperty("format", "text")
                 widget.setCurrentIndex(value)
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
@@ -1424,7 +1432,7 @@ class TableWidget(QTableWidget):
         elif isinstance(widget, QCheckBox):
             return widget.isChecked()
         elif isinstance(widget, QComboBox):
-            return widget.currentIndex()
+            return widget.currentText() if widget.property("format") else widget.currentIndex()
         elif isinstance(widget, QDateTimeEdit):
             return widget.dateTime().toString(widget.property("format"))
         elif isinstance(widget, QPushButton):
