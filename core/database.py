@@ -20,8 +20,11 @@ class SQLiteDatabase(object):
         self.__cursor = self.__conn.cursor()
 
     def __del__(self):
-        self.__conn.commit()
-        self.__conn.close()
+        try:
+            self.__conn.commit()
+            self.__conn.close()
+        except AttributeError:
+            pass
 
     @staticmethod
     def conditionFormat(k, v, t):
@@ -133,6 +136,34 @@ class SQLiteDatabase(object):
             return self.__cursor.fetchall()
         except sqlite3.DatabaseError:
             return list()
+
+    def createTable(self, name, columns):
+        try:
+
+            if not isinstance(columns, (list, tuple)):
+                raise TypeError("columns require list or tuple")
+
+            if not len(columns):
+                raise ValueError("table at least needs one column")
+
+            data = list()
+            for column, type_, is_null, default, pk in columns:
+                default = u"DEFAULT {}".format(default) if default else ""
+                if is_null:
+                    data_format = u"{} {} {}".format(column, type_, default)
+                else:
+                    data_format = u"{} {} NOT NULL {}".format(column, type_, default)
+
+                if pk:
+                    data_format += u" PRIMARY KEY"
+
+                data.append(data_format)
+
+            # print("CREATE TABLE {} ({});".format(name.encode("utf-8"), ",".join(data).encode("utf-8")))
+            self.__cursor.execute("CREATE TABLE {} ({});".format(name.encode("utf-8"), ",".join(data).encode("utf-8")))
+            self.__conn.commit()
+        except (TypeError, ValueError, sqlite3.DatabaseError) as error:
+            raise SQLiteDatabaseError("Create table error:{}".format(error))
 
     def insertRecord(self, name, record):
         """Insert a record to table
