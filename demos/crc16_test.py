@@ -17,5 +17,5 @@ if __name__ == "__main__":
     # B251
     crc2 = crc.crc16(string)
 
-    print "Data: 0x{0:x}, crc16: 0x{1:x}, result: {2:b}".format(data, crc1, crc1 == 0x9d78)
-    print "String: {0:s}, crc16: 0x{1:x}, result: {2:b}".format(string, crc2, crc2 == 0xb251)
+    print("Data: 0x{0:x}, crc16: 0x{1:x}, result: {2:b}".format(data, crc1, crc1 == 0x9d78))
+    print("String: {0:s}, crc16: 0x{1:x}, result: {2:b}".format(string, crc2, crc2 == 0xb251))

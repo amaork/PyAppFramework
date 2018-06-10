@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import datetime
+from PySide.QtGui import *
+from PySide.QtCore import *
 from .images import ImagesPath
-from PySide.QtCore import Qt, QTextCodec, Signal, QDir
+from ..gui.container import ComponentManager
 from ..gui.widget import SerialPortSettingWidget
 from ..gui.widget import ImageWidget, ListWidget, TableWidget, ColorWidget, CursorWidget, LumWidget, RgbWidget
-from PySide.QtGui import QWidget, QApplication, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, \
-    QTextEdit, QInputDialog, QMainWindow, QFrame, QFileDialog, QImageReader, QLineEdit, QFontDialog
 
 
 class ListDemoWidget(QWidget):
@@ -20,7 +21,7 @@ class ListDemoWidget(QWidget):
         self.getMarkButton = QPushButton("Get mark item")
         self.listData = QTextEdit()
         self.listWidget = ListWidget()
-        self.listWidget.setItems(zip(["Item{0:d}".format(i) for i in range(10)], range(10)))
+        self.listWidget.setItems(list(zip(["Item{0:d}".format(i) for i in range(10)], list(range(10)))))
 
         # Signal and slots
         self.addButton.clicked.connect(self.slotAddItem)
@@ -57,10 +58,10 @@ class ListDemoWidget(QWidget):
             self.listWidget.addItem(text)
 
     def slotGetData(self):
-        self.listData.setText("{0:s}".format(zip(self.listWidget.getItems(), self.listWidget.getItemsData())))
+        self.listData.setText("{}".format(list(zip(self.listWidget.getItems(), self.listWidget.getItemsData()))))
 
     def slotGetMarkItem(self):
-        self.listData.setText("{0:s}".format(self.listWidget.getMarkedItem()))
+        self.listData.setText("{}".format(self.listWidget.getMarkedItem()))
 
 
 class TableWidgetTest(QWidget):
@@ -107,9 +108,9 @@ class TableWidgetTest(QWidget):
         self.set_justify_alignment = QPushButton("Set AlignJustify")
         self.set_justify_alignment.clicked.connect(self.__slotSetTableAlignJustify)
 
-        self.set_row_select_mode = QPushButton("Set row select mode")
-        self.set_column_select_mode = QPushButton("Set column select mode")
-        self.set_item_select_mode = QPushButton("Set item select mode")
+        self.set_row_select_mode = QPushButton("Row select mode")
+        self.set_column_select_mode = QPushButton("Column select mode")
+        self.set_item_select_mode = QPushButton("Item select mode")
 
         self.get_table_data = QPushButton("Get table data")
         self.get_table_data.clicked.connect(self.__slotGetTableData)
@@ -118,57 +119,83 @@ class TableWidgetTest(QWidget):
         self.get_column_data = QPushButton("Get column data")
         self.get_column_data.clicked.connect(self.__slotGetColumnData)
 
-        self.set_row_as_int = QPushButton("Set row as int")
-        self.set_row_as_int.clicked.connect(self.__slotSetAsIntType)
-        self.set_row_as_double = QPushButton("Set row as double")
-        self.set_row_as_double.clicked.connect(self.__slotSetAsDoubleType)
+        self.set_column_as_int = QPushButton("Set column as int")
+        self.set_column_as_int.clicked.connect(self.__slotSetAsIntType)
+        self.set_column_as_double = QPushButton("Set column as double")
+        self.set_column_as_double.clicked.connect(self.__slotSetAsDoubleType)
 
-        self.set_row_as_bool = QPushButton("Set row as bool")
-        self.set_row_as_bool.clicked.connect(self.__slotSetAsBoolType)
-        self.set_row_as_list = QPushButton("Set row as list")
-        self.set_row_as_list.clicked.connect(self.__slotSetAsListType)
+        self.set_column_as_bool = QPushButton("Set column as bool")
+        self.set_column_as_bool.clicked.connect(self.__slotSetAsBoolType)
+        self.set_column_as_list = QPushButton("Set column as list")
+        self.set_column_as_list.clicked.connect(self.__slotSetAsListType)
+
+        self.set_column_as_date = QPushButton("Set column as datatime")
+        self.set_column_as_date.clicked.connect(self.__slotSetAsTimeType)
 
         self.hide_row_header = QPushButton("Hide Row Header")
         self.hide_row_header.setCheckable(True)
         self.hide_column_header = QPushButton("Hide Column Header")
         self.hide_column_header.setCheckable(True)
 
-        self.all_btn = (self.new, self.new_row,
-                        self.frozen_row, self.unfrozen_row,
-                        self.frozen_column, self.unfrozen_column,
-                        self.row_move_up, self.row_move_down,
-                        self.column_move_left, self.column_move_right,
-                        self.set_row_header, self.set_column_header,
-                        self.set_row_alignment, self.set_column_alignment,
-                        self.set_center_alignment, self.set_justify_alignment,
-                        self.set_row_select_mode, self.set_column_select_mode,
-                        self.set_item_select_mode, self.get_table_data,
-                        self.set_row_as_int, self.set_row_as_double,
-                        self.set_row_as_bool, self.set_row_as_list,
-                        self.get_row_data, self.get_column_data,
-                        self.hide_row_header, self.hide_column_header)
+        self.btn_groups = {
+
+            "New": (
+                self.new, self.new_row
+            ),
+
+            "Get": (
+
+                self.get_row_data, self.get_column_data, self.get_table_data
+            ),
+
+            "Mode": (
+                self.set_row_select_mode, self.set_column_select_mode, self.set_item_select_mode
+            ),
+
+            "Move": (
+                self.row_move_up, self.row_move_down, self.column_move_left, self.column_move_right
+            ),
+
+            "Frozen": (
+                self.frozen_row, self.unfrozen_row, self.frozen_column, self.unfrozen_column
+            ),
+
+            "Header": (
+
+                self.set_row_header, self.set_column_header, self.hide_row_header, self.hide_column_header
+            ),
+
+            "Alignment": (
+                self.set_row_alignment, self.set_column_alignment,
+                self.set_center_alignment, self.set_justify_alignment
+            ),
+
+            "Data Type": (
+
+                self.set_column_as_int, self.set_column_as_double,
+                self.set_column_as_bool, self.set_column_as_list, self.set_column_as_date
+            )
+        }
 
         self.table_layout = QVBoxLayout()
         self.data = QTextEdit()
         self.data.setMaximumHeight(100)
         self.data.setHidden(True)
-        self.button_layout = QHBoxLayout()
+        self.button_layout = QGridLayout()
 
-        for idx in range(0, len(self.all_btn), 2):
-            layout = QVBoxLayout()
-            for i in range(2):
-                btn = self.all_btn[idx + i]
+        for row, btn_group in enumerate(self.btn_groups.items()):
+            self.button_layout.addWidget(QLabel(btn_group[0]), row, 0)
+            for column, btn in enumerate(btn_group[1]):
                 btn.setDisabled(True)
-                layout.addWidget(btn)
-            self.button_layout.addLayout(layout)
+                self.button_layout.addWidget(btn, row, column + 1)
 
         self.new.setEnabled(True)
-
         layout = QVBoxLayout()
         layout.addLayout(self.table_layout)
         layout.addLayout(self.button_layout)
         self.setLayout(layout)
         self.setWindowTitle("TableWidget Test")
+        self.ui_manager = ComponentManager(layout)
 
     def __get_text(self, title, lable):
         text, ok = QInputDialog.getText(self, title, lable, QLineEdit.Normal, QDir.home().dirName())
@@ -193,14 +220,14 @@ class TableWidgetTest(QWidget):
         self.set_row_select_mode.clicked.connect(self.table.setRowSelectMode)
         self.set_item_select_mode.clicked.connect(self.table.setItemSelectMode)
         self.set_column_select_mode.clicked.connect(self.table.setColumnSelectMode)
-        for btn in self.all_btn:
+        for btn in self.ui_manager.getByType(QPushButton):
             btn.setEnabled(True)
         self.new.setDisabled(True)
 
     def __slotNewRow(self):
         count = self.table.rowCount()
         column = self.table.columnCount()
-        self.table.addRow(range(count * column, (count + 1) * column))
+        self.table.addRow(list(range(count * column, (count + 1) * column)))
 
     def __slotFrozenRow(self):
         row = self.__get_number("Please enter will frozen row number:", "Row",
@@ -226,7 +253,7 @@ class TableWidgetTest(QWidget):
         text = self.__get_text("Please enter row header:", "Row header:")
         headers = list()
         for index in range(self.table.rowCount()):
-            headers.append("{0:s} {1:d}".format(text.encode("utf-8"), index))
+            headers.append("{} {}".format(text, index))
 
         self.table.setRowHeader(headers)
 
@@ -234,7 +261,7 @@ class TableWidgetTest(QWidget):
         text = self.__get_text("Please enter column header:", "Column header:")
         headers = list()
         for index in range(self.table.columnCount()):
-            headers.append("{0:s} {1:d}".format(text.encode("utf-8"), index))
+            headers.append("{} {}".format(text, index))
 
         self.table.setColumnHeader(headers)
 
@@ -251,31 +278,33 @@ class TableWidgetTest(QWidget):
         self.table.setTableAlignment(Qt.AlignJustify)
 
     def __slotGetRowData(self):
-        data = [d.encode("utf-8") for d in self.table.getRowData(self.table.currentRow())]
-        self.data.setText("{0:s}".format(data))
+        data = [d for d in self.table.getRowData(self.table.currentRow())]
+        self.data.setText("{}".format(data))
 
     def __slotGetColumnData(self):
-        data = [d.encode("utf-8") for d in self.table.getColumnData(self.table.currentColumn())]
-        self.data.setText("{0:s}".format(data))
+        data = [d for d in self.table.getColumnData(self.table.currentColumn())]
+        self.data.setText("{}".format(data))
 
     def __slotGetTableData(self):
         data = self.table.getTableData()
         self.data.setText("")
-        for row in data:
-            row = [d.encode("utf-8") for d in row]
-            self.data.append("{0:s}".format(row))
+        self.data.setText("{}".format(data))
 
     def __slotSetAsIntType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), (1, 100))
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), (1, 100)))
 
     def __slotSetAsDoubleType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), (0.1, 100.0))
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), (0.1, 100.0)))
 
     def __slotSetAsBoolType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), (False, "信号"))
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), (False, "信号")))
 
     def __slotSetAsListType(self):
-        print self.table.setRowDataFilter(self.table.currentRow(), ["VESA", "JEIDA", "VIMM"])
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), ["VESA", "JEIDA", "VIMM"]))
+
+    def __slotSetAsTimeType(self):
+        filters = (datetime.datetime.now(), "%Y-%m-%d %H:%M:%S", "yyyy-MM-dd hh:mm:ss")
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), filters))
 
 
 class SerialSettingWidgetTest(QWidget):
@@ -426,7 +455,7 @@ class Demo(QMainWindow):
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
-            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*,jpg)")
+            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*.jpg)")
             self.drawFromFs.emit(file)
             self.imageWidget.setHidden(False)
         elif self.sender() == self.imageMemButton:

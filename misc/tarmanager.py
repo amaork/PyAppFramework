@@ -43,11 +43,11 @@ class TarManager(object):
 
         name = os.path.basename(name)
         formats = os.path.splitext(name)[-1][1:]
-        return formats if formats in TarManager.formatDict.keys() else ""
+        return formats if formats in list(TarManager.formatDict.keys()) else ""
 
     @staticmethod
     def get_support_format():
-        return TarManager.formatDict.keys()
+        return list(TarManager.formatDict.keys())
 
     @staticmethod
     def __core_pack(tar, path, verbose):
@@ -55,7 +55,7 @@ class TarManager(object):
             return
 
         if verbose:
-            print path[2:]
+            print(path[2:])
 
         tar.add(path)
 
@@ -99,7 +99,7 @@ class TarManager(object):
 
             # Print package info
             if verbose:
-                print "{0:s} -> {1:s}".format(os.path.abspath(path), name)
+                print("{0:s} -> {1:s}".format(os.path.abspath(path), name))
 
             # Traversal all files in path add to tarFile
             for root, dirs, files in os.walk('.'):

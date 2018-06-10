@@ -5,7 +5,6 @@ Provide UI elements container
 """
 
 import copy
-import types
 from PySide.QtCore import QObject, Signal
 from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, \
     QLabel, QLineEdit, QTextEdit, QPlainTextEdit, QDateTimeEdit, QWidget, QLayout, QLayoutItem, QGridLayout
@@ -26,12 +25,12 @@ class ComboBoxGroup(QObject):
         self.__group = list()
 
         if not isinstance(template, QComboBox):
-            print "Template TypeError: {0:s}".format(type(template))
+            print("Template TypeError: {0:s}".format(type(template)))
             self.__template = None
             return
 
         if template.count() <= 1:
-            print "ComboBox template data at least needs 2 items"
+            print("ComboBox template data at least needs 2 items")
             return
 
         self.__template = template
@@ -51,31 +50,31 @@ class ComboBoxGroup(QObject):
 
     def __typeCheck(self, item):
         if not self.__template:
-            print "TypeError: template is None"
+            print("TypeError: template is None")
             return False
 
         if not isinstance(item, QComboBox):
-            print "TypeError: {0:x}".format(type(item))
+            print("TypeError: {0:x}".format(type(item)))
             return False
 
         if item.count() != self.__template.count():
-            print "QComboBox count mismatch"
+            print("QComboBox count mismatch")
             return False
 
         for index in range(item.count()):
             if item.itemText(index) != self.__template.itemText(index):
-                print "QComboBox item text mismatch"
+                print("QComboBox item text mismatch")
                 return False
 
         return True
 
     def __indexCheck(self, index):
         if not isinstance(index, int):
-            print "TypeError:{0:s}".format(type(index))
+            print("TypeError:{0:s}".format(type(index)))
             return False
 
         if index >= self.count() or index < 0:
-            print "IndexError: out of range"
+            print("IndexError: out of range")
             return False
 
         return True
@@ -102,7 +101,7 @@ class ComboBoxGroup(QObject):
 
         values = [item.currentIndex() for item in self.__group]
         values.sort()
-        if values == range(self.count()):
+        if values == list(range(self.count())):
             return None
 
         for index in range(self.count()):
@@ -130,7 +129,7 @@ class ComboBoxGroup(QObject):
         return self.__group[idx]
 
     def setEditable(self, editable):
-        for item in self.items():
+        for item in list(self.items()):
             item.setEnabled(editable)
 
     def addComboBox(self, box, ordered=False):
@@ -186,23 +185,23 @@ class ComboBoxGroup(QObject):
         :return:
         """
         if not hasattr(sequence, "__iter__"):
-            print "TypeError:{0:s}".format(type(sequence))
+            print("TypeError:{0:s}".format(type(sequence)))
             return False
 
         if len(sequence) != self.count():
-            print "Sequence length error"
+            print("Sequence length error")
             return False
 
         for index in sequence:
             if not isinstance(index, int):
-                print "Sequence item TypeError: {0:s}".format(type(index))
+                print("Sequence item TypeError: {0:s}".format(type(index)))
                 return False
 
         values = copy.copy(sequence)
         values.sort()
 
-        if values != range(len(sequence)):
-            print "Sequence item conflict"
+        if values != list(range(len(sequence))):
+            print("Sequence item conflict")
             return False
 
         for item, index in zip(self.__group, sequence):
@@ -300,13 +299,13 @@ class ComponentManager(QObject):
             component.setCheckable(True)
             component.setChecked(str2number(data))
         elif isinstance(component, QLineEdit):
-            if isinstance(data, types.StringTypes):
+            if isinstance(data, str):
                 component.setText(data)
         elif isinstance(component, QTextEdit):
-            if isinstance(data, types.StringTypes):
+            if isinstance(data, str):
                 component.setText(data)
         elif isinstance(component, QPlainTextEdit):
-            if isinstance(data, types.StringTypes):
+            if isinstance(data, str):
                 component.setPlainText(data)
         elif isinstance(component, QDial):
             component.setValue(str2number(data))
@@ -398,7 +397,7 @@ class ComponentManager(QObject):
     def findRowSibling(self, obj):
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print "Only QGridLayout support find row sibling:{0:s}".format(type(layout))
+            print("Only QGridLayout support find row sibling:{0:s}".format(type(layout)))
             return []
 
         for row in range(layout.rowCount()):
@@ -413,7 +412,7 @@ class ComponentManager(QObject):
     def findColumnSibling(self, obj):
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print "Only QGridLayout support find column sibling:{0:s}".format(type(layout))
+            print("Only QGridLayout support find column sibling:{0:s}".format(type(layout)))
             return []
 
         for row in range(layout.rowCount()):
@@ -457,7 +456,7 @@ class ComponentManager(QObject):
         """
 
         if not isinstance(componentType, type):
-            print "TypeError:{0:s}".format(type(componentType))
+            print("TypeError:{0:s}".format(type(componentType)))
             return []
 
         components = list()
@@ -476,8 +475,8 @@ class ComponentManager(QObject):
         :return:
         """
 
-        if not isinstance(key, str) or not isinstance(value, types.StringTypes):
-            print "Property TypeError:{0:s}, {1:s}".format(type(key), type(value))
+        if not isinstance(key, str) or not isinstance(value, str):
+            print("Property TypeError:{0:s}, {1:s}".format(type(key), type(value)))
             return None
 
         # Search by property
@@ -496,7 +495,7 @@ class ComponentManager(QObject):
         """
 
         if not isinstance(key, str):
-            print "Property key typeError: {0:s}".format(type(key))
+            print("Property key typeError: {0:s}".format(type(key)))
             return []
 
         lst = list()
@@ -546,7 +545,7 @@ class ComponentManager(QObject):
 
     def setData(self, key, data):
         if not isinstance(key, str) or not isinstance(data, dict):
-            print "TypeError:{0:s}, {1:s}".format(type(key), type(data))
+            print("TypeError:{0:s}, {1:s}".format(type(key), type(data)))
             return False
 
         for component in self.getAll():

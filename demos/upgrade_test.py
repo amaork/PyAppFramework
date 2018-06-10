@@ -10,14 +10,14 @@ def client_test(name, server, port):
 
     # Check connection_status
     if not upgrade_check.is_connected():
-        print "Connection is failed!"
+        print("Connection is failed!")
         sys.exit(-1)
 
     # If there's new version
-    print upgrade_check.has_new_version(0.7)
+    print(upgrade_check.has_new_version(0.7))
 
     while test_cnt > 0:
-        print "{0:02d} Info is:{1:s}".format(test_cnt, upgrade_check.get_new_version_info())
+        print("{0:02d} Info is:{1}".format(test_cnt, upgrade_check.get_new_version_info()))
         test_cnt -= 1
 
 
@@ -37,6 +37,6 @@ if __name__ == '__main__':
     elif len(sys.argv) == 3 and sys.argv[1] == "server":
         server_test(sys.argv[2])
     else:
-        print "Usage: {0:s} <server> [root]".format(sys.argv[0])
-        print "Usage: {0:s} <software_name> <server_address> <server_port>".format(sys.argv[0])
+        print("Usage: {0:s} <server> [root]".format(sys.argv[0]))
+        print("Usage: {0:s} <software_name> <server_address> <server_port>".format(sys.argv[0]))
         sys.exit(-1)

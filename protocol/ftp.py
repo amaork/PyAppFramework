@@ -114,7 +114,7 @@ class FTPClient(object):
                     self.ftp.mkd(dir_name)
                     
         except ftplib.all_errors as e:
-            print("Recursive create dirs:{0:s} error:{1:s}".format(path, e))
+            print("Recursive create dirs:{} error:{}".format(path, e))
             return False
             
         return True
@@ -140,7 +140,7 @@ class FTPClient(object):
             lst = ftp.nlst(".")
 
         except ftplib.all_errors as e:
-            print("Get dir:{0:s} file list error:{1:s}".format(path, e))
+            print("Get dir:{} file list error:{}".format(path, e))
         
         return lst
         
@@ -155,7 +155,7 @@ class FTPClient(object):
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
-        extensions = [x[2:] for x in filter(lambda name: re.search("\*.(.*?)", name, re.S), exclude)]
+        extensions = [x[2:] for x in [name for name in exclude if re.search("\*.(.*?)", name, re.S)]]
                
         try:
             # If local dir is not exist create it
@@ -223,7 +223,7 @@ class FTPClient(object):
                 ftp.retrbinary('RETR ' + remote_path, open(local_path + os.path.basename(remote_path), 'wb').write)
                 
             if self.verbose:
-                print("Downloading:{0:s}".format(remote_path))
+                print("Downloading:{}".format(remote_path))
         except ftplib.all_errors as e:
             raise FTPClientError("Download file:{0:s} error:{1:s}".format(remote_path, e))
         except AttributeError as e:
@@ -240,7 +240,7 @@ class FTPClient(object):
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
-        extensions = [x[2:] for x in filter(lambda name: re.search("\*.(.*?)", name, re.S), exclude)]
+        extensions = [x[2:] for x in [name for name in exclude if re.search("\*.(.*?)", name, re.S)]]
         
         try:
             

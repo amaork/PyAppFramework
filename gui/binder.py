@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import types
 from PySide.QtCore import QObject
 from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox
 
@@ -29,11 +28,11 @@ class SpinBoxBinder(QObject):
 
     def bindLabel(self, obj, factor):
         if not isinstance(obj, QLabel):
-            print "Bind error, object type error:{0:s}".format(type(obj))
+            print("Bind error, object type error:{0:s}".format(type(obj)))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print "Bind error, factor type error{0:s}".format(type(factor))
+            print("Bind error, factor type error{0:s}".format(type(factor)))
             return False
 
         self.__binding.append((obj, factor))
@@ -41,11 +40,11 @@ class SpinBoxBinder(QObject):
 
     def bindSpinBox(self, obj, factor):
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print "Bind error, object type error:{0:s}".format(type(obj))
+            print("Bind error, object type error:{0:s}".format(type(obj)))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print "Bind error, factor type error{0:s}".format(type(factor))
+            print("Bind error, factor type error{0:s}".format(type(factor)))
             return False
 
         # Set spinbox range and single step
@@ -91,11 +90,11 @@ class ComboBoxBinder(QObject):
             return False
 
         if not isinstance(obj, QLabel):
-            print "Bind error, object type error:{0:s}".format(type(obj))
+            print("Bind error, object type error:{0:s}".format(type(obj)))
             return False
 
         if not isinstance(text, (tuple, list)) and len(text) != self.__combobox.count():
-            print "Bind error, text type or count error"
+            print("Bind error, text type or count error")
             return False
 
         self.__binding.append((obj, text))
@@ -104,11 +103,11 @@ class ComboBoxBinder(QObject):
 
     def bindSpinBox(self, obj, limit):
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print "Bind error, object type error:{0:s}".format(type(obj))
+            print("Bind error, object type error:{0:s}".format(type(obj)))
             return False
 
         if not isinstance(limit, (tuple, list)) and len(limit) != self.__combobox.count():
-            print "Bind error, text type or count error"
+            print("Bind error, text type or count error")
             return False
 
         self.__binding.append((obj, limit))
@@ -117,11 +116,11 @@ class ComboBoxBinder(QObject):
 
     def bindComboBox(self, obj, reverse=False):
         if not isinstance(obj, QComboBox):
-            print "Bind error, object type error:{0:s}".format(type(obj))
+            print("Bind error, object type error:{0:s}".format(type(obj)))
             return False
 
         if obj.count() != self.__combobox.count():
-            print "Bind error, two ComboBox count number should be same!"
+            print("Bind error, two ComboBox count number should be same!")
             return False
 
         self.__binding.append((obj, reverse))
@@ -142,7 +141,7 @@ class ComboBoxBinder(QObject):
                     receiver.setCurrentIndex(index)
 
             # QLabel
-            elif isinstance(receiver, QLabel) and isinstance(data[index], types.StringTypes):
+            elif isinstance(receiver, QLabel) and isinstance(data[index], str):
                     receiver.setText(data[index])
 
             # QSpinBox

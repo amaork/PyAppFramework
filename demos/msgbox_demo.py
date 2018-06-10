@@ -29,8 +29,7 @@ class DemoWidget(QWidget):
         self.setWindowTitle("MessageBox Demo")
 
     def slotShowMessageBox(self):
-        showMessageBox(self, self.messageType.currentText().encode("ascii"),
-                       self.titleEdit.text().encode("ascii"), self.contextEdit.text().encode("ascii"))
+        showMessageBox(self.messageType.currentText(), self.contextEdit.text(), self.titleEdit.text())
 
 
 if __name__ == "__main__":

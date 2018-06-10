@@ -1,7 +1,7 @@
 PyAppFramework
 ========
 
-Python Application Framework (Python 2.7)
+Python Application Framework
 
 ![PyAppFramewirk chart](chart/PyAppFramework.png)
 
@@ -13,7 +13,7 @@ A concise easy to use PySide GUI Application Framework, make you build yourself 
 
 ## Request
 
-- Python 2.7 
+- Python3+
 - PySide
 - pyserial
 
