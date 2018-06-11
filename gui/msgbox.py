@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from types import StringTypes
 from PySide.QtGui import QMessageBox
 
 __all__ = ['showQuestionBox', 'showMessageBox',
@@ -13,47 +12,38 @@ MB_TYPE_QUESTION = "question"
 MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN, MB_TYPE_QUESTION)
 
 
-def showQuestionBox(parent, title, context):
+def showQuestionBox(content, title=None):
     """ Show a Question message box and return result
 
-    :param parent: Message parent
+    :param content: Message content
     :param title: Message title
-    :param context: Message title
     :return: if press ok return true, else return false
     """
 
-    # Type check
-    if not isinstance(title, StringTypes) or not isinstance(context, StringTypes):
-        return False
-
-    ret = QMessageBox.question(parent, parent.tr(title), parent.tr(context), QMessageBox.Ok | QMessageBox.Cancel)
-
-    return False if ret == QMessageBox.Cancel else True
+    return showMessageBox(MB_TYPE_QUESTION, content, title)
 
 
-def showMessageBox(parent, msg_type, title, context, result=False):
+def showMessageBox(msg_type, content, title=None):
     """Show a QMessage box
 
-    :param parent: Message box parent
     :param msg_type: Message type
+    :param content: Message content
     :param title: Message title
-    :param context: Message context
-    :param result: result
     :return: result
     """
+    attributes = {
 
-    # Type check
-    if msg_type not in MB_TYPES or not isinstance(title, StringTypes) or not isinstance(context, StringTypes):
+        MB_TYPE_ERR: (QMessageBox.Critical, "错误"),
+        MB_TYPE_WARN: (QMessageBox.Warning, "警告"),
+        MB_TYPE_INFO: (QMessageBox.Information, "信息"),
+        MB_TYPE_QUESTION: (QMessageBox.Question, "确认")
+    }
+
+    try:
+        icon, default_title = attributes.get(msg_type)
+        title = title if title else default_title
+        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
+        msg = QMessageBox(icon, title, content, buttons)
+        return msg.exec_()
+    except TypeError:
         return False
-
-    if msg_type == MB_TYPE_INFO:
-        result = True
-        QMessageBox.information(parent, parent.tr(title), parent.tr(context))
-    elif msg_type == MB_TYPE_ERR:
-        QMessageBox.critical(parent, parent.tr(title), parent.tr(context))
-    elif msg_type == MB_TYPE_WARN:
-        QMessageBox.warning(parent, parent.tr(title), parent.tr(context))
-    elif msg_type == MB_TYPE_QUESTION:
-        return showQuestionBox(parent, title, context)
-
-    return result

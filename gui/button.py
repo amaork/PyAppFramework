@@ -10,7 +10,6 @@ BaseButton
                 |------RoundButton
                             |------StateButton
 """
-import types
 import os.path
 from PySide.QtCore import Signal, Qt, QSize
 from PySide.QtGui import QPushButton, QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen
@@ -22,10 +21,10 @@ __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton
 class BaseButton(QPushButton):
     def __init__(self, width=0, height=0, shortCut="", styleSheet="", tips="", parent=None):
         super(BaseButton, self).__init__(parent)
-        if isinstance(shortCut, types.StringTypes) and len(shortCut):
+        if isinstance(shortCut, str) and len(shortCut):
             self.setShortcut(QKeySequence(self.tr(shortCut)))
 
-        if isinstance(styleSheet, types.StringTypes) and len(styleSheet):
+        if isinstance(styleSheet, str) and len(styleSheet):
             self.setStyleSheet(styleSheet)
 
         if isinstance(width, int) and isinstance(height, int):
@@ -133,7 +132,7 @@ class RectButton(BaseButton):
         if not isinstance(text, (list, tuple)) or len(text) != 2:
             return False
 
-        if not isinstance(text[0], types.StringTypes) or not isinstance(text[1], types.StringTypes):
+        if not isinstance(text[0], str) or not isinstance(text[1], str):
             return False
 
         self.text = text

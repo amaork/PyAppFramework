@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import types
 from threading import Timer
 from ..gui.msgbox import MB_TYPES, showMessageBox
 from PySide.QtCore import Qt, Signal, Slot, QObject
@@ -8,26 +7,26 @@ __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'WindowsTitleMail', '
 
 
 class BaseUiMail(object):
-    def __init__(self, context=""):
-        if not isinstance(context, types.StringTypes):
-            raise RuntimeError("Mail context TypeError:{0:s}".format(context.__class__.__name__))
-        self.__context = context
+    def __init__(self, content=""):
+        if not isinstance(content, str):
+            raise RuntimeError("Mail context TypeError:{0:s}".format(content.__class__.__name__))
+        self.__content = content
 
     @property
-    def context(self):
-        return self.__context
+    def content(self):
+        return self.__content
 
 
 class StatusBarMail(BaseUiMail):
-    def __init__(self, color, context, timeout=0):
+    def __init__(self, color, content, timeout=0):
         """ Show message on statusBar
 
         :param color: Message color
-        :param context: Message context
+        :param content: Message content
         :param timeout: Message display time(second)
         :return:
         """
-        super(StatusBarMail, self).__init__(context)
+        super(StatusBarMail, self).__init__(content)
         if not isinstance(color, (QColor, Qt.GlobalColor)):
             raise RuntimeError("StatusBar mail color TypeError:{0:s}".format(color.__class__.__name__))
 
@@ -47,20 +46,17 @@ class StatusBarMail(BaseUiMail):
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_, title, context):
-        """ Show QMessageBox with #title and #context
+    def __init__(self, type_, content, title=None):
+        """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
+        :param content: QMessageBox context
         :param title: QMessageBox title
-        :param context: QMessageBox context
         :return:
         """
-        super(MessageBoxMail, self).__init__(context)
+        super(MessageBoxMail, self).__init__(content)
         if type_ not in MB_TYPES:
             raise RuntimeError("MessageBox mail message type TypeError:{}".format(type_))
-
-        if not isinstance(title, types.StringTypes):
-            raise RuntimeError("MessageBox mail title TypeError:{0:s}".format(title.__class__.__name__))
 
         self.__type = type_
         self.__title = title
@@ -75,13 +71,13 @@ class MessageBoxMail(BaseUiMail):
 
 
 class WindowsTitleMail(BaseUiMail):
-    def __init__(self, context):
-        """Show a message on windows title with #context
+    def __init__(self, content):
+        """Show a message on windows title with #content
 
-        :param context: message context
+        :param content: message content
         :return:
         """
-        super(WindowsTitleMail, self).__init__(context)
+        super(WindowsTitleMail, self).__init__(content)
 
 
 class CallbackFuncMail(BaseUiMail):
@@ -166,7 +162,7 @@ class UiMailBox(QObject):
                 color = "rgb({0:d},{1:d},{2:d})".format(mail.color.red(), mail.color.green(), mail.color.blue())
                 # Main windows has status bar
                 if isinstance(self.__parent.ui.statusbar, QStatusBar):
-                    self.__parent.ui.statusbar.showMessage(self.tr(mail.context), mail.timeout)
+                    self.__parent.ui.statusbar.showMessage(self.tr(mail.content), mail.timeout)
                     self.__parent.ui.statusbar.setStyleSheet(
                         "QStatusBar{"
                         "padding-left:8px;"
@@ -175,7 +171,7 @@ class UiMailBox(QObject):
                         "font-weight:bold;}" % color)
                 # Widget has label named as statusbar
                 elif isinstance(self.__parent.ui.statusbar, QLabel):
-                    self.__parent.ui.statusbar.setText(self.tr(mail.context))
+                    self.__parent.ui.statusbar.setText(self.tr(mail.content))
                     self.__parent.ui.statusbar.setStyleSheet(
                         "color:{0:s};padding-top:8px;font-weight:bold;".format(color)
                     )
@@ -188,11 +184,11 @@ class UiMailBox(QObject):
 
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
-            showMessageBox(self.__parent, mail.type, mail.title, mail.context)
+            showMessageBox(mail.type, mail.content, mail.title)
 
         # Appended a message on windows title
         elif isinstance(mail, WindowsTitleMail):
-            self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.context)))
+            self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
 
         # Callback function
         elif isinstance(mail, CallbackFuncMail):

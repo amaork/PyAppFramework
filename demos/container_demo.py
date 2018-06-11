@@ -41,7 +41,7 @@ class ComboBoxGroupTest(QWidget):
         self.countrySequence.sequenceChanged.connect(self.__slotGetSequenceText)
 
         layout = QVBoxLayout()
-        for item in self.countrySequence.items():
+        for item in list(self.countrySequence.items()):
             layout.addWidget(item)
 
         layout1 = QGridLayout()
@@ -69,10 +69,10 @@ class ComboBoxGroupTest(QWidget):
         self.countrySequence.setEditable(editable)
 
     def __slotGetSequence(self):
-        self.sequenceLabel.setText("{0:s}".format(self.countrySequence.getSequence()))
+        self.sequenceLabel.setText("{}".format(self.countrySequence.getSequence()))
 
     def __slotGetSequenceText(self):
-        self.textLabel.setText("{0:s}".format(self.countrySequence.getSequenceText()))
+        self.textLabel.setText("{}".format(self.countrySequence.getSequenceText()))
 
 
 if __name__ == "__main__":

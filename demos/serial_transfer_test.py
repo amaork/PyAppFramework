@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+
 import sys
 import argparse
 from ..protocol.serialport import SerialTransferProtocol, SerialPort, SerialTransferError

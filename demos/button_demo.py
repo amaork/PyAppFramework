@@ -32,23 +32,22 @@ class DemoWidget(QWidget):
         self.setWindowTitle("Button Demo")
 
     def slotAddButton(self):
-        buttonText = self.buttonSelect.currentText().encode("ascii")
+        buttonText = self.buttonSelect.currentText()
         typeIndex = self.buttonList.index(buttonText)
-        buttonTextGroup = ("{0:s} ON".format(buttonText), "{0:s} OFF".format(buttonText))
+        buttonTextGroup = ("{} ON".format(buttonText), "{} OFF".format(buttonText))
 
         state = StateButton(50)
         if buttonText == "RoundButton":
             button = RoundButton(200, text=buttonTextGroup)
         elif buttonText == "IconButton":
             all = ""
-            for name in  QImageReader.supportedImageFormats():
-                all += "*.{0:s} ".format(name)
+            for name in QImageReader.supportedImageFormats():
+                all += "*.{} ".format(name)
             files, _ = QFileDialog.getOpenFileNames(self,
                                                     "Select icon images",
                                                     ImagesPath,
                                                     "Images(*.jpg)")
-            if len(files) == 2:
-                button = IconButton(icons=(files[0], files[1]))
+            button = IconButton(icons=files)
         else:
             button = self.buttonType[typeIndex](200, 50, text=buttonTextGroup)
 

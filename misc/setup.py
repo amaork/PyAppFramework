@@ -47,12 +47,12 @@ def get_dir_file_list(path):
 def py2exe_setup_module(subdir):
     if os.path.isdir(subdir) and os.path.isfile(os.path.join(subdir, "setup.py")):
         cwd = os.getcwd()
-        print "++++++++++++++++++++++++++++++++++++++++++++", os.getcwd()
+        print("++++++++++++++++++++++++++++++++++++++++++++", os.getcwd())
         os.chdir(subdir)
-        print "--------------------------------------------", os.getcwd()
+        print("--------------------------------------------", os.getcwd())
         os.system("python setup.py py2exe")
         os.chdir(cwd)
-        print "============================================", os.getcwd()
+        print("============================================", os.getcwd())
 
 
 def py2exe_clear_setup(module_list=[]):

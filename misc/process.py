@@ -63,7 +63,7 @@ class ProcessManager(object):
                 if not self.is_windows():
                     for pid in lst:
                         os.kill(pid, signal.SIGCONT if run else signal.SIGSTOP)
-        except StandardError:
+        except Exception:
             pass
         finally:
             os.chdir(cwd)

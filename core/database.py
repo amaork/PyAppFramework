@@ -9,8 +9,8 @@ class SQLiteDatabaseError(Exception):
 
 
 class SQLiteDatabase(object):
-    TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = range(4)
-    TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = range(6)
+    TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
+    TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
     def __init__(self, db_path):
         if not os.path.isfile(db_path):
@@ -29,19 +29,19 @@ class SQLiteDatabase(object):
     @staticmethod
     def conditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = u'{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} = {}'.format(k, v)
+        data = '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
         return data.encode("utf-8")
 
     @staticmethod
     def searchConditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = u'{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} LIKE %{}%'.format(k, v)
+        data = '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
         return data.encode("utf-8")
 
     @staticmethod
     def globalSearchConditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = u'{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else u'{} LIKE *{}*'.format(k, v)
+        data = '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
         return data.encode("utf-8")
 
     @staticmethod
@@ -73,7 +73,7 @@ class SQLiteDatabase(object):
         self.__cursor.execute("PRAGMA table_info({})".format(name))
         table_info = self.__cursor.fetchall()
         column_list = [x[self.TBL_NAME] for x in table_info]
-        return dict(zip(column_list, table_info))
+        return dict(list(zip(column_list, table_info)))
 
     def getColumnList(self, name):
         """Get table column name list
@@ -148,14 +148,14 @@ class SQLiteDatabase(object):
 
             data = list()
             for column, type_, is_null, default, pk in columns:
-                default = u"DEFAULT {}".format(default) if default else ""
+                default = "DEFAULT {}".format(default) if default else ""
                 if is_null:
-                    data_format = u"{} {} {}".format(column, type_, default)
+                    data_format = "{} {} {}".format(column, type_, default)
                 else:
-                    data_format = u"{} {} NOT NULL {}".format(column, type_, default)
+                    data_format = "{} {} NOT NULL {}".format(column, type_, default)
 
                 if pk:
-                    data_format += u" PRIMARY KEY"
+                    data_format += " PRIMARY KEY"
 
                 data.append(data_format)
 
@@ -187,12 +187,12 @@ class SQLiteDatabase(object):
             blob_records = list()
             for column, data, type_ in zip(column_names, record, column_types):
                 if type_ == self.TYPE_TEXT:
-                    recode_data.append(u'"{}"'.format(data))
+                    recode_data.append('"{}"'.format(data))
                 elif type_ == self.TYPE_BLOB:
-                    recode_data.append(u"?")
+                    recode_data.append("?")
                     blob_records.append(data)
                 else:
-                    recode_data.append(u"{}".format(data))
+                    recode_data.append("{}".format(data))
 
             recode_data = ", ".join(recode_data).encode("utf-8")
 
@@ -237,23 +237,23 @@ class SQLiteDatabase(object):
             if isinstance(record, (list, tuple)):
                 for column, data, type_ in zip(column_names, record, column_types):
                     if type_ == self.TYPE_TEXT:
-                        recode_data.append(u'{} = "{}"'.format(column, data))
+                        recode_data.append('{} = "{}"'.format(column, data))
                     elif type_ == self.TYPE_BLOB:
                         blob_records.append(data)
-                        recode_data.append(u"{} = ?".format(column, data))
+                        recode_data.append("{} = ?".format(column, data))
                     else:
-                        recode_data.append(u"{} = {}".format(column, data))
+                        recode_data.append("{} = {}".format(column, data))
             # Update particular data by column name
             else:
-                for column_name, data in record.items():
+                for column_name, data in list(record.items()):
                     type_ = column_types[column_names.index(column_name)]
                     if type_ == self.TYPE_TEXT:
-                        recode_data.append(u'{} = "{}"'.format(column_name, data))
+                        recode_data.append('{} = "{}"'.format(column_name, data))
                     elif type_ == self.TYPE_BLOB:
                         blob_records.append(data)
-                        recode_data.append(u"{} = ?".format(column_name, data))
+                        recode_data.append("{} = ?".format(column_name, data))
                     else:
-                        recode_data.append(u"{} = {}".format(column_name, data))
+                        recode_data.append("{} = {}".format(column_name, data))
 
             pk_name = pk_name.encode("utf-8")
             recode_data = ", ".join(recode_data).encode("utf-8")
@@ -297,7 +297,7 @@ class SQLiteDatabase(object):
             if not isinstance(columns, (list, tuple)):
                 raise TypeError("columns require list or tuple")
 
-            if not isinstance(conditions, (str, unicode)):
+            if not isinstance(conditions, str):
                 raise TypeError("conditions require string object")
 
             # Pre process

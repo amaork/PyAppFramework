@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import types
 import ctypes
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml',
@@ -10,25 +9,25 @@ __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'Comp
 
 
 def str2float(text):
-    if isinstance(text, (int, long, float)):
+    if isinstance(text, (int, float)):
         return text
 
-    if not isinstance(text, types.StringTypes):
+    if not isinstance(text, str):
         return 0
 
     try:
 
         return float(text)
 
-    except StandardError:
+    except Exception:
         return 0.0
 
 
 def str2number(text):
-    if isinstance(text, (bool, int, long, float)):
+    if isinstance(text, (bool, int, float)):
         return text
 
-    if not isinstance(text, types.StringTypes):
+    if not isinstance(text, str):
         return 0
 
     try:
@@ -52,7 +51,7 @@ def str2number(text):
         else:
             return int(text)
 
-    except StandardError:
+    except Exception:
         return 0
 
 

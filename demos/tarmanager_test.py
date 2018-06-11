@@ -7,14 +7,14 @@ from ..misc.tarmanager import TarManager, TarManagerError
 
 
 def usage():
-    print "\n{0:s} -c[x] -s xxx -d xxx -f xxx\n".format(os.path.basename(sys.argv[0]))
-    print "\t-h\--help\tshow this help menu"
-    print "\t-v\--verbose\toutput verbose message"
-    print "\t-c\--create\tcreate a package file"
-    print "\t-x\--extract\textract a package file"
-    print "\t-s\--src\tspecify will package file path or will extract file path"
-    print "\t-d\--dest\tspecify package file name or will extract file  path"
-    print "\t-x\--format\tspecify package file format: {0:s}".format(TarManager.get_support_format())
+    print("\n{} -c[x] -s xxx -d xxx -f xxx\n".format(os.path.basename(sys.argv[0])))
+    print("\t-h\--help\tshow this help menu")
+    print("\t-v\--verbose\toutput verbose message")
+    print("\t-c\--create\tcreate a package file")
+    print("\t-x\--extract\textract a package file")
+    print("\t-s\--src\tspecify will package file path or will extract file path")
+    print("\t-d\--dest\tspecify package file name or will extract file  path")
+    print("\t-x\--format\tspecify package file format: {}".format(TarManager.get_support_format()))
 
 
 if __name__ == '__main__':
@@ -51,7 +51,7 @@ if __name__ == '__main__':
             # Format setting
             elif option in ("-f", "--format") and len(argument):
                 if argument not in TarManager.get_support_format():
-                    print "Unknown format:{0:s}".format(argument)
+                    print("Unknown format:{}".format(argument))
                     usage()
                     sys.exit()
 
@@ -67,29 +67,29 @@ if __name__ == '__main__':
 
         # Operate check
         if not package_operate and not unpackage_operate:
-            print "You must specified a operate package(-c/--create) or unpackage(-x/--extract)"
+            print("You must specified a operate package(-c/--create) or unpackage(-x/--extract)")
             usage()
             sys.exit()
 
         if package_operate and unpackage_operate:
-            print "Conflicting options: -c[--create], -x[--extract], they can't specified at same time"
+            print("Conflicting options: -c[--create], -x[--extract], they can't specified at same time")
             usage()
             sys.exit(-1)
 
         # Format check
         if len(formats) == 0:
-            print "You must specified a format (-f/--format=):{0:s}".format(TarManager.get_support_format())
+            print("You must specified a format (-f/--format=):{}".format(TarManager.get_support_format()))
             usage()
             sys.exit()
 
         # Check src and dest
         if len(src_path) == 0:
-            print "You must specified a source path, -s/--src"
+            print("You must specified a source path, -s/--src")
             usage()
             sys.exit()
 
         if len(dest_path) == 0:
-            print "You must specified a dest path, -d/--dest"
+            print("You must specified a dest path, -d/--dest")
             usage()
             sys.exit()
 
@@ -106,7 +106,7 @@ if __name__ == '__main__':
             except TarManagerError as error:
                 print("Unpack error:{}".format(error))
 
-    except getopt.GetoptError, e:
-        print "Error:{0:s}".format(e)
+    except getopt.GetoptError as e:
+        print("Error:{}".format(e))
         usage()
         sys.exit()
