@@ -58,7 +58,7 @@ class SerialPortSelector(QComboBox):
             # Windows serial port is a object linux is a tuple
             device = port.device if self.__system == "windows" else port[0]
             desc = "{0:s}".format(device).split(" - ")[-1]
-            self.addItem("{0:s}".format(desc).decode("gbk"))
+            self.addItem("{0:s}".format(desc))
             self.setItemData(index + 1, device)
 
         # Scan LAN raspberry serial port

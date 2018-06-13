@@ -132,6 +132,12 @@ class TableWidgetTest(QWidget):
         self.set_column_as_date = QPushButton("Set column as datatime")
         self.set_column_as_date.clicked.connect(self.__slotSetAsTimeType)
 
+        self.set_column_as_state = QPushButton("Set column as ColorState")
+        self.set_column_as_state.clicked.connect(self.__slotSetAsColorType)
+
+        self.set_column_as_progress = QPushButton("Set column as Progress")
+        self.set_column_as_progress.clicked.connect(self.__slotSetAsProgressType)
+
         self.hide_row_header = QPushButton("Hide Row Header")
         self.hide_row_header.setCheckable(True)
         self.hide_column_header = QPushButton("Hide Column Header")
@@ -173,7 +179,12 @@ class TableWidgetTest(QWidget):
             "Data Type": (
 
                 self.set_column_as_int, self.set_column_as_double,
-                self.set_column_as_bool, self.set_column_as_list, self.set_column_as_date
+                self.set_column_as_bool, self.set_column_as_list
+            ),
+
+            "Data Type2": (
+
+                self.set_column_as_date, self.set_column_as_state, self.set_column_as_progress
             )
         }
 
@@ -206,7 +217,7 @@ class TableWidgetTest(QWidget):
         return i
 
     def __slotCreateTable(self):
-        max_column = self.__get_number("Please enter max column number", "Column count", 5, 1, 100)
+        max_column = self.__get_number("Please enter max column number", "Column count", 8, 1, 100)
         self.table = TableWidget(max_column, True)
         self.table_layout.addWidget(self.table)
         self.table_layout.addWidget(self.data)
@@ -305,6 +316,12 @@ class TableWidgetTest(QWidget):
     def __slotSetAsTimeType(self):
         filters = (datetime.datetime.now(), "%Y-%m-%d %H:%M:%S", "yyyy-MM-dd hh:mm:ss")
         print(self.table.setColumnDataFilter(self.table.currentColumn(), filters))
+
+    def __slotSetAsColorType(self):
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), ["成功", QColor(Qt.green)]))
+
+    def __slotSetAsProgressType(self):
+        print(self.table.setColumnDataFilter(self.table.currentColumn(), [QProgressBar(), True, 10]))
 
 
 class SerialSettingWidgetTest(QWidget):

@@ -931,6 +931,13 @@ class TableWidget(QTableWidget):
             temp.setCalendarPopup(widget.calendarPopup())
         elif isinstance(widget, QPushButton):
             temp = QPushButton(widget.text())
+        elif isinstance(widget, QProgressBar):
+            temp = QProgressBar()
+            temp.setInvertedAppearance(widget.invertedAppearance())
+            temp.setRange(widget.minimum(), widget.maximum())
+            temp.setTextVisible(widget.isTextVisible())
+            temp.setFormat(widget.format())
+            temp.setValue(widget.value())
 
         # Copy widget property
         for key in widget.dynamicPropertyNames():
@@ -1028,6 +1035,8 @@ class TableWidget(QTableWidget):
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
             elif isinstance(widget, QDateTimeEdit):
                 widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+            elif isinstance(widget, QProgressBar):
+                widget.valueChanged.connect(self.__slotWidgetDataChanged)
 
             self.cellWidget(row, column).setHidden(True)
             self.removeCellWidget(row, column)
@@ -1294,6 +1303,10 @@ class TableWidget(QTableWidget):
                 widget.setProperty("private", data)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
+            elif isinstance(widget, QProgressBar) and isinstance(data, (int, float)):
+                widget.setValue(data)
+                self.removeCellWidget(row, column)
+                self.setCellWidget(row, column, widget)
             elif isinstance(item, QTableWidgetItem) and isinstance(data, str):
                 item.setText(self.tr(data))
                 self.setItem(row, column, item)
@@ -1360,7 +1373,7 @@ class TableWidget(QTableWidget):
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
             # Self-defined type data QPushButton (button_text, callback, private_data)
-            elif len(filters) == 3 and isinstance(filters[0], bytes) and hasattr(filters[1], "__call__"):
+            elif len(filters) == 3 and isinstance(filters[0], str) and hasattr(filters[1], "__call__"):
                 button = QPushButton(self.tr(filters[0]))
                 button.clicked.connect(filters[1])
                 button.setProperty("clicked", filters[1])
@@ -1368,6 +1381,20 @@ class TableWidget(QTableWidget):
                 button.setProperty("dataChanged", self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, button)
+            # Label with color
+            elif len(filters) == 2 and isinstance(filters[0], str) and isinstance(filters[1], QColor):
+                item = QTableWidgetItem(filters[0])
+                item.setBackground(QBrush(filters[1]))
+                self.takeItem(row, column)
+                self.setItem(row, column, item)
+            # Progress bar
+            elif len(filters) == 3 and isinstance(filters[0], QProgressBar) and isinstance(filters[1], bool) \
+                    and isinstance(filters[1], (int, float)):
+                progress = QProgressBar()
+                progress.setValue(filters[2])
+                progress.setTextVisible(filters[1])
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, progress)
             # QComboBox (list) or tuple
             elif isinstance(filters, (list, tuple)):
                 widget = QComboBox()
@@ -1430,6 +1457,8 @@ class TableWidget(QTableWidget):
             return widget.dateTime().toString(widget.property("format"))
         elif isinstance(widget, QPushButton):
             return widget.property("private")
+        elif isinstance(widget, QProgressBar):
+            return widget.value()
         elif isinstance(item, QTableWidgetItem):
             return item.text()
         else:
