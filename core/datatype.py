@@ -2,7 +2,7 @@
 import json
 import ctypes
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml', 'DynamicObjectDecodeError',
            'str2float', 'str2number',
            'new_class', 'new_instance',
            'ip4_check']
@@ -16,10 +16,8 @@ def str2float(text):
         return 0
 
     try:
-
         return float(text)
-
-    except Exception:
+    except ValueError:
         return 0.0
 
 
@@ -51,7 +49,7 @@ def str2number(text):
         else:
             return int(text)
 
-    except Exception:
+    except ValueError:
         return 0
 
 
@@ -133,11 +131,24 @@ class BasicTypeBE(BasicDataType, ctypes.BigEndianStructure):
         return not self.__eq__(other)
 
 
+class DynamicObjectDecodeError(Exception):
+    pass
+
+
 class DynamicObject(object):
-    _properties = ()
+    _properties = set()
 
     def __init__(self, **kwargs):
-        self.__dict__.update(**kwargs)
+        try:
+
+            for key in self._properties:
+                if kwargs.get(key) is None:
+                    raise KeyError("do not found key:{!r}".format(key))
+
+            self.__dict__.update(**kwargs)
+
+        except (TypeError, KeyError, ValueError) as e:
+            raise DynamicObjectDecodeError("Decode {!r} error:{}".format(self.__class__.__name__, e))
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -149,7 +160,7 @@ class DynamicObject(object):
         return len(self._properties)
 
     def __str__(self):
-        return self.encode()
+        return self.dumps()
 
     def __iter__(self):
         for key in sorted(self.__dict__.keys()):
@@ -162,33 +173,11 @@ class DynamicObject(object):
             msg = "'{0}' object has no attribute '{1}'"
             raise AttributeError(msg.format(type(self).__name__, name))
 
-    def decode(self, data):
-        """Decode data
+    @property
+    def dict(self):
+        return self.__dict__.copy()
 
-        :param data: encoded data, should be a str
-        :return: success return data dict else NONE
-        """
-        if not isinstance(data, str):
-            return None
-
-        try:
-
-            dict_ = json.loads(data)
-            if not isinstance(dict_, dict):
-                return None
-
-            for key in self._properties:
-                if dict_.get(key) is None:
-                    print("{0:s} Unknown key:{1:s}".format(self.__class__, key))
-                    return None
-
-            return dict_
-
-        except ValueError as e:
-            print("Decode object '{0}' has error:{1}".format(type(self), e))
-            return None
-
-    def encode(self):
+    def dumps(self):
         """Encode data to a dict string
 
         :return:

@@ -1,1 +1,1 @@
-__all__ = ['tarmanager', 'setup', 'process']
+__all__ = ['tarmanager', 'setup', 'process', 'settings']
