@@ -12,6 +12,8 @@ PaintWidget
     |------ColorWidget
                 |------CursorWidget
 """
+import re
+import json
 import os.path
 from serial import Serial
 from PySide.QtGui import *
@@ -20,12 +22,12 @@ from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
-
-from ..core.datatype import str2number, str2float
+from ..misc.settings import UiInputSetting
+from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'TableWidget', 'ListWidget', 'SerialPortSettingWidget']
+           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'JsonSettingWidget']
 
 
 class PaintWidget(QWidget):
@@ -1730,3 +1732,138 @@ class SerialPortSettingWidget(QWidget):
                 settings[item.property("name")] = item.value()
 
         return settings
+
+
+class JsonSettingWidget(QWidget):
+    settingChanged = Signal()
+
+    def __init__(self, settings, parent=None):
+        super(JsonSettingWidget, self).__init__(parent)
+
+        if not isinstance(settings, DynamicObject):
+            raise TypeError("settings require {!r}".format(DynamicObject.__name__))
+
+        try:
+            self.layout = settings.layout
+            self.settings = settings.dict
+            self.settings_cls = settings.__class__
+        except AttributeError:
+            raise ValueError("Do not found layout settings")
+
+        # Check layout type
+        if not isinstance(self.layout, (list, tuple)):
+            raise TypeError("'settings.layout must be a list or tuple'")
+
+        is_str = [isinstance(x, str) for x in self.layout].count(True) == len(self.layout)
+        is_grid = [isinstance(x, (list, tuple)) for x in self.layout].count(True) == len(self.layout)
+
+        if not is_str and not is_grid:
+            raise ValueError("'settings.layout' must be a list or two-dimension array with str")
+
+        self.layout = [[x] for x in self.layout] if is_str else self.layout
+
+        self.__initUi(settings.dict)
+
+    def __initUi(self, settings):
+        row = 0
+        layout = QGridLayout()
+        for items in self.layout:
+            column = 0
+            for item in items:
+                try:
+                    dict_ = settings.get(item)
+                    ui_input = UiInputSetting(**dict_)
+                    widget = self.createInputWidget(ui_input, item)
+                    if not isinstance(widget, QWidget):
+                        continue
+
+                    # Add label and widget
+                    layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                    column += 1
+                    layout.addWidget(widget, row, column)
+                    column += 1
+
+                    # QLine edit special process re check
+                    if isinstance(widget, QLineEdit):
+                        widget.textChanged.connect(self.slotSettingChanged)
+                except (TypeError, ValueError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                    print("{}".format(err))
+
+            row += 1
+        self.setLayout(layout)
+        self.ui_manager = ComponentManager(layout)
+        self.ui_manager.dataChanged.connect(self.slotSettingChanged)
+
+    def getSettings(self):
+        data = self.getData()
+        settings = self.settings
+        for k, v in data.items():
+            settings[k]["data"] = v
+        return self.settings_cls(**settings)
+
+    def getData(self):
+        return self.ui_manager.getData("data")
+
+    def resetDefaultData(self):
+        data = dict()
+        for key in self.getData().keys():
+            data[key] = self.settings[key]["default"]
+        self.ui_manager.setData("data", data)
+
+    def slotSettingChanged(self):
+        self.settingChanged.emit()
+
+        sender = self.sender()
+        # Line edit text content check
+        if isinstance(sender, QLineEdit):
+            filters = sender.property("filter")
+            try:
+                re.search(filters, sender.text(), re.S).group(0)
+                sender.setStyleSheet("color: rgb(0, 0, 0);")
+            except AttributeError:
+                sender.setStyleSheet("color: rgb(255, 0, 0);")
+
+    @staticmethod
+    def createInputWidget(setting, name=None):
+        if not isinstance(setting, UiInputSetting):
+            return None
+
+        try:
+            widget = None
+
+            if setting.is_int_type():
+                widget = QSpinBox()
+                widget.setValue(setting.get_data())
+                widget.setMinimum(setting.get_check()[0])
+                widget.setMaximum(setting.get_check()[1])
+                widget.setSingleStep(setting.get_check()[2])
+            elif setting.is_bool_type():
+                widget = QCheckBox()
+                widget.setCheckable(True)
+                widget.setChecked(setting.get_data())
+            elif setting.is_text_type():
+                widget = QLineEdit()
+                widget.setText(setting.get_data())
+                widget.setPlaceholderText(setting.get_default())
+                # Set regular expression and max length
+                widget.setProperty("filter", setting.check[0])
+                widget.setMaxLength(setting.check[1])
+            elif setting.is_float_type():
+                widget = QDoubleSpinBox()
+                widget.setValue(setting.get_data())
+                widget.setMinimum(setting.get_check()[0])
+                widget.setMaximum(setting.get_check()[1])
+                widget.setSingleStep(setting.get_check()[2])
+            elif setting.is_select_type():
+                widget = QComboBox()
+                widget.addItems(setting.get_check())
+                widget.setProperty("format", "text")
+                widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
+        except (IndexError, ValueError):
+            pass
+
+        # Set property for ComponentManager get data
+        if isinstance(name, str) and isinstance(widget, QWidget):
+            widget.setProperty("data", name)
+
+        return widget

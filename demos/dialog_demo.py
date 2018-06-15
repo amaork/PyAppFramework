@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 from PySide.QtCore import QTextCodec
+
+from ..gui.dialog import *
+from ..misc.settings import UiInputSetting
 from ..gui.container import ComponentManager
-from ..gui.dialog import SimpleColorDialog, SerialPortSettingDialog
 from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QLineEdit
 
 
@@ -46,15 +48,22 @@ class ColorDialogTest(QWidget):
         same.addWidget(depth)
 
         serial = QHBoxLayout()
-        self.__setting = QLineEdit()
-        self.__serial = QPushButton(self.tr("获取串口设置"))
-        serial.addWidget(self.__serial)
-        serial.addWidget(self.__setting)
+        self.ui_serial_settings = QLineEdit()
+        self.ui_get_serial = QPushButton(self.tr("获取串口设置"))
+        serial.addWidget(self.ui_get_serial)
+        serial.addWidget(self.ui_serial_settings)
+
+        settings = QHBoxLayout()
+        self.ui_json_settings = QLineEdit()
+        self.ui_get_json = QPushButton(self.tr("获取 JSON 设置"))
+        settings.addWidget(self.ui_get_json)
+        settings.addWidget(self.ui_json_settings)
 
         layout = QVBoxLayout()
         layout.addLayout(same)
         layout.addLayout(diff)
         layout.addLayout(serial)
+        layout.addLayout(settings)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("选择颜色"))
         self.setFixedSize(self.sizeHint())
@@ -62,10 +71,14 @@ class ColorDialogTest(QWidget):
     def __initSignalAndSlots(self):
         self.__same.clicked.connect(self.__slotSelectSameColor)
         self.__diff.clicked.connect(self.__slotSelectDiffColor)
-        self.__serial.clicked.connect(self.__slotGetSerialSetting)
+        self.ui_get_json.clicked.connect(self.__slotGetJsonSettings)
+        self.ui_get_serial.clicked.connect(self.__slotGetSerialSetting)
 
     def __slotGetSerialSetting(self):
-        self.__setting.setText("{}".format(SerialPortSettingDialog.getSetting(self)))
+        self.ui_serial_settings.setText("{}".format(SerialPortSettingDialog.getSetting(self)))
+
+    def __slotGetJsonSettings(self):
+        self.ui_json_settings.setText("{}".format(JsonSettingDialog.getSettings(UiInputSetting.getDemoSettings(True))))
 
     def __slotSelectDiffColor(self):
         color = SimpleColorDialog.getColor(self)

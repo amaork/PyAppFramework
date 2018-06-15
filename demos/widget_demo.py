@@ -4,10 +4,12 @@ import sys
 import datetime
 from PySide.QtGui import *
 from PySide.QtCore import *
+
+from ..gui.widget import *
 from .images import ImagesPath
+from ..misc.settings import UiInputSetting
 from ..gui.container import ComponentManager
 from ..gui.widget import SerialPortSettingWidget
-from ..gui.widget import ImageWidget, ListWidget, TableWidget, ColorWidget, CursorWidget, LumWidget, RgbWidget
 
 
 class ListDemoWidget(QWidget):
@@ -344,6 +346,28 @@ class SerialSettingWidgetTest(QWidget):
         self.__text.setText("{}".format(self.__setting.getSetting()))
 
 
+class JsonSettingWidgetTest(QWidget):
+    def __init__(self, parent=None):
+        super(JsonSettingWidgetTest, self).__init__(parent)
+
+        layout = QVBoxLayout()
+        self.widget = JsonSettingWidget(UiInputSetting.getDemoSettings())
+        self.widget.settingChanged.connect(self.slotShowData)
+        self.ui_button = QPushButton(self.tr("Get settings"))
+        self.ui_button.clicked.connect(self.slotShowData)
+        self.ui_data = QTextEdit()
+        layout.addWidget(self.widget)
+        layout.addWidget(self.ui_button)
+        layout.addWidget(self.ui_data)
+        self.setLayout(layout)
+
+    def slotShowData(self):
+        if self.sender() == self.ui_button:
+            self.ui_data.setText("{}".format(self.widget.getSettings()))
+        else:
+            self.ui_data.setText("{}".format(self.widget.getData()))
+
+
 class Demo(QMainWindow):
     drawText = Signal(str)
     drawFromFs = Signal(str)
@@ -428,6 +452,13 @@ class Demo(QMainWindow):
         self.serialButton = QPushButton("Get serial")
         self.serialButton.clicked.connect(self.showWidget)
 
+        self.settingWidget = JsonSettingWidgetTest()
+        self.settingWidget.setHidden(True)
+        self.settingLabel = QLabel()
+        self.settingLabel.setFrameStyle(frameStyle)
+        self.settingButton = QPushButton("Get setting")
+        self.settingButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -449,6 +480,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.tableLabel, 8, 1)
         self.layout.addWidget(self.serialButton, 9, 0)
         self.layout.addWidget(self.serialLabel, 9, 1)
+        self.layout.addWidget(self.settingButton, 10, 0)
+        self.layout.addWidget(self.settingLabel, 10, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -469,6 +502,8 @@ class Demo(QMainWindow):
             self.tableWidget.setHidden(False)
         elif self.sender() == self.serialButton:
             self.serialWidget.setHidden(False)
+        elif self.sender() == self.settingButton:
+            self.settingWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
@@ -504,6 +539,7 @@ class Demo(QMainWindow):
 
     def setCursor(self, x, y, colorMode):
         self.cursorLabel.setText("C:{0:x} X:{1:d} Y:{2:d}".format(colorMode, x, y))
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

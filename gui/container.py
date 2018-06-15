@@ -264,7 +264,7 @@ class ComponentManager(QObject):
         elif isinstance(component, QDoubleSpinBox):
             return component.value()
         elif isinstance(component, QComboBox):
-            return component.currentIndex()
+            return component.currentText() if component.property("format") == "text" else component.currentIndex()
         elif isinstance(component, QCheckBox):
             return component.isChecked()
         elif isinstance(component, QRadioButton):
@@ -289,8 +289,12 @@ class ComponentManager(QObject):
         elif isinstance(component, QDoubleSpinBox):
             component.setValue(str2float(data))
         elif isinstance(component, QComboBox):
-            index = str2number(data)
-            index = 0 if index >= component.count() else index
+            texts = [component.itemText(i) for i in range(component.count())]
+            if data in texts:
+                index = texts.index(data)
+            else:
+                index = str2number(data)
+                index = 0 if index >= component.count() else index
             component.setCurrentIndex(index)
         elif isinstance(component, QCheckBox):
             component.setCheckable(True)
