@@ -882,6 +882,7 @@ class TableWidget(QTableWidget):
 
         self.setColumnCount(max_column)
         self.hideHeaders(hide_header)
+        self.__table_filters = dict()
 
     def __checkRow(self, row):
         if not isinstance(row, int):
@@ -1166,27 +1167,30 @@ class TableWidget(QTableWidget):
             return False
 
         # Increase row count
-        current = self.rowCount()
-        self.setRowCount(current + 1)
+        row = self.rowCount()
+        self.setRowCount(row + 1)
 
         # Add data to row
-        for idx, item_data in enumerate(data):
+        for column, item_data in enumerate(data):
             try:
 
-                if not isinstance(item_data, str):
-                    item_data = str(item_data)
-
-                item = QTableWidgetItem(self.tr(item_data))
+                item = QTableWidgetItem(self.tr(str(item_data)))
                 if property_:
                     item.setData(Qt.UserRole, property_)
-                self.setItem(current, idx, item)
+                self.setItem(row, column, item)
+
+                # Get column filters
+                filters = self.__table_filters.get(column)
+                if filters:
+                    self.setItemDataFilter(row, column, filters)
+                    self.setItemData(row, column, item_data)
 
             except ValueError as e:
                 print("TableWidget addItem error: {}".format(e))
                 continue
 
         # Select current item
-        self.selectRow(current)
+        self.selectRow(row)
 
     def setRowHeader(self, data):
         if not hasattr(data, "__iter__"):
@@ -1435,10 +1439,10 @@ class TableWidget(QTableWidget):
         return True
 
     def setTableDataFilter(self, filters):
-        for row in range(self.rowCount()):
-            if not self.setRowDataFilter(row, filters):
-                return False
+        if not isinstance(filters, dict):
+            return False
 
+        self.__table_filters = filters
         return True
 
     def getItemData(self, row, column):
