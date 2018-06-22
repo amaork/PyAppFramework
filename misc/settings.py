@@ -2,8 +2,9 @@
 import os
 import json
 import codecs
+import logging
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError
-__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiInputSetting']
+__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiInputSetting', 'UiLogMessage']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -156,3 +157,35 @@ class UiInputSetting(DynamicObject):
             layout = ["int", "float", "bool", "text", "select"]
         return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict, text=text_input.dict,
                                 float=float_input.dict, select=select_input.dict, layout=layout)
+
+
+class UiLogMessage(DynamicObject):
+    _properties = {'level', 'color', 'font_size', 'content'}
+
+    def __init__(self, **kwargs):
+        # Default is info level color is black size is 3
+        kwargs.setdefault('font_size', 3)
+        kwargs.setdefault('color', "#000000")
+        kwargs.setdefault('level', logging.INFO)
+        super(UiLogMessage, self).__init__(**kwargs)
+
+    @staticmethod
+    def genDefaultMessage(content, level):
+        return {
+
+            logging.INFO: UiLogMessage.genDefaultInfoMessage,
+            logging.DEBUG: UiLogMessage.genDefaultDebugMessage,
+            logging.ERROR: UiLogMessage.genDefaultErrorMessage,
+        }.get(level, UiLogMessage.genDefaultInfoMessage)(content)
+
+    @staticmethod
+    def genDefaultInfoMessage(content):
+        return UiLogMessage(content=content, level=logging.INFO, color="#000000")
+
+    @staticmethod
+    def genDefaultDebugMessage(content):
+        return UiLogMessage(content=content, level=logging.DEBUG, color="#0000FF")
+
+    @staticmethod
+    def genDefaultErrorMessage(content):
+        return UiLogMessage(content=content, level=logging.ERROR, color="#FF0000")

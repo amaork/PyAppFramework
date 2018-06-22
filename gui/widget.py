@@ -14,6 +14,8 @@ PaintWidget
 """
 import re
 import json
+import codecs
+import logging
 import os.path
 from serial import Serial
 from PySide.QtGui import *
@@ -22,12 +24,12 @@ from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
-from ..misc.settings import UiInputSetting
+from ..misc.settings import UiInputSetting, UiLogMessage
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'JsonSettingWidget']
+           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'JsonSettingWidget', 'LogMessageWidget']
 
 
 class PaintWidget(QWidget):
@@ -1871,3 +1873,66 @@ class JsonSettingWidget(QWidget):
             widget.setProperty("data", name)
 
         return widget
+
+
+class LogMessageWidget(QTextEdit):
+    LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+    def __init__(self, filename, log_format="%(asctime)s %(levelname)s %(message)s", parent=None):
+        super(LogMessageWidget, self).__init__(parent)
+
+        self.logger = False
+        self.setReadOnly(True)
+        self.logFilename = filename
+        self.startTime = datetime.now()
+        logging.basicConfig(filename=filename, format=log_format, level=logging.DEBUG)
+
+    @Slot(object)
+    def logging(self, message, write_to_log=True):
+        if not isinstance(message, UiLogMessage):
+            return
+
+        # Show log
+        self.append("<font color='{}' size={}>{}: {}</font>".format(
+            message.color, message.font_size, logging.getLevelName(message.level), message.content)
+        )
+
+        # Write to log file if write_to_log set
+        write_to_log and logging.log(message.level, message.content)
+
+    @Slot(object)
+    def filterLog(self, levels):
+        # First read all log to memory
+        with codecs.open(self.logFilename, "r", "utf-8") as fp:
+            text = fp.read()
+
+        # Process data
+        valid_record = list()
+        for level in levels:
+
+            level_name = logging.getLevelName(level)
+
+            for record in text.split("\n"):
+                record.strip()
+                time_end = record.find(",")
+                time_str = record[:time_end]
+
+                try:
+                    record_time = datetime.strptime(time_str, self.LOG_TIME_FORMAT)
+                except ValueError:
+                    continue
+
+                if record_time < self.startTime:
+                    continue
+
+                level_name_start = record.find(level_name)
+                if level_name_start == -1:
+                    continue
+
+                # Append to record list
+                valid_record.append(UiLogMessage.genDefaultMessage(record[level_name_start + len(level_name):], level))
+
+        # Append to browser
+        self.clear()
+        for record in valid_record:
+            self.logging(record, False)
