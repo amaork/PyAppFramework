@@ -1178,7 +1178,10 @@ class TableWidget(QTableWidget):
 
                 item = QTableWidgetItem(self.tr(str(item_data)))
                 if property_:
-                    item.setData(Qt.UserRole, property_)
+                    try:
+                        item.setData(Qt.UserRole, property_[column])
+                    except (AttributeError, IndexError):
+                        pass
                 self.setItem(row, column, item)
 
                 # Get column filters
@@ -1393,8 +1396,10 @@ class TableWidget(QTableWidget):
             elif len(filters) == 2 and isinstance(filters[0], str) and isinstance(filters[1], QColor):
                 item = QTableWidgetItem(filters[0])
                 item.setBackground(QBrush(filters[1]))
+                item.setTextAlignment(Qt.AlignCenter)
                 self.takeItem(row, column)
                 self.setItem(row, column, item)
+                self.frozenItem(row, column, True)
             # Progress bar
             elif len(filters) == 3 and isinstance(filters[0], QProgressBar) and isinstance(filters[1], bool) \
                     and isinstance(filters[1], (int, float)):
