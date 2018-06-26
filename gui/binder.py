@@ -114,6 +114,14 @@ class ComboBoxBinder(QObject):
         self.eventProcess(self.__combobox.currentIndex())
         return True
 
+    def bindCallback(self, obj, *args):
+        if not hasattr(obj, "__call__"):
+            print("Bind error, object must be callable object not {!r}".format(obj.__class__.__name__))
+            return False
+
+        self.__binding.append((obj, *args))
+        self.eventProcess(self.__combobox.currentIndex())
+
     def bindComboBox(self, obj, reverse=False):
         if not isinstance(obj, QComboBox):
             print("Bind error, object type error:{0:s}".format(type(obj)))
@@ -132,18 +140,17 @@ class ComboBoxBinder(QObject):
             return
 
         for receiver, data in self.__binding:
-
+            if hasattr(receiver, "__call__"):
+                receiver(self.__combobox, *data)
             # QCombobox
-            if isinstance(receiver, QComboBox):
+            elif isinstance(receiver, QComboBox):
                 if data:
                     receiver.setCurrentIndex(self.__combobox.count() - index - 1)
                 else:
                     receiver.setCurrentIndex(index)
-
             # QLabel
             elif isinstance(receiver, QLabel) and isinstance(data[index], str):
                     receiver.setText(data[index])
-
             # QSpinBox
             elif isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
                 setting = data[index]

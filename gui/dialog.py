@@ -178,15 +178,15 @@ class SimpleColorDialog(QDialog):
         else:
             return self.__color
 
-    @staticmethod
-    def getColor(parent, color=Qt.red):
-        panel = SimpleColorDialog(color=color, parent=parent)
+    @classmethod
+    def getColor(cls, parent, color=Qt.red):
+        panel = cls(color=color, parent=parent)
         panel.exec_()
         return panel.getSelectColor()
 
-    @staticmethod
-    def getBasicColor(parent, color=Qt.red):
-        panel = SimpleColorDialog(True, color, False, parent)
+    @classmethod
+    def getBasicColor(cls, parent, color=Qt.red):
+        panel = cls(True, color, False, parent)
         panel.exec_()
         return panel.getSelectColor()
 
@@ -247,9 +247,9 @@ class SerialPortSettingDialog(QDialog):
 
         return self.__widget.getSetting()
 
-    @staticmethod
-    def getSetting(parent, settings=SerialPortSettingWidget.DEFAULTS):
-        dialog = SerialPortSettingDialog(settings, parent)
+    @classmethod
+    def getSetting(cls, parent, settings=SerialPortSettingWidget.DEFAULTS):
+        dialog = cls(settings, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
 
@@ -305,8 +305,8 @@ class JsonSettingDialog(QDialog):
 
         return self.ui_widget.getSettings()
 
-    @staticmethod
-    def getSettings(settings, parent=None):
-        dialog = JsonSettingDialog(settings, parent)
+    @classmethod
+    def getSettings(cls, settings, parent=None):
+        dialog = cls(settings, parent)
         dialog.exec_()
         return dialog.getJsonSettings()

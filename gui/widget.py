@@ -1877,6 +1877,10 @@ class JsonSettingWidget(QWidget):
         if isinstance(name, str) and isinstance(widget, QWidget):
             widget.setProperty("data", name)
 
+        # Set readonly option
+        if setting.is_readonly():
+            widget.setDisabled(True)
+
         return widget
 
 
