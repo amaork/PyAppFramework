@@ -4,7 +4,8 @@ import json
 import codecs
 import logging
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError
-__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiInputSetting', 'UiLogMessage']
+__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiLogMessage',
+           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -66,7 +67,7 @@ class UiInputSetting(DynamicObject):
         "SELECT": (str, (list, tuple))
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]
-    _properties = {'name', 'data', 'type', 'check', 'default'}
+    _properties = {'name', 'data', 'type', 'check', 'default', 'readonly'}
 
     # Min, max, step
     INT_TYPE_CHECK_DEMO = (1, 100, 1)
@@ -79,6 +80,7 @@ class UiInputSetting(DynamicObject):
     TEXT_TYPE_CHECK_DEMO = ("^(\d+)\.(\d+)\.(\d+)\.(\d+)$", 16)
 
     def __init__(self, **kwargs):
+        kwargs.setdefault('readonly', False)
         super(UiInputSetting, self).__init__(**kwargs)
 
         # Check name
@@ -115,6 +117,9 @@ class UiInputSetting(DynamicObject):
 
     def get_default(self):
         return self.default
+
+    def is_readonly(self):
+        return True if self.readonly else False
 
     def is_int_type(self):
         return self.type == "INT"
@@ -157,6 +162,36 @@ class UiInputSetting(DynamicObject):
             layout = ["int", "float", "bool", "text", "select"]
         return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict, text=text_input.dict,
                                 float=float_input.dict, select=select_input.dict, layout=layout)
+
+
+class UiTextInput(UiInputSetting):
+    def __init__(self, name, length, default="", re_="", readonly=False):
+        super(UiTextInput, self).__init__(name=name, data=default, default=default,
+                                          check=(re_, length), readonly=readonly, type="TEXT")
+
+
+class UiDoubleInput(UiInputSetting):
+    def __init__(self, name, minimum, maximum, default=0.0, step=1.0, readonly=False):
+        super(UiDoubleInput, self).__init__(name=name, data=default, default=default,
+                                            check=(minimum, maximum, step), readonly=readonly, type="FLOAT")
+
+
+class UiIntegerInput(UiInputSetting):
+    def __init__(self, name, minimum, maximum, default=0, step=1, readonly=False):
+        super(UiIntegerInput, self).__init__(name=name, data=default, default=default,
+                                             check=(minimum, maximum, step), readonly=readonly, type="INT")
+
+
+class UiSelectInput(UiInputSetting):
+    def __init__(self, name, options, default, readonly=False):
+        super(UiSelectInput, self).__init__(name=name, data=default, default=default,
+                                            check=options, readonly=readonly, type="SELECT")
+
+
+class UiCheckBoxInput(UiInputSetting):
+    def __init__(self, name, default=False, readonly=False):
+        super(UiCheckBoxInput, self).__init__(name=name, data=default, default=default,
+                                              check=(True, False), readonly=readonly, type="BOOL")
 
 
 class UiLogMessage(DynamicObject):
