@@ -19,30 +19,20 @@ class SQLiteDatabase(object):
         self.__conn = sqlite3.connect(db_path)
         self.__cursor = self.__conn.cursor()
 
-    def __del__(self):
-        try:
-            self.__conn.commit()
-            self.__conn.close()
-        except AttributeError:
-            pass
-
     @staticmethod
     def conditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
-        return data.encode("utf-8")
+        return '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
 
     @staticmethod
     def searchConditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
-        return data.encode("utf-8")
+        return '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
 
     @staticmethod
     def globalSearchConditionFormat(k, v, t):
         t = SQLiteDatabase.detectDataType(t)
-        data = '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
-        return data.encode("utf-8")
+        return '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
 
     @staticmethod
     def detectDataType(type_str):
@@ -159,8 +149,8 @@ class SQLiteDatabase(object):
 
                 data.append(data_format)
 
-            # print("CREATE TABLE {} ({});".format(name.encode("utf-8"), ",".join(data).encode("utf-8")))
-            self.__cursor.execute("CREATE TABLE {} ({});".format(name.encode("utf-8"), ",".join(data).encode("utf-8")))
+            # print("CREATE TABLE {} ({});".format(name, ",".join(data)))
+            self.__cursor.execute("CREATE TABLE {} ({});".format(name, ",".join(data)))
             self.__conn.commit()
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
@@ -194,7 +184,7 @@ class SQLiteDatabase(object):
                 else:
                     recode_data.append("{}".format(data))
 
-            recode_data = ", ".join(recode_data).encode("utf-8")
+            recode_data = ", ".join(recode_data)
 
             # Insert to sqlite and save
             # print("INSERT INTO {} VALUES({})".format(name, recode_data))
@@ -255,9 +245,7 @@ class SQLiteDatabase(object):
                     else:
                         recode_data.append("{} = {}".format(column_name, data))
 
-            pk_name = pk_name.encode("utf-8")
-            recode_data = ", ".join(recode_data).encode("utf-8")
-            pk_data = pk_data.encode("utf-8") if self.detectDataType(pk_type) == self.TYPE_TEXT else pk_data
+            recode_data = ", ".join(recode_data)
 
             # Update and save
             # print('UPDATE {} SET {} WHERE {}="{}";'.format(name, recode_data, pk_name, pk_data))
@@ -301,7 +289,7 @@ class SQLiteDatabase(object):
                 raise TypeError("conditions require string object")
 
             # Pre process
-            columns = ", ".join(columns).encode("utf-8") or "*"
+            columns = ", ".join(columns) or "*"
 
             # SQL
             if not conditions:
