@@ -549,7 +549,6 @@ class ComponentManager(QObject):
 
     def setData(self, key, data):
         if not isinstance(key, str) or not isinstance(data, dict):
-            print("TypeError:{0:s}, {1:s}".format(type(key), type(data)))
             return False
 
         for component in self.getAll():

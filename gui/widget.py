@@ -1815,6 +1815,9 @@ class JsonSettingWidget(QWidget):
     def getData(self):
         return self.ui_manager.getData("data")
 
+    def setData(self, data):
+        return self.ui_manager.setData("data", data)
+
     def resetDefaultData(self):
         data = dict()
         for key in self.getData().keys():

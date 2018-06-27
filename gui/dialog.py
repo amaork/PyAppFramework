@@ -277,7 +277,7 @@ class ProgressDialog(QProgressDialog):
 
 
 class JsonSettingDialog(QDialog):
-    def __init__(self, settings, parent=None):
+    def __init__(self, settings, data=None, parent=None):
         super(JsonSettingDialog, self).__init__(parent)
 
         layout = QVBoxLayout()
@@ -296,8 +296,17 @@ class JsonSettingDialog(QDialog):
         except AttributeError:
             title = "配置对话框"
 
+        if data:
+            self.ui_widget.setData(data)
+
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
+
+    def getJsonData(self):
+        if not self.result():
+            return None
+
+        return self.ui_widget.getData()
 
     def getJsonSettings(self):
         if not self.result():
@@ -306,7 +315,13 @@ class JsonSettingDialog(QDialog):
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getSettings(cls, settings, parent=None):
-        dialog = cls(settings, parent)
+    def getData(cls, settings, data=None, parent=None):
+        dialog = cls(settings, data, parent)
+        dialog.exec_()
+        return dialog.getJsonData()
+
+    @classmethod
+    def getSettings(cls, settings, data=None, parent=None):
+        dialog = cls(settings, data, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
