@@ -2,10 +2,11 @@
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
-from .widget import SerialPortSettingWidget, JsonSettingWidget
+from .widget import SerialPortSettingWidget, JsonSettingWidget, MultiJsonSettingsWidget
 
 
-__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog', 'JsonSettingDialog']
+__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
+           'JsonSettingDialog', 'MultiJsonSettingsDialog']
 
 
 class SimpleColorDialog(QDialog):
@@ -325,3 +326,42 @@ class JsonSettingDialog(QDialog):
         dialog = cls(settings, data, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
+
+
+class MultiJsonSettingsDialog(QDialog):
+    def __init__(self, settings, data, parent=None):
+        super(MultiJsonSettingsDialog, self).__init__(parent)
+
+        layout = QVBoxLayout()
+        self.ui_widget = MultiJsonSettingsWidget(settings, data, parent)
+        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.ui_buttons.accepted.connect(self.accept)
+        self.ui_buttons.rejected.connect(self.reject)
+        self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
+
+        layout.addWidget(self.ui_widget)
+        layout.addWidget(QSplitter())
+        layout.addWidget(self.ui_buttons)
+
+        try:
+            title = settings.title
+        except AttributeError:
+            title = "配置对话框"
+
+        if data:
+            self.ui_widget.setData(data)
+
+        self.setLayout(layout)
+        self.setWindowTitle(self.tr(title))
+
+    def getJsonData(self):
+        if not self.result():
+            return None
+
+        return self.ui_widget.getData()
+
+    @classmethod
+    def getData(cls, settings, data=None, parent=None):
+        dialog = cls(settings, data, parent)
+        dialog.exec_()
+        return dialog.getJsonData()

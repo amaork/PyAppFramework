@@ -29,7 +29,8 @@ from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectD
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'JsonSettingWidget', 'LogMessageWidget']
+           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
+           'JsonSettingWidget', 'MultiJsonSettingsWidget']
 
 
 class PaintWidget(QWidget):
@@ -1885,6 +1886,129 @@ class JsonSettingWidget(QWidget):
             widget.setDisabled(True)
 
         return widget
+
+
+class MultiJsonSettingsWidget(QWidget):
+    settingChanged = Signal()
+
+    def __init__(self, settings, data, parent=None):
+        super(MultiJsonSettingsWidget, self).__init__(parent)
+
+        if not isinstance(settings, DynamicObject):
+            raise TypeError("settings require {!r}".format(DynamicObject.__name__))
+
+        if not isinstance(data, (list, tuple)):
+            raise TypeError("data require a list or tuple not {!r}".format(data.__class__.__name__))
+
+        try:
+            self.frozen_columns = list()
+            self.layout = settings.layout
+            self.settings = settings.dict
+        except AttributeError:
+            raise ValueError("Do not found layout settings")
+
+        # Check layout type
+        if not isinstance(self.layout, (list, tuple)):
+            raise TypeError("'settings.layout must be a list or tuple'")
+
+        is_str = [isinstance(x, str) for x in self.layout].count(True) == len(self.layout)
+        is_grid = [isinstance(x, (list, tuple)) for x in self.layout].count(True) == len(self.layout)
+
+        if not is_str and not is_grid:
+            raise ValueError("'settings.layout' must be a list or two-dimension array with str")
+
+        if is_grid:
+            layout = list()
+            for a in self.layout:
+                layout.extend(a)
+            self.layout = layout
+
+        self.__initUi()
+        self.__initData(data)
+        self.__initStyleSheet()
+        self.ui_table.tableDataChanged.connect(self.slotSettingChanged)
+
+    def __initUi(self):
+        try:
+            columns_header = [self.settings.get(x).name for x in self.layout]
+        except AttributeError:
+            columns_header = [self.settings.get(x).get("name") for x in self.layout]
+        self.ui_table = TableWidget(len(columns_header))
+        self.ui_table.setColumnHeader(columns_header)
+        self.ui_table.setRowSelectMode()
+
+        table_filters = dict()
+        for column, item in enumerate(self.layout):
+            try:
+
+                dict_ = self.settings.get(item)
+                ui_input = dict_ if isinstance(dict_, UiInputSetting) else UiInputSetting(**dict_)
+
+                if ui_input.is_bool_type():
+                    table_filters[column] = (ui_input.get_default(), ui_input.get_name())
+                elif ui_input.is_int_type() or ui_input.is_float_type():
+                    table_filters[column] = ui_input.get_check()[:2]
+                elif ui_input.is_select_type():
+                    table_filters[column] = ui_input.get_check()
+
+                if ui_input.is_readonly():
+                    self.frozen_columns.append(column)
+            except (TypeError, ValueError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                print("{}".format(err))
+
+        # Set table filters
+        self.ui_table.setTableDataFilter(table_filters)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.ui_table)
+        self.setLayout(layout)
+
+    def __initData(self, data):
+        self.ui_table.setRowCount(0)
+        # Add data to table
+        for item in data:
+            self.ui_table.addRow(item)
+
+        # Frozen table readonly column
+        for column in self.frozen_columns:
+            self.ui_table.frozenColumn(column, True)
+
+        # Move to first row
+        self.ui_table.selectRow(0)
+
+    def __initStyleSheet(self):
+        total_width = 75
+        for column in range(self.ui_table.columnCount()):
+            total_width += self.ui_table.columnWidth(column)
+
+        self.setMinimumWidth(total_width)
+
+    def getData(self):
+        return self.ui_table.getTableData()
+
+    def setData(self, data):
+        self.__initData(data)
+
+    def resetDefaultData(self):
+        try:
+            data = [self.settings.get(k).default for k in self.layout]
+        except AttributeError:
+            data = [self.settings.get(k).get("default") for k in self.layout]
+
+        self.setData([data for _ in range(self.ui_table.rowCount())])
+
+    def slotSettingChanged(self):
+        self.settingChanged.emit()
+
+        sender = self.sender()
+        # Line edit text content check
+        if isinstance(sender, QLineEdit):
+            filters = sender.property("filter")
+            try:
+                re.search(filters, sender.text(), re.S).group(0)
+                sender.setStyleSheet("color: rgb(0, 0, 0);")
+            except AttributeError:
+                sender.setStyleSheet("color: rgb(255, 0, 0);")
 
 
 class LogMessageWidget(QTextEdit):

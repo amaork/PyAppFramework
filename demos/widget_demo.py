@@ -6,8 +6,8 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 
 from ..gui.widget import *
+from ..misc.settings import *
 from .images import ImagesPath
-from ..misc.settings import UiInputSetting
 from ..gui.container import ComponentManager
 from ..gui.widget import SerialPortSettingWidget
 
@@ -368,6 +368,57 @@ class JsonSettingWidgetTest(QWidget):
             self.ui_data.setText("{}".format(self.widget.getData()))
 
 
+class MultiJsonSetting(JsonSettings):
+    _properties = {'int', 'float', 'bool', 'text', 'select', 'readonly_text', 'layout'}
+
+    @classmethod
+    def default(cls):
+        return MultiJsonSetting(
+            bool=UiCheckBoxInput("布尔型数据"),
+            text=UiTextInput("文本型数据", 16, "123"),
+            int=UiIntegerInput("整型数据", 1, 100, step=10),
+            float=UiDoubleInput("浮点型数据", 3.3, 24.0, step=0.5),
+            select=UiSelectInput("选择型数据", ["A", "B", "C"], "A"),
+            readonly_text=UiTextInput("只读文本型数据", 16, "ABCD", readonly=True),
+            layout=['bool', 'text', 'int', 'float', 'select', 'readonly_text']
+        )
+
+
+class MultiJsonSettingsWidgetTest(QWidget):
+    def __init__(self, parent=None):
+        super(MultiJsonSettingsWidgetTest, self).__init__(parent)
+
+        data = [
+
+            (False, "123", 10, 4.5, "A", "ABCDEF_1"),
+            (True, "1234", 20, 5.5, "A", "ABCDEF_12"),
+            (False, "12345", 30, 6.5, "B", "ABCDEF_123"),
+            (True, "123456", 40, 7.5, "B", "ABCDEF_1234"),
+            (False, "1234567", 50, 8.5, "C", "ABCDEF_12345"),
+            (True, "12345678", 60, 9.5, "C", "ABCDEF_123456"),
+        ]
+        layout = QVBoxLayout()
+        self.widget = MultiJsonSettingsWidget(MultiJsonSetting.default(), data)
+
+        self.widget.settingChanged.connect(self.slotShowData)
+        self.ui_get = QPushButton(self.tr("Get settings"))
+        self.ui_get.clicked.connect(self.slotShowData)
+        self.ui_reset = QPushButton(self.tr("Reset data"))
+        self.ui_reset.clicked.connect(self.slotResetData)
+        self.ui_data = QTextEdit()
+        layout.addWidget(self.widget)
+        layout.addWidget(self.ui_get)
+        layout.addWidget(self.ui_reset)
+        layout.addWidget(self.ui_data)
+        self.setLayout(layout)
+
+    def slotShowData(self):
+        self.ui_data.setText("{}".format(self.widget.getData()))
+
+    def slotResetData(self):
+        self.widget.resetDefaultData()
+
+
 class Demo(QMainWindow):
     drawText = Signal(str)
     drawFromFs = Signal(str)
@@ -459,6 +510,13 @@ class Demo(QMainWindow):
         self.settingButton = QPushButton("Get setting")
         self.settingButton.clicked.connect(self.showWidget)
 
+        self.multiJsonSettingWidget = MultiJsonSettingsWidgetTest()
+        self.multiJsonSettingWidget.setHidden(True)
+        self.multiJsonSettingLabel = QLabel()
+        self.multiJsonSettingLabel.setFrameStyle(frameStyle)
+        self.multiJsonSettingButton = QPushButton("Get setting")
+        self.multiJsonSettingButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -482,6 +540,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.serialLabel, 9, 1)
         self.layout.addWidget(self.settingButton, 10, 0)
         self.layout.addWidget(self.settingLabel, 10, 1)
+        self.layout.addWidget(self.multiJsonSettingButton, 11, 0)
+        self.layout.addWidget(self.multiJsonSettingLabel, 11, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -504,6 +564,8 @@ class Demo(QMainWindow):
             self.serialWidget.setHidden(False)
         elif self.sender() == self.settingButton:
             self.settingWidget.setHidden(False)
+        elif self.sender() == self.multiJsonSettingButton:
+            self.multiJsonSettingWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
