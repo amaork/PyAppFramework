@@ -12,11 +12,11 @@ class SQLiteDatabase(object):
     TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
     TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
-    def __init__(self, db_path):
+    def __init__(self, db_path, timeout=20):
         if not os.path.isfile(db_path):
             raise IOError("{} do not exist".format(db_path))
 
-        self.__conn = sqlite3.connect(db_path)
+        self.__conn = sqlite3.connect(db_path, timeout=timeout)
         self.__cursor = self.__conn.cursor()
 
     @staticmethod
