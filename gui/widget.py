@@ -1432,12 +1432,32 @@ class TableWidget(QTableWidget):
             print("Set table item filter error:{}".format(e))
             return False
 
+    def setRowData(self, row, data):
+        try:
+            if len(data) != self.colorCount() or not 0 <= row < self.rowCount():
+                return False
+
+            for column, item_data in enumerate(data):
+                self.setItemData(row, column, item_data)
+        except TypeError:
+            return False
+
     def setRowDataFilter(self, row, filters):
         for column in range(self.columnCount()):
             if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
+
+    def setColumnData(self, column, data):
+        try:
+            if len(data) != self.rowCount() or not 0 <= column < self.colorCount():
+                return False
+
+            for row, item_data in enumerate(data):
+                self.setItemData(row, column, item_data)
+        except TypeError:
+            return False
 
     def setColumnDataFilter(self, column, filters):
         for row in range(self.rowCount()):
