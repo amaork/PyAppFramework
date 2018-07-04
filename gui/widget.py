@@ -937,6 +937,7 @@ class TableWidget(QTableWidget):
             temp.setCalendarPopup(widget.calendarPopup())
         elif isinstance(widget, QPushButton):
             temp = QPushButton(widget.text())
+            widget.setHidden(True)
         elif isinstance(widget, QProgressBar):
             temp = QProgressBar()
             temp.setInvertedAppearance(widget.invertedAppearance())
