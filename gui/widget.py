@@ -1796,6 +1796,7 @@ class JsonSettingWidget(QWidget):
         self.layout = [[x] for x in self.layout] if is_str else self.layout
 
         self.__initUi(settings.dict)
+        self.__initSignalAndSlots()
 
     def __initUi(self, settings):
         row = 0
@@ -1807,25 +1808,34 @@ class JsonSettingWidget(QWidget):
                     dict_ = settings.get(item)
                     ui_input = UiInputSetting(**dict_)
                     widget = self.createInputWidget(ui_input, item)
-                    if not isinstance(widget, QWidget):
-                        continue
+                    if isinstance(widget, QWidget):
+                        # Add label and widget
+                        layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                        column += 1
+                        layout.addWidget(widget, row, column)
+                        column += 1
 
-                    # Add label and widget
-                    layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
-                    column += 1
-                    layout.addWidget(widget, row, column)
-                    column += 1
-
-                    # QLine edit special process re check
-                    if isinstance(widget, QLineEdit):
-                        widget.textChanged.connect(self.slotSettingChanged)
-                except (TypeError, ValueError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                        # QLine edit special process re check
+                        if isinstance(widget, QLineEdit):
+                            widget.textChanged.connect(self.slotSettingChanged)
+                    elif isinstance(widget, QLayout):
+                        # Add label and layout
+                        layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                        column += 1
+                        layout.addLayout(widget, row, column)
+                        column += 1
+                except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                     print("{}".format(err))
 
             row += 1
         self.setLayout(layout)
         self.ui_manager = ComponentManager(layout)
         self.ui_manager.dataChanged.connect(self.slotSettingChanged)
+
+    def __initSignalAndSlots(self):
+        for button in self.ui_manager.findValue("clicked", "file", QPushButton):
+            if isinstance(button, QPushButton):
+                button.clicked.connect(self.slotSelectFile)
 
     def getSettings(self):
         data = self.getData()
@@ -1845,6 +1855,17 @@ class JsonSettingWidget(QWidget):
         for key in self.getData().keys():
             data[key] = self.settings[key]["default"]
         self.ui_manager.setData("data", data)
+
+    def slotSelectFile(self):
+        sender = self.sender()
+        file_format = " ".join(sender.property("private") or list())
+        path, ret = QFileDialog.getOpenFileName(self, self.tr("请选择文件"), "", self.tr(file_format))
+        if not ret or not os.path.isfile(path):
+            return
+
+        path_edit = self.ui_manager.getPrevSibling(sender)
+        if isinstance(path_edit, QLineEdit):
+            path_edit.setText(path)
 
     def slotSettingChanged(self):
         self.settingChanged.emit()
@@ -1895,6 +1916,18 @@ class JsonSettingWidget(QWidget):
                 widget.addItems(setting.get_check())
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
+            elif setting.is_file_type():
+                widget = QLineEdit()
+                widget.setReadOnly(True)
+                widget.setProperty("data", name)
+                widget.setText(setting.get_data())
+                button = QPushButton("请选择文件")
+                button.setProperty("clicked", "file")
+                button.setProperty("private", setting.get_check())
+                layout = QHBoxLayout()
+                layout.addWidget(widget)
+                layout.addWidget(button)
+                return layout
         except (IndexError, ValueError):
             pass
 
@@ -1971,6 +2004,8 @@ class MultiJsonSettingsWidget(QWidget):
                     table_filters[column] = ui_input.get_check()[:2]
                 elif ui_input.is_select_type():
                     table_filters[column] = ui_input.get_check()
+                elif ui_input.is_file_type():
+                    table_filters[column] = ("请选择文件", self.slotSelectFile, ui_input.get_check())
 
                 if ui_input.is_readonly():
                     self.frozen_columns.append(column)
@@ -2017,6 +2052,15 @@ class MultiJsonSettingsWidget(QWidget):
             data = [self.settings.get(k).get("default") for k in self.layout]
 
         self.setData([data for _ in range(self.ui_table.rowCount())])
+
+    def slotSelectFile(self):
+        sender = self.sender()
+        file_format = "*"
+        path, ret = QFileDialog.getOpenFileName(self, self.tr("请选择文件"), "", self.tr(file_format))
+        if not ret or not os.path.isfile(path):
+            return
+
+        sender.setProperty("private", path)
 
     def slotSettingChanged(self):
         self.settingChanged.emit()

@@ -5,7 +5,8 @@ import codecs
 import logging
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiLogMessage',
-           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
+           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput',
+           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -64,6 +65,7 @@ class UiInputSetting(DynamicObject):
         "BOOL": (bool, (list, tuple)),
         "FLOAT": (float, (list, tuple)),
         "TEXT": (str, (list, tuple)),
+        "FILE": (str, (list, tuple)),
         "SELECT": (str, (list, tuple))
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]
@@ -130,6 +132,9 @@ class UiInputSetting(DynamicObject):
     def is_text_type(self):
         return self.type == "TEXT"
 
+    def is_file_type(self):
+        return self.type == "FILE"
+
     def is_float_type(self):
         return self.type == "FLOAT"
 
@@ -155,13 +160,21 @@ class UiInputSetting(DynamicObject):
                                      check=UiInputSetting.FLOAT_TYPE_CHECK_DEMO, default=3.3)
         select_input = UiInputSetting(name="选择", type="SELECT", data="C",
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
+        file_input = UiInputSetting(name="文件", type="FILE", data="", default="", check=("*.jpg", "*.bmp"))
 
         if d2:
-            layout = [["int", "float"], ["bool"], ["text", "select"]]
+            layout = [["int", "float"], ["bool"], ["text", "select"], ["file"]]
         else:
-            layout = ["int", "float", "bool", "text", "select"]
-        return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict, text=text_input.dict,
+            layout = ["int", "float", "bool", "text", "select", "file"]
+        return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict,
+                                text=text_input.dict, file=file_input.dict,
                                 float=float_input.dict, select=select_input.dict, layout=layout)
+
+
+class UiFileInput(UiInputSetting):
+    def __init__(self, name, fmt):
+        super(UiInputSetting, self).__init__(name=name, data="", default="",
+                                             check=fmt, readonly=False, type="FILE")
 
 
 class UiTextInput(UiInputSetting):
