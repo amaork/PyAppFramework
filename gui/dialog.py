@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
@@ -6,7 +7,8 @@ from .widget import SerialPortSettingWidget, JsonSettingWidget, MultiJsonSetting
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
-           'JsonSettingDialog', 'MultiJsonSettingsDialog']
+           'JsonSettingDialog', 'MultiJsonSettingsDialog',
+           'showFileImportDialog', 'showFileExportDialog']
 
 
 class SimpleColorDialog(QDialog):
@@ -365,3 +367,19 @@ class MultiJsonSettingsDialog(QDialog):
         dialog = cls(settings, data, parent)
         dialog.exec_()
         return dialog.getJsonData()
+
+
+def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):
+    path, ret = QFileDialog.getSaveFileName(parent, parent.tr(title), name, parent.tr(fmt))
+    if not ret or len(path) == 0:
+        return ""
+
+    return path
+
+
+def showFileImportDialog(parent, fmt, path="", title="请选到要导入的文件"):
+    path, ret = QFileDialog.getOpenFileName(parent, parent.tr(title), path, parent.tr(fmt))
+    if not ret or not os.path.isfile(path):
+        return ""
+
+    return path
