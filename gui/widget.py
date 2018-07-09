@@ -1335,7 +1335,11 @@ class TableWidget(QTableWidget):
             elif len(filters) == 2 and type(filters[0]) is type(filters[1]) and isinstance(filters[0], (int, float)):
                 spinbox = QSpinBox() if isinstance(filters[0], int) else QDoubleSpinBox()
                 spinbox.setRange(filters[0], filters[1])
-                value = self.getItemData(row, column).encode("utf-8")
+                value = self.getItemData(row, column)
+                try:
+                    value = value.encode("utf-8")
+                except AttributeError:
+                    pass
                 value = str2number(value) if isinstance(filters[0], int) else str2float(value)
                 spinbox.setValue(value)
                 spinbox.valueChanged.connect(self.__slotWidgetDataChanged)
