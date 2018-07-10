@@ -14,7 +14,6 @@ PaintWidget
 """
 import re
 import json
-import codecs
 import logging
 import os.path
 from serial import Serial
@@ -2104,8 +2103,8 @@ class LogMessageWidget(QTextEdit):
     @Slot(object)
     def filterLog(self, levels):
         # First read all log to memory
-        with codecs.open(self.logFilename, "r", "utf-8") as fp:
-            text = fp.read()
+        with open(self.logFilename) as fp:
+                text = fp.read()
 
         # Process data
         valid_record = list()
@@ -2120,6 +2119,7 @@ class LogMessageWidget(QTextEdit):
 
                 try:
                     record_time = datetime.strptime(time_str, self.LOG_TIME_FORMAT)
+                    record_time = record_time.replace(microsecond=int(record[time_end + 1: time_end + 4]) * 1000)
                 except ValueError:
                     continue
 
