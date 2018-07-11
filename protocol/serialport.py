@@ -442,14 +442,14 @@ class SerialPortProtocolSimulate(object):
                 try:
                     data = self.__recv(self._get_request_size())
                 except serial.SerialException as error:
-                    self.__error_handle("Receive request error:{0:s}".format(error))
+                    self.__error_handle("Receive request error:{}".format(error))
                     continue
 
                 # Check request message
                 result, err_or_req = self._check_request(data)
                 if not result:
                     error = err_or_req
-                    self.__error_handle("Check request error:{0:s}".format(error))
+                    self.__error_handle("Check request error:{}".format(error))
                     continue
 
                 # Process request and get ack

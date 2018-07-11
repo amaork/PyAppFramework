@@ -26,5 +26,5 @@ if __name__ == "__main__":
             print("Write success!")
 
     except SerialTransferError as error:
-        print("Serial Transfer data error:{0:s}".format(error))
+        print("Serial Transfer data error:{}".format(error))
         sys.exit(-1)

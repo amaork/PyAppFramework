@@ -89,7 +89,7 @@ class TarManager(object):
             formats = fmt if fmt in TarManager.get_support_format() else TarManager.get_file_format(name)
 
             if len(formats) == 0:
-                raise TarManagerError("Unknown package format: {0:s}".format(os.path.basename(name)))
+                raise TarManagerError("Unknown package format: {}".format(os.path.basename(name)))
 
             # Entry package directory
             os.chdir(path)
@@ -128,9 +128,9 @@ class TarManager(object):
             tar_file.close()
 
         except OSError as e:
-            raise TarManagerError("Change work dir error:{0:s}".format(e))
+            raise TarManagerError("Change work dir error:{}".format(e))
         except tarfile.TarError as e:
-            raise TarManagerError("Create tar file error:{0:s}".format(e))
+            raise TarManagerError("Create tar file error:{}".format(e))
         finally:
             os.chdir(current_path)
 
@@ -172,5 +172,5 @@ class TarManager(object):
             tar_file.close()
 
         except (IOError, OSError, tarfile.TarError, shutil.Error) as e:
-            raise TarManagerError('Extract failed：IOError, {0:s}'.format(e))
+            raise TarManagerError('Extract failed：IOError, {}'.format(e))
 

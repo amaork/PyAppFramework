@@ -203,7 +203,7 @@ class ComparableXml(XmlElementTree.Element):
     def string_strip(data):
         if not isinstance(data, str):
             return None
-
+        
         return "".join([s.strip() for s in data.split("\n")])
 
     @staticmethod
@@ -219,7 +219,7 @@ class ComparableXml(XmlElementTree.Element):
             return None
 
         data = XmlElementTree.tostring(xml, encode).strip()
-        return ComparableXml.string_strip(data)
+        return ComparableXml.string_strip(data.decode())
 
     @staticmethod
     def string2xml(data):
