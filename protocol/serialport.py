@@ -464,7 +464,7 @@ class SerialPortProtocolSimulate(object):
                 self.__send(ack)
 
             except serial.SerialException as error:
-                self.__error_handle("SerialPort error:{0:s}".format(type(self).__name__, error))
+                self.__error_handle("SerialPort error:{}".format(error))
 
     def start(self):
         if self.__running:

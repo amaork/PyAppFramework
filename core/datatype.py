@@ -55,7 +55,7 @@ def str2number(text):
 
 def new_class(name):
     if not isinstance(name, str):
-        raise TypeError("Class name TypeError:{0:s}".format(type(name)))
+        raise TypeError("Class name TypeError:{!r}".format(name.__class__.__name__))
 
     parts = name.split('.')
     module = ".".join(parts[:-1])

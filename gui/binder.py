@@ -10,8 +10,9 @@ class SpinBoxBinder(QObject):
 
     def __init__(self, spinbox, parent=None):
         super(SpinBoxBinder, self).__init__(parent)
-
-        assert isinstance(spinbox, (QSpinBox, QDoubleSpinBox)), "TypeError:{0:s}".format(type(spinbox))
+        if not isinstance(spinbox, (QSpinBox, QDoubleSpinBox)):
+            raise TypeError("spinbox require a {!r} or {!r} not {!r}".format(
+                QSpinBox.__name__, QDoubleSpinBox.__name__, spinbox.__class__.__name__))
 
         self.__binding = list()
         self.__spinbox = spinbox
@@ -28,11 +29,11 @@ class SpinBoxBinder(QObject):
 
     def bindLabel(self, obj, factor):
         if not isinstance(obj, QLabel):
-            print("Bind error, object type error:{0:s}".format(type(obj)))
+            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error{0:s}".format(type(factor)))
+            print("Bind error, factor type error{!r}".format(factor.__class__.__name__))
             return False
 
         self.__binding.append((obj, factor))
@@ -40,11 +41,11 @@ class SpinBoxBinder(QObject):
 
     def bindSpinBox(self, obj, factor):
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print("Bind error, object type error:{0:s}".format(type(obj)))
+            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error{0:s}".format(type(factor)))
+            print("Bind error, factor type error{!r}".format(factor.__class__.__name__))
             return False
 
         # Set spinbox range and single step
@@ -78,8 +79,8 @@ class SpinBoxBinder(QObject):
 class ComboBoxBinder(QObject):
     def __init__(self, combobox, parent=None):
         super(ComboBoxBinder, self).__init__(parent)
-
-        assert isinstance(combobox, QComboBox), "TypeError:{0:s}".format(type(combobox))
+        if not isinstance(combobox, QComboBox):
+            raise TypeError("combobox require {!r} not {!r}".format(QComboBox.__name__, combobox.__class__.__name__))
 
         self.__combobox = combobox
         self.__binding = list()
@@ -90,7 +91,7 @@ class ComboBoxBinder(QObject):
             return False
 
         if not isinstance(obj, QLabel):
-            print("Bind error, object type error:{0:s}".format(type(obj)))
+            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(text, (tuple, list)) and len(text) != self.__combobox.count():
@@ -103,7 +104,7 @@ class ComboBoxBinder(QObject):
 
     def bindSpinBox(self, obj, limit):
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print("Bind error, object type error:{0:s}".format(type(obj)))
+            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(limit, (tuple, list)) and len(limit) != self.__combobox.count():
@@ -124,7 +125,7 @@ class ComboBoxBinder(QObject):
 
     def bindComboBox(self, obj, reverse=False):
         if not isinstance(obj, QComboBox):
-            print("Bind error, object type error:{0:s}".format(type(obj)))
+            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if obj.count() != self.__combobox.count():

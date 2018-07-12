@@ -327,10 +327,6 @@ class FTPClient(object):
 
         pwd = ""
 
-        # Type check
-        if not isinstance(remote_dir, str) or not isinstance(remove_files, list):
-            raise FTPClientError("Param type check error:{0:s},{1:s}".format(type(remote_dir), type(remove_files)))
-
         try:
             
             # Check remote dir

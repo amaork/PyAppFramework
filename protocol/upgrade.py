@@ -18,7 +18,7 @@ class UpgradeClient(object):
     def __init__(self, name, addr, port, timeout=3):
         timeout = timeout if isinstance(timeout, int) else 3
         if not isinstance(name, str):
-            raise RuntimeError("Name TypeError: {0:s}".format(type(name)))
+            raise TypeError("name require {!r} not {!r}".format(str.__name__, name.__class__.__name__))
 
         self.__key = name
         self.__addr = addr

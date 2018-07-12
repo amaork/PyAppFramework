@@ -25,9 +25,7 @@ class ComboBoxGroup(QObject):
         self.__group = list()
 
         if not isinstance(template, QComboBox):
-            print("Template TypeError: {0:s}".format(type(template)))
-            self.__template = None
-            return
+            raise TypeError("template require {!r} not {!r}".format(QComboBox.__name__, template.__class__.__name__))
 
         if template.count() <= 1:
             print("ComboBox template data at least needs 2 items")
@@ -70,7 +68,7 @@ class ComboBoxGroup(QObject):
 
     def __indexCheck(self, index):
         if not isinstance(index, int):
-            print("TypeError:{0:s}".format(type(index)))
+            print("TypeError:{!r}".format(index.__class__.__name__))
             return False
 
         if index >= self.count() or index < 0:
@@ -185,7 +183,7 @@ class ComboBoxGroup(QObject):
         :return:
         """
         if not hasattr(sequence, "__iter__"):
-            print("TypeError:{0:s}".format(type(sequence)))
+            print("TypeError:{!r}".format(sequence.__class__.__name__))
             return False
 
         if len(sequence) != self.count():
@@ -194,7 +192,7 @@ class ComboBoxGroup(QObject):
 
         for index in sequence:
             if not isinstance(index, int):
-                print("Sequence item TypeError: {0:s}".format(type(index)))
+                print("Sequence item TypeError: {!r}".format(index.__class__.__name__))
                 return False
 
         values = copy.copy(sequence)
@@ -215,8 +213,8 @@ class ComponentManager(QObject):
 
     def __init__(self, layout, parent=None):
         super(ComponentManager, self).__init__(parent)
-
-        assert isinstance(layout, QLayout), "TypeError:{0:s}".format(type(layout))
+        if not isinstance(layout, QLayout):
+            raise TypeError("layout require {!r} not {!r}".format(QLayout.__name__, layout.__class__.__name__))
 
         self.__object = layout
 
@@ -401,7 +399,7 @@ class ComponentManager(QObject):
     def findRowSibling(self, obj):
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print("Only QGridLayout support find row sibling:{0:s}".format(type(layout)))
+            print("Only QGridLayout support find row sibling:{!r}".format(layout.__class__.__name__))
             return []
 
         for row in range(layout.rowCount()):
@@ -416,7 +414,7 @@ class ComponentManager(QObject):
     def findColumnSibling(self, obj):
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print("Only QGridLayout support find column sibling:{0:s}".format(type(layout)))
+            print("Only QGridLayout support find column sibling:{!r}".format(layout.__class__.__name__))
             return []
 
         for row in range(layout.rowCount()):
@@ -460,7 +458,7 @@ class ComponentManager(QObject):
         """
 
         if not isinstance(componentType, type):
-            print("TypeError:{0:s}".format(type(componentType)))
+            print("TypeError:{!r}".format(componentType.__class__.__name__))
             return []
 
         components = list()
@@ -480,7 +478,7 @@ class ComponentManager(QObject):
         """
 
         if not isinstance(key, str) or not isinstance(value, str):
-            print("Property TypeError:{0:s}, {1:s}".format(type(key), type(value)))
+            print("Property TypeError:{!r}, {!r}".format(key.__class__.__name__, value.__class__.__name__))
             return None
 
         # Search by property
@@ -499,7 +497,7 @@ class ComponentManager(QObject):
         """
 
         if not isinstance(key, str):
-            print("Property key typeError: {0:s}".format(type(key)))
+            print("Property key typeError: {!r}".format(key.__class__.__name__))
             return []
 
         lst = list()
