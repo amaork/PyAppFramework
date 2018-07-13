@@ -178,13 +178,13 @@ class UiMailBox(QObject):
                     # If specified timeout using callback function clear text
                     if mail.timeout:
                         status_mail = StatusBarMail(Qt.blue, "")
-                        self.send(CallbackFuncMail(self.send, mail.timeout / 1000, args=(status_mail,)))
+                        self.send(CallbackFuncMail(self.send, mail.timeout // 1000, args=(status_mail,)))
                 else:
                     print("Do not support StatusBarMail!")
 
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
-            showMessageBox(mail.type, mail.content, mail.title)
+            showMessageBox(self.__parent, mail.type, mail.content, mail.title)
 
         # Appended a message on windows title
         elif isinstance(mail, WindowsTitleMail):

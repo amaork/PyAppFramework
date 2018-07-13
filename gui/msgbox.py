@@ -12,20 +12,22 @@ MB_TYPE_QUESTION = "question"
 MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN, MB_TYPE_QUESTION)
 
 
-def showQuestionBox(content, title=None):
+def showQuestionBox(parent, content, title=None):
     """ Show a Question message box and return result
 
+    :param parent: parent widget
     :param content: Message content
     :param title: Message title
     :return: if press ok return true, else return false
     """
 
-    return showMessageBox(MB_TYPE_QUESTION, content, title)
+    return showMessageBox(parent, MB_TYPE_QUESTION, content, title)
 
 
-def showMessageBox(msg_type, content, title=None):
+def showMessageBox(parent, msg_type, content, title=None):
     """Show a QMessage box
 
+    :param parent: parent widget
     :param msg_type: Message type
     :param content: Message content
     :param title: Message title
@@ -43,7 +45,7 @@ def showMessageBox(msg_type, content, title=None):
         icon, default_title = attributes.get(msg_type)
         title = title if title else default_title
         buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
-        msg = QMessageBox(icon, title, content, buttons)
+        msg = QMessageBox(icon, title, content, buttons, parent=parent)
         return msg.exec_() == QMessageBox.Ok
     except TypeError:
         return False
