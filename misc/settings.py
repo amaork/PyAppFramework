@@ -66,7 +66,8 @@ class UiInputSetting(DynamicObject):
         "FLOAT": (float, (list, tuple)),
         "TEXT": (str, (list, tuple)),
         "FILE": (str, (list, tuple)),
-        "SELECT": (str, (list, tuple))
+        "SELECT": (str, (list, tuple)),
+        "SERIAL": (str, str),
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]
     _properties = {'name', 'data', 'type', 'check', 'default', 'readonly'}
@@ -141,11 +142,14 @@ class UiInputSetting(DynamicObject):
     def is_select_type(self):
         return self.type == "SELECT"
 
+    def is_serial_type(self):
+        return self.type == "SERIAL"
+
     @staticmethod
     def getDemoSettings(d2=False):
 
         class JsonDemoSettings(DynamicObject):
-            _properties = {'layout', 'int', 'float', 'bool', 'text', 'select'}
+            _properties = {'layout', 'int', 'float', 'bool', 'text', 'select', 'serial'}
 
             def __init__(self, **kwargs):
                 super(JsonDemoSettings, self).__init__(**kwargs)
@@ -162,12 +166,14 @@ class UiInputSetting(DynamicObject):
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
         file_input = UiInputSetting(name="文件", type="FILE", data="", default="", check=("*.jpg", "*.bmp"))
 
+        serial_input = UiSerialInput(name="串口", port="COM1")
+
         if d2:
-            layout = [["int", "float"], ["bool"], ["text", "select"], ["file"]]
+            layout = [["int", "float"], ["bool"], ["text", "select"], ["file"], ["serial"]]
         else:
-            layout = ["int", "float", "bool", "text", "select", "file"]
+            layout = ["int", "float", "bool", "text", "select", "file", "serial"]
         return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict,
-                                text=text_input.dict, file=file_input.dict,
+                                text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
                                 float=float_input.dict, select=select_input.dict, layout=layout)
 
 
@@ -199,6 +205,12 @@ class UiSelectInput(UiInputSetting):
     def __init__(self, name, options, default, readonly=False):
         super(UiSelectInput, self).__init__(name=name, data=default, default=default,
                                             check=options, readonly=readonly, type="SELECT")
+
+
+class UiSerialInput(UiInputSetting):
+    def __init__(self, name, port=""):
+        super(UiSerialInput, self).__init__(name=name, data=port, default=port,
+                                            check=port, readonly=False, type="SERIAL")
 
 
 class UiCheckBoxInput(UiInputSetting):

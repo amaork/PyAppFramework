@@ -1915,6 +1915,10 @@ class JsonSettingWidget(QWidget):
                 widget.addItems(setting.get_check())
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
+            elif setting.is_serial_type():
+                widget = SerialPortSelector()
+                widget.setProperty("format", "text")
+                widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
             elif setting.is_file_type():
                 widget = QLineEdit()
                 widget.setReadOnly(True)
