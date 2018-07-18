@@ -29,6 +29,7 @@ class SerialPortSelector(QComboBox):
         self.__selected = ""
         self.__one_shot = one_shot
         self.__system = platform.system().lower()
+        self.setToolTip(self.tr("右键单击复位并刷新串口"))
 
         # Flush current serial port list
         self.flushSerialPort()
@@ -47,7 +48,7 @@ class SerialPortSelector(QComboBox):
         self.__slotPortSelected(index)
         return True
 
-    def flushSerialPort(self):
+    def flushSerialPort(self, timeout=0.04):
         self.clear()
         self.__selected = ""
         self.setEnabled(True)
@@ -62,7 +63,7 @@ class SerialPortSelector(QComboBox):
             self.setItemData(index + 1, device)
 
         # Scan LAN raspberry serial port
-        for raspberry in scan_server(0.03):
+        for raspberry in scan_server(timeout):
             try:
 
                 for port in Query(raspberry).get_serial_list():
@@ -78,6 +79,12 @@ class SerialPortSelector(QComboBox):
         self.__selected = self.itemData(idx)
         self.portSelected.emit(self.__selected)
         self.setDisabled(self.__one_shot)
+
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.RightButton:
+            self.flushSerialPort()
+
+        super(SerialPortSelector, self).mousePressEvent(ev)
 
 
 class TabBar(QTabBar):
