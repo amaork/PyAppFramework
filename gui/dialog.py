@@ -3,7 +3,8 @@ import os
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
-from .widget import SerialPortSettingWidget, JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
+from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
+    JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
@@ -279,12 +280,17 @@ class ProgressDialog(QProgressDialog):
         self.move(QPoint(x, y))
 
 
-class JsonSettingDialog(QDialog):
-    def __init__(self, settings, data=None, parent=None):
-        super(JsonSettingDialog, self).__init__(parent)
+class BasicJsonSettingDialog(QDialog):
+    def __init__(self, widget_cls, settings, data=None, parent=None):
+        super(BasicJsonSettingDialog, self).__init__(parent)
+
+        if not issubclass(widget_cls, (BasicJsonSettingWidget, MultiTabJsonSettingsWidget)):
+            raise TypeError("widget_cls require {!r} or {!r} not {!r}".format(
+                BasicJsonSettingWidget.__name__, MultiTabJsonSettingsWidget.__name__, widget_cls.__name__
+            ))
 
         layout = QVBoxLayout()
-        self.ui_widget = JsonSettingWidget(settings, parent)
+        self.ui_widget = widget_cls(settings, data, parent)
         self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.ui_buttons.accepted.connect(self.accept)
         self.ui_buttons.rejected.connect(self.reject)
@@ -299,9 +305,6 @@ class JsonSettingDialog(QDialog):
         except AttributeError:
             title = "配置对话框"
 
-        if data:
-            self.ui_widget.setData(data)
-
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
 
@@ -310,6 +313,17 @@ class JsonSettingDialog(QDialog):
             return None
 
         return self.ui_widget.getData()
+
+    @classmethod
+    def getData(cls, settings, data=None, parent=None):
+        dialog = cls(settings, data, parent)
+        dialog.exec_()
+        return dialog.getJsonData()
+
+
+class JsonSettingDialog(BasicJsonSettingDialog):
+    def __init__(self, settings, data=None, parent=None):
+        super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, parent)
 
     def getJsonSettings(self):
         if not self.result():
@@ -318,94 +332,32 @@ class JsonSettingDialog(QDialog):
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getData(cls, settings, data=None, parent=None):
-        dialog = cls(settings, data, parent)
-        dialog.exec_()
-        return dialog.getJsonData()
-
-    @classmethod
     def getSettings(cls, settings, data=None, parent=None):
         dialog = cls(settings, data, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
 
 
-class MultiJsonSettingsDialog(QDialog):
+class MultiJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data, parent=None):
-        super(MultiJsonSettingsDialog, self).__init__(parent)
+        super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget, settings, data, parent)
 
-        layout = QVBoxLayout()
-        self.ui_widget = MultiJsonSettingsWidget(settings, data, parent)
-        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.ui_buttons.accepted.connect(self.accept)
-        self.ui_buttons.rejected.connect(self.reject)
-        self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
 
-        layout.addWidget(self.ui_widget)
-        layout.addWidget(QSplitter())
-        layout.addWidget(self.ui_buttons)
+class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
+    def __init__(self, settings, data, parent=None):
+        super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget, settings, data, parent)
 
-        try:
-            title = settings.layout.get_name()
-        except AttributeError:
-            title = "配置对话框"
-
-        if data:
-            self.ui_widget.setData(data)
-
-        self.setLayout(layout)
-        self.setWindowTitle(self.tr(title))
-
-    def getJsonData(self):
+    def getJsonSettings(self):
         if not self.result():
             return None
 
-        return self.ui_widget.getData()
+        return self.ui_widget.getSettings()
 
     @classmethod
-    def getData(cls, settings, data=None, parent=None):
+    def getSettings(cls, settings, data=None, parent=None):
         dialog = cls(settings, data, parent)
         dialog.exec_()
-        return dialog.getJsonData()
-
-
-class MultiTabJsonSettingsDialog(QDialog):
-    def __init__(self, settings, data, parent=None):
-        super(MultiTabJsonSettingsDialog, self).__init__(parent)
-
-        layout = QVBoxLayout()
-        self.ui_widget = MultiTabJsonSettingsWidget(settings, data, parent)
-        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.ui_buttons.accepted.connect(self.accept)
-        self.ui_buttons.rejected.connect(self.reject)
-        self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
-
-        layout.addWidget(self.ui_widget)
-        layout.addWidget(QSplitter())
-        layout.addWidget(self.ui_buttons)
-
-        try:
-            title = settings.tabs.name
-        except AttributeError:
-            title = "配置对话框"
-
-        if data:
-            self.ui_widget.setData(data)
-
-        self.setLayout(layout)
-        self.setWindowTitle(self.tr(title))
-
-    def getJsonData(self):
-        if not self.result():
-            return None
-
-        return self.ui_widget.getData()
-
-    @classmethod
-    def getData(cls, settings, data=None, parent=None):
-        dialog = cls(settings, data, parent)
-        dialog.exec_()
-        return dialog.getJsonData()
+        return dialog.getJsonSettings()
 
 
 def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):

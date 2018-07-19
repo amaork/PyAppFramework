@@ -363,7 +363,7 @@ class JsonSettingWidgetTest(QWidget):
 
     def slotShowData(self):
         if self.sender() == self.ui_button:
-            self.ui_data.setText("{}".format(self.widget.getSettings()))
+            self.ui_data.setText("{}".format(self.widget.getData()))
         else:
             self.ui_data.setText("{}".format(self.widget.getData()))
 

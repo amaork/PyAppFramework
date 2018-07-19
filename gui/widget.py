@@ -29,7 +29,7 @@ from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectD
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
-           'JsonSettingWidget', 'MultiJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
+           'JsonSettingWidget', 'MultiJsonSettingsWidget', 'MultiTabJsonSettingsWidget', 'BasicJsonSettingWidget']
 
 
 class PaintWidget(QWidget):
@@ -1766,41 +1766,59 @@ class SerialPortSettingWidget(QWidget):
         return settings
 
 
-class JsonSettingWidget(QWidget):
+class BasicJsonSettingWidget(QWidget):
     settingChanged = Signal()
 
     def __init__(self, settings, parent=None):
-        super(JsonSettingWidget, self).__init__(parent)
+        super(BasicJsonSettingWidget, self).__init__(parent)
 
         if not isinstance(settings, DynamicObject):
             raise TypeError("settings require {!r}".format(DynamicObject.__name__))
 
         try:
+            layout = settings.layout
             self.settings = settings.dict
             self.settings_cls = settings.__class__
-
-            # Layout check
-            layout = settings.layout if isinstance(settings.layout, UiLayout) else UiLayout(**settings.layout)
-            if not layout.check_layout(self.settings):
+            self.layout = layout if isinstance(layout, UiLayout) else UiLayout(**layout)
+            if not self.layout.check_layout(self.settings):
                 raise ValueError("layout error")
-
-            self.layout = layout.get_grid_layout(self.settings)
         except AttributeError:
             raise ValueError("Do not found layout settings")
         except (json.JSONDecodeError, DynamicObjectDecodeError):
             raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
-        self.__initUi(settings.dict)
+    def getData(self):
+        pass
+
+    def setData(self, data):
+        pass
+
+    def resetDefaultData(self):
+        pass
+
+    def slotSettingChanged(self):
+        pass
+
+
+class JsonSettingWidget(BasicJsonSettingWidget):
+    def __init__(self, settings, data=None, parent=None):
+        super(JsonSettingWidget, self).__init__(settings, parent)
+
+        # Convert layout to grid layout
+        self.layout = self.layout.get_grid_layout(self.settings)
+
+        self.__initUi()
+        self.__initData(data)
         self.__initSignalAndSlots()
 
-    def __initUi(self, settings):
+    def __initUi(self):
         row = 0
         layout = QGridLayout()
         for items in self.layout:
             column = 0
             for item in items:
                 try:
-                    dict_ = settings.get(item)
+                    dict_ = self.settings.get(item)
                     ui_input = UiInputSetting(**dict_)
                     widget = self.createInputWidget(ui_input, item)
                     if isinstance(widget, QWidget):
@@ -1833,6 +1851,9 @@ class JsonSettingWidget(QWidget):
         self.setLayout(layout)
         self.ui_manager = ComponentManager(layout)
         self.ui_manager.dataChanged.connect(self.slotSettingChanged)
+
+    def __initData(self, data):
+        self.setData(data)
 
     def __initSignalAndSlots(self):
         for button in self.ui_manager.findValue("clicked", "file", QPushButton):
@@ -1948,29 +1969,15 @@ class JsonSettingWidget(QWidget):
         return widget
 
 
-class MultiJsonSettingsWidget(QWidget):
-    settingChanged = Signal()
-
+class MultiJsonSettingsWidget(BasicJsonSettingWidget):
     def __init__(self, settings, data, parent=None):
-        super(MultiJsonSettingsWidget, self).__init__(parent)
-
-        if not isinstance(settings, DynamicObject):
-            raise TypeError("settings require {!r}".format(DynamicObject.__name__))
+        super(MultiJsonSettingsWidget, self).__init__(settings, parent)
 
         if not isinstance(data, (list, tuple)):
             raise TypeError("data require a list or tuple not {!r}".format(data.__class__.__name__))
 
-        try:
-            self.frozen_columns = list()
-            self.settings = settings.dict
-            layout = settings.layout if isinstance(settings.layout, UiLayout) else UiLayout(**settings.layout)
-            if not layout.check_layout(self.settings):
-                raise TypeError("layout error")
-            self.layout = layout.get_vertical_layout(self.settings)
-        except AttributeError:
-            raise ValueError("Do not found layout settings")
-        except (json.JSONDecodeError, DynamicObjectDecodeError):
-            raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
+        self.frozen_columns = list()
+        self.layout = self.layout.get_vertical_layout(self.settings)
 
         self.__initUi()
         self.__initData(data)
@@ -2072,6 +2079,8 @@ class MultiJsonSettingsWidget(QWidget):
 
 
 class MultiTabJsonSettingsWidget(QTabWidget):
+    settingChanged = Signal()
+
     def __init__(self, settings, data, parent=None):
         super(MultiTabJsonSettingsWidget, self).__init__(parent)
 
@@ -2083,10 +2092,11 @@ class MultiTabJsonSettingsWidget(QTabWidget):
             raise TypeError("data require {!r} not {!r}".format(dict.__name__, data.__class__.__name__))
 
         try:
-            tabs = settings.tabs
+            layout = settings.layout
             self.settings = settings.dict
-            self.tabs = tabs if isinstance(tabs, UiLayout) else UiLayout(**tabs)
-            if not self.tabs.check_layout(self.settings):
+            self.settings_cls = settings.__class__
+            self.layout = layout if isinstance(layout, UiLayout) else UiLayout(**layout)
+            if not self.layout.check_layout(self.settings):
                 raise ValueError("tabs layout error!")
         except AttributeError:
             raise ValueError("Do not found tabs settings")
@@ -2095,9 +2105,13 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
         # Widget list for set/get data using
         self.widget_list = list()
+        self.__initUi()
+        self.__initData(data)
+        self.__initSignalAndSlots()
 
+    def __initUi(self):
         # Init tabs and group
-        for tab in self.tabs.get_layout():
+        for tab in self.layout.get_layout():
             try:
                 tab_widget = QWidget()
                 tab_layout = QVBoxLayout()
@@ -2133,6 +2147,12 @@ class MultiTabJsonSettingsWidget(QTabWidget):
             except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                 print("{}".format(err))
 
+    def __initData(self, data):
+        self.setData(data)
+
+    def __initSignalAndSlots(self):
+        [widget.settingChanged.connect(self.slotSettingChanged) for widget in self.widget_list]
+
     def getData(self):
         data = dict()
         [data.update(widget.getData()) for widget in self.widget_list]
@@ -2141,8 +2161,18 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     def setData(self, data):
         return set([widget.setData(data) for widget in self.widget_list]) == {True}
 
+    def getSettings(self):
+        data = self.getData()
+        settings = self.settings
+        for k, v in data.items():
+            settings[k]["data"] = v
+        return self.settings_cls(**settings)
+
     def resetDefaultData(self):
         [widget.resetDefaultData() for widget in self.widget_list]
+
+    def slotSettingChanged(self):
+        self.settingChanged.emit()
 
 
 class LogMessageWidget(QTextEdit):
