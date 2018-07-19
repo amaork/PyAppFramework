@@ -2071,6 +2071,80 @@ class MultiJsonSettingsWidget(QWidget):
                 sender.setStyleSheet("color: rgb(255, 0, 0);")
 
 
+class MultiTabJsonSettingsWidget(QTabWidget):
+    def __init__(self, settings, data, parent=None):
+        super(MultiTabJsonSettingsWidget, self).__init__(parent)
+
+        if not isinstance(settings, DynamicObject):
+            raise TypeError("settings require {!r} not {!r}".format(
+                DynamicObject.__name__, settings.__class__.__name__))
+
+        if not isinstance(data, dict):
+            raise TypeError("data require {!r} not {!r}".format(dict.__name__, data.__class__.__name__))
+
+        try:
+            tabs = settings.tabs
+            self.settings = settings.dict
+            self.tabs = tabs if isinstance(tabs, UiLayout) else UiLayout(**tabs)
+            if not self.tabs.check_layout(self.settings):
+                raise ValueError("tabs layout error!")
+        except AttributeError:
+            raise ValueError("Do not found tabs settings")
+        except (json.JSONDecodeError, DynamicObjectDecodeError):
+            raise TypeError("settings.tabs must be {!r}".format(UiLayout.__name__))
+
+        # Widget list for set/get data using
+        self.widget_list = list()
+
+        # Init tabs and group
+        for tab in self.tabs.get_layout():
+            try:
+                tab_widget = QWidget()
+                tab_layout = QVBoxLayout()
+                tab_setting = self.settings.get(tab)
+                tab_setting = tab_setting if isinstance(tab_setting, UiLayout) else UiLayout(**tab_setting)
+                if not tab_setting.check_layout(self.settings):
+                    continue
+
+                for group in tab_setting.get_layout():
+                    group_setting = self.settings.get(group)
+                    group_setting = group_setting if isinstance(group_setting, UiLayout) else UiLayout(**group_setting)
+                    if not group_setting.check_layout(self.settings):
+                        continue
+
+                    box = QGroupBox()
+                    layout = QVBoxLayout()
+                    box.setTitle(group_setting.get_name())
+                    settings = {"layout": group_setting}
+                    for item_name in group_setting.get_layout():
+                        settings[item_name] = self.settings.get(item_name)
+                    widget = JsonSettingWidget(DynamicObject(**settings))
+                    widget.setProperty("name", group_setting.get_name())
+                    layout.addWidget(widget)
+                    box.setLayout(layout)
+                    tab_layout.addWidget(box)
+                    self.widget_list.append(widget)
+
+                tab_widget.setLayout(tab_layout)
+                if tab_layout.count() >= 2:
+                    self.insertTab(self.count(), tab_widget, tab_setting.name)
+                else:
+                    self.insertTab(self.count(), widget, tab_setting.name)
+            except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                print("{}".format(err))
+
+    def getData(self):
+        data = dict()
+        [data.update(widget.getData()) for widget in self.widget_list]
+        return data
+
+    def setData(self, data):
+        return set([widget.setData(data) for widget in self.widget_list]) == {True}
+
+    def resetDefaultData(self):
+        [widget.resetDefaultData() for widget in self.widget_list]
+
+
 class LogMessageWidget(QTextEdit):
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 

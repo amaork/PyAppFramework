@@ -369,6 +369,45 @@ class MultiJsonSettingsDialog(QDialog):
         return dialog.getJsonData()
 
 
+class MultiTabJsonSettingsDialog(QDialog):
+    def __init__(self, settings, data, parent=None):
+        super(MultiTabJsonSettingsDialog, self).__init__(parent)
+
+        layout = QVBoxLayout()
+        self.ui_widget = MultiTabJsonSettingsWidget(settings, data, parent)
+        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.ui_buttons.accepted.connect(self.accept)
+        self.ui_buttons.rejected.connect(self.reject)
+        self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
+
+        layout.addWidget(self.ui_widget)
+        layout.addWidget(QSplitter())
+        layout.addWidget(self.ui_buttons)
+
+        try:
+            title = settings.tabs.name
+        except AttributeError:
+            title = "配置对话框"
+
+        if data:
+            self.ui_widget.setData(data)
+
+        self.setLayout(layout)
+        self.setWindowTitle(self.tr(title))
+
+    def getJsonData(self):
+        if not self.result():
+            return None
+
+        return self.ui_widget.getData()
+
+    @classmethod
+    def getData(cls, settings, data=None, parent=None):
+        dialog = cls(settings, data, parent)
+        dialog.exec_()
+        return dialog.getJsonData()
+
+
 def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):
     path, ret = QFileDialog.getSaveFileName(parent, parent.tr(title), name, parent.tr(fmt))
     if not ret or len(path) == 0:
