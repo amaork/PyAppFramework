@@ -8,7 +8,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
-           'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsWidget',
+           'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
 

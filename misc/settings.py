@@ -3,10 +3,10 @@ import os
 import json
 import codecs
 import logging
-from ..core.datatype import DynamicObject, DynamicObjectDecodeError
+from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiLogMessage',
-           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput',
-           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput', 'UiSerialInput', 'UiLayout']
+           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiFontInput',
+           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput', 'UiSerialInput', 'UiLayout', 'UiColorInput']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -66,6 +66,8 @@ class UiInputSetting(DynamicObject):
         "FLOAT": (float, (list, tuple)),
         "TEXT": (str, (list, tuple)),
         "FILE": (str, (list, tuple)),
+        "FONT": (str, str),
+        "COLOR": (str, str),
         "SELECT": (str, (list, tuple)),
         "SERIAL": (str, str),
     }
@@ -137,8 +139,14 @@ class UiInputSetting(DynamicObject):
     def is_file_type(self):
         return self.type == "FILE"
 
+    def is_font_type(self):
+        return self.type == "FONT"
+
     def is_float_type(self):
         return self.type == "FLOAT"
+
+    def is_color_type(self):
+        return self.type == "COLOR"
 
     def is_select_type(self):
         return self.type == "SELECT"
@@ -148,13 +156,8 @@ class UiInputSetting(DynamicObject):
 
     @staticmethod
     def getDemoSettings(d2=False):
-
-        class JsonDemoSettings(DynamicObject):
-            _properties = {'layout', 'int', 'float', 'bool', 'text', 'select', 'serial'}
-
-            def __init__(self, **kwargs):
-                super(JsonDemoSettings, self).__init__(**kwargs)
-
+        font_input = UiFontInput(name="字体")
+        color_input = UiColorInput(name="颜色", r=255, g=255, b=255)
         int_input = UiInputSetting(name="数字", type="INT", data=10,
                                    check=UiInputSetting.INT_TYPE_CHECK_DEMO, default=50)
         text_input = UiInputSetting(name="文本", type="TEXT", data="192.168.1.1",
@@ -171,13 +174,20 @@ class UiInputSetting(DynamicObject):
 
         if d2:
             layout = UiLayout(name="Json Demo 设置（Gird）",
-                              layout=[["int", "float"], ["bool"], ["text", "select"], ["file", "serial"]])
+                              layout=[
+                                  ["int", "float"],
+                                  ["bool"],
+                                  ["text", "select"],
+                                  ["file", "serial"],
+                                  ["font", "color"],
+                              ])
         else:
             layout = UiLayout(name="Json Demo 设置 （VBox）",
-                              layout=["int", "float", "bool", "text", "select", "file", "serial"])
-        return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict,
-                                text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
-                                float=float_input.dict, select=select_input.dict, layout=layout.dict)
+                              layout=["int", "float", "bool", "text", "select", "file", "serial", "font", "color"])
+        return DynamicObject(int=int_input.dict, bool=bool_input.dict,
+                             font=font_input.dict, color=color_input.dict,
+                             text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
+                             float=float_input.dict, select=select_input.dict, layout=layout.dict)
 
 
 class UiFileInput(UiInputSetting):
@@ -185,10 +195,53 @@ class UiFileInput(UiInputSetting):
         super(UiFileInput, self).__init__(name=name, data="", default="", check=fmt, readonly=False, type="FILE")
 
 
+class UiFontInput(UiInputSetting):
+    def __init__(self, name, font_name="宋体", point_size=9, weight=50):
+        font = font_name, point_size, weight
+        super(UiFontInput, self).__init__(name=name, data="{}".format(font), default="{}".format(font),
+                                          check="", readonly=False, type="FONT")
+
+    @staticmethod
+    def get_font(font_setting):
+        try:
+            font_setting = font_setting[1:-1].split(", ")
+            return font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2])
+        except (TypeError, IndexError, ValueError):
+            return "宋体", 9, 50
+
+    @staticmethod
+    def get_stylesheet(font_setting):
+        font_name, point_size, _ = UiFontInput.get_font(font_setting)
+        return 'font: {}pt "{}";'.format(point_size, font_name)
+
+
 class UiTextInput(UiInputSetting):
     def __init__(self, name, length, default="", re_="", readonly=False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length), readonly=readonly, type="TEXT")
+
+
+class UiColorInput(UiInputSetting):
+    def __init__(self, name, r, g, b):
+        color = r, g, b
+        super(UiColorInput, self).__init__(name=name, data="{}".format(color), default="{}".format(color),
+                                           check="", readonly=False, type="COLOR")
+
+    @staticmethod
+    def get_color(color_setting):
+        try:
+            color_setting = color_setting[1:-1].split(", ")
+            return str2number(color_setting[0]), str2number(color_setting[1]), str2number(color_setting[2])
+        except (TypeError, IndexError, ValueError):
+            return 255, 255, 255
+
+    @staticmethod
+    def get_color_stylesheet(color_setting):
+        return "color: rgb{}; border: none;".format(color_setting)
+
+    @staticmethod
+    def get_bg_color_stylesheet(color_setting):
+        return "background-color: rgb{}; border: none;".format(color_setting)
 
 
 class UiDoubleInput(UiInputSetting):

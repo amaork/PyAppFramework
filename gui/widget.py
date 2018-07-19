@@ -23,8 +23,8 @@ from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
-from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
+from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
@@ -1860,6 +1860,20 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             if isinstance(button, QPushButton):
                 button.clicked.connect(self.slotSelectFile)
 
+        for button in self.ui_manager.findValue("clicked", "font", QPushButton):
+            if isinstance(button, QPushButton):
+                button.clicked.connect(self.slotSelectFont)
+                preview = self.ui_manager.getPrevSibling(button)
+                if isinstance(preview, QLineEdit):
+                    preview.textChanged.connect(self.slotPreviewFont)
+
+        for button in self.ui_manager.findValue("clicked", "color", QPushButton):
+            if isinstance(button, QPushButton):
+                button.clicked.connect(self.slotSelectColor)
+                preview = self.ui_manager.getPrevSibling(button)
+                if isinstance(preview, QLineEdit):
+                    preview.textChanged.connect(self.slotPreviewColor)
+
     def getSettings(self):
         data = self.getData()
         settings = self.settings
@@ -1889,6 +1903,50 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         path_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(path_edit, QLineEdit):
             path_edit.setText(path)
+
+    def slotSelectFont(self):
+        sender = self.sender()
+        if not isinstance(sender, QPushButton):
+            return
+        font_name, point_size, weight = UiFontInput.get_font(sender.property("private"))
+        font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self)
+        if not selected or not isinstance(font, QFont):
+            return
+
+        font_edit = self.ui_manager.getPrevSibling(sender)
+        if isinstance(font_edit, QLineEdit):
+            font_setting = font.rawName(), font.pointSize(), font.weight()
+            sender.setProperty("private", "{}".format(font_setting))
+            font_edit.setText("{}".format(font_setting))
+
+    def slotPreviewFont(self):
+        sender = self.sender()
+        if not isinstance(sender, QLineEdit):
+            return
+
+        font_setting = sender.text()
+        sender.setStyleSheet(UiFontInput.get_stylesheet(font_setting))
+
+    def slotSelectColor(self):
+        sender = self.sender()
+        r, g, b = UiColorInput.get_color(sender.property("private"))
+        color = QColorDialog.getColor(QColor(r, g, b), self)
+        if not isinstance(color, QColor):
+            return
+
+        color_edit = self.ui_manager.getPrevSibling(sender)
+        if isinstance(color_edit, QLineEdit):
+            rgb = color.red(), color.green(), color.blue()
+            sender.setProperty("private", "{}".format(rgb))
+            color_edit.setText("{}".format(rgb))
+
+    def slotPreviewColor(self):
+        sender = self.sender()
+        if not isinstance(sender, QLineEdit):
+            return
+
+        color = sender.text()
+        sender.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
 
     def slotSettingChanged(self):
         self.settingChanged.emit()
@@ -1951,6 +2009,33 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 button = QPushButton("请选择文件")
                 button.setProperty("clicked", "file")
                 button.setProperty("private", setting.get_check())
+                layout = QHBoxLayout()
+                layout.addWidget(widget)
+                layout.addWidget(button)
+                return layout
+            elif setting.is_font_type():
+                widget = QLineEdit()
+                widget.setReadOnly(True)
+                widget.setProperty("data", name)
+                widget.setText(setting.get_data())
+                widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
+                button = QPushButton("请选择字体")
+                button.setProperty("clicked", "font")
+                button.setProperty("private", setting.get_data())
+                layout = QHBoxLayout()
+                layout.addWidget(widget)
+                layout.addWidget(button)
+                return layout
+            elif setting.is_color_type():
+                widget = QLineEdit()
+                widget.setReadOnly(True)
+                widget.setProperty("data", name)
+                widget.setText("{}".format(setting.get_data()))
+                widget.setStyleSheet(UiColorInput.get_bg_color_stylesheet(setting.get_data()))
+                widget.setStyleSheet(UiColorInput.get_color_stylesheet(setting.get_data()))
+                button = QPushButton("请选择颜色")
+                button.setProperty("clicked", "color")
+                button.setProperty("private", setting.get_data())
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
                 layout.addWidget(button)
@@ -2173,6 +2258,13 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
     def slotSettingChanged(self):
         self.settingChanged.emit()
+
+    def getWidgetManager(self, name):
+        for widget in self.widget_list:
+            if widget.property("name") == name:
+                return widget.ui_manager
+
+        return None
 
 
 class LogMessageWidget(QTextEdit):
