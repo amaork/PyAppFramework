@@ -6,7 +6,7 @@ import logging
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiLogMessage',
            'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput',
-           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput']
+           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput', 'UiSerialInput', 'UiLayout']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -70,7 +70,7 @@ class UiInputSetting(DynamicObject):
         "SERIAL": (str, str),
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]
-    _properties = {'name', 'data', 'type', 'check', 'default', 'readonly'}
+    _properties = {'name', 'data', 'type', 'check', 'default', 'readonly', 'label_left'}
 
     # Min, max, step
     INT_TYPE_CHECK_DEMO = (1, 100, 1)
@@ -84,6 +84,7 @@ class UiInputSetting(DynamicObject):
 
     def __init__(self, **kwargs):
         kwargs.setdefault('readonly', False)
+        kwargs.setdefault('label_left', True)
         super(UiInputSetting, self).__init__(**kwargs)
 
         # Check name
@@ -169,18 +170,19 @@ class UiInputSetting(DynamicObject):
         serial_input = UiSerialInput(name="串口", port="COM1")
 
         if d2:
-            layout = [["int", "float"], ["bool"], ["text", "select"], ["file"], ["serial"]]
+            layout = UiLayout(name="Json Demo 设置（Gird）",
+                              layout=[["int", "float"], ["bool"], ["text", "select"], ["file", "serial"]])
         else:
-            layout = ["int", "float", "bool", "text", "select", "file", "serial"]
+            layout = UiLayout(name="Json Demo 设置 （VBox）",
+                              layout=["int", "float", "bool", "text", "select", "file", "serial"])
         return JsonDemoSettings(int=int_input.dict, bool=bool_input.dict,
                                 text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
-                                float=float_input.dict, select=select_input.dict, layout=layout)
+                                float=float_input.dict, select=select_input.dict, layout=layout.dict)
 
 
 class UiFileInput(UiInputSetting):
     def __init__(self, name, fmt):
-        super(UiInputSetting, self).__init__(name=name, data="", default="",
-                                             check=fmt, readonly=False, type="FILE")
+        super(UiFileInput, self).__init__(name=name, data="", default="", check=fmt, readonly=False, type="FILE")
 
 
 class UiTextInput(UiInputSetting):
@@ -214,9 +216,54 @@ class UiSerialInput(UiInputSetting):
 
 
 class UiCheckBoxInput(UiInputSetting):
-    def __init__(self, name, default=False, readonly=False):
-        super(UiCheckBoxInput, self).__init__(name=name, data=default, default=default,
+    def __init__(self, name, default=False, readonly=False, label_left=False):
+        super(UiCheckBoxInput, self).__init__(name=name, data=default, default=default, label_left=label_left,
                                               check=(True, False), readonly=readonly, type="BOOL")
+
+
+class UiLayout(DynamicObject):
+    _properties = {'name', 'layout'}
+
+    def __init__(self, **kwargs):
+        super(UiLayout, self).__init__(**kwargs)
+
+        if not isinstance(self.name, str):
+            raise TypeError("name must be a 'str'")
+
+        if not isinstance(self.layout, (list, tuple)):
+            raise TypeError("layout must be a tuple or list")
+
+    def get_name(self):
+        return self.name
+
+    def get_layout(self):
+        return self.layout
+
+    def check_layout(self, settings):
+        return self.is_vertical_layout(self.get_layout(), settings) or self.is_grid_layout(self.get_layout(), settings)
+
+    def get_grid_layout(self, settings):
+        if self.is_grid_layout(self.get_layout(), settings):
+            return self.get_layout()
+        else:
+            return [[x] for x in self.get_layout()]
+
+    def get_vertical_layout(self, settings):
+        if self.is_vertical_layout(self.get_layout(), settings):
+            return self.get_layout()
+        else:
+            layout = list()
+            [layout.extend(a) for a in self.get_layout()]
+            return layout
+
+    @staticmethod
+    def is_grid_layout(layout, settings):
+        return set([isinstance(x, (list, tuple)) and UiLayout.is_vertical_layout(x, settings)
+                    for x in layout]) == {True}
+
+    @staticmethod
+    def is_vertical_layout(layout, settings):
+        return set([isinstance(x, str) and settings.get(x) is not None for x in layout]) == {True}
 
 
 class UiLogMessage(DynamicObject):

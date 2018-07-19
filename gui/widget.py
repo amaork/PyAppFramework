@@ -23,13 +23,13 @@ from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
-from ..misc.settings import UiInputSetting, UiLogMessage
+from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
-           'JsonSettingWidget', 'MultiJsonSettingsWidget']
+           'JsonSettingWidget', 'MultiJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
 
 class PaintWidget(QWidget):
@@ -1776,23 +1776,19 @@ class JsonSettingWidget(QWidget):
             raise TypeError("settings require {!r}".format(DynamicObject.__name__))
 
         try:
-            self.layout = settings.layout
             self.settings = settings.dict
             self.settings_cls = settings.__class__
+
+            # Layout check
+            layout = settings.layout if isinstance(settings.layout, UiLayout) else UiLayout(**settings.layout)
+            if not layout.check_layout(self.settings):
+                raise ValueError("layout error")
+
+            self.layout = layout.get_grid_layout(self.settings)
         except AttributeError:
             raise ValueError("Do not found layout settings")
-
-        # Check layout type
-        if not isinstance(self.layout, (list, tuple)):
-            raise TypeError("'settings.layout must be a list or tuple'")
-
-        is_str = [isinstance(x, str) for x in self.layout].count(True) == len(self.layout)
-        is_grid = [isinstance(x, (list, tuple)) for x in self.layout].count(True) == len(self.layout)
-
-        if not is_str and not is_grid:
-            raise ValueError("'settings.layout' must be a list or two-dimension array with str")
-
-        self.layout = [[x] for x in self.layout] if is_str else self.layout
+        except (json.JSONDecodeError, DynamicObjectDecodeError):
+            raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
         self.__initUi(settings.dict)
         self.__initSignalAndSlots()
@@ -1809,10 +1805,17 @@ class JsonSettingWidget(QWidget):
                     widget = self.createInputWidget(ui_input, item)
                     if isinstance(widget, QWidget):
                         # Add label and widget
-                        layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
-                        column += 1
-                        layout.addWidget(widget, row, column)
-                        column += 1
+                        if ui_input.label_left:
+                            layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                            column += 1
+                            layout.addWidget(widget, row, column)
+                            column += 1
+                        else:
+                            widget.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding))
+                            layout.addWidget(widget, row, column)
+                            column += 1
+                            layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                            column += 1
 
                         # QLine edit special process re check
                         if isinstance(widget, QLineEdit):
@@ -1959,26 +1962,15 @@ class MultiJsonSettingsWidget(QWidget):
 
         try:
             self.frozen_columns = list()
-            self.layout = settings.layout
             self.settings = settings.dict
+            layout = settings.layout if isinstance(settings.layout, UiLayout) else UiLayout(**settings.layout)
+            if not layout.check_layout(self.settings):
+                raise TypeError("layout error")
+            self.layout = layout.get_vertical_layout(self.settings)
         except AttributeError:
             raise ValueError("Do not found layout settings")
-
-        # Check layout type
-        if not isinstance(self.layout, (list, tuple)):
-            raise TypeError("'settings.layout must be a list or tuple'")
-
-        is_str = [isinstance(x, str) for x in self.layout].count(True) == len(self.layout)
-        is_grid = [isinstance(x, (list, tuple)) for x in self.layout].count(True) == len(self.layout)
-
-        if not is_str and not is_grid:
-            raise ValueError("'settings.layout' must be a list or two-dimension array with str")
-
-        if is_grid:
-            layout = list()
-            for a in self.layout:
-                layout.extend(a)
-            self.layout = layout
+        except (json.JSONDecodeError, DynamicObjectDecodeError):
+            raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
         self.__initUi()
         self.__initData(data)

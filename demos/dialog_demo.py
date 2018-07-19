@@ -78,7 +78,7 @@ class ColorDialogTest(QWidget):
         self.ui_serial_settings.setText("{}".format(SerialPortSettingDialog.getSetting(self)))
 
     def __slotGetJsonSettings(self):
-        self.ui_json_settings.setText("{}".format(JsonSettingDialog.getSettings(UiInputSetting.getDemoSettings(True))))
+        self.ui_json_settings.setText("{}".format(JsonSettingDialog.getData(UiInputSetting.getDemoSettings(True))))
 
     def __slotSelectDiffColor(self):
         color = SimpleColorDialog.getColor(self)

@@ -381,7 +381,8 @@ class MultiJsonSetting(JsonSettings):
             float=UiDoubleInput("浮点型数据", 3.3, 24.0, step=0.5),
             select=UiSelectInput("选择型数据", ["A", "B", "C"], "A"),
             readonly_text=UiTextInput("只读文本型数据", 16, "ABCD", readonly=True),
-            layout=['bool', 'text', 'int', 'float', 'select', 'readonly_text', 'file']
+            layout=UiLayout(name="多项 Json 设置",
+                            layout=['bool', 'text', 'int', 'float', 'select', 'readonly_text', 'file'])
         )
 
 

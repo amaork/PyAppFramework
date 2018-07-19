@@ -3,11 +3,11 @@ import os
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
-from .widget import SerialPortSettingWidget, JsonSettingWidget, MultiJsonSettingsWidget
+from .widget import SerialPortSettingWidget, JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
-           'JsonSettingDialog', 'MultiJsonSettingsDialog',
+           'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsWidget',
            'showFileImportDialog', 'showFileExportDialog']
 
 
@@ -295,7 +295,7 @@ class JsonSettingDialog(QDialog):
         layout.addWidget(self.ui_buttons)
 
         try:
-            title = settings.title
+            title = settings.layout.get_name()
         except AttributeError:
             title = "配置对话框"
 
@@ -346,7 +346,7 @@ class MultiJsonSettingsDialog(QDialog):
         layout.addWidget(self.ui_buttons)
 
         try:
-            title = settings.title
+            title = settings.layout.get_name()
         except AttributeError:
             title = "配置对话框"
 
