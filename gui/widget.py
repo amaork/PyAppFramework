@@ -1885,6 +1885,14 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         return self.ui_manager.getData("data")
 
     def setData(self, data):
+        font_inputs = self.ui_manager.findValue("clicked", "font", QPushButton)
+        color_inputs = self.ui_manager.findValue("clicked", "color", QPushButton)
+        for button in font_inputs + color_inputs:
+            if isinstance(button, QPushButton):
+                preview = self.ui_manager.getPrevSibling(button)
+                if isinstance(preview, QLineEdit) and data:
+                    button.setProperty("private", "{}".format(data.get(preview.property("data"))))
+
         return self.ui_manager.setData("data", data)
 
     def resetDefaultData(self):
@@ -2027,12 +2035,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 layout.addWidget(button)
                 return layout
             elif setting.is_color_type():
+                color = setting.get_data()
                 widget = QLineEdit()
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText("{}".format(setting.get_data()))
-                widget.setStyleSheet(UiColorInput.get_bg_color_stylesheet(setting.get_data()))
-                widget.setStyleSheet(UiColorInput.get_color_stylesheet(setting.get_data()))
+                widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
                 button = QPushButton("请选择颜色")
                 button.setProperty("clicked", "color")
                 button.setProperty("private", setting.get_data())

@@ -206,6 +206,9 @@ class UiFontInput(UiInputSetting):
         try:
             font_setting = font_setting[1:-1].split(", ")
             return font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2])
+        except AttributeError:
+            if isinstance(font_setting, (list, tuple)):
+                return font_setting
         except (TypeError, IndexError, ValueError):
             return "宋体", 9, 50
 
