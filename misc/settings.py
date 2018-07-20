@@ -203,19 +203,22 @@ class UiFontInput(UiInputSetting):
 
     @staticmethod
     def get_font(font_setting):
+        default_font = "宋体", 9, 50
         try:
             font_setting = font_setting[1:-1].split(", ")
             return font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2])
         except AttributeError:
-            if isinstance(font_setting, (list, tuple)):
-                return font_setting
+            return tuple(font_setting) if isinstance(font_setting, (list, tuple)) else default_font
         except (TypeError, IndexError, ValueError):
-            return "宋体", 9, 50
+            return default_font
 
     @staticmethod
     def get_stylesheet(font_setting):
-        font_name, point_size, _ = UiFontInput.get_font(font_setting)
-        return 'font: {}pt "{}";'.format(point_size, font_name)
+        try:
+            font_name, point_size, _ = UiFontInput.get_font(font_setting)
+            return 'font: {}pt "{}";'.format(point_size, font_name)
+        except (IndexError, TypeError, ValueError):
+            return ""
 
 
 class UiTextInput(UiInputSetting):
@@ -232,19 +235,36 @@ class UiColorInput(UiInputSetting):
 
     @staticmethod
     def get_color(color_setting):
+        default_color = 255, 255, 255
         try:
             color_setting = color_setting[1:-1].split(", ")
             return str2number(color_setting[0]), str2number(color_setting[1]), str2number(color_setting[2])
+        except AttributeError:
+            return color_setting if isinstance(color_setting, (list, tuple)) else default_color
         except (TypeError, IndexError, ValueError):
-            return 255, 255, 255
+            return default_color
 
     @staticmethod
     def get_color_stylesheet(color_setting):
-        return "color: rgb{}; border: none;".format(color_setting)
+        try:
+            color_setting = UiColorInput.get_color(color_setting)
+            r = color_setting[0]
+            g = color_setting[1]
+            b = color_setting[2]
+            return "color: rgb({}, {}, {}); border: none;".format(r, g, b)
+        except (IndexError, TypeError):
+            return ""
 
     @staticmethod
     def get_bg_color_stylesheet(color_setting):
-        return "background-color: rgb{}; border: none;".format(color_setting)
+        try:
+            color_setting = UiColorInput.get_color(color_setting)
+            r = color_setting[0]
+            g = color_setting[1]
+            b = color_setting[2]
+            return "background-color: rgb({}, {}, {}); border: none;".format(r, g, b)
+        except (TypeError, IndexError):
+            return ""
 
 
 class UiDoubleInput(UiInputSetting):
