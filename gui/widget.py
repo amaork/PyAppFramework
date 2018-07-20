@@ -1904,7 +1904,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
     def slotSelectFile(self):
         sender = self.sender()
         file_format = " ".join(sender.property("private") or list())
-        path, ret = QFileDialog.getOpenFileName(self, self.tr("请选择文件"), "", self.tr(file_format))
+        title = self.tr("请选择{}".format(sender.property("title")))
+        path, ret = QFileDialog.getOpenFileName(self, title, "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
             return
 
@@ -1916,8 +1917,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         sender = self.sender()
         if not isinstance(sender, QPushButton):
             return
+        title = self.tr("请选择{}".format(sender.property("title")))
         font_name, point_size, weight = UiFontInput.get_font(sender.property("private"))
-        font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self)
+        font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self, title)
         if not selected or not isinstance(font, QFont):
             return
 
@@ -1937,8 +1939,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
     def slotSelectColor(self):
         sender = self.sender()
+        title = self.tr("请选择{}".format(sender.property("title")))
         r, g, b = UiColorInput.get_color(sender.property("private"))
-        color = QColorDialog.getColor(QColor(r, g, b), self)
+        color = QColorDialog.getColor(QColor(r, g, b), self, title)
         if not isinstance(color, QColor):
             return
 
@@ -2016,6 +2019,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setText(setting.get_data())
                 button = QPushButton("请选择文件")
                 button.setProperty("clicked", "file")
+                button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
@@ -2029,6 +2033,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
                 button = QPushButton("请选择字体")
                 button.setProperty("clicked", "font")
+                button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
@@ -2043,6 +2048,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
                 button = QPushButton("请选择颜色")
                 button.setProperty("clicked", "color")
+                button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
                 layout = QHBoxLayout()
                 layout.addWidget(widget)

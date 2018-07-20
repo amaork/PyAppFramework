@@ -3,6 +3,7 @@ import os
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
+from .msgbox import MB_TYPE_ERR, showMessageBox
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
 
@@ -281,7 +282,7 @@ class ProgressDialog(QProgressDialog):
 
 
 class BasicJsonSettingDialog(QDialog):
-    def __init__(self, widget_cls, settings, data=None, parent=None):
+    def __init__(self, widget_cls, settings, data=None, reset=True, apply=None, parent=None):
         super(BasicJsonSettingDialog, self).__init__(parent)
 
         if not issubclass(widget_cls, (BasicJsonSettingWidget, MultiTabJsonSettingsWidget)):
@@ -289,11 +290,18 @@ class BasicJsonSettingDialog(QDialog):
                 BasicJsonSettingWidget.__name__, MultiTabJsonSettingsWidget.__name__, widget_cls.__name__
             ))
 
+        self.apply = apply if hasattr(apply, "__call__") else None
+        dialog_buttons = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        dialog_buttons = dialog_buttons | QDialogButtonBox.Reset if reset else dialog_buttons
+        dialog_buttons = dialog_buttons | QDialogButtonBox.Apply if self.apply else dialog_buttons
+
         layout = QVBoxLayout()
         self.ui_widget = widget_cls(settings, data, parent)
-        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Reset | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.ui_buttons = QDialogButtonBox(dialog_buttons)
+
         self.ui_buttons.accepted.connect(self.accept)
         self.ui_buttons.rejected.connect(self.reject)
+        self.ui_buttons.button(QDialogButtonBox.Apply).clicked.connect(self.applySetting)
         self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
 
         layout.addWidget(self.ui_widget)
@@ -314,16 +322,26 @@ class BasicJsonSettingDialog(QDialog):
 
         return self.ui_widget.getData()
 
+    def applySetting(self):
+        if not self.apply:
+            return
+
+        try:
+            self.setResult(1)
+            self.apply(self.getJsonData())
+        except TypeError as error:
+            return showMessageBox(self, MB_TYPE_ERR, "应用设置错误：{}".format(error))
+
     @classmethod
-    def getData(cls, settings, data=None, parent=None):
-        dialog = cls(settings, data, parent)
+    def getData(cls, settings, data=None, reset=True, apply=None, parent=None):
+        dialog = cls(settings, data, reset, apply, parent)
         dialog.exec_()
         return dialog.getJsonData()
 
 
 class JsonSettingDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data=None, parent=None):
-        super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, parent)
+    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+        super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, reset, apply, parent)
 
     def getJsonSettings(self):
         if not self.result():
@@ -332,20 +350,21 @@ class JsonSettingDialog(BasicJsonSettingDialog):
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getSettings(cls, settings, data=None, parent=None):
-        dialog = cls(settings, data, parent)
+    def getSettings(cls, settings, data=None, reset=True, apply=None, parent=None):
+        dialog = cls(settings, data, reset, apply, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
 
 
 class MultiJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data, parent=None):
-        super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget, settings, data, parent)
+        super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget, settings, data, parent=parent)
 
 
 class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data, parent=None):
-        super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget, settings, data, parent)
+    def __init__(self, settings, data, reset=True, apply=None, parent=None):
+        super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget,
+                                                         settings, data, reset, apply, parent)
 
     def getJsonSettings(self):
         if not self.result():
@@ -354,8 +373,8 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getSettings(cls, settings, data=None, parent=None):
-        dialog = cls(settings, data, parent)
+    def getSettings(cls, settings, data=None, reset=True, apply=None, parent=None):
+        dialog = cls(settings, data, reset, apply, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
 
