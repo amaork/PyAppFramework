@@ -394,11 +394,13 @@ class SerialPort(object):
         if not self.__port.isOpen():
             raise serial.SerialException("Serial port: {0:x} is not opened".format(self.__port.port))
 
-        data = ""
+        data = bytes()
         while len(data) != size:
             tmp = self.__port.read(size - len(data))
-            if len(tmp) == 0:
+            if len(tmp) == 0 and len(data) == 0:
                 raise serial.SerialException("Receive data timeout!")
+            elif len(tmp) == 0:
+                break
 
             data += tmp
 
