@@ -3,6 +3,7 @@ import os
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
+from ..misc.settings import UiLayout
 from .msgbox import MB_TYPE_ERR, showMessageBox
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
@@ -301,15 +302,15 @@ class BasicJsonSettingDialog(QDialog):
 
         self.ui_buttons.accepted.connect(self.accept)
         self.ui_buttons.rejected.connect(self.reject)
-        self.ui_buttons.button(QDialogButtonBox.Apply).clicked.connect(self.applySetting)
-        self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
+        self.apply and self.ui_buttons.button(QDialogButtonBox.Apply).clicked.connect(self.applySetting)
+        reset and self.ui_buttons.button(QDialogButtonBox.Reset).clicked.connect(self.ui_widget.resetDefaultData)
 
         layout.addWidget(self.ui_widget)
         layout.addWidget(QSplitter())
         layout.addWidget(self.ui_buttons)
 
         try:
-            title = settings.layout.get_name()
+            title = settings.layout.get_name() if isinstance(settings.layout, UiLayout) else settings.layout.get("name")
         except AttributeError:
             title = "配置对话框"
 
@@ -357,8 +358,9 @@ class JsonSettingDialog(BasicJsonSettingDialog):
 
 
 class MultiJsonSettingsDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data, parent=None):
-        super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget, settings, data, parent=parent)
+    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+        super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget,
+                                                      settings, data, reset, apply, parent=parent)
 
 
 class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
