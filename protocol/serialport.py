@@ -6,7 +6,7 @@ from threading import Thread
 from raspi_io import Serial as WebsocketSerial, RaspiSocketError
 
 from .crc16 import crc16
-from ..core.datatype import BasicTypeLE
+from ..core.datatype import BasicTypeLE, ip4_check
 
 
 __all__ = ['SerialPort',
@@ -335,10 +335,19 @@ class SerialPort(object):
         """
         try:
 
+            # xxx.xxx.xxx.xxx/ttyXXX
+            if ip4_check(port.split("/")[0]):
+                addr = port.split("/")[0]
+                remote_port = port.replace(addr, "/dev")
+                port = (addr, remote_port)
+                raise AttributeError
+
             self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
         except (AttributeError, ValueError, TypeError):
             try:
                 self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout, verbose=0)
+            except IndexError:
+                raise serial.SerialException("Unknown port type:{}".format(port))
             except ValueError:
                 raise serial.SerialException("Open websocket serial port:{} error".format(port))
             except RaspiSocketError:
