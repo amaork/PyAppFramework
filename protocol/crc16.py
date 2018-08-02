@@ -83,7 +83,7 @@ def crc16(data):
     crc_low = 0xff
 
     for byte in data:
-        index = crc_low ^ ord(byte)
+        index = crc_low ^ byte
         crc_low = crc_hi ^ __CRC_TABLE_HI[index]
         crc_hi = __CRC_TABLE_LOW[index]
 

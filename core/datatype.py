@@ -95,7 +95,7 @@ class BasicDataType(object):
 
     def cdata(self):
         """Get C-style data"""
-        return buffer(self)[:]
+        return ctypes.string_at(ctypes.addressof(self), ctypes.sizeof(self))
 
     def set_cdata(self, cdata):
         """Set C-style data

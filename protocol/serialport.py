@@ -124,7 +124,7 @@ class ReadAckMsg(BasicMsg):
 
     # Get payload data
     def get_data_payload(self):
-        return buffer(self)[4: 4 + self.PAYLOAD_SIZE]
+        return ctypes.string_at(ctypes.addressof(self.payload), ctypes.sizeof(self.payload))
 
     # Set payload data
     def set_data_payload(self, cdata):
@@ -203,7 +203,7 @@ class SerialTransferProtocol(object):
 
     @staticmethod
     def calc_package_size(data):
-        return len(data) / SerialTransferProtocol.PAYLOAD_SIZE
+        return len(data) // SerialTransferProtocol.PAYLOAD_SIZE
 
     @staticmethod
     def get_package_data(idx, data):
@@ -223,7 +223,7 @@ class SerialTransferProtocol(object):
         package_size, global_data = self.__r_init()
 
         # Read package data
-        package_data = ""
+        package_data = bytes()
         for package_index in range(package_size):
             package_data += self.__r_data(package_index)
 
