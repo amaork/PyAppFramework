@@ -6,11 +6,11 @@ from .button import RectButton
 from ..misc.settings import UiLayout
 from .msgbox import MB_TYPE_ERR, showMessageBox
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
-    JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget
+    JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 
 __all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
-           'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog',
+           'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
 
@@ -361,6 +361,12 @@ class MultiJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
         super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget,
                                                       settings, data, reset, apply, parent=parent)
+
+
+class MultiGroupJsonSettingsDialog(BasicJsonSettingDialog):
+    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+        super(MultiGroupJsonSettingsDialog, self).__init__(MultiGroupJsonSettingsWidget,
+                                                           settings, data, reset, apply, parent=parent)
 
 
 class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):

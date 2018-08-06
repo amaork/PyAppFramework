@@ -29,7 +29,8 @@ from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput,
 
 __all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
-           'JsonSettingWidget', 'MultiJsonSettingsWidget', 'MultiTabJsonSettingsWidget', 'BasicJsonSettingWidget']
+           'BasicJsonSettingWidget', 'JsonSettingWidget', 'MultiJsonSettingsWidget',
+           'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
 
 class PaintWidget(QWidget):
@@ -2177,6 +2178,75 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
                 sender.setStyleSheet("color: rgb(255, 0, 0);")
 
 
+class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
+    def __init__(self, settings, data, parent=None):
+        super(MultiGroupJsonSettingsWidget, self).__init__(settings, parent)
+
+        if not isinstance(data, dict):
+            raise TypeError("data require a dict not {!r}".format(data.__class__.__name__))
+
+        self.widget_list = list()
+        self.layout = self.layout.get_vertical_layout(self.settings)
+
+        self.__initUi()
+        self.__initData(data)
+        self.__initSignalAndSlots()
+
+    def __initUi(self):
+        widget_layout = QVBoxLayout()
+        for group in self.layout:
+            try:
+                group_settings = self.settings.get(group)
+                group_settings = group_settings if isinstance(group_settings, UiLayout) else UiLayout(**group_settings)
+                if not group_settings.check_layout(self.settings):
+                    continue
+
+                box = QGroupBox()
+                group_layout = QVBoxLayout()
+                box.setTitle(group_settings.get_name())
+                settings = {"layout": group_settings}
+                for item_name in group_settings.get_layout():
+                    settings[item_name] = self.settings.get(item_name)
+
+                box_widget = JsonSettingWidget(DynamicObject(**settings))
+                box_widget.setProperty("name", group_settings.get_name())
+                group_layout.addWidget(box_widget)
+                box.setLayout(group_layout)
+                widget_layout.addWidget(box)
+                self.widget_list.append(box_widget)
+            except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                print("{}".format(err))
+
+        self.setLayout(widget_layout)
+
+    def __initData(self, data):
+        self.setData(data)
+
+    def __initSignalAndSlots(self):
+        [widget.settingChanged.connect(self.slotSettingChanged) for widget in self.widget_list]
+
+    def getData(self):
+        data = dict()
+        [data.update(widget.getData()) for widget in self.widget_list]
+        return data
+
+    def setData(self, data):
+        return set([widget.setData(data) for widget in self.widget_list]) == {True}
+
+    def getSettings(self):
+        data = self.getData()
+        settings = self.settings
+        for k, v in data.items():
+            settings[k]["data"] = v
+        return self.settings_cls(**settings)
+
+    def resetDefaultData(self):
+        [widget.resetDefaultData() for widget in self.widget_list]
+
+    def slotSettingChanged(self):
+        self.settingChanged.emit()
+
+
 class MultiTabJsonSettingsWidget(QTabWidget):
     settingChanged = Signal()
 
@@ -2219,25 +2289,20 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                 if not tab_setting.check_layout(self.settings):
                     continue
 
+                settings = {"layout": tab_setting}
                 for group in tab_setting.get_layout():
                     group_setting = self.settings.get(group)
                     group_setting = group_setting if isinstance(group_setting, UiLayout) else UiLayout(**group_setting)
                     if not group_setting.check_layout(self.settings):
                         continue
 
-                    box = QGroupBox()
-                    layout = QVBoxLayout()
-                    box.setTitle(group_setting.get_name())
-                    settings = {"layout": group_setting}
-                    for item_name in group_setting.get_layout():
-                        settings[item_name] = self.settings.get(item_name)
-                    widget = JsonSettingWidget(DynamicObject(**settings))
-                    widget.setProperty("name", group_setting.get_name())
-                    layout.addWidget(widget)
-                    box.setLayout(layout)
-                    tab_layout.addWidget(box)
-                    self.widget_list.append(widget)
+                    settings[group] = group_setting
+                    for item in group_setting.get_layout():
+                        settings[item] = self.settings.get(item)
 
+                widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
+                self.widget_list.append(widget)
+                tab_layout.addWidget(widget)
                 tab_widget.setLayout(tab_layout)
                 if tab_layout.count() >= 2:
                     self.insertTab(self.count(), tab_widget, tab_setting.name)
