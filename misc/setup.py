@@ -5,7 +5,7 @@ import shutil
 
 
 __all__ = ['get_git_release_date', 'get_git_release_hash', 'get_git_commit_count',
-           'get_dir_file_list', 'py2exe_clear_setup', 'py2exe_setup_module']
+           'get_dir_file_list', 'py2exe_clear_setup', 'py2exe_setup_module', 'py_installer_add_data_dir']
 
 
 def get_git_commit_count():
@@ -47,12 +47,9 @@ def get_dir_file_list(path):
 def py2exe_setup_module(subdir):
     if os.path.isdir(subdir) and os.path.isfile(os.path.join(subdir, "setup.py")):
         cwd = os.getcwd()
-        print("++++++++++++++++++++++++++++++++++++++++++++", os.getcwd())
         os.chdir(subdir)
-        print("--------------------------------------------", os.getcwd())
         os.system("python setup.py py2exe")
         os.chdir(cwd)
-        print("============================================", os.getcwd())
 
 
 def py2exe_clear_setup(module_list=[]):
@@ -66,3 +63,11 @@ def py2exe_clear_setup(module_list=[]):
     for subdir in remove_list:
         if os.path.isdir(subdir):
             shutil.rmtree(subdir)
+
+
+def py_installer_add_data_dir(data_dir_path):
+    files = list()
+    for file in get_dir_file_list(data_dir_path):
+        files.append((file, file, 'DATA'))
+
+    return files
