@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import glob
 import platform
 from PySide.QtGui import *
 from PySide.QtCore import *
@@ -55,12 +56,17 @@ class SerialPortSelector(QComboBox):
         self.addItem(self.tr(self.__text))
 
         # Scan local system serial port
-        for index, port in enumerate(list(serial.tools.list_ports.comports())):
-            # Windows serial port is a object linux is a tuple
-            device = port.device if self.__system == "windows" else port[0]
-            desc = "{0:s}".format(device).split(" - ")[-1]
-            self.addItem("{0:s}".format(desc))
-            self.setItemData(index + 1, device)
+        if self.__system == "linux":
+            for index, port in enumerate(glob.glob("/dev/tty[A-Za-z]*")):
+                self.addItem("{}".format(port))
+                self.setItemData(index + 1, port)
+        else:
+            for index, port in enumerate(list(serial.tools.list_ports.comports())):
+                # Windows serial port is a object linux is a tuple
+                device = port.device
+                desc = "{0:s}".format(device).split(" - ")[-1]
+                self.addItem("{0:s}".format(desc))
+                self.setItemData(index + 1, device)
 
         # Scan LAN raspberry serial port
         for raspberry in scan_server(timeout):
