@@ -54,7 +54,7 @@ class FTPClient(object):
             ftp.connect(host=self.addr, port=self.port, timeout=self.timeout)
             ftp.login(self.username, self.password)
         except ftplib.all_errors as e:
-            raise FTPClientError("FTP connect to:{0:s} error:{1:s}".format(self.addr, e))
+            raise FTPClientError("FTP connect to:{} error:{}".format(self.addr, e))
         
         return ftp
         
@@ -185,9 +185,9 @@ class FTPClient(object):
                     self.download_file(remote_file, local_dir)
 
         except ftplib.error_perm as e:
-            raise FTPClientError("Download error remote dir:{0:s} is not exist:{1:s}".format(remote_dir, e))
+            raise FTPClientError("Download error remote dir:{} is not exist:{}".format(remote_dir, e))
         except OSError as e:
-            raise FTPClientError("Download error create local dir:{0:s} error:{1:s}".format(local_dir, e))
+            raise FTPClientError("Download error create local dir:{} error:{}".format(local_dir, e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
@@ -204,7 +204,7 @@ class FTPClient(object):
             
             # Check local path
             if os.path.isfile(local_path):
-                raise FTPClientError("Download error local path:{0:s} is not a directory".format(local_path))
+                raise FTPClientError("Download error local path:{} is not a directory".format(local_path))
         
             if not os.path.isdir(local_path):
                 os.makedirs(local_path)
@@ -225,9 +225,9 @@ class FTPClient(object):
             if self.verbose:
                 print("Downloading:{}".format(remote_path))
         except ftplib.all_errors as e:
-            raise FTPClientError("Download file:{0:s} error:{1:s}".format(remote_path, e))
+            raise FTPClientError("Download file:{} error:{}".format(remote_path, e))
         except AttributeError as e:
-            raise FTPClientError("Download file:{0:s} error:{1:s}".format(remote_path, e))
+            raise FTPClientError("Download file:{} error:{}".format(remote_path, e))
 
     def upload_dir(self, local_dir, remote_dir, exclude=None, callback=None):
         """Recursive upload local dir to remote, if remote dir is not exist create it, else replace all files
@@ -246,11 +246,11 @@ class FTPClient(object):
             
             # Check local dir
             if not os.path.isdir(local_dir):
-                raise FTPClientError("Upload dir error local dir:{0:s} is not exist".format(local_dir))
+                raise FTPClientError("Upload dir error local dir:{} is not exist".format(local_dir))
                  
             # Check remote dir
             if self.is_file(remote_dir):
-                raise FTPClientError("Upload dir error remote dir:{0:s} is not a directory".format(remote_dir))
+                raise FTPClientError("Upload dir error remote dir:{} is not a directory".format(remote_dir))
         
             # Enter local dir
             pwd = os.getcwd()
@@ -273,7 +273,7 @@ class FTPClient(object):
                     self.upload_file(file_name, remote_dir)
 
         except (IOError, ftplib.error_perm) as e:
-            raise FTPClientError("Uploading:{0:s} error:{1:s}".format(os.getcwd(), e))
+            raise FTPClientError("Uploading:{} error:{}".format(os.getcwd(), e))
         finally:
             if len(pwd):
                 os.chdir(pwd)
@@ -292,11 +292,11 @@ class FTPClient(object):
             
             # Local path check
             if not os.path.isfile(local_path):
-                raise FTPClientError("Upload error, local file:{0:s} doesn't exist".format(local_path))
+                raise FTPClientError("Upload error, local file:{} doesn't exist".format(local_path))
 
             # Remote path check, if remote path isn't a dir create it
             if not self.is_dir(remote_path) and not self.create_dirs(remote_path):
-                raise FTPClientError("Upload error, remote path:{0:s} is not a directory".format(remote_path))
+                raise FTPClientError("Upload error, remote path:{} is not a directory".format(remote_path))
             
             # Enter remote path
             pwd = self.ftp.pwd()
@@ -309,10 +309,10 @@ class FTPClient(object):
                 self.ftp.storbinary('STOR ' + os.path.basename(local_path), open(local_path, 'rb'))
             
             if self.verbose:
-                print("Uploading:{0:s}".format(os.path.abspath(local_path)))
+                print("Uploading:{}".format(os.path.abspath(local_path)))
                 
         except ftplib.all_errors as e:
-            raise FTPClientError("Upload file:{0:s} error:{1:s}".format(os.path.basename(local_path), e))
+            raise FTPClientError("Upload file:{} error:{}".format(os.path.basename(local_path), e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
@@ -331,7 +331,7 @@ class FTPClient(object):
             
             # Check remote dir
             if not self.is_dir(remote_dir):
-                raise FTPClientError("Remove files error, remote dir:{0:s} is not exist".format(remote_dir))
+                raise FTPClientError("Remove files error, remote dir:{} is not exist".format(remote_dir))
             
             # Enter remote dir
             pwd = self.ftp.pwd()
@@ -354,16 +354,16 @@ class FTPClient(object):
                 # file is normal file
                 elif self.is_file(file_name):
                     if self.verbose:
-                        print("Deleting:{0:s}".format(remote_path))
+                        print("Deleting:{}".format(remote_path))
 
                     if callback and hasattr(callback, "__call__"):
                         callback(remote_path)
                     self.ftp.delete(file_name)
                 else:
-                    print("Path:{0:s} not exist, jump".format(remote_path))
+                    print("Path:{} not exist, jump".format(remote_path))
 
         except ftplib.all_errors as e:
-            raise FTPClientError("Remove files from:{0:s}, error:{1:s}".format(remote_dir, e))
+            raise FTPClientError("Remove files from:{}, error:{}".format(remote_dir, e))
         finally:
             if len(pwd):
                 self.ftp.cwd(pwd)
@@ -380,4 +380,4 @@ class FTPClient(object):
         try:
             self.ftp.rmd(remote_dir)
         except ftplib.all_errors as e:
-            raise FTPClientError("Remove dir:{0:s} error:{1:s}".format(remote_dir, e))
+            raise FTPClientError("Remove dir:{} error:{}".format(remote_dir, e))
