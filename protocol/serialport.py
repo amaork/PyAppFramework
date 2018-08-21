@@ -383,7 +383,7 @@ class SerialPort(object):
             raise serial.SerialException("Sending Data length error")
 
         if not self.__port.isOpen():
-            raise serial.SerialException("Serial port: {0:x} is not opened".format(self.__port.port))
+            raise serial.SerialException("Serial port: {} is not opened".format(self.__port.port))
 
         if self.__port.write(data) != len(data):
             raise serial.SerialException("Send data error: data sent is not completed")
@@ -401,7 +401,7 @@ class SerialPort(object):
             raise serial.SerialException("Receive data length error")
 
         if not self.__port.isOpen():
-            raise serial.SerialException("Serial port: {0:x} is not opened".format(self.__port.port))
+            raise serial.SerialException("Serial port: {} is not opened".format(self.__port.port))
 
         data = bytes()
         while len(data) != size:
