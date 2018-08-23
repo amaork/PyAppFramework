@@ -2356,6 +2356,7 @@ class LogMessageWidget(QTextEdit):
         self.setReadOnly(True)
         self.logFilename = filename
         self.startTime = datetime.now()
+        self.textChanged.connect(self.slotAutoScroll)
         logging.basicConfig(filename=filename, format=log_format, level=logging.DEBUG)
 
     @Slot(object)
@@ -2408,3 +2409,8 @@ class LogMessageWidget(QTextEdit):
         self.clear()
         for record in valid_record:
             self.logging(record, False)
+
+    def slotAutoScroll(self):
+        cursor = self.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.setTextCursor(cursor)
