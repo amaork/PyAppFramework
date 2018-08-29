@@ -1861,6 +1861,10 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             if isinstance(button, QPushButton):
                 button.clicked.connect(self.slotSelectFile)
 
+        for button in self.ui_manager.findValue("clicked", "folder", QPushButton):
+            if isinstance(button, QPushButton):
+                button.clicked.connect(self.slotSelectFolder)
+
         for button in self.ui_manager.findValue("clicked", "font", QPushButton):
             if isinstance(button, QPushButton):
                 button.clicked.connect(self.slotSelectFont)
@@ -1908,6 +1912,17 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         title = self.tr("请选择{}".format(sender.property("title")))
         path, ret = QFileDialog.getOpenFileName(self, title, "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
+            return
+
+        path_edit = self.ui_manager.getPrevSibling(sender)
+        if isinstance(path_edit, QLineEdit):
+            path_edit.setText(path)
+
+    def slotSelectFolder(self):
+        sender = self.sender()
+        title = self.tr("请选择{}".format(sender.property("title")))
+        path = QFileDialog.getExistingDirectory(self, title, "")
+        if not os.path.isdir(path):
             return
 
         path_edit = self.ui_manager.getPrevSibling(sender)
@@ -2026,6 +2041,19 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 layout.addWidget(widget)
                 layout.addWidget(button)
                 return layout
+            elif setting.is_folder_type():
+                widget = QLineEdit()
+                widget.setReadOnly(True)
+                widget.setProperty("data", name)
+                widget.setText(setting.get_data())
+                button = QPushButton("请选择文件夹")
+                button.setProperty("clicked", "folder")
+                button.setProperty("title", setting.get_name())
+                button.setProperty("private", setting.get_check())
+                layout = QHBoxLayout()
+                layout.addWidget(widget)
+                layout.addWidget(button)
+                return layout
             elif setting.is_font_type():
                 widget = QLineEdit()
                 widget.setReadOnly(True)
@@ -2108,6 +2136,8 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
                     table_filters[column] = ui_input.get_check()
                 elif ui_input.is_file_type():
                     table_filters[column] = ("请选择文件", self.slotSelectFile, ui_input.get_check())
+                elif ui_input.is_folder_type():
+                    table_filters[column] = ("请选择目录", self.slotSelectFolder, ui_input.get_check())
 
                 if ui_input.is_readonly():
                     self.frozen_columns.append(column)
@@ -2160,6 +2190,14 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         file_format = "*"
         path, ret = QFileDialog.getOpenFileName(self, self.tr("请选择文件"), "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
+            return
+
+        sender.setProperty("private", path)
+
+    def slotSelectFolder(self):
+        sender = self.sender()
+        path = QFileDialog.getExistingDirectory(self, self.tr("请选择文件夹"), "")
+        if not os.path.isdir(path):
             return
 
         sender.setProperty("private", path)

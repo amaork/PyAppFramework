@@ -369,7 +369,7 @@ class JsonSettingWidgetTest(QWidget):
 
 
 class MultiJsonSetting(JsonSettings):
-    _properties = {'int', 'float', 'bool', 'text', 'select', 'readonly_text', 'layout'}
+    _properties = {'int', 'float', 'bool', 'text', 'select', 'readonly_text', 'layout', "folder"}
 
     @classmethod
     def default(cls):
@@ -377,12 +377,13 @@ class MultiJsonSetting(JsonSettings):
             bool=UiCheckBoxInput("布尔型数据"),
             text=UiTextInput("文本型数据", 16, "123"),
             file=UiFileInput("文件", ("*.jpg", "*.bmp")),
+            folder=UiFolderInput("文件夹"),
             int=UiIntegerInput("整型数据", 1, 100, step=10),
             float=UiDoubleInput("浮点型数据", 3.3, 24.0, step=0.5),
             select=UiSelectInput("选择型数据", ["A", "B", "C"], "A"),
             readonly_text=UiTextInput("只读文本型数据", 16, "ABCD", readonly=True),
             layout=UiLayout(name="多项 Json 设置",
-                            layout=['bool', 'text', 'int', 'float', 'select', 'readonly_text', 'file'])
+                            layout=['bool', 'text', 'int', 'float', 'select', 'readonly_text', 'file', 'folder'])
         )
 
 
@@ -392,12 +393,12 @@ class MultiJsonSettingsWidgetTest(QWidget):
 
         data = [
 
-            (False, "123", 10, 4.5, "A", "ABCDEF_1", ""),
-            (True, "1234", 20, 5.5, "A", "ABCDEF_12", ""),
-            (False, "12345", 30, 6.5, "B", "ABCDEF_123", ""),
-            (True, "123456", 40, 7.5, "B", "ABCDEF_1234", ""),
-            (False, "1234567", 50, 8.5, "C", "ABCDEF_12345", ""),
-            (True, "12345678", 60, 9.5, "C", "ABCDEF_123456", ""),
+            (False, "123", 10, 4.5, "A", "ABCDEF_1", "", ""),
+            (True, "1234", 20, 5.5, "A", "ABCDEF_12", "", ""),
+            (False, "12345", 30, 6.5, "B", "ABCDEF_123", "", ""),
+            (True, "123456", 40, 7.5, "B", "ABCDEF_1234", "", ""),
+            (False, "1234567", 50, 8.5, "C", "ABCDEF_12345", "", ""),
+            (True, "12345678", 60, 9.5, "C", "ABCDEF_123456", "", ""),
         ]
         layout = QVBoxLayout()
         self.widget = MultiJsonSettingsWidget(MultiJsonSetting.default(), data)

@@ -373,6 +373,7 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data, reset=True, apply=None, parent=None):
         super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget,
                                                          settings, data, reset, apply, parent)
+        self.setMinimumWidth(len(settings.layout.layout) * 100)
 
     def getJsonSettings(self):
         if not self.result():

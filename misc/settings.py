@@ -4,9 +4,12 @@ import json
 import codecs
 import logging
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
-__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'UiLogMessage',
-           'UiInputSetting', 'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiFontInput',
-           'UiIntegerInput', 'UiDoubleInput', 'UiFileInput', 'UiSerialInput', 'UiLayout', 'UiColorInput']
+__all__ = ['JsonSettings', 'JsonSettingsDecodeError',
+           'UiLogMessage',
+           'UiInputSetting', 'UiLayout',
+           'UiFontInput', 'UiColorInput',
+           'UiFileInput', 'UiFolderInput', 'UiSerialInput',
+           'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -66,6 +69,7 @@ class UiInputSetting(DynamicObject):
         "FLOAT": (float, (list, tuple)),
         "TEXT": (str, (list, tuple)),
         "FILE": (str, (list, tuple)),
+        "FOLDER": (str, str),
         "FONT": (str, str),
         "COLOR": (str, str),
         "SELECT": (str, (list, tuple)),
@@ -148,6 +152,9 @@ class UiInputSetting(DynamicObject):
     def is_color_type(self):
         return self.type == "COLOR"
 
+    def is_folder_type(self):
+        return self.type == "FOLDER"
+
     def is_select_type(self):
         return self.type == "SELECT"
 
@@ -169,6 +176,7 @@ class UiInputSetting(DynamicObject):
         select_input = UiInputSetting(name="选择", type="SELECT", data="C",
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
         file_input = UiInputSetting(name="文件", type="FILE", data="", default="", check=("*.jpg", "*.bmp"))
+        folder_input = UiInputSetting(name="文件夹", type="FOLDER", data="", default="", check="")
 
         serial_input = UiSerialInput(name="串口", port="COM1")
 
@@ -180,19 +188,28 @@ class UiInputSetting(DynamicObject):
                                   ["text", "select"],
                                   ["file", "serial"],
                                   ["font", "color"],
+                                  ['folder'],
                               ])
         else:
             layout = UiLayout(name="Json Demo 设置 （VBox）",
-                              layout=["int", "float", "bool", "text", "select", "file", "serial", "font", "color"])
+                              layout=["int", "float", "bool", "text", "select",
+                                      "file", "folder", "serial", "font", "color"])
         return DynamicObject(int=int_input.dict, bool=bool_input.dict,
                              font=font_input.dict, color=color_input.dict,
+                             folder=folder_input.dict,
                              text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
                              float=float_input.dict, select=select_input.dict, layout=layout.dict)
 
 
 class UiFileInput(UiInputSetting):
-    def __init__(self, name, fmt):
-        super(UiFileInput, self).__init__(name=name, data="", default="", check=fmt, readonly=False, type="FILE")
+    def __init__(self, name, fmt, default=""):
+        super(UiFileInput, self).__init__(name=name, data="", default=default, check=fmt, readonly=False, type="FILE")
+
+
+class UiFolderInput(UiInputSetting):
+    def __init__(self, name, default=""):
+        super(UiFolderInput, self).__init__(name=name, data="", default=default,
+                                            check="", readonly=False, type="FOLDER")
 
 
 class UiFontInput(UiInputSetting):
@@ -301,6 +318,7 @@ class UiLayout(DynamicObject):
     _properties = {'name', 'layout'}
 
     def __init__(self, **kwargs):
+        kwargs.setdefault("name", "")
         super(UiLayout, self).__init__(**kwargs)
 
         if not isinstance(self.name, str):
