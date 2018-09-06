@@ -2387,15 +2387,36 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 class LogMessageWidget(QTextEdit):
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-    def __init__(self, filename, log_format="%(asctime)s %(levelname)s %(message)s", parent=None):
+    def __init__(self, filename, log_format="%(asctime)s %(levelname)s %(message)s",
+                 level=logging.DEBUG, propagate=False, parent=None):
         super(LogMessageWidget, self).__init__(parent)
 
-        self.logger = False
         self.setReadOnly(True)
         self.logFilename = filename
         self.startTime = datetime.now()
         self.textChanged.connect(self.slotAutoScroll)
-        logging.basicConfig(filename=filename, format=log_format, level=logging.DEBUG)
+
+        # Get logger and set level and propagate
+        self.logger = logging.getLogger(filename)
+        self.logger.propagate = propagate
+        self.logger.setLevel(level)
+
+        # Create a file handler
+        file_handler = logging.FileHandler(filename)
+        file_handler.setLevel(level)
+
+        # Create a stream handler
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.ERROR)
+
+        # Create a formatter and add it to handlers
+        formatter = logging.Formatter(log_format)
+        file_handler.setFormatter(formatter)
+        stream_handler.setFormatter(formatter)
+
+        # Add handlers to logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(stream_handler)
 
     @Slot(object)
     def logging(self, message, write_to_log=True):
@@ -2408,7 +2429,7 @@ class LogMessageWidget(QTextEdit):
         )
 
         # Write to log file if write_to_log set
-        write_to_log and logging.log(message.level, message.content)
+        write_to_log and self.logger.log(message.level, message.content)
 
     @Slot(object)
     def filterLog(self, levels):
