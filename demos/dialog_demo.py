@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+import hashlib
 from PySide.QtCore import QTextCodec
 
 from ..gui.dialog import *
@@ -8,9 +9,9 @@ from ..gui.container import ComponentManager
 from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QLineEdit
 
 
-class ColorDialogTest(QWidget):
+class DialogTest(QWidget):
     def __init__(self, parent=None):
-        super(ColorDialogTest, self).__init__(parent)
+        super(DialogTest, self).__init__(parent)
 
         self.__initUi()
         self.__initSignalAndSlots()
@@ -59,11 +60,25 @@ class ColorDialogTest(QWidget):
         settings.addWidget(self.ui_get_json)
         settings.addWidget(self.ui_json_settings)
 
+        reset_password = QHBoxLayout()
+        self.ui_reset_new_password = QLineEdit()
+        self.ui_reset_password = QPushButton(self.tr("重置密码"))
+        reset_password.addWidget(self.ui_reset_password)
+        reset_password.addWidget(self.ui_reset_new_password)
+
+        change_password = QHBoxLayout()
+        self.ui_new_password = QLineEdit()
+        self.ui_change_password = QPushButton(self.tr("更改密码"))
+        change_password.addWidget(self.ui_change_password)
+        change_password.addWidget(self.ui_new_password)
+
         layout = QVBoxLayout()
         layout.addLayout(same)
         layout.addLayout(diff)
-        layout.addLayout(serial)
         layout.addLayout(settings)
+        layout.addLayout(serial)
+        layout.addLayout(reset_password)
+        layout.addLayout(change_password)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("选择颜色"))
         self.setFixedSize(self.sizeHint())
@@ -73,6 +88,18 @@ class ColorDialogTest(QWidget):
         self.__diff.clicked.connect(self.__slotSelectDiffColor)
         self.ui_get_json.clicked.connect(self.__slotGetJsonSettings)
         self.ui_get_serial.clicked.connect(self.__slotGetSerialSetting)
+        self.ui_reset_password.clicked.connect(self.__slotResetPassword)
+        self.ui_change_password.clicked.connect(self.__slotChangePassword)
+
+    def __slotResetPassword(self):
+        self.ui_reset_new_password.setText("{}".format(PasswordDialog.resetPassword(
+            hash_function=lambda x: hashlib.sha256(x).hexdigest(),
+            parent=self
+        )))
+
+    def __slotChangePassword(self):
+        old_password = hashlib.md5(b"123456789").hexdigest()
+        self.ui_new_password.setText("{}".format(PasswordDialog.changePassword(old_password, parent=self)))
 
     def __slotGetSerialSetting(self):
         self.ui_serial_settings.setText("{}".format(SerialPortSettingDialog.getSetting(self)))
@@ -101,6 +128,6 @@ class ColorDialogTest(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
-    window = ColorDialogTest()
+    window = DialogTest()
     window.show()
     sys.exit(app.exec_())

@@ -10,7 +10,8 @@ from ..core.datatype import BasicTypeLE, ip4_check
 
 
 __all__ = ['SerialPort',
-           'ReadAckMsg', 'SerialPortProtocolSimulate',
+           'ReadAckMsg', 'ReadReqMsg',
+           'SerialPortProtocolSimulate',
            'SerialTransferProtocol', 'SerialTransferError', 'SerialTransferProtocolReadSimulate']
 
 

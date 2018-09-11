@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import hashlib
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
@@ -9,7 +10,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 
-__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog',
+__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog', 'PasswordDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
@@ -386,6 +387,122 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
         dialog = cls(settings, data, reset, apply, parent)
         dialog.exec_()
         return dialog.getJsonSettings()
+
+
+class PasswordDialog(QDialog):
+    DefaultHashFunction= lambda x: hashlib.md5(x).hexdigest()
+
+    def __init__(self, password=None, hash_function=DefaultHashFunction, style='font: 75 16pt "Arial"', parent=None):
+        super(PasswordDialog, self).__init__(parent)
+        if not hasattr(hash_function, "__call__"):
+            raise TypeError("hash_function must be a callable object}")
+
+        self.__new_password = ""
+        self.__password = password
+        self.__hash_function = hash_function
+
+        self.__initUi()
+        self.__initSignalAndSlots()
+        self.setStyleSheet(style)
+
+    def __initUi(self):
+        # Ui elements
+        self.ui_old_password = QLineEdit()
+        self.ui_old_password.setPlaceholderText(self.tr("请输入旧密码"))
+
+        self.ui_new_password = QLineEdit()
+        self.ui_new_password.setPlaceholderText(self.tr("请输入新密码"))
+
+        self.ui_show_password = QCheckBox()
+
+        self.ui_confirm_password = QLineEdit()
+        self.ui_confirm_password.setPlaceholderText(self.tr("请再次输入新密码"))
+
+        self.ui_old_password_label = QLabel(self.tr("旧密码"))
+        self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+
+        # Ui layout
+        item_layout = QGridLayout()
+        item_layout.addWidget(self.ui_old_password_label, 0, 0)
+        item_layout.addWidget(self.ui_old_password, 0, 1)
+
+        item_layout.addWidget(QLabel(self.tr("新密码")), 1, 0)
+        item_layout.addWidget(self.ui_new_password, 1, 1)
+
+        item_layout.addWidget(QLabel(self.tr("重复新密码")), 2, 0)
+        item_layout.addWidget(self.ui_confirm_password, 2, 1)
+
+        sub_layout = QHBoxLayout()
+        sub_layout.addWidget(self.ui_show_password)
+        self.ui_show_password.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        sub_layout.addWidget(QLabel(self.tr("显示密码")))
+        item_layout.addLayout(sub_layout, 3, 1)
+
+        for item in (self.ui_old_password, self.ui_new_password, self.ui_confirm_password):
+            item.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+            item.setInputMethodHints(Qt.ImhHiddenText | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText)
+            item.setMaxLength(32)
+            item.setEchoMode(QLineEdit.Password)
+
+        # Mode switch
+        if self.__password:
+            self.setWindowTitle(self.tr("更改密码"))
+        else:
+            self.setWindowTitle(self.tr("重置密码"))
+            self.ui_old_password.setHidden(True)
+            self.ui_old_password_label.setHidden(True)
+
+        layout = QVBoxLayout()
+        layout.addLayout(item_layout)
+        layout.addWidget(QSplitter())
+        layout.addWidget(self.ui_buttons)
+        self.setMinimumWidth(320)
+        self.setLayout(layout)
+
+    def __initSignalAndSlots(self):
+        self.ui_buttons.accepted.connect(self.accept)
+        self.ui_buttons.rejected.connect(self.reject)
+        self.ui_show_password.stateChanged.connect(self.slotShowPassword)
+
+    def slotShowPassword(self, ck):
+        for item in (self.ui_old_password, self.ui_new_password, self.ui_confirm_password):
+            item.setEchoMode(QLineEdit.Normal if ck else QLineEdit.Password)
+            item.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+            item.setInputMethodHints(Qt.ImhHiddenText | Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText)
+
+    def accept(self, *args, **kwargs):
+        old = self.__hash_function(self.ui_old_password.text().encode())
+        new = self.__hash_function(self.ui_new_password.text().encode())
+        confirm = self.__hash_function(self.ui_confirm_password.text().encode())
+
+        if self.__password and old != self.__password:
+            return showMessageBox(self, MB_TYPE_ERR, "旧密码不正确，请重新输入!")
+
+        if new != confirm:
+            return showMessageBox(self, MB_TYPE_ERR, "两次输入的密码不相同，请重新输入!")
+
+        if len(self.ui_new_password.text()) == 0 or len(self.ui_confirm_password.text()) == 0:
+            return showMessageBox(self, MB_TYPE_ERR, "密码不能为空，请重新输入!")
+
+        self.__new_password = new
+        self.setResult(1)
+        self.close()
+        return True
+
+    def getNewPassword(self):
+        return self.__new_password
+
+    @staticmethod
+    def resetPassword(hash_function=DefaultHashFunction, style='', parent=None):
+        dialog = PasswordDialog(hash_function=hash_function, style=style, parent=parent)
+        dialog.exec_()
+        return dialog.getNewPassword()
+
+    @staticmethod
+    def changePassword(password=None, hash_function=DefaultHashFunction, style='', parent=None):
+        dialog = PasswordDialog(password, hash_function, style, parent)
+        dialog.exec_()
+        return dialog.getNewPassword()
 
 
 def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):
