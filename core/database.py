@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
-__all__ = ['SQLiteDatabase', 'SQLiteDatabaseError']
+
+try:
+    from pysqlcipher3 import dbapi2 as sqlcipher
+except ImportError:
+    import sqlite3 as sqlcipher
+
+__all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteDatabaseError']
 
 
 class SQLiteDatabaseError(Exception):
@@ -16,42 +22,77 @@ class SQLiteDatabase(object):
         if not os.path.isfile(db_path):
             raise IOError("{} do not exist".format(db_path))
 
-        self.__conn = sqlite3.connect(db_path, timeout=timeout)
-        self.__cursor = self.__conn.cursor()
+        self._conn = sqlite3.connect(db_path, timeout=timeout)
+        self._cursor = self._conn.cursor()
+
+    @property
+    def raw_cursor(self):
+        return self._cursor
+
+    @property
+    def raw_connect(self):
+        return self._conn
 
     @staticmethod
-    def conditionFormat(k, v, t):
-        t = SQLiteDatabase.detectDataType(t)
+    def conditionFormat(k, v, t=None):
+        t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
 
     @staticmethod
-    def searchConditionFormat(k, v, t):
-        t = SQLiteDatabase.detectDataType(t)
+    def searchConditionFormat(k, v, t=None):
+        t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
 
     @staticmethod
-    def globalSearchConditionFormat(k, v, t):
-        t = SQLiteDatabase.detectDataType(t)
+    def globalSearchConditionFormat(k, v, t=None):
+        t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
 
     @staticmethod
-    def detectDataType(type_str):
-        if type_str.find("INT") != -1:
+    def detectDataType(data):
+        if isinstance(data, (int, bool)):
             return SQLiteDatabase.TYPE_INTEGER
-        elif type_str.find("CHAR") != -1 or type_str in ("TEXT", 'CLOB'):
+        elif isinstance(data, str):
             return SQLiteDatabase.TYPE_TEXT
-        elif type_str in ("REAL", "DOUBLE", "DOUBLE PRECISION", "FLOAT"):
+        elif isinstance(data, float):
             return SQLiteDatabase.TYPE_REAL
         else:
             return SQLiteDatabase.TYPE_BLOB
+
+    @staticmethod
+    def str2type(type_str):
+        try:
+            if type_str.find("INT") != -1:
+                return SQLiteDatabase.TYPE_INTEGER
+            elif type_str.find("CHAR") != -1 or type_str in ("TEXT", 'CLOB'):
+                return SQLiteDatabase.TYPE_TEXT
+            elif type_str in ("REAL", "DOUBLE", "DOUBLE PRECISION", "FLOAT"):
+                return SQLiteDatabase.TYPE_REAL
+            else:
+                return SQLiteDatabase.TYPE_BLOB
+        except AttributeError:
+            return SQLiteDatabase.TYPE_BLOB
+
+    @staticmethod
+    def type2str(type_):
+        if type_ == SQLiteDatabase.TYPE_BLOB:
+            return "BLOB"
+        elif type_ == SQLiteDatabase.TYPE_REAL:
+            return "REAL"
+        elif type_ == SQLiteDatabase.TYPE_TEXT:
+            return "TEXT"
+        elif type_ == SQLiteDatabase.TYPE_INTEGER:
+            return "INTEGER"
+        else:
+            return "UNKNOWN"
 
     def getTableList(self):
         """Get database table name list
 
         :return: table name list (utf-8)
         """
-        self.__cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
-        tables = [i[0] for i in self.__cursor.fetchall()]
+        self._cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
+        tables = [i[0] for i in self._cursor.fetchall()]
         return tables
 
     def getTableInfo(self, name):
@@ -60,8 +101,8 @@ class SQLiteDatabase(object):
         :param name:  table name
         :return: table column name, table column type list
         """
-        self.__cursor.execute("PRAGMA table_info({})".format(name))
-        table_info = self.__cursor.fetchall()
+        self._cursor.execute("PRAGMA table_info({})".format(name))
+        table_info = self._cursor.fetchall()
         column_list = [x[self.TBL_NAME] for x in table_info]
         return dict(list(zip(column_list, table_info)))
 
@@ -71,8 +112,8 @@ class SQLiteDatabase(object):
         :param name: table name
         :return: table column name list
         """
-        self.__cursor.execute("PRAGMA table_info({})".format(name))
-        table_info = self.__cursor.fetchall()
+        self._cursor.execute("PRAGMA table_info({})".format(name))
+        table_info = self._cursor.fetchall()
         return [x[self.TBL_NAME] for x in table_info]
 
     def getColumnType(self, name):
@@ -82,11 +123,14 @@ class SQLiteDatabase(object):
         :return: column data type
         """
         try:
-            self.__cursor.execute("PRAGMA table_info({})".format(name))
-            table_info = self.__cursor.fetchall()
-            return [self.detectDataType(x[self.TBL_TYPE]) for x in table_info]
+            self._cursor.execute("PRAGMA table_info({})".format(name))
+            table_info = self._cursor.fetchall()
+            return [self.str2type(x[self.TBL_TYPE]) for x in table_info]
         except (TypeError, AttributeError, IndexError):
             return []
+
+    def getColumnTypeStr(self, name):
+        return list(map(self.type2str, self.getColumnType(name)))
 
     def getColumnIndex(self, table_name, column_name):
         """Get table specify column index
@@ -112,8 +156,8 @@ class SQLiteDatabase(object):
         :param name: table name
         :return: (primary key column, primary key name, primary key data type)
         """
-        self.__cursor.execute("PRAGMA table_info({})".format(name))
-        table_info = self.__cursor.fetchall()
+        self._cursor.execute("PRAGMA table_info({})".format(name))
+        table_info = self._cursor.fetchall()
         for i, schema in enumerate(table_info):
             if schema[self.TBL_PK] == 1:
                 return i, schema[self.TBL_NAME], schema[self.TBL_TYPE]
@@ -122,8 +166,8 @@ class SQLiteDatabase(object):
 
     def getTableData(self, name):
         try:
-            self.__cursor.execute("SELECT * from {}".format(name))
-            return self.__cursor.fetchall()
+            self._cursor.execute("SELECT * from {}".format(name))
+            return self._cursor.fetchall()
         except sqlite3.DatabaseError:
             return list()
 
@@ -150,8 +194,8 @@ class SQLiteDatabase(object):
                 data.append(data_format)
 
             # print("CREATE TABLE {} ({});".format(name, ",".join(data)))
-            self.__cursor.execute("CREATE TABLE {} ({});".format(name, ",".join(data)))
-            self.__conn.commit()
+            self._cursor.execute("CREATE TABLE {} ({});".format(name, ",".join(data)))
+            self._conn.commit()
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
 
@@ -188,28 +232,28 @@ class SQLiteDatabase(object):
 
             # Insert to sqlite and save
             # print("INSERT INTO {} VALUES({})".format(name, recode_data))
-            self.__cursor.execute("INSERT INTO {} VALUES({})".format(name, recode_data), blob_records)
-            self.__conn.commit()
+            self._cursor.execute("INSERT INTO {} VALUES({})".format(name, recode_data), blob_records)
+            self._conn.commit()
         except sqlite3.DatabaseError as error:
                 raise SQLiteDatabaseError(error)
 
-    def updateRecord(self, name, where, record):
+    def updateRecord(self, name, record, condition=None):
         """Update an exist recode
 
         :param name: table name
-        :param where: recode location
         :param record: recode data could be list or dict (with column name and data)
+        :param condition: update record condition after WHERE
         :return: error raise DatabaseError
         """
         try:
-            if not isinstance(where, (list, tuple)):
-                raise TypeError("where require list or tuple type")
+
+            condition = condition or ""
 
             if not isinstance(record, (list, tuple, dict)):
                 raise TypeError("recode require list or tuple or dict type")
 
-            # Get primary key name, data and type
-            pk_name, pk_data, pk_type = where
+            if not isinstance(condition, str):
+                raise TypeError("condition require string object")
 
             # Get column name list and types
             column_names = self.getColumnList(name)
@@ -248,55 +292,65 @@ class SQLiteDatabase(object):
             recode_data = ", ".join(recode_data)
 
             # Update and save
-            # print('UPDATE {} SET {} WHERE {}="{}";'.format(name, recode_data, pk_name, pk_data))
-            self.__cursor.execute('UPDATE {} SET {} WHERE {}="{}";'.format(name, recode_data, pk_name, pk_data),
-                                  blob_records)
-            self.__conn.commit()
+            if not condition:
+                self._cursor.execute('UPDATE {} SET {};'.format(name, recode_data), blob_records)
+            else:
+                self._cursor.execute('UPDATE {} SET {} WHERE {};'.format(name, recode_data, condition), blob_records)
+            self._conn.commit()
         except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
 
-    def deleteRecord(self, name, conditions):
+    def deleteRecord(self, name, condition):
         """Delete records from table, when conditions matched
 
         :param name: table name
-        :param conditions: conditions
+        :param condition: conditions
         :return: error raise an exception
         """
         try:
 
-            self.__cursor.execute("DELETE FROM {} WHERE {};".format(name, conditions))
-            self.__conn.commit()
+            self._cursor.execute("DELETE FROM {} WHERE {};".format(name, condition))
+            self._conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError("Delete error:{}".format(error))
 
-    def selectRecord(self, name, columns=None, conditions=None):
+    def selectRecord(self, name, columns=None, condition=None):
         """Select record from table and matches conditions
 
         :param name: table name
         :param columns: columns name
-        :param conditions: conditions
+        :param condition: conditions
         :return: return a list of records
         """
         try:
 
             columns = columns or list()
-            conditions = conditions or ""
+            condition = condition or ""
 
             if not isinstance(columns, (list, tuple)):
                 raise TypeError("columns require list or tuple")
 
-            if not isinstance(conditions, str):
+            if not isinstance(condition, str):
                 raise TypeError("conditions require string object")
 
             # Pre process
             columns = ", ".join(columns) or "*"
 
             # SQL
-            if not conditions:
-                self.__cursor.execute("SELECT {} FROM {};".format(columns, name))
+            if not condition:
+                self._cursor.execute("SELECT {} FROM {};".format(columns, name))
             else:
-                self.__cursor.execute("SELECT {} FROM {} WHERE {};".format(columns, name, conditions))
+                self._cursor.execute("SELECT {} FROM {} WHERE {};".format(columns, name, condition))
 
-            return self.__cursor.fetchall()
+            return self._cursor.fetchall()
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Select error:{}".format(error))
+
+
+class SQLCipherDatabase(SQLiteDatabase):
+    def __init__(self, db_path, key, timeout=20):
+        super(SQLCipherDatabase, self).__init__(db_path, timeout)
+        self._conn.close()
+        self._conn = sqlcipher.connect(db_path, timeout=timeout)
+        self._cursor = self._conn.cursor()
+        self._cursor.execute("PRAGMA key='{}'".format(key))
