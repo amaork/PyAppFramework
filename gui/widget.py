@@ -2241,7 +2241,11 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
 
                 box = QGroupBox()
                 group_layout = QVBoxLayout()
-                box.setTitle(group_settings.get_name())
+
+                # Only one group do not display title
+                if len(self.layout) >= 2:
+                    box.setTitle(group_settings.get_name())
+
                 settings = {"layout": group_settings}
                 for item_name in group_settings.get_layout():
                     settings[item_name] = self.settings.get(item_name)
@@ -2284,6 +2288,13 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
     def slotSettingChanged(self):
         self.settingChanged.emit()
 
+    def getWidgetManager(self, name):
+        for widget in self.widget_list:
+            if widget.property("name") == name:
+                return widget.ui_manager
+
+        return None
+
 
 class MultiTabJsonSettingsWidget(QTabWidget):
     settingChanged = Signal()
@@ -2320,7 +2331,6 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         # Init tabs and group
         for tab in self.layout.get_layout():
             try:
-                tab_widget = QWidget()
                 tab_layout = QVBoxLayout()
                 tab_setting = self.settings.get(tab)
                 tab_setting = tab_setting if isinstance(tab_setting, UiLayout) else UiLayout(**tab_setting)
@@ -2341,11 +2351,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                 widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
                 self.widget_list.append(widget)
                 tab_layout.addWidget(widget)
-                tab_widget.setLayout(tab_layout)
-                if tab_layout.count() >= 2:
-                    self.insertTab(self.count(), tab_widget, tab_setting.name)
-                else:
-                    self.insertTab(self.count(), widget, tab_setting.name)
+                self.insertTab(self.count(), widget, tab_setting.name)
             except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                 print("{}".format(err))
 
@@ -2376,10 +2382,11 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     def slotSettingChanged(self):
         self.settingChanged.emit()
 
-    def getWidgetManager(self, name):
+    def getGroupWidgetManager(self, name):
         for widget in self.widget_list:
-            if widget.property("name") == name:
-                return widget.ui_manager
+            manager = widget.getWidgetManager(name)
+            if isinstance(manager, ComponentManager):
+                return manager
 
         return None
 
