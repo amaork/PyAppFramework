@@ -69,14 +69,12 @@ class SerialPortSelector(QComboBox):
                 self.setItemData(index + 1, device)
 
         # Scan LAN raspberry serial port
-        for raspberry in scan_server(timeout):
-            try:
-
+        try:
+            for raspberry in scan_server(timeout):
                 for port in Query(raspberry).get_serial_list():
                     self.addItem("{}/{}".format(raspberry, port.split("/")[-1]), (raspberry, port))
-
-            except (RaspiSocketError, IndexError):
-                pass
+        except (RaspiSocketError, IndexError, ValueError, OSError):
+            pass
 
     def __slotPortSelected(self, idx):
         if not isinstance(idx, int) or idx == 0 or self.count() == 0:
