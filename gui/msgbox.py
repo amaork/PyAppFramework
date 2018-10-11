@@ -46,6 +46,10 @@ def showMessageBox(parent, msg_type, content, title=None):
         title = title if title else default_title
         buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
         msg = QMessageBox(icon, title, content, buttons, parent=parent)
-        return msg.exec_() == QMessageBox.Ok
+        if msg_type == MB_TYPE_QUESTION:
+            return msg.exec_() == QMessageBox.Ok
+        else:
+            msg.exec_()
+            return True if msg_type == MB_TYPE_INFO else False
     except TypeError:
         return False

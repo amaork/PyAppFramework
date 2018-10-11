@@ -51,6 +51,8 @@ class JsonSettings(DynamicObject):
             return False
 
         path = path if path else cls._default_path
+        if not os.path.isdir(os.path.dirname(path)) and len(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
         with codecs.open(path, "w", "utf-8") as fp:
             json.dump(settings.dict, fp, indent=4, ensure_ascii=False)
 
