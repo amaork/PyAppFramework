@@ -258,6 +258,10 @@ class PaintWidget(QWidget):
         return color
 
     @staticmethod
+    def getMonitorResolution():
+        return QApplication.desktop().screenGeometry().size()
+
+    @staticmethod
     def getColorMode(color):
         """Return color mode, blue -> 1, red -> 4 white -> 7
 
@@ -957,6 +961,25 @@ class TableWidget(QTableWidget):
 
     def __slotWidgetDataChanged(self):
         self.tableDataChanged.emit()
+
+    def setItemBackground(self, row, column, background):
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
+            return False
+
+        item = QTableWidgetItem(self.takeItem(row, column).text())
+        item.setBackground(background)
+        self.setItem(row, column, item)
+        self.frozenItem(row, column, True)
+        return True
+
+    def setItemForeground(self, row, column, foreground):
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
+            return False
+
+        item = QTableWidgetItem(self.takeItem(row, column).text())
+        item.setForeground(foreground)
+        self.setItem(row, column, item)
+        self.frozenItem(row, column, True)
 
     @Slot(bool)
     def hideHeaders(self, hide):
