@@ -27,10 +27,89 @@ from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectD
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput
 
 
-__all__ = ['ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
+__all__ = ['BasicWidget', 'PaintWidget',
+           'ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
            'BasicJsonSettingWidget', 'JsonSettingWidget', 'MultiJsonSettingsWidget',
            'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
+
+
+class BasicWidget(QWidget):
+    def __init__(self, parent=None):
+        super(BasicWidget, self).__init__(parent)
+
+        self._initUi()
+        self._initData()
+        self._initStyle()
+        self._initThreadAndTimer()
+        self._initSignalAndSlots()
+
+    def _initUi(self):
+        pass
+
+    def _initData(self):
+        pass
+
+    def _initStyle(self):
+        pass
+
+    def _initThreadAndTimer(self):
+        pass
+
+    def _initSignalAndSlots(self):
+        pass
+
+    @staticmethod
+    def createTextInput(label, key):
+        text = QLineEdit()
+        label = QLabel(label)
+        text.setProperty("name", key)
+        label.setProperty("name", "{}_label".format(key))
+        layout = QHBoxLayout()
+        layout.addWidget(label)
+        layout.addWidget(text)
+        return layout
+
+    @staticmethod
+    def createMultiTextInput(texts):
+        layout = QGridLayout()
+        for row, text in enumerate(texts):
+            label, key = text
+            text = QLineEdit()
+            label = QLabel(label)
+            text.setProperty("name", key)
+            label.setProperty("name", "{}_label".format(key))
+            layout.addWidget(label, row, 0)
+            layout.addWidget(text, row, 1)
+        return layout
+
+    @staticmethod
+    def createButtonGroup(key, names, title=None):
+        """Create button group and set button id
+
+        :param key: button group key name
+        :param names: button text
+        :param title: Radio button title
+        :return: button group, and layout
+        """
+        group = QButtonGroup()
+        layout = QHBoxLayout()
+        group.setProperty("name", key)
+        if title:
+            layout.addWidget(QLabel(title))
+        for bid, name in enumerate(names):
+            button = QRadioButton(name)
+            button.setProperty("name", name)
+            group.addButton(button)
+            group.setId(button, bid)
+            layout.addWidget(button)
+
+        # Select first
+        group.button(0).setChecked(True)
+        if len(names) < 4:
+            layout.addWidget(QSplitter())
+
+        return group, layout
 
 
 class PaintWidget(QWidget):
@@ -993,6 +1072,18 @@ class TableWidget(QTableWidget):
     @Slot(bool)
     def hideColumnHeader(self, hide):
         self.horizontalHeader().setVisible(not hide)
+
+    def setVerticalHeaderHeight(self, height):
+        vertical_header = self.verticalHeader()
+        vertical_header.setResizeMode(QHeaderView.Fixed)
+        vertical_header.setDefaultSectionSize(height)
+        self.setVerticalHeader(vertical_header)
+
+    def setHorizontalHeaderWidth(self, width):
+        horizontal_header = self.horizontalHeader()
+        horizontal_header.setResizeMode(QHeaderView.Fixed)
+        horizontal_header.setDefaultSectionSize(width)
+        self.setHorizontalHeader(horizontal_header)
 
     @Slot()
     def rowMoveUp(self):
