@@ -60,22 +60,22 @@ class BasicWidget(QWidget):
         pass
 
     @staticmethod
-    def createTextInput(label, key):
-        text = QLineEdit()
+    def createInputWithLabel(label, key, input_cls):
+        input_ = input_cls()
         label = QLabel(label)
-        text.setProperty("name", key)
+        input_.setProperty("name", key)
         label.setProperty("name", "{}_label".format(key))
         layout = QHBoxLayout()
         layout.addWidget(label)
-        layout.addWidget(text)
-        return layout
+        layout.addWidget(input_)
+        return input_, layout
 
     @staticmethod
-    def createMultiTextInput(texts):
+    def createMultiInputWithLabel(texts, input_cls):
         layout = QGridLayout()
         for row, text in enumerate(texts):
             label, key = text
-            text = QLineEdit()
+            text = input_cls()
             label = QLabel(label)
             text.setProperty("name", key)
             label.setProperty("name", "{}_label".format(key))
