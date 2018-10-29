@@ -155,6 +155,7 @@ class RectButton(BaseButton):
 
     def paintEvent(self, ev):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect()
 
         # Draw background
@@ -172,6 +173,7 @@ class RoundButton(RectButton):
 
     def paintEvent(self, ev):
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect()
 
         # Draw background
