@@ -1116,14 +1116,17 @@ class TableWidget(QTableWidget):
     @Slot()
     def setRowSelectMode(self):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
 
     @Slot()
     def setItemSelectMode(self):
         self.setSelectionBehavior(QAbstractItemView.SelectItems)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
 
     @Slot()
     def setColumnSelectMode(self):
         self.setSelectionBehavior(QAbstractItemView.SelectColumns)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
 
     def frozenItem(self, row, column, frozen):
         """Frozen or unfroze a item
