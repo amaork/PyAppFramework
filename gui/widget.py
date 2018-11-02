@@ -1552,7 +1552,7 @@ class TableWidget(QTableWidget):
 
     def setRowData(self, row, data):
         try:
-            if len(data) != self.colorCount() or not 0 <= row < self.rowCount():
+            if len(data) != self.columnCount() or not 0 <= row < self.rowCount():
                 return False
 
             for column, item_data in enumerate(data):
@@ -1569,7 +1569,7 @@ class TableWidget(QTableWidget):
 
     def setColumnData(self, column, data):
         try:
-            if len(data) != self.rowCount() or not 0 <= column < self.colorCount():
+            if len(data) != self.rowCount() or not 0 <= column < self.columnCount():
                 return False
 
             for row, item_data in enumerate(data):
@@ -1590,6 +1590,14 @@ class TableWidget(QTableWidget):
 
         self.__table_filters = filters
         return True
+
+    def setTableData(self, table_data):
+        try:
+            for row, data in enumerate(table_data):
+                self.setRowData(row, data)
+        except TypeError:
+            print("{!r} request a list or tuple not {!r}".format("table_data", table_data.__class__.__name__))
+            return False
 
     def getItemData(self, row, column):
         if not self.__checkRow(row) or not self.__checkColumn(column):

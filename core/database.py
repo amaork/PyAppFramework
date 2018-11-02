@@ -86,6 +86,14 @@ class SQLiteDatabase(object):
         else:
             return "UNKNOWN"
 
+    def rawExecute(self, sql):
+        try:
+            self._cursor.execute(sql)
+            self._conn.commit()
+            return self._cursor.fetchall()
+        except sqlite3.DatabaseError as error:
+            raise SQLiteDatabaseError(error)
+
     def getTableList(self):
         """Get database table name list
 
