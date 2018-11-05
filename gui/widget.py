@@ -1295,7 +1295,7 @@ class TableWidget(QTableWidget):
         for column, item_data in enumerate(data):
             try:
 
-                item = QTableWidgetItem(self.tr(str(item_data)))
+                item = QTableWidgetItem("{}".format(item_data))
                 if property_:
                     try:
                         item.setData(Qt.UserRole, property_[column])
@@ -1437,8 +1437,8 @@ class TableWidget(QTableWidget):
                 widget.setValue(data)
                 self.removeCellWidget(row, column)
                 self.setCellWidget(row, column, widget)
-            elif isinstance(item, QTableWidgetItem) and isinstance(data, str):
-                item.setText(self.tr(data))
+            elif isinstance(item, QTableWidgetItem):
+                item.setText("{}".format(data))
                 self.setItem(row, column, item)
             else:
                 return False
