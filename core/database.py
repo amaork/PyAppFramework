@@ -18,11 +18,11 @@ class SQLiteDatabase(object):
     TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
     TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
-    def __init__(self, db_path, timeout=20):
+    def __init__(self, db_path, timeout=20, check_same_thread=True):
         if not os.path.isfile(db_path):
             raise IOError("{} do not exist".format(db_path))
 
-        self._conn = sqlite3.connect(db_path, timeout=timeout)
+        self._conn = sqlite3.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
         self._cursor = self._conn.cursor()
 
     @property
@@ -356,9 +356,9 @@ class SQLiteDatabase(object):
 
 
 class SQLCipherDatabase(SQLiteDatabase):
-    def __init__(self, db_path, key, timeout=20):
-        super(SQLCipherDatabase, self).__init__(db_path, timeout)
+    def __init__(self, db_path, key, timeout=20, check_same_thread=True):
+        super(SQLCipherDatabase, self).__init__(db_path, timeout, check_same_thread)
         self._conn.close()
-        self._conn = sqlcipher.connect(db_path, timeout=timeout)
+        self._conn = sqlcipher.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
         self._cursor = self._conn.cursor()
         self._cursor.execute("PRAGMA key='{}'".format(key))
