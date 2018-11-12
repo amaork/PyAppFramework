@@ -6,7 +6,7 @@ Provide UI elements container
 
 import copy
 from PySide.QtCore import QObject, Signal
-from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, \
+from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, QLCDNumber,\
     QLabel, QLineEdit, QTextEdit, QPlainTextEdit, QDateTimeEdit, QWidget, QLayout, QLayoutItem, QGridLayout
 
 
@@ -277,6 +277,8 @@ class ComponentManager(QObject):
             return component.displayFormat()
         elif isinstance(component, QDial):
             return component.value()
+        elif isinstance(component, QLCDNumber):
+            return component.value()
         else:
             return ""
 
@@ -311,6 +313,8 @@ class ComponentManager(QObject):
                 component.setPlainText(data)
         elif isinstance(component, QDial):
             component.setValue(str2number(data))
+        elif isinstance(component, QLCDNumber):
+            component.display(str2float(data))
 
     @staticmethod
     def findParentLayout(obj, top):

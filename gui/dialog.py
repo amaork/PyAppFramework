@@ -10,7 +10,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 
-__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog', 'PasswordDialog',
+__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog', 'PasswordDialog', 'OptionDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
@@ -503,6 +503,56 @@ class PasswordDialog(QDialog):
         dialog = PasswordDialog(password, hash_function, style, parent)
         dialog.exec_()
         return dialog.getNewPassword()
+
+
+class OptionDialog(QDialog):
+    def __init__(self, options, title="请选择", parent=None):
+        super(OptionDialog, self).__init__(parent)
+
+        self.selection = ""
+        self.options = options
+
+        layout = QVBoxLayout()
+        for option in options:
+            btn = QPushButton(option)
+            layout.addWidget(btn)
+            btn.clicked.connect(self.slotSelected)
+
+        cancel = QPushButton(self.tr("取消"))
+        cancel.clicked.connect(self.reject)
+        layout.addWidget(cancel)
+
+        self.setLayout(layout)
+        self.setWindowTitle(title)
+
+    def slotSelected(self):
+        sender = self.sender()
+        if not sender:
+            return
+
+        self.selection = sender.text()
+        self.accept()
+
+    def getSelectionText(self):
+        return self.selection
+
+    def getSelectionIndex(self):
+        try:
+            return self.options.index(self.selection)
+        except IndexError:
+            return -1
+
+    @classmethod
+    def getOptionText(cls, options, title="请选择", parent=None):
+        dialog = cls(options, title, parent)
+        dialog.exec_()
+        return dialog.getSelectionText()
+
+    @classmethod
+    def getOptionIndex(cls, options, title="请选择", parent=None):
+        dialog = cls(options, title, parent)
+        dialog.exec_()
+        return dialog.getSelectionIndex()
 
 
 def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):
