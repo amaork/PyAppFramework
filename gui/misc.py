@@ -96,6 +96,15 @@ class TabBar(QTabBar):
         self.tabSize = QSize(kwargs.pop('width'), kwargs.pop('height'))
         super(TabBar, self).__init__(*args, **kwargs)
 
+    def updateTabSize(self, size):
+        if isinstance(size, QSize):
+            self.tabSize = size
+            self.update()
+
+    @staticmethod
+    def calcHorizonTablePerfectSize(windows_size, tab_number):
+        return (windows_size.width() / tab_number) - 5, windows_size.height() / 10
+
     def paintEvent(self, ev):
         option = QStyleOptionTab()
         painter = QStylePainter(self)
