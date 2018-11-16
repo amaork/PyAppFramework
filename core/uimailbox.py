@@ -194,6 +194,7 @@ class UiMailBox(QObject):
         elif isinstance(mail, CallbackFuncMail):
             if mail.timeout:
                 timer = Timer(mail.timeout, mail.callback, mail.args, mail.kwargs)
+                timer.setDaemon(True)
                 timer.start()
             else:
                 # Timeout is zero call it immediately
