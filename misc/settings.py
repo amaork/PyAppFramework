@@ -264,24 +264,26 @@ class UiColorInput(UiInputSetting):
             return default_color
 
     @staticmethod
-    def get_color_stylesheet(color_setting):
+    def get_color_stylesheet(color_setting, border=False):
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
             g = color_setting[1]
             b = color_setting[2]
-            return "color: rgb({}, {}, {}); border: none;".format(r, g, b)
+            style = "color: rgb({}, {}, {});".format(r, g, b)
+            return style + 'border: none;' if border else style
         except (IndexError, TypeError):
             return ""
 
     @staticmethod
-    def get_bg_color_stylesheet(color_setting):
+    def get_bg_color_stylesheet(color_setting, border=False):
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
             g = color_setting[1]
             b = color_setting[2]
-            return "background-color: rgb({}, {}, {}); border: none;".format(r, g, b)
+            style = "background-color: rgb({}, {}, {});".format(r, g, b)
+            return style + 'border: none;' if border else style
         except (TypeError, IndexError):
             return ""
 
