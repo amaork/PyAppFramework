@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
+import hashlib
 
 try:
     from pysqlcipher3 import dbapi2 as sqlcipher
 except ImportError:
     import sqlite3 as sqlcipher
 
-__all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteDatabaseError']
+__all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError']
 
 
 class SQLiteDatabaseError(Exception):
@@ -362,3 +363,171 @@ class SQLCipherDatabase(SQLiteDatabase):
         self._conn = sqlcipher.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
         self._cursor = self._conn.cursor()
         self._cursor.execute("PRAGMA key='{}'".format(key))
+
+
+class SQLiteUserPasswordDatabase(object):
+    DEF_PATH = "cipher.db"
+    MAGIC_STR = "SQLiteUserPasswordDatabase"
+
+    USER_TBL = "user"
+    CIPHER_TBL = "cipher"
+
+    USER_ID_KEY = "id"
+    USER_NAME_KEY = "name"
+    USER_DESC_KEY = "note"
+
+    CIPHER_KEY = "cipher"
+    CIPHER_LEVEL_KEY = "level"
+
+    def __init__(self, magic=MAGIC_STR, path=DEF_PATH, self_check=True):
+        """SQLite user password database
+        c1 = c1_encrypt_func(raw_password)
+        c2 = c2_encrypt_func(c1 + magic)
+        c3 = c3_encrypt_func(c1 + c2)
+
+        :param magic: magic string
+        :param path: database path
+        :param self_check: self check when database is opened
+        """
+        try:
+            self.magic = magic
+            self.db = SQLiteDatabase(path)
+            if self_check:
+                self.selfTest()
+        except OSError:
+            raise RuntimeError("打开密码数据库错误，数据库不存在！！！")
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("打开密码数据库错误，{}".format(error))
+
+    def _c1_encrypt_func(self, x):
+        return hashlib.sha256(x).hexdigest()
+
+    def _c2_encrypt_func(self, x):
+        return hashlib.sha3_256(x).hexdigest()
+
+    def _c3_encrypt_func(self, x):
+        return hashlib.shake_256(x).hexdigest(32)
+
+    def selfTest(self):
+        try:
+            _, pk, _ = self.db.getTablePrimaryKey(self.CIPHER_TBL)
+            for user in self.getUserList():
+                level1, level2, level3 = self.getCipherLevel(user)
+
+                c1 = self.db.selectRecord(self.CIPHER_TBL, [self.CIPHER_KEY], self.db.conditionFormat(pk, level1))[0][0]
+                c2 = self.db.selectRecord(self.CIPHER_TBL, [self.CIPHER_KEY], self.db.conditionFormat(pk, level2))[0][0]
+                c3 = self.db.selectRecord(self.CIPHER_TBL, [self.CIPHER_KEY], self.db.conditionFormat(pk, level3))[0][0]
+                r2 = c1 + self.magic
+                r3 = c1 + c2
+                if self._c2_encrypt_func(r2.encode()) != c2 or self._c3_encrypt_func(r3.encode()) != c3:
+                    raise RuntimeError("密码数据库自检错误，密码可能被他人非法篡改，请联系维护人员进行修复！！！")
+
+                return True
+        except IndexError:
+            raise RuntimeError("读取密码数据库错误，数据库可能被损坏，请联系维护人员进行修复！！！")
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("数据库读取错误：{}".format(error))
+
+    def getUserList(self):
+        return [user[0] for user in self.db.selectRecord(self.USER_TBL, [self.USER_NAME_KEY])]
+
+    def getCipherLevel(self, username):
+        try:
+            _, pk, _ = self.db.getTablePrimaryKey(self.USER_TBL)
+            uid = self.db.selectRecord(self.USER_TBL, [pk], self.db.conditionFormat(self.USER_NAME_KEY, username))[0][0]
+            return uid * 3 - 2, uid * 3 - 1, uid * 3
+        except IndexError:
+            raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
+
+    def getUserPassword(self, username):
+        try:
+            level, _, _ = self.getCipherLevel(username)
+            _, pk, _ = self.db.getTablePrimaryKey(self.CIPHER_TBL)
+            return self.db.selectRecord(self.CIPHER_TBL, [self.CIPHER_KEY], self.db.conditionFormat(pk, level))[0][0]
+        except IndexError:
+            raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("数据库读取错误：{}".format(error))
+
+    def getUserDescriptor(self, username):
+        try:
+            condition = self.db.conditionFormat(self.USER_NAME_KEY, username)
+            return self.db.selectRecord(self.USER_TBL, [self.USER_DESC_KEY], condition)[0][0]
+        except IndexError:
+            raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
+
+    def generateC1(self, password):
+        return self._c1_encrypt_func(password)
+
+    def checkPassword(self, username, c1):
+        return c1 == self.getUserPassword(username)
+
+    def updatePassword(self, username, c1):
+        try:
+            r2 = c1 + self.magic
+            c2 = self._c2_encrypt_func(r2.encode())
+            c3 = self._c3_encrypt_func((c1 + c2).encode())
+
+            level1, level2, level3 = self.getCipherLevel(username)
+            _, pk, _ = self.db.getTablePrimaryKey(self.CIPHER_TBL)
+
+            self.db.updateRecord(self.CIPHER_TBL, {self.CIPHER_KEY: c1}, self.db.conditionFormat(pk, level1))
+            self.db.updateRecord(self.CIPHER_TBL, {self.CIPHER_KEY: c2}, self.db.conditionFormat(pk, level2))
+            self.db.updateRecord(self.CIPHER_TBL, {self.CIPHER_KEY: c3}, self.db.conditionFormat(pk, level3))
+            self.selfTest()
+        except IndexError:
+            raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("数据库读取错误：{}".format(error))
+
+    def addUser(self, user, password, desc=""):
+        try:
+
+            # Calc uid
+            uid = len(self.getUserList()) + 1
+
+            # First add user
+            self.db.insertRecord(self.USER_TBL, [uid, user, desc])
+
+            # Second get user level
+            level1, level2, level3 = self.getCipherLevel(user)
+
+            # Create user cipher
+            self.db.insertRecord(self.CIPHER_TBL, [level1, ""])
+            self.db.insertRecord(self.CIPHER_TBL, [level2, ""])
+            self.db.insertRecord(self.CIPHER_TBL, [level3, ""])
+
+            # Finally update user password
+            self.updatePassword(user, password)
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("添加用户「{}」,失败：{}！！！".format(user, error))
+
+    def deleteUser(self, user):
+        try:
+            # First get user level
+            level1, level2, level3 = self.getCipherLevel(user)
+
+            # Delete cipher with specified level
+            self.db.deleteRecord(self.CIPHER_TBL, self.db.conditionFormat(self.CIPHER_LEVEL_KEY, level1))
+            self.db.deleteRecord(self.CIPHER_TBL, self.db.conditionFormat(self.CIPHER_LEVEL_KEY, level2))
+            self.db.deleteRecord(self.CIPHER_TBL, self.db.conditionFormat(self.CIPHER_LEVEL_KEY, level3))
+
+            # Finally delete user
+            self.db.deleteRecord(self.USER_TBL, self.db.conditionFormat(self.USER_NAME_KEY, user))
+        except SQLiteDatabaseError as error:
+            raise RuntimeError("删除用户「{}」失败：{}！！！".format(user, error))
+
+    @classmethod
+    def create_database(cls, name):
+        db = sqlite3.connect(name)
+        cursor = db.cursor()
+        cursor.execute("CREATE TABLE {}("
+                       "{} INTEGER PRIMARY KEY AUTOINCREMENT,"
+                       "{} TEXT NOT NULL UNIQUE,"
+                       "{} TEXT DEFAULT '');".format(cls.USER_TBL,
+                                                     cls.USER_ID_KEY, cls.USER_NAME_KEY, cls.USER_DESC_KEY))
+
+        cursor.execute("CREATE TABLE {}("
+                       "{} INTEGER PRIMARY KEY AUTOINCREMENT,"
+                       "{} TEXT NOT NULL)".format(cls.CIPHER_TBL, cls.CIPHER_LEVEL_KEY, cls.CIPHER_KEY))
+        db.commit()
