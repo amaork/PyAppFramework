@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
 import socket
 import concurrent.futures
-__all__ = ['get_host_address', 'connect_device', 'scan_lan_port']
+from threading import Thread
+__all__ = ['get_host_address', 'connect_device', 'scan_lan_port', 'SocketSingleInstanceLock']
 
 
 def get_host_address():
@@ -36,3 +39,44 @@ def scan_lan_port(port, timeout, max_workers=None):
 
     return [x.result() for x in result if x.result() is not None]
 
+
+class SocketSingleInstanceLock(object):
+    def __init__(self, port):
+        """
+        Socket single instance lock, using this make sure that is only one instance running in the same time
+        If another instance is running will display running instance path and pid
+        :param port: tcp socket listen port, using this as lock port
+        """
+        try:
+            self.__lock_port = port
+            self.__lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            self.__lock_socket.bind(("0.0.0.0", port))
+            self.__lock_socket.listen(5)
+            th = Thread(target=self.lockThread)
+            th.setDaemon(True)
+            th.start()
+        except socket.error:
+            self.getMessageFromRunningInstance()
+
+    def lockThread(self):
+        while True:
+            try:
+                new_connection, _ = self.__lock_socket.accept()
+                new_connection.send("Another instance is running pid: {}\nPath: {}".format(
+                    os.getpid(), os.path.join(os.getcwd(), sys.argv[0])
+                ).encode())
+                new_connection.shutdown(socket.SHUT_WR)
+            except socket.error as error:
+                print("{}".format(error))
+
+    def getMessageFromRunningInstance(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            s.settimeout(0.3)
+            s.connect(('127.0.0.1', self.__lock_port))
+            msg = s.recv(1024)
+            s.close()
+            raise RuntimeError(msg.decode())
+        except socket.error as err:
+            print("{}".format(err))
+            raise RuntimeError("Another instance is running")
