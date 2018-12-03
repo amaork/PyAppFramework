@@ -2137,6 +2137,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setPlaceholderText(setting.get_default())
                 # Set regular expression and max length
                 widget.setProperty("filter", setting.check[0])
+                widget.setValidator(QRegExpValidator(QRegExp(setting.check[0])))
                 widget.setMaxLength(setting.check[1])
             elif setting.is_float_type():
                 widget = QDoubleSpinBox()

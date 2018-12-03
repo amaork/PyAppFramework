@@ -3,13 +3,15 @@ import os
 import json
 import codecs
 import logging
+from string import Template
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiLogMessage',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
+           'UiTextInput', 'UiTimeInput', 'UiAddressInput',
            'UiFileInput', 'UiFolderInput', 'UiSerialInput',
-           'UiTextInput', 'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
+           'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
 
 
 class JsonSettingsDecodeError(Exception):
@@ -244,6 +246,50 @@ class UiTextInput(UiInputSetting):
     def __init__(self, name, length, default="", re_="", readonly=False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length), readonly=readonly, type="TEXT")
+
+
+class UiTimeInput(UiTextInput):
+    def __init__(self, name, default="00:00:00", hour_number=4, readonly=False):
+
+        h = str(hour_number)
+        length = 6 + hour_number
+        re_ = Template("^(\d{0,$h}):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$$")
+        super(UiTimeInput, self).__init__(name, length, default=default, re_=re_.substitute(h=h), readonly=readonly)
+
+    @staticmethod
+    def str2time(time_string):
+        return UiTimeInput.seconds2time(UiTimeInput.str2seconds(time_string))
+
+    @staticmethod
+    def str2seconds(time_string):
+        try:
+            times = time_string.split(":")
+            if len(times) != 3:
+                return 0
+            return int(times[0]) * 3600 + int(times[1]) * 60 + int(times[2])
+        except (AttributeError, ValueError):
+            return 0
+
+    @staticmethod
+    def second2str(seconds):
+        h, m, s = UiTimeInput.seconds2time(seconds)
+        return "{0:02d}:{1:02d}:{2:02d}".format(h, m, s)
+
+    @staticmethod
+    def seconds2time(seconds):
+        try:
+            h = seconds // 3600
+            m = (seconds % 3600) // 60
+            s = (seconds % 60)
+            return h, m, s
+        except TypeError:
+            return 0, 0, 0
+
+
+class UiAddressInput(UiTextInput):
+    def __init__(self, name, default="000.000.000.000", readonly=False):
+        re_ = "((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))"
+        super(UiAddressInput, self).__init__(name, 16, default=default, re_=re_, readonly=readonly)
 
 
 class UiColorInput(UiInputSetting):
