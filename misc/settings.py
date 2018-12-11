@@ -243,7 +243,7 @@ class UiFontInput(UiInputSetting):
 
 
 class UiTextInput(UiInputSetting):
-    def __init__(self, name, length, default="", re_="", readonly=False):
+    def __init__(self, name, length, default="", re_="[\s\S]*", readonly=False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length), readonly=readonly, type="TEXT")
 

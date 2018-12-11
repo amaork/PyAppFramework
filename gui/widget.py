@@ -1316,6 +1316,18 @@ class TableWidget(QTableWidget):
         # Select current item
         self.selectRow(row)
 
+    def setRowBackgroundColor(self, row, color):
+        [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
+
+    def setRowForegroundColor(self, row, color):
+        [self.setItemForeground(row, column, color) for column in range(self.columnCount())]
+
+    def setColumnBackgroundColor(self, column, color):
+        [self.setItemBackground(row, column, color) for row in range(self.rowCount())]
+
+    def setColumnForegroundColor(self, column, color):
+        [self.setItemForeground(row, column, color) for row in range(self.rowCount())]
+
     def setRowHeader(self, data):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
