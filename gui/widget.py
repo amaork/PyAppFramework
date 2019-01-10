@@ -1114,6 +1114,11 @@ class TableWidget(QTableWidget):
         self.swapColumn(column, column + 1)
 
     @Slot()
+    def setNoSelection(self):
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setSelectionMode(QAbstractItemView.NoSelection)
+
+    @Slot()
     def setRowSelectMode(self):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)

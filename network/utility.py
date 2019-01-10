@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import struct
 import socket
+import platform
+import ipaddress
 import concurrent.futures
 from threading import Thread
-__all__ = ['get_host_address', 'connect_device', 'scan_lan_port', 'SocketSingleInstanceLock']
+__all__ = ['get_host_address', 'get_broadcast_address', 'connect_device', 'scan_lan_port', 'set_keepalive',
+           'enable_broadcast', 'enable_multicast',
+           'SocketSingleInstanceLock']
 
 
 def get_host_address():
@@ -18,6 +23,45 @@ def get_host_address():
         return s.getsockname()[0]
     except socket.error:
         return socket.gethostbyname(socket.gethostname())
+
+
+def get_broadcast_address(address, nbits=24):
+    interface = ipaddress.IPv4Interface("{}/{}".format(address, nbits))
+    return interface.network.broadcast_address.exploded
+
+
+def set_keepalive(sock, after_idle_sec=1, interval_sec=1, max_fails=3):
+    """Set TCP keepalive on an open socket.
+    It activates after 1 second (after_idle_sec) of idleness,
+    then sends a keepalive ping once every 3 seconds (interval_sec),
+    and closes the connection after 3 failed ping (max_fails), or 3 seconds
+    :param sock: opened tcp socket
+    :param after_idle_sec: after #after_idle_sec idleness then send keepalive ping
+    :param interval_sec: send keepalive ping every #interval_sec
+    :param max_fails: after #max_fails times indicate the connection is lose
+    :return:
+    """
+    _system = platform.system().lower()
+    if _system == "linux":
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, interval_sec)
+        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, max_fails)
+    elif _system == "darwin":
+        TCP_KEEPALIVE = 0x10
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.setsockopt(socket.IPPROTO_TCP, TCP_KEEPALIVE, interval_sec)
+    elif _system == "windows":
+        sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, after_idle_sec * 1000, interval_sec * 1000))
+
+
+def enable_broadcast(sock):
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+
+def enable_multicast(sock, mcast_group):
+    option = struct.pack("4sL", socket.inet_aton(mcast_group), socket.INADDR_ANY)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, option)
 
 
 def connect_device(address, port, timeout=0.03):
