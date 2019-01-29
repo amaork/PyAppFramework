@@ -276,7 +276,7 @@ class ProgressDialog(QProgressDialog):
     @Slot(int)
     def setProgress(self, value):
         self.setValue(value)
-        if value != 100:
+        if value != self.maximum():
             self.show()
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
