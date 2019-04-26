@@ -153,7 +153,11 @@ class NumberMonitor(BasicWidget):
         location.moveTop(self.height() / 2 - self.DEF_FONT_SIZE)
         painter.setFont(QFont("宋体", self.DEF_FONT_SIZE))
         painter.setPen(QPen(QColor(Qt.lightGray)))
-        sv_str = "SV: {}".format(self._sv if self._sv >= 0 else "-" * self._max_number) if self._sv else ""
+        if self._sv is not None:
+            # sv_str = "SV: {}".format(self._sv if self._sv >= 0 else "-" * self._max_number)
+            sv_str = "SV: {}".format(self._sv)
+        else:
+            sv_str = ""
         painter.drawText(location, Qt.AlignCenter, sv_str)
 
 
