@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__all__ = ['crc16']
+__all__ = ['crc16', 'crc16IBM']
 
 
 __CRC_TABLE_HI = [
@@ -55,7 +55,7 @@ __CRC_TABLE_LOW = [
 
 
 def crc16(data):
-    """Calculate data crc16
+    """Calculate data crc16(modbus)
 
     :param data: data string
     :return: return data crc16
@@ -88,3 +88,51 @@ def crc16(data):
         crc_hi = __CRC_TABLE_LOW[index]
 
     return (crc_hi << 8 | crc_low) & 0xffff
+
+
+def crc16IBM(data):
+    """Calculate data crc16(IBM)
+
+    :param data: data string
+    :return: data crc16
+
+    unsigned int i;
+    unsigned char c;
+    unsigned short crc16 = 0x0;
+
+    while (len != 0) {
+
+        c = *frame;
+
+        for (i = 0; i < 8; i++) {
+
+            if ((crc16 ^ c) & 0x1) {
+
+                crc16 = (crc16 >> 1) ^ 0xA001;
+            }
+            else {
+
+                crc16 = crc16 >> 1;
+            }
+
+            c = c >> 1;
+        }
+
+        len--;
+        frame++;
+    }
+
+    return crc16;
+    """
+    crc = 0x0
+
+    for byte in data:
+        for i in range(8):
+            if (crc ^ byte) & 0x1:
+                crc = (crc >> 1) ^ 0xA001
+            else:
+                crc = crc >> 1
+
+            byte = byte >> 1
+
+    return crc
