@@ -62,6 +62,7 @@ class DemoWidget(QWidget):
             self.buttonSelect.setDisabled(True)
 
 
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))

@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-
+import glob
 import ctypes
 import serial
+import platform
 from threading import Thread
-from raspi_io import Serial as WebsocketSerial, RaspiSocketError
+import serial.tools.list_ports
+from raspi_io.utility import scan_server
+from raspi_io import Serial as WebsocketSerial, RaspiSocketError, Query
 
 from .crc16 import crc16
 from ..core.datatype import BasicTypeLE, ip4_check
@@ -415,6 +418,32 @@ class SerialPort(object):
             data += tmp
 
         return data
+
+    @staticmethod
+    def get_serial_list(timeout=0.04):
+        port_list = list()
+        system = platform.system().lower()
+
+        # Scan local port
+        if system == "linux":
+            for index, port in enumerate(glob.glob("/dev/tty[A-Za-z]*")):
+                port_list.append("{}".format(port))
+        else:
+            for index, port in enumerate(list(serial.tools.list_ports.comports())):
+                # Windows serial port is a object linux is a tuple
+                device = port.device
+                desc = "{0:s}".format(device).split(" - ")[-1]
+                port_list.append("{0:s}".format(desc))
+
+        # Scan LAN raspberry serial port
+        try:
+            for raspberry in scan_server(timeout):
+                for port in Query(raspberry).get_serial_list():
+                    port_list.append("{}/{}".format(raspberry, port.split("/")[-1]))
+        except (RaspiSocketError, IndexError, ValueError, OSError):
+            pass
+
+        return port_list
 
 
 class SerialPortProtocolSimulate(object):
