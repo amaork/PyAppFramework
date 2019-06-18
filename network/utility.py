@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import time
 import struct
 import socket
 import platform
@@ -8,7 +9,7 @@ import ipaddress
 import concurrent.futures
 from threading import Thread
 __all__ = ['get_host_address', 'get_broadcast_address', 'connect_device', 'scan_lan_port', 'set_keepalive',
-           'enable_broadcast', 'enable_multicast',
+           'enable_broadcast', 'enable_multicast', 'set_linger_option', 'create_socket_and_connect',
            'SocketSingleInstanceLock']
 
 
@@ -64,6 +65,11 @@ def enable_multicast(sock, mcast_group):
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, option)
 
 
+def set_linger_option(sock, onoff=1, linger=0):
+    option = struct.pack("ii", onoff, linger)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, option)
+
+
 def connect_device(address, port, timeout=0.03):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,6 +88,36 @@ def scan_lan_port(port, timeout, max_workers=None):
         result = [pool.submit(connect_device, *arg) for arg in args]
 
     return [x.result() for x in result if x.result() is not None]
+
+
+def create_socket_and_connect(address, port, timeout, recv_buf_size=32 * 1024, retry=3, no_delay=True):
+    times = 0
+    while times < retry:
+        try:
+            # Create a tcp socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+
+            # Set timeout
+            sock.settimeout(timeout)
+
+            # Connect to specified address and port
+            sock.connect((address, port))
+
+            # Set linger option
+            set_linger_option(sock)
+
+            # Disable Nagle algorithm
+            sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, no_delay)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, recv_buf_size)
+            return sock
+        except socket.error as error:
+            print("Create socket and connect to {}:{} error:{}".format(address, port, error))
+            times += 1
+            if times < retry:
+                time.sleep(times)
+            continue
+
+    raise RuntimeError("Connect to {}:{} failed".format(address, port))
 
 
 class SocketSingleInstanceLock(object):
