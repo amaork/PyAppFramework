@@ -10,6 +10,40 @@ from ..misc.settings import *
 from .images import ImagesPath
 from ..gui.container import ComponentManager
 from ..gui.widget import SerialPortSettingWidget
+from ..gui.misc import NavigationItem, NavigationBar
+
+
+class NavigationWidget(QMainWindow):
+    def __init__(self, parent=None):
+        super(NavigationWidget, self).__init__(parent)
+
+        self._initUi()
+        self._initStyle()
+
+    def _initUi(self):
+        self.ui_nav_bar = NavigationBar(moveAble=True, parent=self)
+        navigation_settings = [
+            ('', self.ui_nav_bar.foldExpand, 'framework/demos/images/icons/menu.png', False),
+            ('参数配置', None, 'framework/demos/images/icons/manual.png', True),
+            ('数据传输', None, 'framework/demos//images/icons/method.png', True),
+            ('运行日志', None, 'framework/demos//images/icons/dynamic_bar.png', True),
+            ('状态检测', None, 'framework/demos//images/icons/waveform.png', True),
+            ('高级设置', None, 'framework/demos//images/icons/configure.png', True)
+        ]
+        for text, slot, icon, activate_invert in navigation_settings:
+            btn = NavigationItem(text, icon, slot, activate_invert, parent=self)
+            self.ui_nav_bar.addItem(btn)
+            if btn.text() == "状态检测":
+                self.ui_nav_bar.addExpandWidget()
+
+        self.addToolBar(Qt.LeftToolBarArea, self.ui_nav_bar)
+        self.setWindowTitle("导航栏演示")
+
+    def _initStyle(self):
+        self.ui_nav_bar.setStyleSheet(UiColorInput.get_bg_color_stylesheet((93, 78, 96)))
+
+    def slotGetActivateItem(self):
+        return self.ui_nav_bar.getActivateItemName()
 
 
 class ListDemoWidget(QWidget):
@@ -520,6 +554,13 @@ class Demo(QMainWindow):
         self.multiJsonSettingButton = QPushButton("Get setting")
         self.multiJsonSettingButton.clicked.connect(self.showWidget)
 
+        self.navigationWidget = NavigationWidget()
+        self.navigationWidget.setHidden(True)
+        self.navigationLabel = QLabel()
+        self.navigationLabel.setFrameStyle(frameStyle)
+        self.navigationButton = QPushButton("Show navigation")
+        self.navigationButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -545,6 +586,8 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.settingLabel, 10, 1)
         self.layout.addWidget(self.multiJsonSettingButton, 11, 0)
         self.layout.addWidget(self.multiJsonSettingLabel, 11, 1)
+        self.layout.addWidget(self.navigationButton, 12, 0)
+        self.layout.addWidget(self.navigationLabel, 12, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -569,6 +612,8 @@ class Demo(QMainWindow):
             self.settingWidget.setHidden(False)
         elif self.sender() == self.multiJsonSettingButton:
             self.multiJsonSettingWidget.setHidden(False)
+        elif self.sender() == self.navigationButton:
+            self.navigationWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:

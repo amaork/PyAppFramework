@@ -6,7 +6,9 @@ from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
-__all__ = ['SerialPortSelector', 'TabBar', 'updateFilterMenu']
+__all__ = ['SerialPortSelector', 'TabBar',
+           'NavigationItem', 'NavigationBar',
+           'updateFilterMenu']
 
 
 class SerialPortSelector(QComboBox):
@@ -162,3 +164,119 @@ def updateFilterMenu(options, menu, group, slot, select=None):
 
         # Update
         slot()
+
+
+class NavigationItem(QToolButton):
+    activated = Signal()
+    ACTIVATE_STYLE = 'color: rgb(0, 0, 0);font: 20pt "宋体";'
+    DEFAULT_STYLE = 'color: rgb(255, 255, 255);font: 20pt "宋体";'
+
+    def __init__(self, text, icon, slot=None, activate_invert=True,
+                 default_style=DEFAULT_STYLE, activate_style=ACTIVATE_STYLE, parent=None):
+        super(NavigationItem, self).__init__(parent)
+        self.__text = text
+        self.__icon = icon
+        self.__slot = slot
+        self.__activate = False
+        self.__default_style = default_style
+        self.__activate_style = activate_style
+        self.__activate_invert = activate_invert
+        self.__action = QAction(QIcon(icon), text, self)
+        self.__action.triggered.connect(self.slotSelected)
+        self.addAction(self.__action)
+        self.setDefaultAction(self.__action)
+        self.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.setStyleSheet(self.__default_style)
+
+    def slotSelected(self):
+        self.activated.emit()
+        if hasattr(self.__slot, "__call__"):
+            self.__slot()
+
+    def isActivate(self):
+        return self.__activate
+
+    def isActivateInvert(self):
+        return self.__activate_invert
+
+    def setFold(self, fold):
+        self.setToolButtonStyle(Qt.ToolButtonIconOnly if fold else Qt.ToolButtonTextBesideIcon)
+
+    def setActivate(self, activate):
+        self.__activate = activate
+        if not self.__activate_invert:
+            return
+        if activate:
+            image = QImage(self.__icon)
+            image.invertPixels()
+            self.setStyleSheet(self.__activate_style)
+            self.__action.setIcon(QPixmap.fromImage(image))
+        else:
+            self.setStyleSheet(self.__default_style)
+            self.__action.setIcon(QIcon(self.__icon))
+
+    def setDefaultStyle(self, style):
+        self.__default_style = style
+
+    def setActivateStyle(self, style):
+        self.__activate_style = style
+
+
+class NavigationBar(QToolBar):
+    def __init__(self, normal_size=QSize(64, 64), fold_size=QSize(96, 96), moveAble=False, parent=None):
+        super(NavigationBar, self).__init__(parent)
+
+        self.__fold = False
+        self.__items = list()
+        self.__fold_size = fold_size
+        self.__normal_size = normal_size
+        self.setMovable(moveAble)
+        self.setIconSize(self.__normal_size)
+        self.setContextMenuPolicy(Qt.PreventContextMenu)
+
+    def foldExpand(self):
+        self.__fold = not self.__fold
+        [item.setFold(self.__fold) for item in self.__items]
+        self.setIconSize(self.__fold_size if self.__fold else self.__normal_size)
+
+    def addItem(self, item):
+        if not isinstance(item, NavigationItem):
+            return
+
+        self.addWidget(item)
+        self.__items.append(item)
+        if item.isActivateInvert():
+            item.activated.connect(self.slotActivateItem)
+
+    def addExpandWidget(self):
+        expand_widget = QWidget()
+        expand_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.addWidget(expand_widget)
+
+    def slotActivateItem(self):
+        sender = self.sender()
+        activate_item = self.getActivateItem()
+        if isinstance(activate_item, NavigationItem):
+            activate_item.setActivate(False)
+
+        if isinstance(sender, NavigationItem):
+            sender.setActivate(True)
+
+    def setActivateItem(self, name):
+        for item in self.__items:
+            if item.text() == name:
+                item.activated.emit()
+
+    def getActivateItem(self):
+        for item in self.__items:
+            if item.isActivate():
+                return item
+
+        return None
+
+    def getActivateItemName(self):
+        item = self.getActivateItem()
+        if isinstance(item, NavigationItem):
+            return item.text()
+
+        return ""
