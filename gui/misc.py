@@ -6,7 +6,8 @@ from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
-__all__ = ['SerialPortSelector', 'TabBar',
+from .container import ComponentManager
+__all__ = ['SerialPortSelector', 'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
            'updateFilterMenu']
 
@@ -166,6 +167,18 @@ def updateFilterMenu(options, menu, group, slot, select=None):
         slot()
 
 
+class ExpandWidget(QWidget):
+    def __init__(self, orientation=Qt.Horizontal, parent=None):
+        super(ExpandWidget, self).__init__(parent)
+        self.setOrientation(orientation)
+
+    def setOrientation(self, orientation):
+        if orientation == Qt.Vertical:
+            self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        else:
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+
 class NavigationItem(QToolButton):
     activated = Signal()
     ACTIVATE_STYLE = 'color: rgb(0, 0, 0);font: 20pt "宋体";'
@@ -227,31 +240,28 @@ class NavigationBar(QToolBar):
         super(NavigationBar, self).__init__(parent)
 
         self.__fold = False
-        self.__items = list()
         self.__fold_size = fold_size
         self.__normal_size = normal_size
         self.setMovable(moveAble)
         self.setIconSize(self.__normal_size)
         self.setContextMenuPolicy(Qt.PreventContextMenu)
+        self.ui_manager = ComponentManager(self.layout())
 
     def foldExpand(self):
         self.__fold = not self.__fold
-        [item.setFold(self.__fold) for item in self.__items]
         self.setIconSize(self.__fold_size if self.__fold else self.__normal_size)
+        [item.setFold(self.__fold) for item in self.ui_manager.getByType(NavigationItem)]
 
     def addItem(self, item):
         if not isinstance(item, NavigationItem):
             return
 
         self.addWidget(item)
-        self.__items.append(item)
         if item.isActivateInvert():
             item.activated.connect(self.slotActivateItem)
 
     def addExpandWidget(self):
-        expand_widget = QWidget()
-        expand_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.addWidget(expand_widget)
+        self.addWidget(ExpandWidget(self.orientation()))
 
     def slotActivateItem(self):
         sender = self.sender()
@@ -263,12 +273,12 @@ class NavigationBar(QToolBar):
             sender.setActivate(True)
 
     def setActivateItem(self, name):
-        for item in self.__items:
+        for item in self.ui_manager.getByType(NavigationItem):
             if item.text() == name:
                 item.activated.emit()
 
     def getActivateItem(self):
-        for item in self.__items:
+        for item in self.ui_manager.getByType(NavigationItem):
             if item.isActivate():
                 return item
 
@@ -280,3 +290,7 @@ class NavigationBar(QToolBar):
             return item.text()
 
         return ""
+
+    def moveEvent(self, ev):
+        for expand_widget in self.ui_manager.getByType(ExpandWidget):
+            expand_widget.setOrientation(self.orientation())
