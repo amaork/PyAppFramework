@@ -5,12 +5,17 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
 from ..misc.settings import UiLayout
+from ..network.utility import scan_lan_port
+from ..protocol.serialport import SerialPort
 from .msgbox import MB_TYPE_ERR, showMessageBox
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 
-__all__ = ['SimpleColorDialog', 'SerialPortSettingDialog', 'ProgressDialog', 'PasswordDialog', 'OptionDialog',
+__all__ = ['SimpleColorDialog',
+           'SerialPortSettingDialog',
+           'SerialPortSelectDialog', 'NetworkAddressSelectDialog',
+           'ProgressDialog', 'PasswordDialog', 'OptionDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
@@ -224,6 +229,33 @@ class SimpleColorDialog(QDialog):
         return index, max(r, g, b)
 
 
+class SerialPortSelectDialog(QDialog):
+    def __init__(self, timeout=0.04, parent=None):
+        super(SerialPortSelectDialog, self).__init__(parent)
+        layout = QVBoxLayout()
+        self._ports = QComboBox(self)
+        self._ports.addItems(SerialPort.get_serial_list(timeout))
+        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button.accepted.connect(self.accept)
+        button.rejected.connect(self.reject)
+
+        layout.addWidget(self._ports)
+        layout.addWidget(QSplitter())
+        layout.addWidget(button)
+        self.setLayout(layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle(self.tr("请选择串口"))
+
+    def getPort(self):
+        return self._ports.currentText() if self.result() else None
+
+    @classmethod
+    def getSerialPort(cls, timeout=0.04, parent=None):
+        dialog = cls(timeout, parent)
+        dialog.exec_()
+        return dialog.getPort()
+
+
 class SerialPortSettingDialog(QDialog):
     def __init__(self, settings=SerialPortSettingWidget.DEFAULTS, parent=None):
         """Serial port configure dialog
@@ -259,6 +291,33 @@ class SerialPortSettingDialog(QDialog):
         dialog = cls(settings, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
+
+
+class NetworkAddressSelectDialog(QDialog):
+    def __init__(self, port, timeout=0.04, parent=None):
+        super(NetworkAddressSelectDialog, self).__init__(parent)
+        layout = QVBoxLayout()
+        self._address_list = QComboBox(self)
+        self._address_list.addItems(scan_lan_port(port, timeout))
+        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button.accepted.connect(self.accept)
+        button.rejected.connect(self.reject)
+
+        layout.addWidget(self._address_list)
+        layout.addWidget(QSplitter())
+        layout.addWidget(button)
+        self.setLayout(layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle(self.tr("请选择地址"))
+
+    def getSelectedAddress(self):
+        return self._address_list.currentText() if self.result() else None
+
+    @classmethod
+    def getAddress(cls, port, timeout=0.04, parent=None):
+        dialog = NetworkAddressSelectDialog(port, timeout, parent)
+        dialog.exec_()
+        return dialog.getSelectedAddress()
 
 
 class ProgressDialog(QProgressDialog):

@@ -969,6 +969,8 @@ class TableWidget(QTableWidget):
         self.setColumnCount(max_column)
         self.hideHeaders(hide_header)
         self.__table_filters = dict()
+        self.__autoHeight = False
+        self.__columnStretchFactor = list()
 
     def __checkRow(self, row):
         if not isinstance(row, int):
@@ -1040,6 +1042,20 @@ class TableWidget(QTableWidget):
 
     def __slotWidgetDataChanged(self):
         self.tableDataChanged.emit()
+
+    def setAutoHeight(self, enable):
+        self.__autoHeight = enable
+        self.resize(self.geometry().width(), self.geometry().height())
+
+    def setColumnStretchFactor(self, factors):
+        if not isinstance(factors, (list, tuple)):
+            return
+
+        if len(factors) > self.columnCount():
+            return
+
+        self.__columnStretchFactor = factors
+        self.resize(self.geometry().width(), self.geometry().height())
 
     def setItemBackground(self, row, column, background):
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
@@ -1665,6 +1681,26 @@ class TableWidget(QTableWidget):
 
     def getTableProperty(self):
         return [self.getRowProperty(row) for row in range(self.rowCount())]
+
+    def resizeEvent(self, ev):
+
+        width = ev.size().width()
+        height = ev.size().height()
+
+        # Auto adjust table row height
+        if self.__autoHeight:
+            self.setVerticalHeaderHeight(height / self.rowCount())
+
+        if len(self.__columnStretchFactor) == 0:
+            super(TableWidget, self).resizeEvent(ev)
+            return
+
+        # Auto adjust table column width
+        header = self.horizontalHeader()
+        header.setStretchLastSection(True)
+        for column, factor in enumerate(self.__columnStretchFactor):
+            header.setResizeMode(column, QHeaderView.Fixed)
+            self.setColumnWidth(column, width * factor)
 
 
 class ListWidget(QListWidget):
