@@ -110,6 +110,13 @@ class BasicDataType(object):
         ctypes.memmove(ctypes.addressof(self), cdata, size)
         return True
 
+    def set_cstr(self, offset, maxsize, data):
+        if data and offset + len(data) <= ctypes.sizeof(self):
+            try:
+                ctypes.memmove(ctypes.addressof(self) + offset, data.encode(), min(len(data), maxsize))
+            except AttributeError:
+                ctypes.memmove(ctypes.addressof(self) + offset, data, min(len(data), maxsize))
+
 
 class BasicTypeLE(BasicDataType, ctypes.LittleEndianStructure):
     def __eq__(self, other):
