@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from PySide.QtCore import QSize
 from PySide.QtGui import QLabel, QPixmap
-__all__ = ['StatusIcon', 'MultiStatusIcon', 'DynamicStatusIcon']
+__all__ = ['StatusIcon', 'MultiStatusIcon', 'DynamicStatusIcon', 'MultiStatusNamedIcon']
 
 
 class StatusIcon(QLabel):
@@ -26,27 +26,45 @@ class MultiStatusIcon(QLabel):
         if len(icons) == 1:
             raise ValueError("MultiStatusIcon at lease require two icons")
 
-        self.status = 0
+        self._status = 0
         self.icons = icons
         self.setPixmap(QPixmap(self.icons[0]))
         self.setScaledContents(True)
         self.setFixedSize(size)
         self.setToolTip(tips)
 
+    def status(self):
+        return self._status
+
     def resetStatus(self):
-        self.status = 0
-        self.setPixmap(QPixmap(self.icons[self.status]))
+        self._status = 0
+        self.setPixmap(QPixmap(self.icons[self._status]))
 
     def switchStatus(self):
-        self.status = (self.status + 1) % len(self.icons)
-        self.setPixmap(QPixmap(self.icons[self.status]))
+        self._status = (self._status + 1) % len(self.icons)
+        self.setPixmap(QPixmap(self.icons[self._status]))
 
     def changeStatus(self, st):
         if not 0 <= st < len(self.icons):
             return
 
-        self.status = st
-        self.setPixmap(QPixmap(self.icons[self.status]))
+        self._status = st
+        self.setPixmap(QPixmap(self.icons[self._status]))
+
+
+class MultiStatusNamedIcon(MultiStatusIcon):
+    def __init__(self, named_icons, size, tips=""):
+        if not isinstance(named_icons, dict):
+            raise TypeError("named_icons require a dict type")
+
+        self.__icons_name = tuple(named_icons.keys())
+        super(MultiStatusNamedIcon, self).__init__(tuple(named_icons.values()), size, tips)
+
+    def statusName(self):
+        return self.__icons_name[self.status()]
+
+    def changeStatusByName(self, name):
+        return self.changeStatus(self.__icons_name.index(name))
 
 
 class DynamicStatusIcon(MultiStatusIcon):

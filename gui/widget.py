@@ -648,6 +648,9 @@ class RgbWidget(PaintWidget):
         elif ev.button() == Qt.RightButton:
             self.close()
 
+    def hideEvent(self, ev):
+        self.rgbChanged.emit(True, True, True)
+
     def paintEvent(self, ev):
         painter = QPainter(self)
         self.rgbChanged.emit(self.rgb[0], self.rgb[1], self.rgb[2])
