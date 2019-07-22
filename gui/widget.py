@@ -1152,6 +1152,14 @@ class TableWidget(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectColumns)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
 
+    def simulateSelectRow(self, row):
+        self.selectRow(row)
+        self.setFocus(Qt.MouseFocusReason)
+
+    def simulateSelectColumn(self, column):
+        self.selectColumn(column)
+        self.setFocus(Qt.MouseFocusReason)
+
     def frozenItem(self, row, column, frozen):
         """Frozen or unfroze a item
 

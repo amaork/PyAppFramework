@@ -5,6 +5,7 @@ __all__ = ['DashboardStatusIcon']
 
 
 class DashboardStatusIcon(QLabel):
+    DEF_RADIUS = 6
     DEF_FONT = QFont("Vrinda", 15)
     DEF_FG_COLOR = QColor(14, 11, 54)
     DEF_BG_COLOR = QColor(Qt.white)
@@ -24,7 +25,9 @@ class DashboardStatusIcon(QLabel):
         self._name = name
         self._current = 0
         self._status = status
+        self._display = status[0]
         self._font = self.DEF_FONT
+        self._radius = self.DEF_RADIUS
         self._bg_color = self.DEF_BG_COLOR
         self._fg_color = self.DEF_FG_COLOR
         self._font_color = self.DEF_FONT_COLOR
@@ -73,27 +76,33 @@ class DashboardStatusIcon(QLabel):
 
     def reset(self):
         self._current = 0
+        self._display = self._status[self._current]
         self.update()
 
     def status(self):
-        return self._status[self._current]
+        return self._display
 
     def switchStatus(self):
         self._current += 1
         self._current %= len(self._status)
+        self._display = self._status[self._current]
         self.update()
 
     def changeStatus(self, st):
         if st in self._status:
             self._current = self._status.index(st)
+            self._display = self._status[self._current]
+            self.update()
+        elif isinstance(st, str):
+            self._display = st
             self.update()
 
     def paintEvent(self, ev):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        x_radius = self.width() / 10
-        y_radius = self.height() / 10
+        x_radius = self._radius
+        y_radius = self._radius
 
         # Draw background
         painter.setPen(QPen(Qt.NoPen))
@@ -117,7 +126,4 @@ class DashboardStatusIcon(QLabel):
         rect.setBottom(self.height() / 2)
         painter.setFont(self._font)
         painter.setPen(QPen(QColor(self._fg_color)))
-        painter.drawText(rect, Qt.AlignCenter, self._status[self._current])
-
-
-
+        painter.drawText(rect, Qt.AlignCenter, self._display)
