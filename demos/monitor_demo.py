@@ -49,8 +49,6 @@ class DemoWidget(BasicWidget):
             temperature_monitor.setRV(temperature)
 
 
-
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))

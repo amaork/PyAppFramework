@@ -3,6 +3,7 @@ import math
 from PySide.QtGui import *
 from PySide.QtCore import *
 from ..gui.widget import BasicWidget
+from ..misc.windpi import get_program_scale_factor
 __all__ = ['NumberMonitor', 'TemperatureMonitor', 'PressureMonitor']
 
 
@@ -33,6 +34,7 @@ class NumberMonitor(BasicWidget):
         self._bg_color = self.DEF_BG_COLOR
         self._decimal_display = True if decimal else False
         self._max_number = max_numbers + 1 if decimal else 0
+        self.__scale_factor = max(get_program_scale_factor())
         super(NumberMonitor, self).__init__(parent)
 
     def _initUi(self):
@@ -98,7 +100,7 @@ class NumberMonitor(BasicWidget):
 
     def __getFontSize(self):
         try:
-            return self.width() / self._max_number
+            return self.width() / self._max_number / self.__scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 
@@ -137,8 +139,8 @@ class NumberMonitor(BasicWidget):
             space = 3 * (self._max_number - len(current_str))
             if len(current_str) > 2:
                 space = 0 - space
-            location.moveLeft(len(current_str) * decimal_font.pointSize() + space)
-            location.moveTop(decimal_font.pointSize() / 2)
+            location.moveLeft((len(current_str) * decimal_font.pointSize() + space) * self.__scale_factor)
+            location.moveTop(decimal_font.pointSize() / 2 * self.__scale_factor)
             painter.drawText(location, Qt.AlignCenter, ".{0:02d}".format(decimal))
 
         # Draw data unit

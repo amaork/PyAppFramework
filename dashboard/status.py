@@ -1,23 +1,21 @@
 # -*- coding: utf-8 -*-
 from PySide.QtGui import *
 from PySide.QtCore import *
+from ..misc.windpi import get_program_scale_factor
 __all__ = ['DashboardStatusIcon']
 
 
 class DashboardStatusIcon(QLabel):
     DEF_RADIUS = 6
-    DEF_FONT = QFont("Vrinda", 15)
+    DEF_FONT_NAME = "Vrinda"
     DEF_FG_COLOR = QColor(14, 11, 54)
     DEF_BG_COLOR = QColor(Qt.white)
     DEF_FONT_COLOR = QColor(240, 240, 240)
 
-    def __init__(self, parent, name, status, tips="", size=QSize(64, 64)):
+    def __init__(self, parent, name, status, tips="", size=None):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
-
-        if not isinstance(size, QSize):
-            raise TypeError("size require a QSize")
 
         if not isinstance(status, (list, tuple)) or len(status) == 0:
             raise TypeError("states require a list or tuple")
@@ -26,23 +24,33 @@ class DashboardStatusIcon(QLabel):
         self._current = 0
         self._status = status
         self._display = status[0]
-        self._font = self.DEF_FONT
-        self._radius = self.DEF_RADIUS
         self._bg_color = self.DEF_BG_COLOR
         self._fg_color = self.DEF_FG_COLOR
         self._font_color = self.DEF_FONT_COLOR
-        self.setFixedSize(size)
+        self._scale_factor = max(get_program_scale_factor())
+        self._scale_x, self._scale_y = get_program_scale_factor()
+        self._radius = self.DEF_RADIUS * self._scale_factor
+        self._font = QFont(self.DEF_FONT_NAME, 15)
+        if isinstance(size, QSize):
+            self.setFixedSize(self.__scaleSize(size))
         self.setToolTip(tips)
+
+    def __scaleSize(self, size):
+        return QSize(self._scale_x * size.width(), self._scale_y * size.height()) if isinstance(size, QSize) else size
+
+    def __getFontSize(self):
+        try:
+            return self.width() / 8 / self._scale_factor
+        except ZeroDivisionError:
+            print("Max number must greater than zero")
+
+    def sizeHint(self):
+        meter = QFontMetrics(self._font)
+        return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
 
     @property
     def font(self):
         return self._font
-
-    @font.setter
-    def font(self, font):
-        if isinstance(font, QFont):
-            self._font = font
-            self.update()
 
     @property
     def bg_color(self):
@@ -97,6 +105,10 @@ class DashboardStatusIcon(QLabel):
             self._display = st
             self.update()
 
+    def resizeEvent(self, ev):
+        self._font = QFont(self.DEF_FONT_NAME, self.__getFontSize())
+        self.update()
+
     def paintEvent(self, ev):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -118,12 +130,12 @@ class DashboardStatusIcon(QLabel):
         # Draw status name
         rect = self.rect()
         rect.moveTop(self.height() / 4)
-        painter.setFont(self._font)
+        painter.setFont(self.font)
         painter.setPen(QPen(QColor(self._font_color)))
         painter.drawText(rect, Qt.AlignCenter, self._name)
 
         rect = self.rect()
         rect.setBottom(self.height() / 2)
-        painter.setFont(self._font)
+        painter.setFont(self.font)
         painter.setPen(QPen(QColor(self._fg_color)))
         painter.drawText(rect, Qt.AlignCenter, self._display)
