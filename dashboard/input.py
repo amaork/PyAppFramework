@@ -245,6 +245,7 @@ class VirtualNumberInput(QLineEdit):
 
     def __init__(self, initial_value=0, min_=0, max_=9999, decimals=0, parent=None):
         super(VirtualNumberInput, self).__init__(parent)
+        self.setReadOnly(True)
         self.setValidator(QIntValidator(min_, max_))
         self.setText("{}".format(initial_value))
         self.setProperty("min", min_)
@@ -259,7 +260,7 @@ class VirtualNumberInput(QLineEdit):
         cls.themeColor = color
 
     def mousePressEvent(self, ev):
-        if ev.button() != Qt.LeftButton or self.isReadOnly():
+        if ev.button() != Qt.LeftButton:
             return
 
         input_min = self.property("min")
@@ -295,9 +296,19 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         ("<-", "确定", "取消"),
     )
 
+    INT_KEY_MAP = (
+
+        ("Min", "Max", "C"),
+        ("7", "8", "9"),
+        ("4", "5", "6"),
+        ("1", "2", "3"),
+        ("0", "确定", "取消"),
+    )
+
     MIN_WIDTH = 250
     MIN_HEIGHT = 324
     FONT_BASE_SIZE = 20
+    DEF_FONT_NAME = "等线 Light"
     DISPLAY_FONT_SIZE = FONT_BASE_SIZE * 1.5
 
     def __init__(self, min_=0, max_=100, initial_value=0, decimals=0,
@@ -346,6 +357,7 @@ class VirtualNumberKeyboard(VirtualKeyboard):
                 btn.setProperty("name", key)
                 btn.setProperty("value", key)
                 btn.setMinimumHeight(50 * self.__scale_factor)
+                btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
                 key_layout.addWidget(btn, row, column)
 
         layout = QVBoxLayout()
@@ -362,14 +374,18 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.ui_max.setText("{}".format(self.max_number))
 
     def __initStyle(self):
+        self.ui_display.setReadOnly(True)
         self.ui_display.setAlignment(Qt.AlignRight)
         self.ui_display.setMinimumHeight(self.FONT_BASE_SIZE * 4 * self.__scale_factor)
         self.ui_display.setMaxLength(len("{}".format(self.max_number)) + self.number_decimals + 1)
 
+        meter = QFontMetrics(QFont("等线 Light", self.DISPLAY_FONT_SIZE * self.__scale_factor))
+        self.ui_display.setMinimumWidth(meter.width("0" * self.ui_display.maxLength() + "-."))
+
         [item.setStyleSheet(self.rg_color) for item in (self.ui_min, self.ui_max)]
 
         self.setStyleSheet('font: {}pt "宋体"; {};{};'.format(
-            self.FONT_BASE_SIZE * self.__scale_factor, self.bg_color, self.fg_color)
+            self.FONT_BASE_SIZE, self.bg_color, self.fg_color)
         )
 
         # self.setAttribute(Qt.WA_TranslucentBackground)
@@ -386,6 +402,11 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
     def __checkValue(self):
         return self.min_number <= str2float(self.current_display) <= self.max_number
+
+    def sizeHint(self):
+        meter = QFontMetrics(QFont(self.DEF_FONT_NAME, self.FONT_BASE_SIZE))
+        width = meter.width(str(self.min_number) + str(self.max_number) + "  C  ")
+        return QSize(width * self.__scale_factor, meter.height() * len(self.key_map) * self.__scale_factor)
 
     def setOverflow(self):
         self.overflow_flag = True
@@ -463,7 +484,10 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
     def getIntValue(self):
         if self.result():
-            v = str2number(self.current_display.strip("0"))
+            try:
+                v = int(self.current_display, 10)
+            except ValueError:
+                v = 0
             return v if self.min_number <= v <= self.max_number else str2number(self.old_display)
 
     def getDoubleValue(self):
