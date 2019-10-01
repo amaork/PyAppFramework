@@ -5,7 +5,7 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
-from ..dashboard.input import VirtualNumberInput, VirtualNumberKeyboard
+from ..dashboard.input import VirtualNumberInput
 
 
 class DemoDashboardInput(BasicWidget):

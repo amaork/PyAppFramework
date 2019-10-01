@@ -9,6 +9,7 @@ from raspi_io import Query, RaspiSocketError
 from .container import ComponentManager
 __all__ = ['SerialPortSelector', 'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
+           'CustomEventFilterHandler',
            'updateFilterMenu']
 
 
@@ -294,3 +295,31 @@ class NavigationBar(QToolBar):
     def moveEvent(self, ev):
         for expand_widget in self.ui_manager.getByType(ExpandWidget):
             expand_widget.setOrientation(self.orientation())
+
+
+class CustomEventFilterHandler(QObject):
+    def __init__(self, types, events, parent=None):
+        super(CustomEventFilterHandler, self).__init__(parent)
+
+        if not isinstance(types, (list, tuple)):
+            raise TypeError("{!r} request a list or tuple".format("objs"))
+
+        if not isinstance(events, (list, tuple)):
+            raise TypeError("{!r} request a list or tuple".format("events"))
+
+        self.__filter_types = types
+        self.__filter_events = events
+
+    def eventFilter(self, obj, event):
+        if isinstance(obj, self.__filter_types) and event.type() in self.__filter_events:
+            event.ignore()
+            return True
+        else:
+            return super(CustomEventFilterHandler, self).eventFilter(obj, event)
+
+    def process(self, obj, install):
+        if isinstance(obj, QObject):
+            if install:
+                obj.installEventFilter(self)
+            else:
+                obj.removeEventFilter(self)
