@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import math
 from PySide.QtGui import *
 from PySide.QtCore import *
 from ..gui.widget import BasicWidget
+from ..core.datatype import resolve_number
 from ..misc.windpi import get_program_scale_factor
 __all__ = ['NumberMonitor', 'TemperatureMonitor', 'PressureMonitor']
 
@@ -107,6 +107,15 @@ class NumberMonitor(BasicWidget):
     def __getNoneState(self):
         return "-" * (self._max_number - 1)
 
+    def sizeHint(self):
+        meter1 = QFontMetrics(QFont("宋体", self.DEF_FONT_SIZE))
+        meter2 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize()))
+        meter3 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize() / 2))
+
+        min_height = meter1.height() * len(self._title) * 1.5 * 1.5
+        min_width = meter1.width("中") + meter2.width(self._max_number * "0") + meter3.width(".00") * 2.5
+        return QSize(min_width, min_height)
+
     def paintEvent(self, ev):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -117,9 +126,7 @@ class NumberMonitor(BasicWidget):
         painter.drawRoundedRect(QRectF(0.0, 0.0, self.width(), self.height()), 5.0, 5.0)
 
         # Get value integer part and decimal part
-        decimal, integer = math.modf(self.getRV())
-        decimal = int(decimal * 100)
-        integer = int(integer)
+        integer, fractional = resolve_number(self.getRV(), 2)
 
         # Draw real time value
         location = self.rect()
@@ -141,7 +148,7 @@ class NumberMonitor(BasicWidget):
                 space = 0 - space
             location.moveLeft((len(current_str) * decimal_font.pointSize() + space) * self.__scale_factor)
             location.moveTop(decimal_font.pointSize() / 2 * self.__scale_factor)
-            painter.drawText(location, Qt.AlignCenter, ".{0:02d}".format(decimal))
+            painter.drawText(location, Qt.AlignCenter, ".{0:02d}".format(fractional))
 
         # Draw data unit
         location = self.rect()

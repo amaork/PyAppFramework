@@ -1,11 +1,25 @@
 # -*- coding: utf-8 -*-
+import math
 import json
 import ctypes
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml', 'DynamicObjectDecodeError',
-           'str2float', 'str2number',
+           'str2float', 'str2number', 'resolve_number',
            'new_class', 'new_instance',
            'ip4_check']
+
+
+def resolve_number(number, decimals):
+    """
+    resolve_number to fractional and integer part
+    10.3 ==> 10 3
+    10.323 ==> 10 232
+    :param number: number to resolve
+    :param decimals: number decimals
+    :return:  integer and fractional
+    """
+    fractional, integer = math.modf(number)
+    return int(integer), int(round(math.pow(10, decimals) * fractional))
 
 
 def str2float(text):
