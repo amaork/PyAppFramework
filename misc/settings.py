@@ -365,10 +365,12 @@ class UiCheckBoxInput(UiInputSetting):
 
 
 class UiLayout(DynamicObject):
-    _properties = {'name', 'layout'}
+    _properties = {'name', 'layout', 'margins', 'spaces'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "")
+        kwargs.setdefault("spaces", (6, 6, 6))
+        kwargs.setdefault("margins", (9, 9, 9, 9))
         super(UiLayout, self).__init__(**kwargs)
 
         if not isinstance(self.name, str):
@@ -382,6 +384,12 @@ class UiLayout(DynamicObject):
 
     def get_layout(self):
         return self.layout
+
+    def get_spaces(self):
+        return self.spaces
+
+    def get_margins(self):
+        return tuple(self.margins)
 
     def check_layout(self, settings):
         return self.is_vertical_layout(self.get_layout(), settings) or self.is_grid_layout(self.get_layout(), settings)

@@ -1977,6 +1977,14 @@ class BasicJsonSettingWidget(QWidget):
         except (json.JSONDecodeError, DynamicObjectDecodeError):
             raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
+    def createLayout(self):
+        layout = QGridLayout()
+        _, h, v = tuple(self.layout.get_spaces())
+        layout.setVerticalSpacing(v)
+        layout.setHorizontalSpacing(h)
+        layout.setContentsMargins(*tuple(self.layout.get_margins()))
+        return layout
+
     def getData(self):
         pass
 
@@ -1995,7 +2003,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         super(JsonSettingWidget, self).__init__(settings, parent)
 
         # Convert layout to grid layout
-        self.layout = self.layout.get_grid_layout(self.settings)
+        self.top_layout = self.layout.get_grid_layout(self.settings)
 
         self.__initUi()
         self.__initData(data)
@@ -2003,8 +2011,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
     def __initUi(self):
         row = 0
-        layout = QGridLayout()
-        for items in self.layout:
+        layout = self.createLayout()
+        for items in self.top_layout:
             column = 0
             for item in items:
                 try:
@@ -2414,40 +2422,50 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
             raise TypeError("data require a dict not {!r}".format(data.__class__.__name__))
 
         self.widget_list = list()
-        self.layout = self.layout.get_vertical_layout(self.settings)
+        self.items_name = self.layout.get_grid_layout(self.settings)
 
         self.__initUi()
         self.__initData(data)
         self.__initSignalAndSlots()
 
     def __initUi(self):
-        widget_layout = QVBoxLayout()
-        for group in self.layout:
-            try:
-                group_settings = self.settings.get(group)
-                group_settings = group_settings if isinstance(group_settings, UiLayout) else UiLayout(**group_settings)
-                if not group_settings.check_layout(self.settings):
-                    continue
+        row = 0
+        widget_layout = self.createLayout()
+        for groups in self.items_name:
+            column = 0
+            for group in groups:
+                try:
+                    group_settings = self.settings.get(group)
+                    group_settings = group_settings if isinstance(group_settings, UiLayout) else UiLayout(**group_settings)
+                    if not group_settings.check_layout(self.settings):
+                        continue
 
-                box = QGroupBox()
-                group_layout = QVBoxLayout()
+                    box = QGroupBox()
+                    group_layout = QVBoxLayout()
 
-                # Only one group do not display title
-                if len(self.layout) >= 2:
-                    box.setTitle(group_settings.get_name())
+                    # Only one group do not display title
+                    if len(self.items_name) >= 2:
+                        box.setTitle(group_settings.get_name())
 
-                settings = {"layout": group_settings}
-                for item_name in group_settings.get_layout():
-                    settings[item_name] = self.settings.get(item_name)
+                    settings = {"layout": group_settings}
+                    if group_settings.is_vertical_layout(group_settings.get_layout(), self.settings):
+                        for item_name in group_settings.get_layout():
+                            settings[item_name] = self.settings.get(item_name)
+                    else:
+                        for item_name in group_settings.get_vertical_layout(group_settings.dict):
+                            settings[item_name] = self.settings.get(item_name)
 
-                box_widget = JsonSettingWidget(DynamicObject(**settings))
-                box_widget.setProperty("name", group_settings.get_name())
-                group_layout.addWidget(box_widget)
-                box.setLayout(group_layout)
-                widget_layout.addWidget(box)
-                self.widget_list.append(box_widget)
-            except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
-                print("{}".format(err))
+                    box_widget = JsonSettingWidget(DynamicObject(**settings))
+                    box_widget.setProperty("name", group_settings.get_name())
+                    group_layout.addWidget(box_widget)
+                    box.setLayout(group_layout)
+                    widget_layout.addWidget(box, row, column)
+                    self.widget_list.append(box_widget)
+                    column += 1
+                except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
+                    print("{}".format(err))
+
+            row += 1
 
         self.setLayout(widget_layout)
 
