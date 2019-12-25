@@ -1064,9 +1064,8 @@ class TableWidget(QTableWidget):
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
             return False
 
-        item = QTableWidgetItem(self.takeItem(row, column).text())
+        item = self.item(row, column)
         item.setBackground(background)
-        self.setItem(row, column, item)
         self.frozenItem(row, column, True)
         return True
 
@@ -1074,9 +1073,8 @@ class TableWidget(QTableWidget):
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
             return False
 
-        item = QTableWidgetItem(self.takeItem(row, column).text())
+        item = self.item(row, column)
         item.setForeground(foreground)
-        self.setItem(row, column, item)
         self.frozenItem(row, column, True)
 
     @Slot(bool)
@@ -1172,12 +1170,14 @@ class TableWidget(QTableWidget):
             return False
 
         # Item
-        item = self.takeItem(row, column)
+        item = self.item(row, column)
         if isinstance(item, QTableWidgetItem):
-            flags = QTableWidgetItem("").flags()
-            flags = flags & ~Qt.ItemIsEditable if frozen else flags
+            flags = item.flags()
+            if frozen:
+                flags &= ~Qt.ItemIsEditable
+            else:
+                flags |= Qt.ItemIsEditable
             item.setFlags(flags)
-            self.setItem(row, column, item)
 
         # Widget:
         widget = self.__copyWidget(self.cellWidget(row, column))
@@ -1406,9 +1406,8 @@ class TableWidget(QTableWidget):
 
         for column in range(self.columnCount()):
             try:
-                item = self.takeItem(row, column)
+                item = self.item(row, column)
                 item.setTextAlignment(alignment)
-                self.setItem(row, column, item)
             except AttributeError:
                 continue
 
@@ -1424,9 +1423,8 @@ class TableWidget(QTableWidget):
 
         for row in range(self.rowCount()):
             try:
-                item = self.takeItem(row, column)
+                item = self.item(row, column)
                 item.setTextAlignment(alignment)
-                self.setItem(row, column, item)
             except AttributeError:
                 continue
 
@@ -1445,7 +1443,7 @@ class TableWidget(QTableWidget):
 
         try:
 
-            item = self.takeItem(row, column)
+            item = self.item(row, column)
             widget = self.__copyWidget(self.cellWidget(row, column))
 
             if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, float)):
@@ -1483,7 +1481,6 @@ class TableWidget(QTableWidget):
                 self.setCellWidget(row, column, widget)
             elif isinstance(item, QTableWidgetItem):
                 item.setText("{}".format(data))
-                self.setItem(row, column, item)
             else:
                 return False
 
@@ -1508,9 +1505,8 @@ class TableWidget(QTableWidget):
                 if isinstance(widget, QWidget):
                     self.cellWidget(row, column).setHidden(True)
                     self.removeCellWidget(row, column)
-                item = QTableWidgetItem(filters)
-                self.takeItem(row, column)
-                self.setItem(row, column, item)
+                item = self.item(row, column)
+                item.setText(filters)
             # Number type QSpinbox(int, int) or QDoubleSpinbox(float, float) set spinbox range
             elif len(filters) == 2 and type(filters[0]) is type(filters[1]) and isinstance(filters[0], (int, float)):
                 spinbox = QSpinBox() if isinstance(filters[0], int) else QDoubleSpinBox()
@@ -1728,24 +1724,22 @@ class ListWidget(QListWidget):
         if not isinstance(index, int) or not isinstance(background, QBrush):
             return False
 
-        item = self.takeItem(index)
+        item = self.item(index)
         if not isinstance(item, QListWidgetItem):
             return False
 
         item.setBackground(background)
-        self.insertItem(index, item)
         return True
 
     def __setItemForeground(self, index, foreground):
         if not isinstance(index, int) or not isinstance(foreground, QBrush):
             return False
 
-        item = self.takeItem(index)
+        item = self.item(index)
         if not isinstance(item, QListWidgetItem):
             return False
 
         item.setForeground(foreground)
-        self.insertItem(index, item)
         return True
 
     @Slot(object)
