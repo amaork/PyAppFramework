@@ -19,8 +19,9 @@ class SerialPortSelector(QComboBox):
     """
     # When port selected this signal will emit
     portSelected = Signal(object)
+    TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, text="请选择要使用的串口", one_shot=False, parent=None):
+    def __init__(self, text=TIPS, one_shot=False, parent=None):
         """Select serial port
 
         :param text: selector text
@@ -34,7 +35,7 @@ class SerialPortSelector(QComboBox):
         self.__selected = ""
         self.__one_shot = one_shot
         self.__system = platform.system().lower()
-        self.setToolTip(self.tr("右键单击复位并刷新串口"))
+        self.setToolTip(self.tr("Right click reset and refresh serial port"))
 
         # Flush current serial port list
         self.flushSerialPort()

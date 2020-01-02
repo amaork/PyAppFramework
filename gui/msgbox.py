@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import QMessageBox
+from PySide.QtGui import QMessageBox, QApplication
 
 __all__ = ['showQuestionBox', 'showMessageBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
@@ -35,15 +35,22 @@ def showMessageBox(parent, msg_type, content, title=None):
     """
     attributes = {
 
-        MB_TYPE_ERR: (QMessageBox.Critical, "错误"),
-        MB_TYPE_WARN: (QMessageBox.Warning, "警告"),
-        MB_TYPE_INFO: (QMessageBox.Information, "信息"),
-        MB_TYPE_QUESTION: (QMessageBox.Question, "确认")
+        MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error",
+                                                                   None, QApplication.UnicodeUTF8)),
+
+        MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning",
+                                                                   None, QApplication.UnicodeUTF8)),
+
+        MB_TYPE_INFO: (QMessageBox.Information, QApplication.translate("msgbox", "Info",
+                                                                       None, QApplication.UnicodeUTF8)),
+
+        MB_TYPE_QUESTION: (QMessageBox.Question, QApplication.translate("msgbox", "Confirm",
+                                                                        None, QApplication.UnicodeUTF8))
     }
 
     try:
         icon, default_title = attributes.get(msg_type)
-        title = title if title else default_title
+        title = title if title else parent.tr(default_title)
         buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
         msg = QMessageBox(icon, title, content, buttons, parent=parent)
         if msg_type == MB_TYPE_QUESTION:

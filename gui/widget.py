@@ -1844,36 +1844,43 @@ class ListWidget(QListWidget):
 
 
 class SerialPortSettingWidget(QWidget):
+
+    PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None, QApplication.UnicodeUTF8)
+    DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None, QApplication.UnicodeUTF8)
+    STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None, QApplication.UnicodeUTF8)
+    BAUDRATE_STR = QApplication.translate("SerialPortSettingWidget", "BaudRate", None, QApplication.UnicodeUTF8)
+    TIMEOUT_STR = QApplication.translate("SerialPortSettingWidget", "Timeout (ms)", None, QApplication.UnicodeUTF8)
+
     # Options
     OPTIONS = {
 
         "baudrate": {
 
-            "text": "波特率",
+            "text": BAUDRATE_STR,
             "values": Serial.BAUDRATES
         },
 
         "bytesize": {
 
-            "text": "数据位",
+            "text": DATABITS_STR,
             "values": Serial.BYTESIZES
         },
 
         "parity": {
 
-            "text": "校验位",
+            "text": PARITIES_STR,
             "values": Serial.PARITIES
         },
 
         "stopbits": {
 
-            "text": "停止位",
+            "text": STOPBITS_STR,
             "values": Serial.STOPBITS
         },
 
         "timeout": {
 
-            "text": "超时（ms）",
+            "text": TIMEOUT_STR,
             "values": [0, 9999]
         }
     }
@@ -1899,7 +1906,7 @@ class SerialPortSettingWidget(QWidget):
             port.setSelectedPort(select_port)
 
         # Add port to dialog
-        layout.addWidget(QLabel(self.tr("串口")), 0, 0)
+        layout.addWidget(QLabel(self.tr("PortName")), 0, 0)
         layout.addWidget(port, 0, 1)
 
         # If specified it add option to dialog
@@ -2070,6 +2077,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 if isinstance(preview, QLineEdit):
                     preview.textChanged.connect(self.slotPreviewColor)
 
+    def tr(self, text):
+        return QApplication.translate("JsonSettingWidget", text, None, QApplication.UnicodeUTF8)
+
     def getSettings(self):
         data = self.getData()
         settings = self.settings
@@ -2100,7 +2110,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
     def slotSelectFile(self):
         sender = self.sender()
         file_format = " ".join(sender.property("private") or list())
-        title = self.tr("请选择{}".format(sender.property("title")))
+        title = self.tr("Please select") + " {}".format(sender.property("title"))
         path, ret = QFileDialog.getOpenFileName(self, title, "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
             return
@@ -2111,7 +2121,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
     def slotSelectFolder(self):
         sender = self.sender()
-        title = self.tr("请选择{}".format(sender.property("title")))
+        title = self.tr("Please select") + " {}".format(sender.property("title"))
         path = QFileDialog.getExistingDirectory(self, title, "")
         if not os.path.isdir(path):
             return
@@ -2124,7 +2134,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         sender = self.sender()
         if not isinstance(sender, QPushButton):
             return
-        title = self.tr("请选择{}".format(sender.property("title")))
+        title = self.tr("Please select") + " {}".format(sender.property("title"))
         font_name, point_size, weight = UiFontInput.get_font(sender.property("private"))
         font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self, title)
         if not selected or not isinstance(font, QFont):
@@ -2146,7 +2156,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
     def slotSelectColor(self):
         sender = self.sender()
-        title = self.tr("请选择{}".format(sender.property("title")))
+        title = self.tr("Please select") + " {}".format(sender.property("title"))
         r, g, b = UiColorInput.get_color(sender.property("private"))
         color = QColorDialog.getColor(QColor(r, g, b), self, title)
         if not isinstance(color, QColor):
@@ -2225,7 +2235,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
-                button = QPushButton("请选择文件")
+                button = QPushButton(QApplication.translate("JsonSettingWidget",
+                                                            "Please select file", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "file")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
@@ -2238,7 +2249,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
-                button = QPushButton("请选择文件夹")
+                button = QPushButton(QApplication.translate("JsonSettingWidget",
+                                                            "Please select directory", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "folder")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
@@ -2252,7 +2264,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
-                button = QPushButton("请选择字体")
+                button = QPushButton(QApplication.translate("JsonSettingWidget",
+                                                            "Please select font", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "font")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
@@ -2267,7 +2280,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText("{}".format(setting.get_data()))
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
-                button = QPushButton("请选择颜色")
+                button = QPushButton(QApplication.translate("JsonSettingWidget",
+                                                            "Please select color", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "color")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
@@ -2327,9 +2341,11 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
                 elif ui_input.is_select_type():
                     table_filters[column] = ui_input.get_check()
                 elif ui_input.is_file_type():
-                    table_filters[column] = ("请选择文件", self.slotSelectFile, ui_input.get_check())
+                    text = self.tr("Please select file")
+                    table_filters[column] = (text, self.slotSelectFile, ui_input.get_check())
                 elif ui_input.is_folder_type():
-                    table_filters[column] = ("请选择目录", self.slotSelectFolder, ui_input.get_check())
+                    text = self.tr("Please select directory")
+                    table_filters[column] = (text, self.slotSelectFolder, ui_input.get_check())
 
                 if ui_input.is_readonly():
                     self.frozen_columns.append(column)
@@ -2380,7 +2396,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
     def slotSelectFile(self):
         sender = self.sender()
         file_format = "*"
-        path, ret = QFileDialog.getOpenFileName(self, self.tr("请选择文件"), "", self.tr(file_format))
+        path, ret = QFileDialog.getOpenFileName(self, self.tr("Please select file"), "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
             return
 
@@ -2388,7 +2404,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
     def slotSelectFolder(self):
         sender = self.sender()
-        path = QFileDialog.getExistingDirectory(self, self.tr("请选择文件夹"), "")
+        path = QFileDialog.getExistingDirectory(self, self.tr("Please select directory"), "")
         if not os.path.isdir(path):
             return
 

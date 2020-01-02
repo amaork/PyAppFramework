@@ -65,7 +65,7 @@ class SimpleColorDialog(QDialog):
         self.__depth.setTickInterval(10)
         self.__depth.setTickPosition(QSlider.TicksBelow)
         self.__depth.valueChanged.connect(self.slotChangeDepth)
-        depthLayout.addWidget(QLabel(self.tr("亮度")))
+        depthLayout.addWidget(QLabel(self.tr("Luminance")))
         depthLayout.addWidget(self.__depth)
 
         # Label for preview color
@@ -76,12 +76,14 @@ class SimpleColorDialog(QDialog):
         self.__green = QSpinBox()
         self.__blue = QSpinBox()
         valueLayout = QHBoxLayout()
-        for text, spinbox in (("Red", self.__red), ("Green", self.__green), ("Blue", self.__blue)):
+        for text, spinbox in (
+                (self.tr("Red"), self.__red), (self.tr("Green"), self.__green), (self.tr("Blue"), self.__blue)
+        ):
             valueLayout.addWidget(QLabel(text))
             valueLayout.addWidget(spinbox)
             spinbox.setRange(0, 255)
             spinbox.valueChanged.connect(self.slotChangeDepth)
-            if text != "Blue":
+            if spinbox != self.__blue:
                 valueLayout.addWidget(QSplitter())
 
         # Dialog button
@@ -99,7 +101,7 @@ class SimpleColorDialog(QDialog):
             layout.addWidget(button)
 
         self.setLayout(layout)
-        self.setWindowTitle(self.tr("请选择颜色"))
+        self.setWindowTitle(self.tr("Please select color"))
 
     def __getColor(self):
         """Get select color setting
@@ -244,7 +246,7 @@ class SerialPortSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(self.tr("请选择串口"))
+        self.setWindowTitle(self.tr("Please select serial port"))
 
     def getPort(self):
         return self._ports.currentText() if self.result() else None
@@ -278,7 +280,7 @@ class SerialPortSettingDialog(QDialog):
 
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(self.tr("串口配置对话框"))
+        self.setWindowTitle(self.tr("Serial Configuration Dialog"))
 
     def getSerialSetting(self):
         if not self.result():
@@ -308,7 +310,7 @@ class NetworkAddressSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(self.tr("请选择地址"))
+        self.setWindowTitle(self.tr("Please select address"))
 
     def getSelectedAddress(self):
         return self._address_list.currentText() if self.result() else None
@@ -321,7 +323,9 @@ class NetworkAddressSelectDialog(QDialog):
 
 
 class ProgressDialog(QProgressDialog):
-    def __init__(self, parent, title="操作进度", max_width=350, cancel_button=None):
+    DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None, QApplication.UnicodeUTF8)
+
+    def __init__(self, parent, title=DEF_TITLE, max_width=350, cancel_button=None):
         super(ProgressDialog, self).__init__(parent)
 
         self.setFixedWidth(max_width)
@@ -372,7 +376,7 @@ class BasicJsonSettingDialog(QDialog):
         try:
             title = settings.layout.get_name() if isinstance(settings.layout, UiLayout) else settings.layout.get("name")
         except AttributeError:
-            title = "配置对话框"
+            title = self.tr("Configuration Dialog")
 
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
@@ -391,7 +395,7 @@ class BasicJsonSettingDialog(QDialog):
             self.setResult(1)
             self.apply(self.getJsonData())
         except TypeError as error:
-            return showMessageBox(self, MB_TYPE_ERR, "应用设置错误：{}".format(error))
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("Apply settings error") + " : {}".format(error))
 
     @classmethod
     def getData(cls, settings, data=None, reset=True, apply=None, parent=None):
@@ -467,17 +471,17 @@ class PasswordDialog(QDialog):
     def __initUi(self):
         # Ui elements
         self.ui_old_password = QLineEdit()
-        self.ui_old_password.setPlaceholderText(self.tr("请输入旧密码"))
+        self.ui_old_password.setPlaceholderText(self.tr("Please input old password"))
 
         self.ui_new_password = QLineEdit()
-        self.ui_new_password.setPlaceholderText(self.tr("请输入新密码"))
+        self.ui_new_password.setPlaceholderText(self.tr("Please input new password"))
 
         self.ui_show_password = QCheckBox()
 
         self.ui_confirm_password = QLineEdit()
-        self.ui_confirm_password.setPlaceholderText(self.tr("请再次输入新密码"))
+        self.ui_confirm_password.setPlaceholderText(self.tr("Confirm new password"))
 
-        self.ui_old_password_label = QLabel(self.tr("旧密码"))
+        self.ui_old_password_label = QLabel(self.tr("Old password"))
         self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
 
         # Ui layout
@@ -485,16 +489,16 @@ class PasswordDialog(QDialog):
         item_layout.addWidget(self.ui_old_password_label, 0, 0)
         item_layout.addWidget(self.ui_old_password, 0, 1)
 
-        item_layout.addWidget(QLabel(self.tr("新密码")), 1, 0)
+        item_layout.addWidget(QLabel(self.tr("New password")), 1, 0)
         item_layout.addWidget(self.ui_new_password, 1, 1)
 
-        item_layout.addWidget(QLabel(self.tr("重复新密码")), 2, 0)
+        item_layout.addWidget(QLabel(self.tr("Confirm new password")), 2, 0)
         item_layout.addWidget(self.ui_confirm_password, 2, 1)
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.ui_show_password)
         self.ui_show_password.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        sub_layout.addWidget(QLabel(self.tr("显示密码")))
+        sub_layout.addWidget(QLabel(self.tr("Show password")))
         item_layout.addLayout(sub_layout, 3, 1)
 
         for item in (self.ui_old_password, self.ui_new_password, self.ui_confirm_password):
@@ -505,9 +509,9 @@ class PasswordDialog(QDialog):
 
         # Mode switch
         if self.__password:
-            self.setWindowTitle(self.tr("更改密码"))
+            self.setWindowTitle(self.tr("Change password"))
         else:
-            self.setWindowTitle(self.tr("重置密码"))
+            self.setWindowTitle(self.tr("Reset password"))
             self.ui_old_password.setHidden(True)
             self.ui_old_password_label.setHidden(True)
 
@@ -535,13 +539,13 @@ class PasswordDialog(QDialog):
         confirm = self.__hash_function(self.ui_confirm_password.text().encode())
 
         if self.__password and old != self.__password:
-            return showMessageBox(self, MB_TYPE_ERR, "旧密码不正确，请重新输入!")
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("Old password error, please retry"))
 
         if new != confirm:
-            return showMessageBox(self, MB_TYPE_ERR, "两次输入的密码不相同，请重新输入!")
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("New password mismatch, please retry"))
 
         if len(self.ui_new_password.text()) == 0 or len(self.ui_confirm_password.text()) == 0:
-            return showMessageBox(self, MB_TYPE_ERR, "密码不能为空，请重新输入!")
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("Password can't be empty, please retry!"))
 
         self.__new_password = new
         self.setResult(1)
@@ -565,7 +569,9 @@ class PasswordDialog(QDialog):
 
 
 class OptionDialog(QDialog):
-    def __init__(self, options, title="请选择", parent=None):
+    DEF_TITLE = QApplication.translate("OptionDialog", "Please select", None, QApplication.UnicodeUTF8)
+
+    def __init__(self, options, title=DEF_TITLE, parent=None):
         super(OptionDialog, self).__init__(parent)
 
         self.selection = ""
@@ -577,7 +583,7 @@ class OptionDialog(QDialog):
             layout.addWidget(btn)
             btn.clicked.connect(self.slotSelected)
 
-        cancel = QPushButton(self.tr("取消"))
+        cancel = QPushButton(self.tr("Cancel"))
         cancel.clicked.connect(self.reject)
         layout.addWidget(cancel)
 
@@ -602,19 +608,22 @@ class OptionDialog(QDialog):
             return -1
 
     @classmethod
-    def getOptionText(cls, options, title="请选择", parent=None):
+    def getOptionText(cls, options, title=DEF_TITLE, parent=None):
         dialog = cls(options, title, parent)
         dialog.exec_()
         return dialog.getSelectionText()
 
     @classmethod
-    def getOptionIndex(cls, options, title="请选择", parent=None):
+    def getOptionIndex(cls, options, title=DEF_TITLE, parent=None):
         dialog = cls(options, title, parent)
         dialog.exec_()
         return dialog.getSelectionIndex()
 
 
-def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的保存位置"):
+def showFileExportDialog(parent, fmt, name="",
+                         title=QApplication.translate("dialog",
+                                                      "Please select export file save path",
+                                                      None, QApplication.UnicodeUTF8)):
     path, ret = QFileDialog.getSaveFileName(parent, parent.tr(title), name, parent.tr(fmt))
     if not ret or len(path) == 0:
         return ""
@@ -622,7 +631,10 @@ def showFileExportDialog(parent, fmt, name="", title="请选择导出文件的�
     return path
 
 
-def showFileImportDialog(parent, fmt, path="", title="请选到要导入的文件"):
+def showFileImportDialog(parent, fmt, path="",
+                         title=QApplication.translate("dialog",
+                                                      "Please select import file",
+                                                      None, QApplication.UnicodeUTF8)):
     path, ret = QFileDialog.getOpenFileName(parent, parent.tr(title), path, parent.tr(fmt))
     if not ret or not os.path.isfile(path):
         return ""
