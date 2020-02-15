@@ -381,6 +381,9 @@ class BasicJsonSettingDialog(QDialog):
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
 
+    def tr(self, text):
+        return QApplication.translate("BasicJsonSettingDialog", text, None, QApplication.UnicodeUTF8)
+
     def getJsonData(self):
         if not self.result():
             return None

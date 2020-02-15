@@ -2236,7 +2236,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please select file", None, QApplication.UnicodeUTF8))
+                                                            "Please Select File", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "file")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
@@ -2250,7 +2250,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please select directory", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Directory", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "folder")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
@@ -2265,7 +2265,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setText(setting.get_data())
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please select font", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Font", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "font")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
@@ -2281,7 +2281,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setText("{}".format(setting.get_data()))
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please select color", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Color", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "color")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
@@ -2341,10 +2341,10 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
                 elif ui_input.is_select_type():
                     table_filters[column] = ui_input.get_check()
                 elif ui_input.is_file_type():
-                    text = self.tr("Please select file")
+                    text = self.tr("Please Select File")
                     table_filters[column] = (text, self.slotSelectFile, ui_input.get_check())
                 elif ui_input.is_folder_type():
-                    text = self.tr("Please select directory")
+                    text = self.tr("Please Select Directory")
                     table_filters[column] = (text, self.slotSelectFolder, ui_input.get_check())
 
                 if ui_input.is_readonly():
@@ -2396,7 +2396,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
     def slotSelectFile(self):
         sender = self.sender()
         file_format = "*"
-        path, ret = QFileDialog.getOpenFileName(self, self.tr("Please select file"), "", self.tr(file_format))
+        path, ret = QFileDialog.getOpenFileName(self, self.tr("Please Select File"), "", self.tr(file_format))
         if not ret or not os.path.isfile(path):
             return
 
@@ -2404,7 +2404,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
     def slotSelectFolder(self):
         sender = self.sender()
-        path = QFileDialog.getExistingDirectory(self, self.tr("Please select directory"), "")
+        path = QFileDialog.getExistingDirectory(self, self.tr("Please Select Directory"), "")
         if not os.path.isdir(path):
             return
 
