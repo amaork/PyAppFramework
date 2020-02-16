@@ -23,6 +23,7 @@ from datetime import datetime
 
 from .misc import SerialPortSelector
 from .container import ComponentManager
+from ..misc.windpi import get_program_scale_factor
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput
 
@@ -975,6 +976,9 @@ class TableWidget(QTableWidget):
         self.__autoHeight = False
         self.__columnStretchFactor = list()
 
+        self.__scale_x, self.__scale_y = get_program_scale_factor()
+        self.setVerticalHeaderHeight(self.getVerticalHeaderHeight() * self.__scale_y)
+
     def __checkRow(self, row):
         if not isinstance(row, int):
             print("TypeError:{}".format(type(row)))
@@ -1090,17 +1094,29 @@ class TableWidget(QTableWidget):
     def hideColumnHeader(self, hide):
         self.horizontalHeader().setVisible(not hide)
 
+    def getVerticalHeaderHeight(self):
+        vertical_header = self.verticalHeader()
+        return vertical_header.defaultSectionSize()
+
     def setVerticalHeaderHeight(self, height):
         vertical_header = self.verticalHeader()
         vertical_header.setResizeMode(QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
         self.setVerticalHeader(vertical_header)
 
+    def getHorizontalHeaderWidth(self):
+        horizontal_header = self.horizontalHeader()
+        return horizontal_header.defaultSectionSize()
+
     def setHorizontalHeaderWidth(self, width):
         horizontal_header = self.horizontalHeader()
         horizontal_header.setResizeMode(QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
+
+    def disableScrollBar(self, horizontal, vertical):
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
 
     @Slot()
     def rowMoveUp(self):
