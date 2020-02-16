@@ -8,6 +8,7 @@ from ..misc.settings import UiLayout
 from ..network.utility import scan_lan_port
 from ..protocol.serialport import SerialPort
 from .msgbox import MB_TYPE_ERR, showMessageBox
+from ..misc.windpi import get_program_scale_factor
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
@@ -440,7 +441,8 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data, reset=True, apply=None, parent=None):
         super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget,
                                                          settings, data, reset, apply, parent)
-        self.setMinimumWidth(len(settings.layout.layout) * 100)
+        scale_x, _ = get_program_scale_factor()
+        self.setMinimumWidth(len(settings.layout.layout) * 120 * scale_x)
 
     def getJsonSettings(self):
         if not self.result():

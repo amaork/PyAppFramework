@@ -208,6 +208,9 @@ class NavigationItem(QToolButton):
         if hasattr(self.__slot, "__call__"):
             self.__slot()
 
+    def text(self):
+        return self.__text
+
     def isActivate(self):
         return self.__activate
 
@@ -238,18 +241,29 @@ class NavigationItem(QToolButton):
 
 
 class NavigationBar(QToolBar):
-    def __init__(self, normal_size=QSize(64, 64), fold_size=QSize(96, 96), moveAble=False, parent=None):
+    def __init__(self, normal_size=QSize(64, 64), fold_size=QSize(96, 96),
+                 moveAble=False, disableHorizontalFold=False, parent=None):
         super(NavigationBar, self).__init__(parent)
 
         self.__fold = False
         self.__fold_size = fold_size
         self.__normal_size = normal_size
+        self.__disable_horizontal_fold = disableHorizontalFold
+
+        self.setFloatable(True)
         self.setMovable(moveAble)
         self.setIconSize(self.__normal_size)
         self.setContextMenuPolicy(Qt.PreventContextMenu)
         self.ui_manager = ComponentManager(self.layout())
+        self.orientationChanged.connect(self.slotOrientationChanged)
+
+    def isFold(self):
+        return self.__fold
 
     def foldExpand(self):
+        if self.orientation() == Qt.Horizontal and self.__disable_horizontal_fold and not self.__fold:
+            return
+
         self.__fold = not self.__fold
         self.setIconSize(self.__fold_size if self.__fold else self.__normal_size)
         [item.setFold(self.__fold) for item in self.ui_manager.getByType(NavigationItem)]
@@ -273,6 +287,16 @@ class NavigationBar(QToolBar):
 
         if isinstance(sender, NavigationItem):
             sender.setActivate(True)
+
+    def slotOrientationChanged(self, dir):
+        if not self.isFold():
+            self.foldExpand()
+
+        if not self.__disable_horizontal_fold:
+            return
+
+        if dir == Qt.Horizontal and self.isFold():
+            self.foldExpand()
 
     def setActivateItem(self, name):
         for item in self.ui_manager.getByType(NavigationItem):
