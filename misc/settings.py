@@ -76,7 +76,7 @@ class UiInputSetting(DynamicObject):
         "FOLDER": (str, str),
         "FONT": (str, str),
         "COLOR": (str, str),
-        "SELECT": (str, (list, tuple)),
+        "SELECT": ((str, int), (list, tuple)),
         "SERIAL": (str, str),
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]

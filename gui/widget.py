@@ -2240,8 +2240,15 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             elif setting.is_select_type():
                 widget = QComboBox()
                 widget.addItems(setting.get_check())
-                widget.setProperty("format", "text")
-                widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
+                # Data is text, using text format set and get
+                if isinstance(setting.get_data(), str):
+                    widget.setProperty("format", "text")
+                    widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
+                # Data is number, using index format set and get
+                elif isinstance(setting.get_data(), int):
+                    widget.setCurrentIndex(setting.get_data())
+                else:
+                    widget.setCurrentIndex(0)
             elif setting.is_serial_type():
                 widget = SerialPortSelector()
                 widget.setProperty("format", "text")
