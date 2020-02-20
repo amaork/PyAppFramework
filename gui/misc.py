@@ -183,25 +183,70 @@ class ExpandWidget(QWidget):
 
 class NavigationItem(QToolButton):
     activated = Signal()
-    ACTIVATE_STYLE = 'color: rgb(0, 0, 0);font: 20pt "宋体";'
-    DEFAULT_STYLE = 'color: rgb(255, 255, 255);font: 20pt "宋体";'
+    HOVER_COLOR = (240, 154, 55)
+    ACTIVATE_COLOR = (0, 0, 0)
+    DEFAULT_COLOR = (255, 255, 255)
+    DEFAULT_FONT = 'font: 20pt "宋体";'
 
-    def __init__(self, text, icon, slot=None, activate_invert=True,
-                 default_style=DEFAULT_STYLE, activate_style=ACTIVATE_STYLE, parent=None):
+    def __init__(self, text, icon, slot=None, activate_invert=True, font=DEFAULT_FONT,
+                 hover_color=HOVER_COLOR, default_color=DEFAULT_COLOR, activate_color=ACTIVATE_COLOR, parent=None):
         super(NavigationItem, self).__init__(parent)
         self.__text = text
         self.__icon = icon
         self.__slot = slot
+        self.__font = font
         self.__activate = False
-        self.__default_style = default_style
-        self.__activate_style = activate_style
+
+        # Colors
+        self.__hover_color = hover_color
+        self.current_color = default_color
+        self.__default_color = default_color
+        self.__activate_color = activate_color
+
+        # Cached icons with different color
+        self.__hover_color_icon = self.__getColoredIcon(self.__hover_color)
+        self.current_color_icon = self.__getColoredIcon(self.__default_color)
+        self.__default_color_icon = self.__getColoredIcon(self.__default_color)
+        self.__activate_color_icon = self.__getColoredIcon(self.__activate_color)
+
         self.__activate_invert = activate_invert
         self.__action = QAction(QIcon(icon), text, self)
         self.__action.triggered.connect(self.slotSelected)
         self.addAction(self.__action)
         self.setDefaultAction(self.__action)
         self.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.setStyleSheet(self.__default_style)
+        self.setStyleSheet(self.__color2StyleSheet(self.__default_color))
+
+    @staticmethod
+    def __checkColor(new_color, old_color):
+        if isinstance(new_color, (QColor, Qt.GlobalColor)):
+            new_color = QColor(new_color)
+            return new_color.red(), new_color.green(), new_color.blue()
+        elif isinstance(new_color, (list, tuple)) and len(new_color) == 3:
+            try:
+                new_color = QColor(new_color[0], new_color[1], new_color[2])
+                return new_color.red(), new_color.green(), new_color.blue()
+            except (TypeError, ValueError):
+                return old_color
+        else:
+            return old_color
+
+    def __getColoredIcon(self, color):
+        r, g, b = color
+        image = QImage(self.__icon)
+        for x in range(image.width()):
+            for y in range(image.height()):
+                pixel = image.pixel(x, y)
+                image.setPixel(x, y, qRgba(r, g, b, qAlpha(pixel)))
+
+        return QPixmap.fromImage(image)
+
+    def __color2StyleSheet(self, color):
+        return 'color: rgb{}; {}'.format(color, self.__font)
+
+    def _setColorAndIcon(self, color, icon):
+        self.__action.setIcon(icon)
+        self.setStyleSheet(self.__color2StyleSheet(color))
 
     def slotSelected(self):
         self.activated.emit()
@@ -224,20 +269,28 @@ class NavigationItem(QToolButton):
         self.__activate = activate
         if not self.__activate_invert:
             return
-        if activate:
-            image = QImage(self.__icon)
-            image.invertPixels()
-            self.setStyleSheet(self.__activate_style)
-            self.__action.setIcon(QPixmap.fromImage(image))
-        else:
-            self.setStyleSheet(self.__default_style)
-            self.__action.setIcon(QIcon(self.__icon))
 
-    def setDefaultStyle(self, style):
-        self.__default_style = style
+        self.current_color = self.__activate_color if activate else self.__default_color
+        self.current_color_icon = self.__activate_color_icon if activate else self.__default_color_icon
+        self._setColorAndIcon(self.current_color, self.current_color_icon)
 
-    def setActivateStyle(self, style):
-        self.__activate_style = style
+    def setHoverColor(self, color):
+        self.__hover_color = self.__checkColor(color, self.__hover_color)
+        self.__hover_color_icon = self.__getColoredIcon(self.__hover_color)
+
+    def setDefaultColor(self, color):
+        self.__default_color = self.__checkColor(color, self.__default_color)
+        self.__default_color_icon = self.__getColoredIcon(self.__default_color)
+
+    def setActivateColor(self, color):
+        self.__activate_color = self.__checkColor(color, self.__activate_color)
+        self.__activate_color_icon = self.__getColoredIcon(self.__activate_color)
+
+    def enterEvent(self, ev):
+        self._setColorAndIcon(self.__hover_color, self.__hover_color_icon)
+
+    def leaveEvent(self, ev):
+        self._setColorAndIcon(self.current_color, self.current_color_icon)
 
 
 class NavigationBar(QToolBar):
