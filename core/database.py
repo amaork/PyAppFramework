@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
 import os
+import time
+import random
+import shutil
 import sqlite3
 import hashlib
+from .datatype import DynamicObject
 
 try:
     from pysqlcipher3 import dbapi2 as sqlcipher
 except ImportError:
     import sqlite3 as sqlcipher
 
-__all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError']
+__all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem']
 
 
 class SQLiteDatabaseError(Exception):
@@ -531,3 +536,248 @@ class SQLiteUserPasswordDatabase(object):
                        "{} INTEGER PRIMARY KEY AUTOINCREMENT,"
                        "{} TEXT NOT NULL)".format(cls.CIPHER_TBL, cls.CIPHER_LEVEL_KEY, cls.CIPHER_KEY))
         db.commit()
+
+
+class SQLiteGeneralSettingsItem(DynamicObject):
+    SEQUENCE = ('id', 'name', 'data', 'min', 'max', 'precision', 'desc')
+    _properties = {'id', 'name', 'data', 'min', 'max', 'precision', 'desc'}
+
+    def __init__(self, id_, name, data, min_=0, max_=0, precision=0, desc=""):
+        """SQLite settings item
+
+        :param id_:  data index corresponding database row id
+        :param name: settings item name
+        :param data: settings data store as text, explained by application
+        :param min_: settings item minimum value
+        :param max_: settings item maximum value
+        :param precision: settings item precision 0 means integer, others means data decimal point number
+        :param desc: settings item description text help others understand
+        """
+        kwargs = dict()
+        kwargs["id"] = id_
+        kwargs["min"] = min_
+        kwargs["max"] = max_
+        kwargs["desc"] = desc
+        kwargs["data"] = data
+        kwargs["name"] = name
+        kwargs["precision"] = precision
+        super(SQLiteGeneralSettingsItem, self).__init__(**kwargs)
+
+    def __str__(self):
+        data = list()
+        dict_ = self.dict
+        for name in self.SEQUENCE:
+            data.append('"{}"'.format(dict_.get(name)))
+
+        return ", ".join(data)
+
+
+class SQLiteDatabaseCreator(object):
+    DESC_ID = -5
+    NAME_ID = -4
+    PRECISION_ID = -3
+    LOWER_LIMIT_ID = -2
+    UPPER_LIMIT_ID = -1
+
+    ENUM_TAIL_ITEM_NAME = "MaxItemNum"
+    ENUM_DEFAULT_NAME = "enum DataIndex"
+
+    def __init__(self, name, output_dir="SQLiteDatabaseCreator_output"):
+        """
+
+        :param name: database file name
+        :param output_dir: database and C/C++ headers output directory
+        """
+
+        if not isinstance(name, str):
+            raise TypeError("{!r} require a str type".format("name"))
+
+        if os.path.isdir(output_dir):
+            shutil.rmtree(output_dir)
+            time.sleep(1)
+
+        os.mkdir(output_dir)
+
+        self._db_name = os.path.join(output_dir, name)
+        self._db_conn = sqlite3.connect(self._db_name)
+        self._db_cursor = self._db_conn.cursor()
+        self._output_dir = output_dir
+
+    def __del__(self):
+        self._db_conn.commit()
+        self._db_conn.close()
+
+    def __get_header_file_name(self, name):
+        return os.path.join(self._output_dir, "{}.h".format(name))
+
+    def __is_table_exist(self, table_name):
+        self._db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
+        tables = [i[0] for i in self._db_cursor.fetchall()]
+        return table_name in tables
+
+    @staticmethod
+    def __format_enum_item(name, index):
+        return "\t{} = {}".format(name, index)
+
+    @property
+    def database_path(self):
+        return self._db_name
+
+    def create_settings_table(self, name):
+        self._db_cursor.execute("CREATE TABLE {} ("
+                               "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
+                               "name TEXT NOT NULL,"
+                               "data TEXT NOT NULL,"
+                               "min TEXT DEFAULT 0,"
+                               "max TEXT DEFAULT 0,"
+                               "precision INTEGER DEFAULT 0,"
+                               "description TEXT"
+                               ");".format(name))
+
+        return True
+
+    def create_general_table(self, name, max_column):
+        """Create a generate database table with specified name and column count
+
+        :param name: database table name
+        :param max_column: database table data maximum column
+        :return:
+        """
+        data_sentence = ",".join(["data{} TEXT".format(idx) for idx in range(max_column)])
+        self._db_cursor.execute("CREATE TABLE {} ("
+                               "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
+                               "{}, description TEXT);".format(name, data_sentence))
+
+    def get_general_table_limit(self, table_name):
+        """Get table lower and upper limit value
+
+        :param table_name:  table name
+        :return:
+        """
+        self._db_cursor.execute("SELECT * FROM {} where id = {}".format(table_name, self.LOWER_LIMIT_ID))
+        lower_limit = self._db_cursor.fetchall()[0][1:-1]
+
+        self._db_cursor.execute("SELECT * FROM {} where id = {}".format(table_name, self.UPPER_LIMIT_ID))
+        upper_limit = self._db_cursor.fetchall()[0][1:-1]
+
+        return tuple(zip(lower_limit, upper_limit))
+
+    def get_general_table_precision(self, table_name):
+        self._db_cursor.execute("SELECT * FROM {} where id = {}".format(table_name, self.PRECISION_ID))
+        return self._db_cursor.fetchall()[0][1:]
+
+    def set_settings_data(self, table_name, settings, protobuf_enum=False):
+        """Create settings table and fill settings data
+
+        :param table_name: settings table name
+        :param settings:  settings data (list)
+        :param protobuf_enum: generate protobuf enum
+        :return: success return true, failed return false
+        """
+
+        # If table do not exist create table first
+        if not self.__is_table_exist(table_name):
+            self.create_settings_table(table_name)
+
+        # Add settings data and generate C/C++ header file
+        with open(self.__get_header_file_name(table_name), "wt") as fp:
+            enum_items = list()
+            for item in settings:
+                if not isinstance(item, SQLiteGeneralSettingsItem):
+                    continue
+
+                self._db_cursor.execute("INSERT INTO {} VALUES({})".format(table_name, item))
+                enum_items.append(self.__format_enum_item(item.name, item.id))
+
+            self._db_conn.commit()
+            # Headers for C/C++
+            fp.write("{}".format(self.ENUM_DEFAULT_NAME) + " {\n")
+            fp.write(",\n".join(enum_items))
+            fp.write("\n};\n")
+
+            # For protocol buffer
+            if protobuf_enum:
+                fp.write("\n\n")
+                fp.write("/*\nFor protocol buffer\n\n")
+                fp.write("{}".format(self.ENUM_DEFAULT_NAME) + " {\n")
+                fp.write(";\n".join(enum_items))
+                fp.write(";\n}\n/*")
+
+        return True
+
+    def set_general_table_limit(self, table_name, max_column, limit):
+        try:
+            print("{} data count: {}".format(table_name, len(limit)))
+            with open(self.__get_header_file_name(table_name), "wt") as fp:
+                enum_items = list()
+                fp.write(self.ENUM_DEFAULT_NAME + " {\n")
+                for id_, item in enumerate(limit):
+                    if not isinstance(item, SQLiteGeneralSettingsItem):
+                        return  False
+                    enum_items.append(self.__format_enum_item(item.name, id_))
+
+                enum_items.append(self.__format_enum_item(self.ENUM_TAIL_ITEM_NAME, len(enum_items)))
+                fp.write(",\n".join(enum_items))
+                fp.write("\n};\n")
+
+            lower_limit = [self.LOWER_LIMIT_ID]
+            lower_limit.extend(tuple(x.min for x in limit))
+            lower_limit.extend([0] * (max_column - len(limit)))
+            lower_limit.append("'最小值'")
+
+            upper_limit = [self.UPPER_LIMIT_ID]
+            upper_limit.extend(tuple(x.max for x in limit))
+            upper_limit.extend([0] * (max_column - len(limit)))
+            upper_limit.append("'最大值'")
+
+            precision = [self.PRECISION_ID]
+            precision.extend(tuple(x.precision for x in limit))
+            precision.extend([0] * (max_column - len(limit)))
+            precision.append("'小数位'")
+
+            desc = [self.DESC_ID]
+            desc.extend(tuple("'{}'".format(x.desc) for x in limit))
+            desc.extend([0] * (max_column - len(limit)))
+            desc.append("'描述'")
+
+            name = [self.NAME_ID]
+            name.extend(tuple("'{}'".format(x.name) for x in limit))
+            name.extend([0] * (max_column - len(limit)))
+            name.append("'名称'")
+
+            desc = ", ".join(tuple(map(str, desc)))
+            name = ", ".join(tuple(map(str, name)))
+            precision = ", ".join(tuple(map(str, precision)))
+            lower_limit = ", ".join(tuple(map(str, lower_limit)))
+            upper_limit = ", ".join(tuple(map(str, upper_limit)))
+
+            self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, desc))
+            self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, name))
+            self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, precision))
+            self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, lower_limit))
+            self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, upper_limit))
+            self._db_conn.commit()
+        except (TypeError,):
+            print("Error limit request a tuple list")
+
+    def set_general_table_data(self, table_name, row_count, fill_random_data=False):
+        """Create general table and fill data
+
+        :param table_name: general table name
+        :param row_count: table data row count
+        :param fill_random_data: fill random data
+        :return:
+        """
+        # First get table limit
+        limit = self.get_general_table_limit(table_name)
+
+        for i in range(row_count):
+            data = [i]
+            for low, high in limit:
+                low = int(low)
+                high = int(high)
+                data.append(random.randint(low, high) if fill_random_data else low)
+
+            data.append('"{}{}"'.format(table_name, i + 1))
+            data = ", ".join(tuple(map(str, data)))
+            self._db_cursor.execute("INSERT INTO {} VALUES({})".format(table_name, data))
