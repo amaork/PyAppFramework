@@ -10,6 +10,7 @@ from .container import ComponentManager
 __all__ = ['SerialPortSelector', 'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
+           'ThreadSafeLabel',
            'updateFilterMenu']
 
 
@@ -401,3 +402,43 @@ class CustomEventFilterHandler(QObject):
                 obj.installEventFilter(self)
             else:
                 obj.removeEventFilter(self)
+
+
+class ThreadSafeLabel(QWidget):
+    def __init__(self, parent=None, text="", font=QFont("等线 Light", 9), align=Qt.AlignCenter):
+        super(ThreadSafeLabel, self).__init__(parent)
+        self.__text = text
+        self.__font = font
+        self.__align = align
+        self.update()
+
+    def text(self):
+        return self.__text[:]
+
+    def setText(self, text):
+        self.__text = text
+        self.update()
+
+    def font(self):
+        return self.__font
+
+    def setFont(self, font):
+        if isinstance(font, QFont):
+            self.__font = font
+
+    def setAlignment(self, align):
+        if isinstance(align, Qt.AlignmentFlag):
+            self.__align = align
+
+    def paintEvent(self, ev):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), self.__align, self.__text)
+
+    def sizeHint(self):
+        metrics = QFontMetrics(self.font())
+        min_height = metrics.height()
+        min_width = metrics.width(self.__text) * 1.3
+        return QSize(min_width, min_height)

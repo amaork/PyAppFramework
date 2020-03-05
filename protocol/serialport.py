@@ -411,7 +411,7 @@ class SerialPort(object):
         while len(data) != size:
             tmp = self.__port.read(size - len(data))
             if len(tmp) == 0 and len(data) == 0:
-                raise serial.SerialException("Receive data timeout!")
+                raise serial.SerialTimeoutException("Receive data timeout!")
             elif len(tmp) == 0:
                 break
 
