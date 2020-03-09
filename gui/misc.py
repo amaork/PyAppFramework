@@ -427,8 +427,7 @@ class ThreadSafeLabel(QWidget):
             self.__font = font
 
     def setAlignment(self, align):
-        if isinstance(align, Qt.AlignmentFlag):
-            self.__align = align
+        self.__align = align
 
     def paintEvent(self, ev):
         painter = QPainter(self)

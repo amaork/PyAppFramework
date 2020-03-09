@@ -2215,9 +2215,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
             if setting.is_int_type():
                 widget = QSpinBox()
-                widget.setValue(setting.get_data())
                 widget.setMinimum(setting.get_check()[0])
                 widget.setMaximum(setting.get_check()[1])
+                widget.setValue(setting.get_data())
                 widget.setSingleStep(setting.get_check()[2])
             elif setting.is_bool_type():
                 widget = QCheckBox()
@@ -2233,9 +2233,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setMaxLength(setting.check[1])
             elif setting.is_float_type():
                 widget = QDoubleSpinBox()
-                widget.setValue(setting.get_data())
                 widget.setMinimum(setting.get_check()[0])
                 widget.setMaximum(setting.get_check()[1])
+                widget.setValue(setting.get_data())
                 widget.setSingleStep(setting.get_check()[2])
             elif setting.is_select_type():
                 widget = QComboBox()

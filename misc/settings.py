@@ -9,7 +9,7 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiLogMessage',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
-           'UiTextInput', 'UiTimeInput', 'UiAddressInput',
+           'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiFileInput', 'UiFolderInput', 'UiSerialInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
 
@@ -287,9 +287,18 @@ class UiTimeInput(UiTextInput):
 
 
 class UiAddressInput(UiTextInput):
+    RegExp = "((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))"
+
     def __init__(self, name, default="000.000.000.000", readonly=False):
-        re_ = "((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))"
-        super(UiAddressInput, self).__init__(name, 16, default=default, re_=re_, readonly=readonly)
+        super(UiAddressInput, self).__init__(name, 16, default=default, re_=self.RegExp, readonly=readonly)
+
+
+class UiHexByteInput(UiTextInput):
+    RegExp = Template("^([0-9a-fA-F]{2}\ ){0,$len}")
+
+    def __init__(self, name, length, default="00 01 02 03 04 05 06", readonly=False):
+        re_ = self.RegExp.substitute(len=length)
+        super(UiHexByteInput, self).__init__(name, length * 3 - 1, default=default, re_=re_, readonly=readonly)
 
 
 class UiColorInput(UiInputSetting):
