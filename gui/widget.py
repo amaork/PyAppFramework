@@ -1070,7 +1070,6 @@ class TableWidget(QTableWidget):
 
         item = self.item(row, column)
         item.setBackground(background)
-        self.frozenItem(row, column, True)
         return True
 
     def setItemForeground(self, row, column, foreground):
@@ -1079,7 +1078,7 @@ class TableWidget(QTableWidget):
 
         item = self.item(row, column)
         item.setForeground(foreground)
-        self.frozenItem(row, column, True)
+        return True
 
     @Slot(bool)
     def hideHeaders(self, hide):
@@ -1194,6 +1193,7 @@ class TableWidget(QTableWidget):
             else:
                 flags |= Qt.ItemIsEditable
             item.setFlags(flags)
+            return
 
         # Widget:
         widget = self.__copyWidget(self.cellWidget(row, column))
@@ -1460,45 +1460,45 @@ class TableWidget(QTableWidget):
         try:
 
             item = self.item(row, column)
-            widget = self.__copyWidget(self.cellWidget(row, column))
-
-            if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, float)):
-                widget.setValue(data)
-                widget.valueChanged.connect(self.__slotWidgetDataChanged)
-                self.cellWidget(row, column).setHidden(True)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(widget, QCheckBox) and isinstance(data, bool):
-                widget.setChecked(data)
-                widget.stateChanged.connect(self.__slotWidgetDataChanged)
-                self.cellWidget(row, column).setHidden(True)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(widget, QComboBox) and isinstance(data, int) and data < widget.count():
-                widget.setCurrentIndex(data)
-                widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
-                self.cellWidget(row, column).setHidden(True)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(widget, QDateTimeEdit) and isinstance(data, datetime):
-                date = QDate(data.year, data.month, data.day)
-                time = QTime(data.hour, data.minute, data.second)
-                widget.setDateTime(QDateTime(date, time))
-                widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(widget, QPushButton) and isinstance(data, object):
-                widget.setProperty("private", data)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(widget, QProgressBar) and isinstance(data, (int, float)):
-                widget.setValue(data)
-                self.removeCellWidget(row, column)
-                self.setCellWidget(row, column, widget)
-            elif isinstance(item, QTableWidgetItem):
+            if isinstance(item, QTableWidgetItem):
                 item.setText("{}".format(data))
             else:
-                return False
+                widget = self.__copyWidget(self.cellWidget(row, column))
+                if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, float)):
+                    widget.setValue(data)
+                    widget.valueChanged.connect(self.__slotWidgetDataChanged)
+                    self.cellWidget(row, column).setHidden(True)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                elif isinstance(widget, QCheckBox) and isinstance(data, bool):
+                    widget.setChecked(data)
+                    widget.stateChanged.connect(self.__slotWidgetDataChanged)
+                    self.cellWidget(row, column).setHidden(True)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                elif isinstance(widget, QComboBox) and isinstance(data, int) and data < widget.count():
+                    widget.setCurrentIndex(data)
+                    widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+                    self.cellWidget(row, column).setHidden(True)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                elif isinstance(widget, QDateTimeEdit) and isinstance(data, datetime):
+                    date = QDate(data.year, data.month, data.day)
+                    time = QTime(data.hour, data.minute, data.second)
+                    widget.setDateTime(QDateTime(date, time))
+                    widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                elif isinstance(widget, QPushButton) and isinstance(data, object):
+                    widget.setProperty("private", data)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                elif isinstance(widget, QProgressBar) and isinstance(data, (int, float)):
+                    widget.setValue(data)
+                    self.removeCellWidget(row, column)
+                    self.setCellWidget(row, column, widget)
+                else:
+                    return False
 
             return True
 
