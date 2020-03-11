@@ -2666,6 +2666,24 @@ class LogMessageWidget(QTextEdit):
         self.logger.addHandler(file_handler)
         self.logger.addHandler(stream_handler)
 
+        # Context menu
+        self.ui_context_menu = QMenu(self)
+        self.ui_show_info = QAction(self.tr("Show Info"), self)
+        self.ui_show_debug = QAction(self.tr("Show Debug"), self)
+        self.ui_show_error = QAction(self.tr("Show Error"), self)
+        self.ui_clean_action = QAction(self.tr("Clear All"), self)
+
+        self.ui_context_menu.addAction(self.ui_clean_action)
+        for action in (self.ui_show_info, self.ui_show_debug, self.ui_show_error):
+            action.setCheckable(True)
+            action.setChecked(True)
+            self.ui_context_menu.addAction(action)
+
+        self.ui_clean_action.triggered.connect(self.clear)
+        self.ui_show_info.triggered.connect(self.slotShowSelectLog)
+        self.ui_show_debug.triggered.connect(self.slotShowSelectLog)
+        self.ui_show_error.triggered.connect(self.slotShowSelectLog)
+
     @Slot(object)
     def logging(self, message, write_to_log=True):
         if not isinstance(message, UiLogMessage):
@@ -2683,7 +2701,7 @@ class LogMessageWidget(QTextEdit):
     def filterLog(self, levels):
         # First read all log to memory
         with open(self.logFilename) as fp:
-                text = fp.read()
+            text = fp.read()
 
         # Process data
         valid_record = list()
@@ -2721,3 +2739,20 @@ class LogMessageWidget(QTextEdit):
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.End)
         self.setTextCursor(cursor)
+
+    def slotShowSelectLog(self):
+        levels = list()
+        if self.ui_show_info.isChecked():
+            levels.append(logging.INFO)
+
+        if self.ui_show_debug.isChecked():
+            levels.append(logging.DEBUG)
+
+        if self.ui_show_error.isChecked():
+            levels.append(logging.ERROR)
+
+        self.filterLog(levels)
+
+    def contextMenuEvent(self, ev):
+        self.ui_context_menu.exec_(ev.globalPos())
+

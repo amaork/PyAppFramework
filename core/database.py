@@ -575,9 +575,9 @@ class SQLiteGeneralSettingsItem(DynamicObject):
 class SQLiteDatabaseCreator(object):
     DESC_ID = -5
     NAME_ID = -4
-    PRECISION_ID = -3
-    LOWER_LIMIT_ID = -2
-    UPPER_LIMIT_ID = -1
+    PRECISION_ID = 100000000
+    LOWER_LIMIT_ID = -1
+    UPPER_LIMIT_ID = 99999999
 
     ENUM_TAIL_ITEM_NAME = "MaxItemNum"
     ENUM_DEFAULT_NAME = "enum DataIndex"

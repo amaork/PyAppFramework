@@ -294,7 +294,7 @@ class UiAddressInput(UiTextInput):
 
 
 class UiHexByteInput(UiTextInput):
-    RegExp = Template("^([0-9a-fA-F]{2}\ ){0,$len}")
+    RegExp = Template("^([0-9a-fA-F]{2}\ ?){0,$len}")
 
     def __init__(self, name, length, default="00 01 02 03 04 05 06", readonly=False):
         re_ = self.RegExp.substitute(len=length)
