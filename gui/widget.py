@@ -1193,7 +1193,6 @@ class TableWidget(QTableWidget):
             else:
                 flags |= Qt.ItemIsEditable
             item.setFlags(flags)
-            return
 
         # Widget:
         widget = self.__copyWidget(self.cellWidget(row, column))
@@ -1453,7 +1452,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def setItemData(self, row, column, data):
+    def setItemData(self, row, column, data, property=None):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
@@ -1462,6 +1461,8 @@ class TableWidget(QTableWidget):
             item = self.item(row, column)
             if isinstance(item, QTableWidgetItem):
                 item.setText("{}".format(data))
+                if property:
+                    item.setData(Qt.UserRole, property)
             else:
                 widget = self.__copyWidget(self.cellWidget(row, column))
                 if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, float)):
@@ -1505,6 +1506,14 @@ class TableWidget(QTableWidget):
         except Exception as e:
             print("Set table item data error:{}".format(e))
             return False
+
+    def setItemProperty(self, row, column, property):
+        if not self.__checkRow(row) or not self.__checkColumn(column):
+            return None
+
+        item = self.item(row, column)
+        if isinstance(item, QTableWidgetItem):
+            item.setData(Qt.UserRole, property)
 
     def setItemDataFilter(self, row, column, filters):
         if not self.__checkRow(row) or not self.__checkColumn(column):
