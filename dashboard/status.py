@@ -5,7 +5,7 @@ from ..misc.windpi import get_program_scale_factor
 __all__ = ['DashboardStatusIcon']
 
 
-class DashboardStatusIcon(QLabel):
+class DashboardStatusIcon(QWidget):
     DEF_RADIUS = 6
     DEF_FONT_NAME = "Vrinda"
     DEF_FG_COLOR = QColor(14, 11, 54)
@@ -32,7 +32,7 @@ class DashboardStatusIcon(QLabel):
         self._radius = self.DEF_RADIUS * self._scale_factor
         self._font = QFont(self.DEF_FONT_NAME, 15)
         if isinstance(size, QSize):
-            self.setFixedSize(self.__scaleSize(size))
+            self.setMinimumSize(self.__scaleSize(size))
         self.setToolTip(tips)
 
     def __scaleSize(self, size):
@@ -40,7 +40,7 @@ class DashboardStatusIcon(QLabel):
 
     def __getFontSize(self):
         try:
-            return self.width() / 8 / self._scale_factor
+            return self.width() / 10 / self._scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 

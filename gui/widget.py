@@ -1461,7 +1461,7 @@ class TableWidget(QTableWidget):
             item = self.item(row, column)
             if isinstance(item, QTableWidgetItem):
                 item.setText("{}".format(data))
-                if property:
+                if property is not None:
                     item.setData(Qt.UserRole, property)
             else:
                 widget = self.__copyWidget(self.cellWidget(row, column))
