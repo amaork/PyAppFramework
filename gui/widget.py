@@ -2659,7 +2659,7 @@ class LogMessageWidget(QTextEdit):
         self.logger.setLevel(level)
 
         # Create a file handler
-        file_handler = logging.FileHandler(filename)
+        file_handler = logging.FileHandler(filename, encoding="utf-8")
         file_handler.setLevel(level)
 
         # Create a stream handler
