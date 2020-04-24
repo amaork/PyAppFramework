@@ -217,11 +217,10 @@ class FTPClient(object):
             ftp = self.create_new_connection()
             
             # Download file
-            if len(local_name):
-                ftp.retrbinary('RETR ' + remote_path, open(local_path + os.path.basename(local_name), 'wb').write)
-            else:
-                ftp.retrbinary('RETR ' + remote_path, open(local_path + os.path.basename(remote_path), 'wb').write)
-                
+            file_name = os.path.basename(local_name if local_name else remote_path)
+            with open(os.path.join(local_path, file_name), 'wb') as fp:
+                ftp.retrbinary('RETR ' + remote_path, fp.write)
+
             if self.verbose:
                 print("Downloading:{}".format(remote_path))
         except ftplib.all_errors as e:
