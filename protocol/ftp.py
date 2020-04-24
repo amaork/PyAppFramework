@@ -267,7 +267,7 @@ class FTPClient(object):
                     self.upload_dir(file_name, self.join(remote_dir, file_name), exclude, callback)
                 else:
                     if callback and hasattr(callback, "__call__"):
-                        callback(file_name)
+                        callback(os.path.join(pwd, local_dir, file_name))
                     # Upload to remote dir same directory
                     self.upload_file(file_name, remote_dir)
 
