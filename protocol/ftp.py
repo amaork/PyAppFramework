@@ -183,6 +183,8 @@ class FTPClient(object):
                     if callback and hasattr(callback, "__call__"):
                         callback(remote_file)
                     self.download_file(remote_file, local_dir)
+                    if callback and hasattr(callback, "__call__"):
+                        callback(os.path.join(local_dir, file_name))
 
         except ftplib.error_perm as e:
             raise FTPClientError("Download error remote dir:{} is not exist:{}".format(remote_dir, e))
