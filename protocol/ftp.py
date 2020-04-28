@@ -10,6 +10,9 @@ class FTPClientError(Exception):
 
 
 class FTPClient(object):
+    ROOT = "/"
+    EXTx_FS_RECOVERY_DIR = "lost+found"
+
     def __init__(self, addr, port=21, username="anonymous", password="anonymous@", timeout=30, verbose=False):
         """FTP client base ftplib, support recursive download, upload, delete whole directory
 
@@ -36,9 +39,21 @@ class FTPClient(object):
             pass
 
     @staticmethod
+    def dirname(path):
+        origin = os.path.dirname(path)
+        return origin.replace("\\", "/")
+
+    @staticmethod
     def join(path, *paths):
         org = os.path.join(path, *paths)
         return org.replace("\\", "/")
+
+    @staticmethod
+    def root_join(*paths):
+        return FTPClient.join(FTPClient.ROOT, *paths)
+
+    def relative_join(self, *path):
+        return self.join(self.ftp.pwd(), *path)
 
     def create_new_connection(self):
         """Create a ftp object and connect to server
@@ -89,7 +104,26 @@ class FTPClient(object):
             return False
         
         return not self.is_dir(name)
-    
+
+    def is_exist(self, path):
+        """Check if path is exist
+
+        :param path: absolute path
+        :return: True if path exist False not exist
+        """
+        return os.path.basename(path) in self.get_file_list(self.dirname(path))
+
+    def is_file_abs(self, path):
+        """Check if path is a file
+
+        :param path: absolute path
+        :return: True if path is a file, False means not exist or is a directory
+        """
+        if not self.is_exist(path):
+            return False
+
+        return not self.is_dir(path)
+
     def create_dirs(self, path):
         """Recursive Create a directory at ftp server
 
@@ -325,7 +359,6 @@ class FTPClient(object):
         :param remove_files: Will remove files list
         :param callback: callback before upload file
         """
-
         pwd = ""
 
         try:
@@ -333,6 +366,10 @@ class FTPClient(object):
             # Check remote dir
             if not self.is_dir(remote_dir):
                 raise FTPClientError("Remove files error, remote dir:{} is not exist".format(remote_dir))
+
+            # Automatic ignore extx filesystem recovery dir
+            if self.EXTx_FS_RECOVERY_DIR in remove_files:
+                remove_files.remove(self.EXTx_FS_RECOVERY_DIR)
             
             # Enter remote dir
             pwd = self.ftp.pwd()
@@ -375,10 +412,27 @@ class FTPClient(object):
         :param remote_dir: Remote dir will delete all files
         :return: result, error
         """
-
         self.remove_files(remote_dir, self.get_file_list(remote_dir))
 
         try:
             self.ftp.rmd(remote_dir)
         except ftplib.all_errors as e:
             raise FTPClientError("Remove dir:{} error:{}".format(remote_dir, e))
+
+    def force_remove_dir(self, remote_dir):
+        try:
+            # Try remove the whole dir
+            self.remove_dir(remote_dir)
+        except FTPClientError:
+            try:
+                # Failed remove all files in this directory and ignore errors
+                self.remove_files(remote_dir, self.get_file_list(remote_dir))
+            except FTPClientError:
+                pass
+
+    def force_remote_file(self, file):
+        try:
+            if self.is_file_abs(file):
+                self.remove_files(self.dirname(file), [os.path.basename(file)])
+        except FTPClientError:
+            pass
