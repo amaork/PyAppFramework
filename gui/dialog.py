@@ -330,12 +330,17 @@ class ProgressDialog(QProgressDialog):
         super(ProgressDialog, self).__init__(parent)
 
         self.setFixedWidth(max_width)
-        self.setWindowFlags(Qt.Dialog)
+        self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
         if cancel_button is None:
             self.setCancelButton(None)
         else:
             self.setCancelButtonText(self.tr(cancel_button))
+
+    def showEvent(self, ev):
+        x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
+        y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
+        self.move(QPoint(x, y))
 
     @Slot(int)
     def setProgress(self, value):
