@@ -2113,16 +2113,41 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         return self.settings_cls(**settings)
 
     def getData(self):
-        return self.ui_manager.getData("data")
+        ext_list = list()
+        data = self.ui_manager.getData("data")
+        for k, v in data.items():
+            ext_key = self.get_file_input_enable_key(k)
+            if ext_key in data:
+                ext_list.append(ext_key)
+                data[k] = (data.get(ext_key), v)
+
+        for ext_key in ext_list:
+            data.pop(ext_key)
+        return data
 
     def setData(self, data):
         font_inputs = self.ui_manager.findValue("clicked", "font", QPushButton)
+        file_inputs = self.ui_manager.findValue("clicked", "file", QPushButton)
         color_inputs = self.ui_manager.findValue("clicked", "color", QPushButton)
         for button in font_inputs + color_inputs:
             if isinstance(button, QPushButton):
                 preview = self.ui_manager.getPrevSibling(button)
                 if isinstance(preview, QLineEdit) and data:
                     button.setProperty("private", "{}".format(data.get(preview.property("data"))))
+
+        for button in file_inputs:
+            if isinstance(button, QPushButton):
+                preview = self.ui_manager.getPrevSibling(button)
+                enabled = self.ui_manager.getPrevSibling(preview)
+                if isinstance(enabled, QCheckBox) and isinstance(preview, QLineEdit) and \
+                        data and preview.property("data"):
+                    file_name = preview.property("data")
+                    try:
+                        enabled, path = data.get(file_name)
+                    except:
+                        enabled, path = False, data.get(file_name)
+                    data[file_name] = path
+                    data[self.get_file_input_enable_key(file_name)] = enabled
 
         return self.ui_manager.setData("data", data)
 
@@ -2143,6 +2168,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         path_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(path_edit, QLineEdit):
             path_edit.setText(path)
+            enabled = self.ui_manager.getPrevSibling(path_edit)
+            if isinstance(enabled, QCheckBox):
+                enabled.setChecked(True)
 
     def slotSelectFolder(self):
         sender = self.sender()
@@ -2267,12 +2295,19 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
+
+                enable = QCheckBox(QApplication.translate("JsonSettingWidget",
+                                                          "Enable", None, QApplication.UnicodeUTF8))
+                enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
+                enable.setVisible(setting.get_check()[-1] == str(True))
+
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select File", None, QApplication.UnicodeUTF8))
                 button.setProperty("clicked", "file")
                 button.setProperty("title", setting.get_name())
-                button.setProperty("private", setting.get_check())
+                button.setProperty("private", setting.get_check()[:-1])
                 layout = QHBoxLayout()
+                layout.addWidget(enable)
                 layout.addWidget(widget)
                 layout.addWidget(button)
                 return layout
@@ -2333,6 +2368,10 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             widget.setDisabled(True)
 
         return widget
+
+    @staticmethod
+    def get_file_input_enable_key(name):
+        return "{}_enabled".format(name)
 
 
 class MultiJsonSettingsWidget(BasicJsonSettingWidget):

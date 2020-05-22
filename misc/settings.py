@@ -206,8 +206,11 @@ class UiInputSetting(DynamicObject):
 
 
 class UiFileInput(UiInputSetting):
-    def __init__(self, name, fmt, default=""):
-        super(UiFileInput, self).__init__(name=name, data="", default=default, check=fmt, readonly=False, type="FILE")
+    def __init__(self, name, fmt, default="", selectable=False):
+        fmt = list(fmt)
+        fmt.append(str(selectable))
+        super(UiFileInput, self).__init__(name=name, data="", default=default,
+                                          check=fmt, readonly=False, type="FILE")
 
 
 class UiFolderInput(UiInputSetting):
