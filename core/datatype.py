@@ -202,6 +202,12 @@ class DynamicObject(object):
     def properties(cls):
         return list(cls._properties)
 
+    def xml(self, tag):
+        element = XmlElementTree.Element(tag)
+        for k, v in self.dict.items():
+            element.set("{}".format(k), "{}".format(v))
+        return element
+
     def dumps(self):
         """Encode data to a dict string
 

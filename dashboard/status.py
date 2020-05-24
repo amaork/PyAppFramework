@@ -10,9 +10,13 @@ class DashboardStatusIcon(QWidget):
     DEF_FONT_NAME = "Vrinda"
     DEF_FG_COLOR = QColor(14, 11, 54)
     DEF_BG_COLOR = QColor(Qt.white)
+    HOVER_COLOR = QColor(240, 154, 55)
     DEF_FONT_COLOR = QColor(240, 240, 240)
 
-    def __init__(self, parent, name, status, tips="", size=None):
+    clicked = Signal(object)
+    doubleClicked = Signal(object)
+
+    def __init__(self, parent, name, status, tips="", size=None, differ_font_size=False):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
@@ -26,11 +30,15 @@ class DashboardStatusIcon(QWidget):
         self._display = status[0]
         self._bg_color = self.DEF_BG_COLOR
         self._fg_color = self.DEF_FG_COLOR
+        self._hover_color = self.HOVER_COLOR
         self._font_color = self.DEF_FONT_COLOR
+        self._font_color_bk = self.DEF_FONT_COLOR
         self._scale_factor = max(get_program_scale_factor())
         self._scale_x, self._scale_y = get_program_scale_factor()
         self._radius = self.DEF_RADIUS * self._scale_factor
+        self._differ_font_size = differ_font_size
         self._font = QFont(self.DEF_FONT_NAME, 15)
+        self._display_font = QFont(self.DEF_FONT_NAME, 15)
         if isinstance(size, QSize):
             self.setMinimumSize(self.__scaleSize(size))
         self.setToolTip(tips)
@@ -51,6 +59,16 @@ class DashboardStatusIcon(QWidget):
     @property
     def font(self):
         return self._font
+
+    @property
+    def font_size(self):
+        return self._display_font.pixelSize()
+
+    @font_size.setter
+    def font_size(self, size):
+        if isinstance(size, int):
+            self._display_font.setPointSize(size)
+            self.update()
 
     @property
     def bg_color(self):
@@ -82,6 +100,16 @@ class DashboardStatusIcon(QWidget):
             self._font_color = color
             self.update()
 
+    @property
+    def hover_color(self):
+        return self._hover_color
+
+    @hover_color.setter
+    def hover_color(self, color):
+        if isinstance(color, (QColor, Qt.GlobalColor)):
+            self._hover_color = color
+            self.update()
+
     def reset(self):
         self._current = 0
         self._display = self._status[self._current]
@@ -105,9 +133,24 @@ class DashboardStatusIcon(QWidget):
             self._display = st
             self.update()
 
+    def enterEvent(self, ev):
+        self._font_color_bk = self._font_color
+        self._font_color = self._hover_color
+        self.update()
+
+    def leaveEvent(self, ev):
+        self._font_color = self._font_color_bk
+        self.update()
+
     def resizeEvent(self, ev):
         self._font = QFont(self.DEF_FONT_NAME, self.__getFontSize())
         self.update()
+
+    def mousePressEvent(self, ev):
+        self.clicked.emit(self._display)
+
+    def mouseDoubleClickEvent(self, ev):
+        self.doubleClicked.emit(self._display)
 
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -136,6 +179,6 @@ class DashboardStatusIcon(QWidget):
 
         rect = self.rect()
         rect.setBottom(self.height() / 2)
-        painter.setFont(self.font)
+        painter.setFont(self._display_font if self._differ_font_size else self.font)
         painter.setPen(QPen(QColor(self._fg_color)))
         painter.drawText(rect, Qt.AlignCenter, self._display)

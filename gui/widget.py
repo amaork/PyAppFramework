@@ -1331,7 +1331,7 @@ class TableWidget(QTableWidget):
             return False
 
         if len(data) > self.columnCount():
-            print("Item length too much")
+            print("Column count:{}, but data len:{}".format(self.columnCount(), len(data)))
             return False
 
         # Increase row count
