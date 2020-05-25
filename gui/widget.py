@@ -3,14 +3,25 @@
 """
 Class Tree
 
+TreeWidget
+ListWidget
 TableWidget
-
 PaintWidget
     |------RgbWidget
     |------LumWidget
     |------ImageWidget
     |------ColorWidget
                 |------CursorWidget
+
+LogMessageWidget
+SerialPortSettingWidget
+
+BasicJsonSettingWidget
+    |------JsonSettingWidget
+    |------MultiJsonSettingsWidget
+    |------MultiGroupJsonSettingsWidget
+
+MultiTabJsonSettingsWidget
 """
 import re
 import json
@@ -30,7 +41,8 @@ from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput,
 
 __all__ = ['BasicWidget', 'PaintWidget',
            'ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
-           'TableWidget', 'ListWidget', 'SerialPortSettingWidget', 'LogMessageWidget',
+           'TableWidget', 'ListWidget', 'TreeWidget',
+           'SerialPortSettingWidget', 'LogMessageWidget',
            'BasicJsonSettingWidget', 'JsonSettingWidget', 'MultiJsonSettingsWidget',
            'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
@@ -1733,6 +1745,70 @@ class TableWidget(QTableWidget):
         for column, factor in enumerate(self.__columnStretchFactor):
             header.setResizeMode(column, QHeaderView.Fixed)
             self.setColumnWidth(column, width * factor)
+
+
+class TreeWidget(QTreeWidget):
+    def __init__(self, parent=None):
+        super(TreeWidget, self).__init__(parent)
+        self.__autoHeight = False
+        self.__columnStretchFactor = list()
+
+    def disableScrollBar(self, horizontal, vertical):
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
+
+    def addSubTree(self, name, children, private_data="", auto_expand=True):
+        if not isinstance(name, str) or not len(children):
+            return False
+
+        if not isinstance(children, (list, tuple)):
+            return False
+
+        root = QTreeWidgetItem(self, [name])
+        root.setData(0, Qt.UserRole, private_data)
+        for child in children:
+            item = QTreeWidgetItem(root, child)
+            item.setData(0, Qt.UserRole, private_data)
+            root.addChild(item)
+
+        if auto_expand:
+            self.expandAll()
+        self.setCurrentItem(root.child(root.childCount() - 1))
+        return True
+
+    def setAutoHeight(self, enable):
+        self.__autoHeight = enable
+        self.resize(self.geometry().width(), self.geometry().height())
+
+    def setColumnStretchFactor(self, factors):
+        if not isinstance(factors, (list, tuple)):
+            return
+
+        if len(factors) > self.columnCount():
+            return
+
+        self.__columnStretchFactor = factors
+        self.resize(self.geometry().width(), self.geometry().height())
+
+    def resizeEvent(self, ev):
+
+        width = ev.size().width()
+        height = ev.size().height()
+
+        # Auto adjust table row height
+        if self.__autoHeight:
+            self.setVerticalHeaderHeight(height / self.rowCount())
+
+        if len(self.__columnStretchFactor) == 0:
+            super(QTreeWidget, self).resizeEvent(ev)
+            return
+
+        # Auto adjust table column width
+        header = self.header()
+        header.setStretchLastSection(True)
+        for column, factor in enumerate(self.__columnStretchFactor):
+            header.setResizeMode(column, QHeaderView.Fixed)
+            header.resizeSection(column, width * factor)
 
 
 class ListWidget(QListWidget):

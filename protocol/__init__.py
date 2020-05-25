@@ -1,1 +1,1 @@
-__all__ = ['ftp', 'crc16', 'serialport', "upgrade"]
+__all__ = ['ftp', 'crc16', 'serialport', 'upgrade', 'telnet']
