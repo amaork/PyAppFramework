@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-
 import os
 import shutil
+import subprocess
 
 
 __all__ = ['get_git_release_date', 'get_git_release_hash', 'get_git_commit_count',
@@ -9,16 +9,19 @@ __all__ = ['get_git_release_date', 'get_git_release_hash', 'get_git_commit_count
 
 
 def get_git_commit_count():
-    return int(os.popen("git log --pretty=format:'' | wc -l", 'r').read())
+    return int(subprocess.Popen("git rev-list HEAD --count", stdout=subprocess.PIPE).stdout.read().decode())
 
 
-def get_git_release_hash():
-    return os.popen("git log -1 --pretty=format:%h").read().strip()
+def get_git_release_hash(short=True):
+    fmt = "%h" if short else "%H"
+    return subprocess.Popen("git log -1 --pretty=format:{}".format(fmt),
+                            stdout=subprocess.PIPE).stdout.read().decode().strip()
 
 
-def get_git_release_date():
-    return os.popen("git log -1 --pretty=format:'%ad' --date=iso | "
-                    "tr -d - | tr -d : | tr ' ' '-' | cut -c 3-15").read().strip()
+def get_git_release_date(fmt='%Y%m%d%H%M%S'):
+    latest_hash = get_git_release_hash(False)
+    return subprocess.Popen('git log --pretty=format:"%cd" --date=format:{} {} -1'.format(fmt, latest_hash),
+                            stdout=subprocess.PIPE).stdout.read().decode().strip()
 
 
 def get_dir_file_list(path):
