@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import time
+import queue
+import psutil
 import signal
 import platform
+import threading
+import subprocess
 
-__all__ = ['ProcessManager']
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead']
 
 
 class ProcessManager(object):
@@ -92,22 +97,18 @@ class ProcessManager(object):
     def get_pid(name):
         """Get process id
 
-           :param name: process name
-           :return: pid list
-           """
-        if ProcessManager.is_windows():
-            cmd = os.popen("tasklist | grep {0:s} | awk '{{ print $2 }}'".format(name))
-        else:
-            cmd = os.popen('pidof {0:s}'.format(name))
+        :param name: process name
+        :return: pid list
+        """
+        pid_list = list()
+        for process in psutil.process_iter():
+            try:
+                if process.name() == name:
+                    pid_list.append(process.pid)
+            except psutil.AccessDenied:
+                pass
 
-        data = cmd.read().strip()
-        if not data:
-            return []
-
-        try:
-            return [int(pid) for pid in data.split(' ')]
-        except ValueError:
-            return [int(pid) for pid in data.split('\n')]
+        return pid_list
 
     @staticmethod
     def kill(name):
@@ -141,3 +142,39 @@ class ProcessManager(object):
 
     def is_running(self):
         return len(self.get_pid(self.name)) != 0
+
+
+class SubprocessWithTimeoutRead(object):
+    def __init__(self, args):
+        self.__queue = queue.Queue()
+        is_posix = 'posix' in sys.builtin_module_names
+        self.__process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                          bufsize=1, close_fds=is_posix)
+        self.__thread = threading.Thread(target=self.__blockReadStdoutThread)
+        self.__thread.setDaemon(True)
+        self.__thread.start()
+
+    def __del__(self):
+        self.kill()
+
+    def kill(self):
+        self.__process.kill()
+        ret, err = self.__process.communicate()
+        self.__queue.put_nowait((ret + err).decode())
+
+    def read(self, timeout=0):
+        try:
+            return self.__queue.get(timeout=timeout)
+        except queue.Empty:
+            return ""
+
+    def __blockReadStdoutThread(self):
+        while True:
+            try:
+                data = self.__process.stdout.read().decode()
+                self.__queue.put_nowait(data)
+                time.sleep(0.1)
+            except ValueError:
+                ret, err = self.__process.communicate()
+                self.__queue.put_nowait((ret + err).decode())
+                break
