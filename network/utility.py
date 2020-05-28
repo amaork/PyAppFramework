@@ -13,15 +13,22 @@ __all__ = ['get_host_address', 'get_broadcast_address', 'connect_device', 'scan_
            'SocketSingleInstanceLock']
 
 
-def get_host_address():
+def get_host_address(network=None):
     try:
-        for addr in socket.gethostbyname_ex(socket.gethostname())[2]:
-            if not addr.startswith("127."):
-                return addr
+        address_set = set()
+        network = network or list()
+        for address in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if not ipaddress.IPv4Address(address).is_loopback:
+                address_set.add(address)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 53))
-        return s.getsockname()[0]
+        address_set.add(s.getsockname()[0])
+
+        for address in address_set:
+            if ipaddress.IPv4Address(address) in network:
+                return [address]
+        return list(address_set)
     except socket.error:
         return socket.gethostbyname(socket.gethostname())
 

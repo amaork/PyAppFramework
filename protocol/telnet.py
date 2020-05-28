@@ -89,14 +89,16 @@ class TelnetClient(object):
 
         return self.exec("chmod", ["a+x", script_path, "&&", script_path], timeout=timeout)
 
-    def tftp_upload_file(self, local_file, remote_path="/tmp", remote_name="", verbose=False, random_port=True):
+    def tftp_upload_file(self, local_file, remote_path="/tmp", remote_name="",
+                         network=None, random_port=True, verbose=False):
         """
         Uoload a local_file from local to remote
         :param local_file: file to upload
         :param remote_path: file upload to remote path
         :param remote_name: if is not empty will rename to this name
-        :param verbose: display verbose info
+        :param network: tftp server network(ipaddress.IPv4Network)
         :param random_port: tftp using random port
+        :param verbose: display verbose info
         :return: success return true, failed return false
         """
         def server_listen(server, address, port):
@@ -112,12 +114,11 @@ class TelnetClient(object):
         remote_file = FTPClient.join(remote_path, remote_name)
 
         # Start ftp server
-        server_address = get_host_address()
+        server_address = get_host_address(network)[0]
         server_port = random.randint(1024, 65535) if random_port else self.TFTP_DEF_PORT
 
         tftp_server = tftpy.TftpServer(os.path.dirname(local_file))
-        args = args=(tftp_server, server_address, server_port)
-        tftp_listen_thread = threading.Thread(target=server_listen, args=args)
+        tftp_listen_thread = threading.Thread(target=server_listen, args=(tftp_server, server_address, server_port))
         tftp_listen_thread.setDaemon(True)
         tftp_listen_thread.start()
         time.sleep(1)

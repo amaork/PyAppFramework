@@ -157,6 +157,13 @@ class SubprocessWithTimeoutRead(object):
     def __del__(self):
         self.kill()
 
+    def wait(self, timeout):
+        try:
+            timeout = timeout or None
+            self.__process.wait(timeout)
+        except subprocess.TimeoutExpired as err:
+            pass
+
     def kill(self):
         self.__process.kill()
         ret, err = self.__process.communicate()
