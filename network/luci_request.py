@@ -57,9 +57,18 @@ class LuciRequest(HttpRequest):
         status = self.get_static_status()
         return status.get("Firmware Version")
 
+    def get_multipart_from_data(self, token_url, name, file, params):
+        params[name] = (os.path.basename(file), open(file, "rb"))
+
+        if not self._stok:
+            params[self.token_name] = self.get_token(token_url)
+
+        return params
+
     def firmware_upgrade(self, firmware, timeout=120, reboot_wait=30, output_msg=print):
         total_start = time.time()
         flash_ops_url = self._get_url("admin/system/flashops")
+        flash_ops_form_token = "" if self._stok else self.get_token(flash_ops_url)
 
         def print_msg(msg):
             if hasattr(output_msg, "__call__"):
@@ -70,6 +79,11 @@ class LuciRequest(HttpRequest):
             "keep": (None, "on"),
             "image": (os.path.basename(firmware), open(firmware, "rb"))
         }
+
+        # Token mode
+        if not self._stok:
+            form_data[self.token_name] = (None, flash_ops_form_token)
+            flash_ops_url = "{}/sysupgrade".format(flash_ops_url)
 
         upload_res = self._section.post(flash_ops_url, files=form_data, timeout=timeout)
         upload_res.raise_for_status()
@@ -83,6 +97,10 @@ class LuciRequest(HttpRequest):
             "step": "2",
             "keep": "1"
         }
+
+        # Token mode
+        if not self._stok:
+            form_data[self.token_name] = flash_ops_form_token
 
         flash_res = self._section.post(flash_ops_url, data=form_data)
         flash_res.raise_for_status()
