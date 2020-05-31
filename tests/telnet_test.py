@@ -2,7 +2,7 @@
 import os
 import json
 import unittest
-from framework.protocol.telnet import *
+from framework.protocol.rmi_shell import *
 from framework.core.datatype import DynamicObject
 
 
