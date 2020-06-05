@@ -1757,6 +1757,10 @@ class TreeWidget(QTreeWidget):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
 
+    def clear(self):
+        for i in range(self.topLevelItemCount()):
+            self.takeTopLevelItem(0)
+
     def addSubTree(self, name, children, private_data="", auto_expand=True):
         if not isinstance(name, str) or not len(children):
             return False
