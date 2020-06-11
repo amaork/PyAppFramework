@@ -9,7 +9,7 @@ import platform
 import threading
 import subprocess
 
-__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead']
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info_without_console']
 
 
 class ProcessManager(object):
@@ -185,3 +185,10 @@ class SubprocessWithTimeoutRead(object):
                 ret, err = self.__process.communicate()
                 self.__queue.put_nowait((ret + err).decode())
                 break
+
+
+def subprocess_startup_info_without_console():
+    startup_info = subprocess.STARTUPINFO
+    startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+    startup_info.wShowWindow = subprocess.SW_HIDE
+    return startup_info
