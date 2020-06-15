@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import ping3
 import tftpy
 import random
+import string
 import socket
 import paramiko
 import telnetlib
@@ -20,9 +22,29 @@ class RMIShellClient(object):
     TFTP_CLIENT = 'tftp'
     TFTP_DEF_PORT = 69
 
-    def __init__(self, timeout=5, verbose=False):
+    def __init__(self, host, timeout=5, verbose=False):
+        self._host = host
         self._timeout = timeout
         self._verbose = verbose
+
+    @staticmethod
+    def create_client(connection_type, host, user, password, port=None, timeout=5):
+        if connection_type == "telnet":
+            port = port or RMISTelnetClient.DEF_PORT
+            return RMISTelnetClient(host=host, user=user, password=password, port=port, timeout=timeout)
+        elif connection_type == "ssh":
+            port = port or RMISSecureShellClient.DEF_PORT
+            return RMISSecureShellClient(host=host, user=user, password=password, port=port, timeout=timeout)
+        else:
+            raise RMIShellClientException("Unknown connection type: {!r}".format(connection_type))
+
+    @staticmethod
+    def check_exec_result(result, pass_output):
+        for ret in result.split("\r\n"):
+            if pass_output in ret:
+                return True
+
+        return False
 
     def create_new_connection(self):
         return None
@@ -32,6 +54,57 @@ class RMIShellClient(object):
 
     def connected(self):
         return self.is_dir_exist('/')
+
+    def get_memory_info(self):
+        """Get memory usage from /proc/meminfo
+
+        :return: MemTotal/MemFree
+        """
+        result = self.exec("cat /proc/meminfo | awk '{print $2}' | head -2").split('\n')
+        if len(result) != 2:
+            raise RMIShellClientException("Get memory usage failed")
+        return tuple([int(x) for x in result])
+
+    def get_cpu_usage_dict(self):
+        """Get cpu usage from top
+
+        :return: cpu usage
+        """
+        result = self.exec("top -n 1 | sed '2!d'").strip()
+        result = [x for x in result.split(":")[-1].split(" ") if len(x)]
+        return dict(zip(result[1::2], result[::2]))
+
+    def get_disk_usage_dict(self):
+        disk = dict()
+        header = ['filesystem', 'size', 'used', 'available', 'percentage', 'mounted_on']
+        result = self.exec("df -h").strip().split("\n")
+        if len(result) < 2:
+            return dict()
+
+        for item in result[1:]:
+            item.strip()
+            data = [x.strip() for x in item.split(" ") if len(x)]
+            disk[data[0]] = dict(zip(header, data))
+
+        return disk
+
+    def get_memory_usage_dict(self):
+        cmd = string.Template("top -n 1 | sed '1!d' | awk '{print $column}'").substitute(
+            column=" ".join(["${}".format(c) for c in range(2, 12)])
+        )
+        usage = dict()
+        result = self.exec(cmd).strip()
+        for item in result.split(","):
+            mem = item.split("K")
+            if len(mem) != 2:
+                continue
+
+            usage[mem[1]] = int(mem[0])
+
+        return usage
+
+    def is_alive(self, timeout=1):
+        return ping3.ping(dest_addr=self._host, timeout=timeout) is not None
 
     def is_exist(self, abs_path):
         return True if '0' in self.exec("test", ["-e", abs_path, "&&", "echo $?"]) else False
@@ -103,9 +176,8 @@ class RMISTelnetClient(RMIShellClient):
     LOGIN_PROPMT, PASSWORD_PROPMT, SHELL_PROPMT = (b'login:', b'Password:', b'#')
 
     def __init__(self, host, user, password, port=DEF_PORT, timeout=5, shell_prompt=SHELL_PROPMT, verbose=False):
-        super(RMISTelnetClient, self).__init__(timeout, verbose)
+        super(RMISTelnetClient, self).__init__(host, timeout, verbose)
         self._port = port
-        self._host = host
         self._user = user
         self._password = password
         self._shell_prompt = shell_prompt
@@ -116,13 +188,12 @@ class RMISTelnetClient(RMIShellClient):
     def __del__(self):
         try:
             self.client.close()
-        except ArithmeticError:
+        except AttributeError:
             pass
 
     def create_new_connection(self):
-        client = telnetlib.Telnet(host=self._host, port=self._port, timeout=self._timeout)
-
         try:
+            client = telnetlib.Telnet(host=self._host, port=self._port, timeout=self._timeout)
             # Login in
             if self.LOGIN_PROPMT not in client.read_until(self.LOGIN_PROPMT, self._timeout):
                 raise RMIShellClientException("Login failed")
@@ -140,7 +211,7 @@ class RMISTelnetClient(RMIShellClient):
                 raise RMIShellClientException("Wait shell prompt[{}] failed".format(self._shell_prompt))
 
             return client
-        except (EOFError, ConnectionError) as error:
+        except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout) as error:
             raise RMIShellClientException("Login error: {}".format(error))
 
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
@@ -155,7 +226,7 @@ class RMISTelnetClient(RMIShellClient):
             self.client.write(cmd.encode())
             result = self.client.read_until(tail, timeout=timeout).decode()
             return "\n".join(result.split("\n")[1:-1])
-        except EOFError as err:
+        except (AttributeError, EOFError) as err:
             print("Exec:[{}] error:{}".format(command, err))
             return ""
 
@@ -164,8 +235,7 @@ class RMISSecureShellClient(RMIShellClient):
     DEF_PORT = 22
 
     def __init__(self, host, user, password, port=DEF_PORT, timeout=5, verbose=False):
-        super(RMISSecureShellClient, self).__init__(timeout, verbose)
-        self._host = host
+        super(RMISSecureShellClient, self).__init__(host, timeout, verbose)
         self._port = port
         self._user = user
         self._password = password
@@ -176,7 +246,7 @@ class RMISSecureShellClient(RMIShellClient):
     def __del__(self):
         try:
             self.client.close()
-        except ArithmeticError:
+        except AttributeError:
             pass
 
     def create_new_connection(self):
@@ -186,7 +256,8 @@ class RMISSecureShellClient(RMIShellClient):
             client.connect(hostname=self._host, port=self._port, username=self._user, password=self._password)
 
             return client
-        except (paramiko.SSHException, ConnectionError) as error:
+        except (paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError,
+                ConnectionError, TimeoutError) as error:
             raise RMIShellClientException(error)
 
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
@@ -200,6 +271,6 @@ class RMISSecureShellClient(RMIShellClient):
             _, out, err = self.client.exec_command(cmd, timeout=timeout)
             result = (out.read() + err.read()).decode()
             return "\n".join(result.split("\n"))[:-1]
-        except (paramiko.SSHException, socket.timeout) as err:
+        except (paramiko.SSHException, socket.timeout, AttributeError) as err:
             print("Exec:[{}] error:{}".format(command, err))
             return ""

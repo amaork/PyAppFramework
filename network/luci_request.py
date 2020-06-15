@@ -32,8 +32,11 @@ class LuciRequest(HttpRequest):
             login_response = self.login(self._root, login_data.dict)
             self._stok = urllib.parse.urlparse(login_response.url).params.split("=")[-1]
         except requests.RequestException as err:
-            doc = PyQuery(err.response.text.encode())
-            raise LuciRequestException(err.response.status_code, doc('p').text().strip())
+            try:
+                doc = PyQuery(err.response.text.encode())
+                raise LuciRequestException(err.response.status_code, doc('p').text().strip())
+            except AttributeError:
+                raise LuciRequestException(self.HTTP_Unauthorized, "{}".format(err))
 
     def _get_url(self, path):
         return "{}/;stok={}/{}".format(self._root, self._stok, path) if self._stok else "{}/{}".format(self._root, path)
