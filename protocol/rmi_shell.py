@@ -226,7 +226,7 @@ class RMISTelnetClient(RMIShellClient):
             self.client.write(cmd.encode())
             result = self.client.read_until(tail, timeout=timeout).decode()
             return "\n".join(result.split("\n")[1:-1])
-        except (AttributeError, EOFError) as err:
+        except (AttributeError, EOFError, UnicodeDecodeError) as err:
             print("Exec:[{}] error:{}".format(command, err))
             return ""
 
@@ -256,7 +256,7 @@ class RMISSecureShellClient(RMIShellClient):
             client.connect(hostname=self._host, port=self._port, username=self._user, password=self._password)
 
             return client
-        except (paramiko.SSHException, paramiko.ssh_exception.NoValidConnectionsError,
+        except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError,
                 ConnectionError, TimeoutError) as error:
             raise RMIShellClientException(error)
 
@@ -271,6 +271,6 @@ class RMISSecureShellClient(RMIShellClient):
             _, out, err = self.client.exec_command(cmd, timeout=timeout)
             result = (out.read() + err.read()).decode()
             return "\n".join(result.split("\n"))[:-1]
-        except (paramiko.SSHException, socket.timeout, AttributeError) as err:
+        except (paramiko.SSHException, socket.timeout, AttributeError, UnicodeDecodeError) as err:
             print("Exec:[{}] error:{}".format(command, err))
             return ""
