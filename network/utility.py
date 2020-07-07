@@ -2,14 +2,18 @@
 import os
 import sys
 import time
+import ping3
 import struct
 import socket
 import platform
 import ipaddress
 import concurrent.futures
 from threading import Thread
-__all__ = ['get_host_address', 'get_broadcast_address', 'connect_device', 'scan_lan_port', 'set_keepalive',
-           'enable_broadcast', 'enable_multicast', 'set_linger_option', 'create_socket_and_connect',
+from ..core.datatype import DynamicObject
+__all__ = ['get_host_address', 'get_broadcast_address', 'connect_device',
+           'scan_lan_port', 'scan_lan_alive',
+           'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
+           'create_socket_and_connect',
            'SocketSingleInstanceLock']
 
 
@@ -95,6 +99,23 @@ def scan_lan_port(port, timeout, max_workers=None):
         result = [pool.submit(connect_device, *arg) for arg in args]
 
     return [x.result() for x in result if x.result() is not None]
+
+
+def scan_lan_alive(network,  timeout=1, max_workers=256):
+    if isinstance(network, str):
+        try:
+            network = ipaddress.ip_network(network)
+        except ValueError:
+            return list()
+
+    if not isinstance(network, ipaddress.IPv4Network):
+        return list()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        result = [pool.submit(ping3.ping, **DynamicObject(dest_addr=str(x), timeout=timeout).dict)
+                  for x in network.hosts()]
+
+    return [str(x) for x, r in zip(network.hosts(), result) if r.result() is not None]
 
 
 def create_socket_and_connect(address, port, timeout, recv_buf_size=32 * 1024, retry=3, no_delay=True):

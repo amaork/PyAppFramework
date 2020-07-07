@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 import time
 import ping3
+import random
 import requests
 import ipaddress
 import urllib.parse
@@ -56,6 +58,14 @@ class LuciRequest(HttpRequest):
         status = context.split("Local Time")[0].split("\n")[1:]
         return dict(zip(status[::2], status[1::2]))
 
+    def get_dynamic_status(self):
+        res = self._section.get(self._get_url(""), params={"status": 1, "&_": random.random()})
+        try:
+            return json.loads(res.text)
+        except json.JSONDecodeError as err:
+            print("Decode error:{}".format(err))
+            return dict()
+
     def get_firmware_version(self):
         status = self.get_static_status()
         return status.get("Firmware Version")
@@ -68,7 +78,7 @@ class LuciRequest(HttpRequest):
 
         return params
 
-    def firmware_upgrade(self, firmware, timeout=120, reboot_wait=30, output_msg=print):
+    def firmware_upgrade(self, firmware, keep=True, timeout=120, reboot_wait=30, output_msg=print):
         total_start = time.time()
         flash_ops_url = self._get_url("admin/system/flashops")
         flash_ops_form_token = "" if self._stok else self.get_token(flash_ops_url)
@@ -82,6 +92,9 @@ class LuciRequest(HttpRequest):
             "keep": (None, "on"),
             "image": (os.path.basename(firmware), open(firmware, "rb"))
         }
+
+        if not keep:
+            form_data.pop("keep")
 
         # Token mode
         if not self._stok:
@@ -98,7 +111,7 @@ class LuciRequest(HttpRequest):
         # Step two flash firmware
         form_data = {
             "step": "2",
-            "keep": "1"
+            "keep": "1" if keep else ""
         }
 
         # Token mode
