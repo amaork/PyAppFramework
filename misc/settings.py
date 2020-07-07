@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import json
 import codecs
 import logging
@@ -252,12 +253,22 @@ class UiTextInput(UiInputSetting):
 
 
 class UiTimeInput(UiTextInput):
-    def __init__(self, name, default="00:00:00", hour_number=4, readonly=False):
+    WallTimeRegExp = "^(2[0-3]|[01]?[0-9]):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$"
 
-        h = str(hour_number)
-        length = 6 + hour_number
-        re_ = Template("^(\d{0,$h}):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$$")
-        super(UiTimeInput, self).__init__(name, length, default=default, re_=re_.substitute(h=h), readonly=readonly)
+    def __init__(self, name, default="00:00:00", hour_number=4, readonly=False, wall_time=False):
+        if wall_time:
+            super(UiTimeInput, self).__init__(name, 8, default=default, re_=self.WallTimeRegExp, readonly=readonly)
+        else:
+            h = str(hour_number)
+            length = 6 + hour_number
+            re_ = Template("^(\d{0,$h}):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$$")
+            super(UiTimeInput, self).__init__(name, length, default=default, re_=re_.substitute(h=h), readonly=readonly)
+
+    @staticmethod
+    def isValidTime(time_string):
+        if not isinstance(time_string, str) or len(time_string) != 8:
+            return False
+        return re.match(UiTimeInput.WallTimeRegExp, time_string) is not None
 
     @staticmethod
     def str2time(time_string):
