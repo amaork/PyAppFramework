@@ -455,6 +455,9 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
 
         return self.ui_widget.getSettings()
 
+    def insertCustomTabWidget(self, name, widget, position=None):
+        return self.ui_widget.insertCustomTabWidget(name, widget, position)
+
     @classmethod
     def getSettings(cls, settings, data=None, reset=True, apply=None, parent=None):
         dialog = cls(settings, data, reset, apply, parent)

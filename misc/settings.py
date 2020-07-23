@@ -213,6 +213,14 @@ class UiFileInput(UiInputSetting):
         super(UiFileInput, self).__init__(name=name, data="", default=default,
                                           check=fmt, readonly=False, type="FILE")
 
+    @staticmethod
+    def getFilePath(data):
+        try:
+            _, file_path = data
+            return file_path
+        except ValueError:
+            return data
+
 
 class UiFolderInput(UiInputSetting):
     def __init__(self, name, default=""):
