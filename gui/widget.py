@@ -2669,6 +2669,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     settingChanged = Signal()
     SET_DATA_METHOD_NAME = "setData"
     GET_DATA_METHOD_NAME = "getData"
+    RESET_DATA_METHOD_NAME = "resetDefaultData"
 
     def __init__(self, settings, data, parent=None):
         super(MultiTabJsonSettingsWidget, self).__init__(parent)
@@ -2744,6 +2745,11 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         if not hasattr(widget, self.SET_DATA_METHOD_NAME) or not hasattr(widget.setData, "__call__"):
             print("Custom tab widget {!r} do not has {!r} method or {!r} is not callable".format(
                 widget.__class__.__name__, self.SET_DATA_METHOD_NAME, self.SET_DATA_METHOD_NAME))
+            return False
+
+        if not hasattr(widget, self.RESET_DATA_METHOD_NAME) or not hasattr(widget.resetDefaultData, "__call__"):
+            print("Custom tab widget {!r} do not has {!r} method or {!r} is not callable".format(
+                widget.__class__.__name__, self.RESET_DATA_METHOD_NAME, self.RESET_DATA_METHOD_NAME))
             return False
 
         self.widget_list.append(widget)
