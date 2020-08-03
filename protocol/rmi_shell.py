@@ -11,11 +11,21 @@ import telnetlib
 import threading
 from ..protocol.ftp import FTPClient
 from ..network.utility import get_host_address
-__all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient']
+__all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
 
 
 class RMIShellClientException(Exception):
     pass
+
+
+class TelnetBindNic(telnetlib.Telnet):
+    def __init__(self, host=None, port=0, timeout=5, source="", verbose=False):
+        super(TelnetBindNic, self).__init__()
+        source_address = (source, 0) if source else None
+        self.sock = socket.create_connection((host, port), timeout, source_address=source_address)
+
+        if verbose:
+            print("Telnet connect: {} ===> {}".format(self.sock.getsockname(), (host, port)))
 
 
 class RMIShellClient(object):
@@ -28,13 +38,15 @@ class RMIShellClient(object):
         self._verbose = verbose
 
     @staticmethod
-    def create_client(connection_type, host, user, password, port=None, timeout=5):
+    def create_client(connection_type, host, user, password, port=None, timeout=5, source=""):
         if connection_type == "telnet":
             port = port or RMISTelnetClient.DEF_PORT
-            return RMISTelnetClient(host=host, user=user, password=password, port=port, timeout=timeout)
+            return RMISTelnetClient(host=host, user=user, password=password,
+                                    port=port, timeout=timeout, source=source)
         elif connection_type == "ssh":
             port = port or RMISSecureShellClient.DEF_PORT
-            return RMISSecureShellClient(host=host, user=user, password=password, port=port, timeout=timeout)
+            return RMISSecureShellClient(host=host, user=user, password=password,
+                                         port=port, timeout=timeout, source=source)
         else:
             raise RMIShellClientException("Unknown connection type: {!r}".format(connection_type))
 
@@ -46,7 +58,7 @@ class RMIShellClient(object):
 
         return False
 
-    def create_new_connection(self):
+    def create_new_connection(self, source):
         return None
 
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
@@ -175,13 +187,14 @@ class RMISTelnetClient(RMIShellClient):
     DEF_PORT = 23
     LOGIN_PROPMT, PASSWORD_PROPMT, SHELL_PROPMT = (b'login:', b'Password:', b'#')
 
-    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, shell_prompt=SHELL_PROPMT, verbose=False):
+    def __init__(self, host, user, password, port=DEF_PORT,
+                 timeout=5, shell_prompt=SHELL_PROPMT, verbose=False, source=""):
         super(RMISTelnetClient, self).__init__(host, timeout, verbose)
         self._port = port
         self._user = user
         self._password = password
         self._shell_prompt = shell_prompt
-        self.client = self.create_new_connection()
+        self.client = self.create_new_connection(source)
         if verbose:
             print("Login in:{}".format("success" if self.connected() else "failed"))
 
@@ -191,9 +204,10 @@ class RMISTelnetClient(RMIShellClient):
         except AttributeError:
             pass
 
-    def create_new_connection(self):
+    def create_new_connection(self, source):
         try:
-            client = telnetlib.Telnet(host=self._host, port=self._port, timeout=self._timeout)
+            client = TelnetBindNic(host=self._host, port=self._port,
+                                   timeout=self._timeout, source=source, verbose=self._verbose)
             # Login in
             if self.LOGIN_PROPMT not in client.read_until(self.LOGIN_PROPMT, self._timeout):
                 raise RMIShellClientException("Login failed")
@@ -211,7 +225,7 @@ class RMISTelnetClient(RMIShellClient):
                 raise RMIShellClientException("Wait shell prompt[{}] failed".format(self._shell_prompt))
 
             return client
-        except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout) as error:
+        except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout, OSError) as error:
             raise RMIShellClientException("Login error: {}".format(error))
 
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
@@ -234,12 +248,12 @@ class RMISTelnetClient(RMIShellClient):
 class RMISSecureShellClient(RMIShellClient):
     DEF_PORT = 22
 
-    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, verbose=False):
+    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, verbose=False, source=""):
         super(RMISSecureShellClient, self).__init__(host, timeout, verbose)
         self._port = port
         self._user = user
         self._password = password
-        self.client = self.create_new_connection()
+        self.client = self.create_new_connection(source)
         if verbose:
             print("Login in:{}".format("success" if self.connected() else "failed"))
 
@@ -249,15 +263,26 @@ class RMISSecureShellClient(RMIShellClient):
         except AttributeError:
             pass
 
-    def create_new_connection(self):
+    def create_new_connection(self, source):
+        sock = None
+
         try:
             client = paramiko.SSHClient()
+            address = (self._host, self._port)
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(hostname=self._host, port=self._port, username=self._user, password=self._password)
+            sock = socket.create_connection(address, self._timeout, source_address=(source, 0)) if source else None
+
+            if self._verbose:
+                print("SSH connect: {} ===> {}".format(sock.getsockname(), address))
+
+            client.connect(hostname=self._host, port=self._port,
+                           username=self._user, password=self._password, sock=sock)
 
             return client
         except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError,
-                ConnectionError, TimeoutError) as error:
+                ConnectionError, TimeoutError, socket.error, OSError) as error:
+            if isinstance(sock, socket.socket):
+                sock.close()
             raise RMIShellClientException(error)
 
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
