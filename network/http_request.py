@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import os
 import requests
+import ipaddress
 import fake_useragent
 from pyquery import PyQuery
-from ..core.datatype import DynamicObject
+import requests_toolbelt.adapters
 __all__ = ['HttpRequest', 'HttpRequestException']
 
 
@@ -21,9 +21,16 @@ class HttpRequest(object):
 
     TOKEN_NAME = "token"
 
-    def __init__(self, token_name=TOKEN_NAME):
-        self.__token_name= token_name
+    def __init__(self, token_name=TOKEN_NAME, source_address=""):
+        self.__token_name = token_name
         self._section = requests.Session()
+        try:
+            source_address = str(ipaddress.ip_address(source_address))
+            new_source = requests_toolbelt.adapters.source.SourceAddressAdapter(source_address)
+            self._section.mount("http://", new_source)
+            self._section.mount("https://", new_source)
+        except ValueError:
+            pass
         self._fake_ua = fake_useragent.UserAgent()
         self._section.headers = {'User-Agent': self._fake_ua.chrome}
 

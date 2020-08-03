@@ -9,6 +9,7 @@ import socket
 import paramiko
 import telnetlib
 import threading
+import ipaddress
 from ..protocol.ftp import FTPClient
 from ..network.utility import get_host_address
 __all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
@@ -32,8 +33,9 @@ class RMIShellClient(object):
     TFTP_CLIENT = 'tftp'
     TFTP_DEF_PORT = 69
 
-    def __init__(self, host, timeout=5, verbose=False):
+    def __init__(self, host, timeout=5, source="", verbose=False):
         self._host = host
+        self._source = source
         self._timeout = timeout
         self._verbose = verbose
 
@@ -158,7 +160,11 @@ class RMIShellClient(object):
         remote_file = FTPClient.join(remote_path, remote_name)
 
         # Start ftp server
-        server_address = get_host_address(network)[0]
+        try:
+            server_address = str(ipaddress.ip_address(self._source))
+        except ValueError:
+            server_address = get_host_address(network)[0]
+
         server_port = random.randint(1024, 65535) if random_port else self.TFTP_DEF_PORT
 
         tftp_server = tftpy.TftpServer(os.path.dirname(local_file))
@@ -188,8 +194,8 @@ class RMISTelnetClient(RMIShellClient):
     LOGIN_PROPMT, PASSWORD_PROPMT, SHELL_PROPMT = (b'login:', b'Password:', b'#')
 
     def __init__(self, host, user, password, port=DEF_PORT,
-                 timeout=5, shell_prompt=SHELL_PROPMT, verbose=False, source=""):
-        super(RMISTelnetClient, self).__init__(host, timeout, verbose)
+                 timeout=5, shell_prompt=SHELL_PROPMT, source="", verbose=False):
+        super(RMISTelnetClient, self).__init__(host, timeout, source, verbose)
         self._port = port
         self._user = user
         self._password = password
@@ -248,8 +254,8 @@ class RMISTelnetClient(RMIShellClient):
 class RMISSecureShellClient(RMIShellClient):
     DEF_PORT = 22
 
-    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, verbose=False, source=""):
-        super(RMISSecureShellClient, self).__init__(host, timeout, verbose)
+    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, source="",  verbose=False):
+        super(RMISSecureShellClient, self).__init__(host, timeout, source, verbose)
         self._port = port
         self._user = user
         self._password = password

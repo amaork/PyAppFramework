@@ -14,8 +14,8 @@ class GogsRequestException(HttpRequestException):
 class GogsRequest(HttpRequest):
     TOKEN_NAME = "_csrf"
 
-    def __init__(self, host, username, password):
-        super(GogsRequest, self).__init__(token_name=self.TOKEN_NAME)
+    def __init__(self, host, username, password, source_address=""):
+        super(GogsRequest, self).__init__(token_name=self.TOKEN_NAME, source_address=source_address)
         self.__host = host
         self.__username = username
 

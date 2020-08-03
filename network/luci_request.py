@@ -18,8 +18,8 @@ class LuciRequestException(HttpRequestException):
 
 
 class LuciRequest(HttpRequest):
-    def __init__(self, host, username, password, main_container_id=""):
-        super(LuciRequest, self).__init__()
+    def __init__(self, host, username, password, main_container_id="", source_address=""):
+        super(LuciRequest, self).__init__(source_address=source_address)
         try:
             self._address = ipaddress.IPv4Address(host.split("//")[-1].split(":")[0])
         except ipaddress.AddressValueError as err:
@@ -34,11 +34,11 @@ class LuciRequest(HttpRequest):
             login_response = self.login(self._root, login_data.dict)
             self._stok = urllib.parse.urlparse(login_response.url).params.split("=")[-1]
         except requests.RequestException as err:
-            try:
+            if isinstance(err.response, requests.Response):
                 doc = PyQuery(err.response.text.encode())
                 raise LuciRequestException(err.response.status_code, doc('p').text().strip())
-            except AttributeError:
-                raise LuciRequestException(self.HTTP_Unauthorized, "{}".format(err))
+            else:
+                raise LuciRequestException(err, "{}".format(err))
 
     def _get_url(self, path):
         return "{}/;stok={}/{}".format(self._root, self._stok, path) if self._stok else "{}/{}".format(self._root, path)
