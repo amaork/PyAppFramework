@@ -21,7 +21,8 @@ class HttpRequest(object):
 
     TOKEN_NAME = "token"
 
-    def __init__(self, token_name=TOKEN_NAME, source_address=""):
+    def __init__(self, token_name=TOKEN_NAME, source_address="", timeout=5.0):
+        self._timeout = timeout
         self.__token_name = token_name
         self._section = requests.Session()
         try:
@@ -35,11 +36,15 @@ class HttpRequest(object):
         self._section.headers = {'User-Agent': self._fake_ua.chrome}
 
     @property
+    def timeout(self):
+        return self._timeout
+
+    @property
     def token_name(self):
         return self.__token_name[:]
 
     def get_token(self, url):
-        res = self._section.get(url)
+        res = self.section_get(url)
         if res.status_code != self.HTTP_OK:
             return ""
 
@@ -50,10 +55,18 @@ class HttpRequest(object):
         doc = PyQuery(text.encode())
         return doc('input[name="{}"]'.format(name)).attr("value").strip()
 
+    def section_get(self, url, **kwargs):
+        kwargs.setdefault("timeout", self.timeout)
+        return self._section.get(url, **kwargs)
+
+    def section_post(self, url, **kwargs):
+        kwargs.setdefault("timeout", self.timeout)
+        return self._section.post(url, **kwargs)
+
     def login(self, url, login_data, require_token=False):
         if require_token:
             login_data[self.token_name] = self.get_token(url)
-        res = self._section.post(url, data=login_data)
+        res = self.section_post(url, data=login_data)
         res.raise_for_status()
         return res
 

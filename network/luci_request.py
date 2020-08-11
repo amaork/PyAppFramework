@@ -18,8 +18,8 @@ class LuciRequestException(HttpRequestException):
 
 
 class LuciRequest(HttpRequest):
-    def __init__(self, host, username, password, main_container_id="", source_address=""):
-        super(LuciRequest, self).__init__(source_address=source_address)
+    def __init__(self, host, username, password, main_container_id="", source_address="", timeout=5):
+        super(LuciRequest, self).__init__(source_address=source_address, timeout=timeout)
         try:
             self._address = ipaddress.IPv4Address(host.split("//")[-1].split(":")[0])
         except ipaddress.AddressValueError as err:
@@ -53,13 +53,13 @@ class LuciRequest(HttpRequest):
 
     def get_static_status(self):
         url = self._get_url("admin/status/overview")
-        res = self._section.get(url)
+        res = self.section_get(url)
         context = self.get_context(res.text)
         status = context.split("Local Time")[0].split("\n")[1:]
         return dict(zip(status[::2], status[1::2]))
 
     def get_dynamic_status(self):
-        res = self._section.get(self._get_url(""), params={"status": 1, "&_": random.random()})
+        res = self.section_get(self._get_url(""), params={"status": 1, "&_": random.random()})
         try:
             return json.loads(res.text)
         except json.JSONDecodeError as err:
@@ -118,7 +118,7 @@ class LuciRequest(HttpRequest):
         if not self._stok:
             form_data[self.token_name] = flash_ops_form_token
 
-        flash_res = self._section.post(flash_ops_url, data=form_data)
+        flash_res = self._section.post(flash_ops_url, data=form_data, timeout=timeout)
         flash_res.raise_for_status()
 
         print_msg("Firmware flash success")

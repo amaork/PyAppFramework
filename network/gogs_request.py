@@ -14,8 +14,8 @@ class GogsRequestException(HttpRequestException):
 class GogsRequest(HttpRequest):
     TOKEN_NAME = "_csrf"
 
-    def __init__(self, host, username, password, source_address=""):
-        super(GogsRequest, self).__init__(token_name=self.TOKEN_NAME, source_address=source_address)
+    def __init__(self, host, username, password, source_address="", timeout=5):
+        super(GogsRequest, self).__init__(token_name=self.TOKEN_NAME, source_address=source_address, timeout=timeout)
         self.__host = host
         self.__username = username
 
@@ -30,10 +30,10 @@ class GogsRequest(HttpRequest):
         except requests.RequestException as err:
             raise GogsRequestException(err.response.status_code, err.response.text)
 
-    def upload_repo_avatar(self, repo_path, avatar):
+    def upload_repo_avatar(self, repo_path, avatar, timeout=None):
         avatar_url = "{}/{}/settings/avatar".format(self.__host, repo_path)
         avatar_from_data = DynamicObject(
             _csrf=(None, self.__token), avatar=(os.path.basename(avatar), open(avatar, "rb"))
         )
-        ret = self._section.post(avatar_url, files=avatar_from_data.dict)
+        ret = self._section.post(avatar_url, files=avatar_from_data.dict, timeout=timeout or self._timeout)
         ret.raise_for_status()
