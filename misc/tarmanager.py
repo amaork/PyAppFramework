@@ -35,6 +35,9 @@ class Compress(object):
     def file_check(self, file):
         pass
 
+    def get_members(self, obj):
+        pass
+
     def _pack(self, obj, filename):
         pass
 
@@ -76,6 +79,9 @@ class TarCompress(Compress):
     def _close(self, obj):
         obj.close()
 
+    def get_members(self, obj):
+        return obj.getnames()
+
     def _pack(self, obj, filename):
         obj.add(filename)
 
@@ -106,6 +112,9 @@ class ZipCompress(Compress):
     def _close(self, obj):
         obj.close()
 
+    def get_members(self, obj):
+        return obj.namelist()
+
     def _pack(self, obj, filename):
         obj.write(filename)
 
@@ -125,7 +134,7 @@ class TarManager(object):
         "write": "w",
     }
 
-    def __init__(self):
+    def __init__(self, file_path, fmt):
         pass
 
     @staticmethod
@@ -152,6 +161,25 @@ class TarManager(object):
             return ZipCompress()
         else:
             return None
+
+    @staticmethod
+    def check_and_open_compress_object(file_path, fmt=None):
+        # Check tar file path
+        if not os.path.isfile(file_path):
+            raise TarManagerError("Tarfile: {0:s} is not exist".format(file_path))
+
+        # Get file format
+        fmt = fmt if fmt in TarManager.get_support_format() else TarManager.get_file_format(file_path)
+
+        compress = TarManager.create_compress_object(fmt)
+        if not isinstance(compress, Compress):
+            raise TarManagerError("Unknown package format:{0:s}".format(file_path))
+
+        # Check tar file format
+        if not compress.file_check(file_path):
+            raise TarManagerError("Package:{0:s} is not a tarfile".format(file_path))
+
+        return compress, compress.open(file_path, TarManager.operateDict.get("read"), fmt)
 
     @staticmethod
     def pack(path, name, fmt=None, extensions=None, filters=None, verbose=False):
@@ -241,22 +269,6 @@ class TarManager(object):
         :param fmt: package format
         """
         try:
-
-            # Check tar file path
-            if not os.path.isfile(file_path):
-                raise TarManagerError("Tarfile: {0:s} is not exist".format(file_path))
-
-            # Get file format
-            fmt = fmt if fmt in TarManager.get_support_format() else TarManager.get_file_format(file_path)
-
-            compress = TarManager.create_compress_object(fmt)
-            if not isinstance(compress, Compress):
-                raise TarManagerError("Unknown package format:{0:s}".format(file_path))
-
-            # Check tar file format
-            if not compress.file_check(file_path):
-                raise TarManagerError("Package:{0:s} is not a tarfile".format(file_path))
-
             # Check unpack directory
             if len(unpack_path) == 0:
                 unpack_path = os.path.splitext(os.path.basename(file_path))[0]
@@ -265,10 +277,16 @@ class TarManager(object):
                 os.makedirs(unpack_path)
 
             # Open as tarfile and extractall and close finally
-            tar_file = compress.open(file_path, TarManager.operateDict.get("read"), fmt)
+            compress, tar_file = TarManager.check_and_open_compress_object(file_path, fmt)
             compress.extractall(tar_file, unpack_path)
             compress.close(tar_file)
-
         except (IOError, OSError, ZipCompress.exception, TarCompress.exception, shutil.Error) as e:
             raise TarManagerError('Extract failed：IOError, {}'.format(e))
 
+    @staticmethod
+    def get_members(file_path, fmt=None):
+        try:
+            compress, tar_file = TarManager.check_and_open_compress_object(file_path, fmt)
+            return compress.get_members(tar_file)
+        except (IOError, OSError, ZipCompress.exception, TarCompress.exception, shutil.Error) as e:
+            raise TarManagerError("Get file members error, {}".format(e))
