@@ -78,10 +78,7 @@ class BasicWidget(QWidget):
         label = QLabel(label)
         input_.setProperty("name", key)
         label.setProperty("name", "{}_label".format(key))
-        layout = QHBoxLayout()
-        layout.addWidget(label)
-        layout.addWidget(input_)
-        return input_, layout
+        return label, input_
 
     @staticmethod
     def createMultiInputWithLabel(texts, input_cls):
@@ -97,7 +94,7 @@ class BasicWidget(QWidget):
         return layout
 
     @staticmethod
-    def createButtonGroup(key, names, title=None):
+    def createButtonGroup(key, names, title):
         """Create button group and set button id
 
         :param key: button group key name
@@ -105,11 +102,10 @@ class BasicWidget(QWidget):
         :param title: Radio button title
         :return: button group, and layout
         """
+        label = QLabel(title)
         group = QButtonGroup()
         layout = QHBoxLayout()
         group.setProperty("name", key)
-        if title:
-            layout.addWidget(QLabel(title))
         for bid, name in enumerate(names):
             button = QRadioButton(name)
             button.setProperty("name", name)
@@ -118,11 +114,10 @@ class BasicWidget(QWidget):
             layout.addWidget(button)
 
         # Select first
+        layout.addWidget(QSplitter())
         group.button(0).setChecked(True)
-        if len(names) < 4:
-            layout.addWidget(QSplitter())
 
-        return group, layout
+        return label, layout, group
 
 
 class PaintWidget(QWidget):
