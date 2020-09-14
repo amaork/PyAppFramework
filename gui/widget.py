@@ -2848,7 +2848,7 @@ class LogMessageWidget(QTextEdit):
     @Slot(object)
     def filterLog(self, levels):
         # First read all log to memory
-        with open(self.logFilename) as fp:
+        with open(self.logFilename, encoding="utf-8") as fp:
             text = fp.read()
 
         # Process data

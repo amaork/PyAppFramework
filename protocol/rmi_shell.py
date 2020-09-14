@@ -117,6 +117,35 @@ class RMIShellClient(object):
 
         return usage
 
+    def get_process_info_dict(self, pid):
+        """cat /proc/pid/status"""
+        result = self.exec("cat /proc/{}/status".format(pid)).strip().split('\n')
+        return dict(
+            zip([x.split(":")[0] for x in result if ":" in x], [x.split(":")[-1].strip() for x in result if ":" in x])
+        )
+
+    def get_memory_info_dict(self, unit="kB"):
+        """cat cat /proc/meminfo"""
+        info = dict()
+        unit = unit.lower() if isinstance(unit, str) else "kb"
+
+        memory_unit_factor = {
+            "kb": 1,
+            "mb": 1024,
+            "gb": 1024 ** 2
+        }.get(unit, 1)
+
+        result = self.exec("cat /proc/meminfo").strip().split('\n')
+        for item in result:
+            if ":" not in item:
+                continue
+
+            data = item.split(":")
+            usage = data[-1].strip().split(" ")
+            info[data[0].strip()] = int(usage[0]) // memory_unit_factor
+
+        return info
+
     def is_alive(self, timeout=1):
         return ping3.ping(dest_addr=self._host, timeout=timeout) is not None
 
