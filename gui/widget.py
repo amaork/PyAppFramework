@@ -981,7 +981,9 @@ class TableWidget(QTableWidget):
         self.hideHeaders(hide_header)
         self.__table_filters = dict()
         self.__autoHeight = False
+        self.__columnMaxWidth = dict()
         self.__columnStretchFactor = list()
+        self.__columnStretchMode = QHeaderView.Fixed
 
         self.__scale_x, self.__scale_y = get_program_scale_factor()
         self.setVerticalHeaderHeight(self.getVerticalHeaderHeight() * self.__scale_y)
@@ -991,7 +993,7 @@ class TableWidget(QTableWidget):
             print("TypeError:{}".format(type(row)))
             return False
 
-        if row >= self.rowCount() or row < 0:
+        if abs(row) >= self.rowCount():
             print("Row range error, max row: {0:d}".format(self.rowCount()))
             return False
 
@@ -1002,11 +1004,19 @@ class TableWidget(QTableWidget):
             print("TypeError:{}".format(type(column)))
             return False
 
-        if column >= self.columnCount() or column < 0:
+        if abs(column) >= self.columnCount():
             print("Column range error, max column: {0:d}".format(self.columnCount()))
             return False
 
         return True
+
+    def __autoRowIndex(self, row_idx):
+        row_count = self.rowCount()
+        return row_idx if 0 <= row_idx < row_count else row_count + row_idx
+
+    def __autoColumnIndex(self, column_idx):
+        column_count = self.columnCount()
+        return column_idx if 0 <= column_idx < column_count else column_count + column_idx
 
     @staticmethod
     def __copyWidget(widget):
@@ -1061,13 +1071,21 @@ class TableWidget(QTableWidget):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def setColumnStretchFactor(self, factors):
+    def setColumnMaxWidth(self, column: int, max_width: int) -> None:
+        if not self.__checkColumn(column):
+            return
+
+        column = self.__autoColumnIndex(column)
+        self.__columnMaxWidth[column] = max_width
+
+    def setColumnStretchFactor(self, factors, mode=QHeaderView.Fixed):
         if not isinstance(factors, (list, tuple)):
             return
 
         if len(factors) > self.columnCount():
             return
 
+        self.__columnStretchMode = mode
         self.__columnStretchFactor = factors
         self.resize(self.geometry().width(), self.geometry().height())
 
@@ -1338,7 +1356,7 @@ class TableWidget(QTableWidget):
             return False
 
         if len(data) > self.columnCount():
-            print("Column count:{}, but data len:{}".format(self.columnCount(), len(data)))
+            print("Item length too much")
             return False
 
         # Increase row count
@@ -1738,8 +1756,12 @@ class TableWidget(QTableWidget):
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
-            header.setResizeMode(column, QHeaderView.Fixed)
+            header.setResizeMode(column, self.__columnStretchMode)
             self.setColumnWidth(column, width * factor)
+
+        # Apply max width after resize
+        for column, max_width in self.__columnMaxWidth.items():
+            header.resizeSection(column, max_width)
 
 
 class TreeWidget(QTreeWidget):
