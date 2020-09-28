@@ -3,24 +3,53 @@ import os
 import sys
 import time
 import ping3
+import ifaddr
 import struct
 import socket
 import platform
 import ipaddress
 import concurrent.futures
 from threading import Thread
+from typing import List
 from ..core.datatype import DynamicObject
-__all__ = ['get_host_address', 'get_broadcast_address', 'connect_device',
-           'scan_lan_port', 'scan_lan_alive',
+__all__ = ['get_system_nic',
+           'get_host_address', 'get_broadcast_address',
+           'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
            'create_socket_and_connect',
            'SocketSingleInstanceLock']
 
 
-def get_host_address(network=None):
+def get_system_nic() -> dict:
+    interfaces = dict()
+    adapters = ifaddr.get_adapters()
+    for adapter in adapters:
+        for ip in adapter.ips:
+            try:
+                address = ipaddress.ip_address("{}".format(ip.ip))
+                if address.version == 4:
+                    network = ipaddress.ip_network("{}/{}".format(address, ip.network_prefix), False)
+                    interfaces[adapter.nice_name] = DynamicObject(
+                        ip=str(address),
+                        network=str(network),
+                        network_prefix=ip.network_prefix
+                    ).dict
+                    break
+            except ValueError:
+                continue
+
+    return interfaces
+
+
+def get_host_address(network: None or ipaddress.IPv4Network = None) -> List[str]:
     try:
         address_set = set()
-        network = network or list()
+
+        try:
+            network = ipaddress.ip_network(network, False)
+        except ValueError:
+            network = list()
+
         for address in socket.gethostbyname_ex(socket.gethostname())[2]:
             if not ipaddress.IPv4Address(address).is_loopback:
                 address_set.add(address)
@@ -34,15 +63,15 @@ def get_host_address(network=None):
                 return [address]
         return list(address_set)
     except socket.error:
-        return socket.gethostbyname(socket.gethostname())
+        return [socket.gethostbyname(socket.gethostname())]
 
 
-def get_broadcast_address(address, nbits=24):
-    interface = ipaddress.IPv4Interface("{}/{}".format(address, nbits))
+def get_broadcast_address(address: str, network_prefix: int = 24) -> str:
+    interface = ipaddress.IPv4Interface("{}/{}".format(address, network_prefix))
     return interface.network.broadcast_address.exploded
 
 
-def set_keepalive(sock, after_idle_sec=1, interval_sec=1, max_fails=3):
+def set_keepalive(sock: socket.socket, after_idle_sec: int = 1, interval_sec: int = 1, max_fails: int = 3) -> None:
     """Set TCP keepalive on an open socket.
     It activates after 1 second (after_idle_sec) of idleness,
     then sends a keepalive ping once every 3 seconds (interval_sec),
@@ -67,48 +96,50 @@ def set_keepalive(sock, after_idle_sec=1, interval_sec=1, max_fails=3):
         sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, after_idle_sec * 1000, interval_sec * 1000))
 
 
-def enable_broadcast(sock):
+def enable_broadcast(sock: socket.socket) -> None:
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 
-def enable_multicast(sock, mcast_group):
+def enable_multicast(sock: socket.socket, mcast_group: str) -> None:
     option = struct.pack("4sL", socket.inet_aton(mcast_group), socket.INADDR_ANY)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, option)
 
 
-def set_linger_option(sock, onoff=1, linger=0):
+def set_linger_option(sock: socket.socket, onoff: int = 1, linger: int = 0) -> None:
     option = struct.pack("ii", onoff, linger)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, option)
 
 
-def connect_device(address, port, timeout=0.03):
+def connect_device(address: str, port: int, timeout: float = 0.03) -> str or None:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((address, port))
         s.close()
         return address
-    except (socket.timeout, ConnectionError, ConnectionRefusedError, ConnectionResetError):
+    except (socket.timeout, ConnectionError, ConnectionRefusedError, ConnectionResetError, OSError):
         return None
 
 
-def scan_lan_port(port, timeout, max_workers=None):
-    network_seg = ".".join(get_host_address().split(".")[:-1])
-    args = [("{}.{}".format(network_seg, i), port, timeout) for i in range(255)]
+def scan_lan_port(port: str, network: str or ipaddress.IPv4Network,
+                  timeout: float = 0.005, max_workers: int or None = None) -> List[str]:
+    try:
+        network = ipaddress.ip_network(network)
+    except ValueError:
+        print("scan_lan_port: invalid network: {}".format(network))
+        return list()
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        result = [pool.submit(connect_device, *arg) for arg in args]
+        result = [pool.submit(connect_device, *(str(x), port, timeout)) for x in network.hosts()]
 
     return [x.result() for x in result if x.result() is not None]
 
 
-def scan_lan_alive(network,  timeout=1, max_workers=256):
-    if isinstance(network, str):
-        try:
-            network = ipaddress.ip_network(network)
-        except ValueError:
-            return list()
-
-    if not isinstance(network, ipaddress.IPv4Network):
+def scan_lan_alive(network: str or ipaddress.IPv4Network, timeout: int = 1, max_workers: int = 256):
+    try:
+        network = ipaddress.ip_network(network)
+    except ValueError:
+        print("scan_lan_alive: invalid network: {}".format(network))
         return list()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -118,7 +149,8 @@ def scan_lan_alive(network,  timeout=1, max_workers=256):
     return [str(x) for x, r in zip(network.hosts(), result) if r.result() is not None]
 
 
-def create_socket_and_connect(address, port, timeout, recv_buf_size=32 * 1024, retry=3, no_delay=True):
+def create_socket_and_connect(address: str, port: int, timeout: int,
+                              recv_buf_size: int = 32 * 1024, retry: int = 3, no_delay: bool = True) -> socket.socket:
     times = 0
     while times < retry:
         try:
