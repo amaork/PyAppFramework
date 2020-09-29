@@ -1093,16 +1093,24 @@ class TableWidget(QTableWidget):
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
             return False
 
-        item = self.item(row, column)
-        item.setBackground(background)
+        try:
+            item = self.item(row, column)
+            item.setBackground(background)
+        except AttributeError:
+            return False
+
         return True
 
     def setItemForeground(self, row, column, foreground):
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
             return False
 
-        item = self.item(row, column)
-        item.setForeground(foreground)
+        try:
+            item = self.item(row, column)
+            item.setForeground(foreground)
+        except AttributeError:
+            return False
+
         return True
 
     @Slot(bool)

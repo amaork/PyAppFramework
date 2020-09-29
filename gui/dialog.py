@@ -4,19 +4,18 @@ import hashlib
 from PySide.QtGui import *
 from PySide.QtCore import *
 from .button import RectButton
+from ..network.utility import *
 from ..misc.settings import UiLayout
-from ..network.utility import scan_lan_port
 from ..protocol.serialport import SerialPort
 from .msgbox import MB_TYPE_ERR, showMessageBox
 from ..misc.windpi import get_program_scale_factor
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
-
 __all__ = ['SimpleColorDialog',
            'SerialPortSettingDialog',
-           'SerialPortSelectDialog', 'NetworkAddressSelectDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog',
+           'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
@@ -323,12 +322,57 @@ class NetworkAddressSelectDialog(QDialog):
         return dialog.getSelectedAddress()
 
 
+class NetworkInterfaceSelectDialog(QDialog):
+    def __init__(self, name: str = "", address: str = "", network: str = "", parent=None):
+        super(NetworkInterfaceSelectDialog, self).__init__(parent)
+        layout = QVBoxLayout()
+        self._nic_list = QComboBox(self)
+        button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button.accepted.connect(self.accept)
+        button.rejected.connect(self.reject)
+
+        idx = 0
+        for nic_name, nic_attr in get_system_nic().items():
+            if name == nic_name or address == nic_attr.ip or network == nic_attr.network:
+                idx = self._nic_list.count()
+            self._nic_list.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
+
+        self._nic_list.setCurrentIndex(idx)
+
+        layout.addWidget(self._nic_list)
+        layout.addWidget(QSplitter())
+        layout.addWidget(button)
+        self.setLayout(layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle(self.tr("Please Select Network Interface"))
+
+    def getSelectedInterfaceNetwork(self) -> str or None:
+        idx = self._nic_list.currentIndex()
+        return self._nic_list.itemData(idx) if self.result() else None
+
+    def getSelectedNetworkInterface(self) -> str or None:
+        return self._nic_list.currentText() if self.result() else None
+
+    @classmethod
+    def getInterface(cls, name: str = "", address: str = "", network: str = "", parent=None) -> str or None:
+        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network, parent=parent)
+        dialog.exec_()
+        return dialog.getSelectedNetworkInterface()
+
+    @classmethod
+    def getInterfaceNetwork(cls, name: str = "", address: str = "", network: str = "", parent=None) -> str or None:
+        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network, parent=parent)
+        dialog.exec_()
+        return dialog.getSelectedInterfaceNetwork()
+
+
 class ProgressDialog(QProgressDialog):
     DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, parent, title=DEF_TITLE, max_width=350, cancel_button=None):
+    def __init__(self, parent, title=DEF_TITLE, max_width=350, cancel_button=None, closeable=True):
         super(ProgressDialog, self).__init__(parent)
 
+        self.closeable = closeable
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
@@ -337,10 +381,18 @@ class ProgressDialog(QProgressDialog):
         else:
             self.setCancelButtonText(self.tr(cancel_button))
 
+    def closeEvent(self, ev):
+        if not self.closeable:
+            ev.ignore()
+
     def showEvent(self, ev):
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
         self.move(QPoint(x, y))
+
+    def setLabelText(self, text):
+        self.setWhatsThis(text)
+        super(ProgressDialog, self).setLabelText(text)
 
     @Slot(int)
     def setProgress(self, value):
@@ -466,7 +518,7 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
 
 
 class PasswordDialog(QDialog):
-    DefaultHashFunction= lambda x: hashlib.md5(x).hexdigest()
+    DefaultHashFunction = lambda x: hashlib.md5(x).hexdigest()
 
     def __init__(self, password=None, hash_function=DefaultHashFunction, style='font: 75 16pt "Arial"', parent=None):
         super(PasswordDialog, self).__init__(parent)
