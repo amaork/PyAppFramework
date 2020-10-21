@@ -1,81 +1,149 @@
 # -*- coding: utf-8 -*-
+import os
+import json
+import time
+import ping3
+import random
 import requests
+import datetime
 import ipaddress
-import fake_useragent
+import urllib.parse
+from typing import Callable
 from pyquery import PyQuery
-import requests_toolbelt.adapters
-__all__ = ['HttpRequest', 'HttpRequestException']
+from .http_request import *
+from ..core.datatype import DynamicObject
+__all__ = ['LuciRequest', 'LuciRequestException']
 
 
-class HttpRequestException(Exception):
-    def __init__(self, code, desc):
-        super(HttpRequestException, self).__init__(Exception)
-        self.code = code
-        self.desc = desc
+class LuciRequestException(HttpRequestException):
+    pass
 
 
-class HttpRequest(object):
-    HTTP_OK = 200
-    HTTP_Forbidden = 403
-    HTTP_Unauthorized = 401
-
-    TOKEN_NAME = "token"
-
-    def __init__(self, token_name: str = TOKEN_NAME, source_address: str = "", timeout: int = 5):
-        self._timeout = timeout
-        self.__token_name = token_name
-        self._section = requests.Session()
+class LuciRequest(HttpRequest):
+    def __init__(self, host: str, username: str, password: str,
+                 main_container_id: str = "", source_address: str = "", timeout: int = 5):
+        super(LuciRequest, self).__init__(source_address=source_address, timeout=timeout)
 
         try:
-            source_address = str(ipaddress.ip_address(source_address))
-            new_source = requests_toolbelt.adapters.source.SourceAddressAdapter(source_address)
-            self._section.mount("http://", new_source)
-            self._section.mount("https://", new_source)
-        except ValueError:
-            pass
+            self._address = ipaddress.IPv4Address(host.split("//")[-1].split(":")[0])
+        except ipaddress.AddressValueError as err:
+            raise LuciRequestException(0, "{}".format(err))
 
-        self._fake_ua = fake_useragent.UserAgent()
-        self._section.headers = {'User-Agent': self._fake_ua.chrome}
+        self._main_container_id = main_container_id
+        self._root = "{}/cgi-bin/luci".format(host)
+        login_data = DynamicObject(luci_username=username, luci_password=password)
+
+        try:
+            self._stok = ""
+            login_response = self.login(self._root, login_data.dict)
+            self._stok = urllib.parse.urlparse(login_response.url).params.split("=")[-1]
+        except requests.RequestException as err:
+            if isinstance(err.response, requests.Response):
+                doc = PyQuery(err.response.text.encode())
+                raise LuciRequestException(err.response.status_code, doc('p').text().strip())
+            else:
+                raise LuciRequestException(0, "{}".format(err))
 
     @property
-    def timeout(self) -> int:
-        return self._timeout
+    def uptime(self) -> str:
+        seconds = self.get_dynamic_status().get("uptime", 0.0)
+        return "{}".format(datetime.timedelta(seconds=seconds)) if seconds else ""
 
-    @property
-    def token_name(self) -> str:
-        return self.__token_name[:]
+    def is_alive(self, timeout: int = 1) -> float or None:
+        return ping3.ping(dest_addr=str(self._address), timeout=timeout)
 
-    @staticmethod
-    def is_response_ok(res: requests.Response) -> bool:
-        return res.status_code == HttpRequest.HTTP_OK
+    def get_url(self, path: str) -> str:
+        return "{}/;stok={}/{}".format(self._root, self._stok, path) if self._stok else "{}/{}".format(self._root, path)
 
-    @staticmethod
-    def get_token_from_text(text: str, name: str = TOKEN_NAME) -> str:
+    def get_context(self, text: str) -> str:
         doc = PyQuery(text.encode())
-        return doc('input[name="{}"]'.format(name)).attr("value").strip()
+        content = doc("#{} .cbi-section") if self._main_container_id else doc(".cbi-section")
+        return content.text().strip()
 
-    def get_token(self, url: str) -> str:
+    def get_static_status(self) -> dict:
+        url = self.get_url("admin/status/overview")
         res = self.section_get(url)
-        if not self.is_response_ok(res):
-            return ""
+        context = self.get_context(res.text)
+        status = context.split("Local Time")[0].split("\n")[1:]
+        return dict(zip(status[::2], status[1::2]))
 
-        return self.get_token_from_text(res.text, self.__token_name)
+    def get_dynamic_status(self) -> dict:
+        res = self.section_get(self.get_url(""), params={"status": 1, "&_": random.random()})
+        try:
+            return json.loads(res.text)
+        except json.JSONDecodeError as err:
+            print("Decode error:{}".format(err))
+            return dict()
 
-    def section_get(self, url: str, **kwargs) -> requests.Response:
-        kwargs.setdefault("timeout", self.timeout)
-        return self._section.get(url, **kwargs)
+    def get_firmware_version(self) -> str:
+        status = self.get_static_status()
+        return status.get("Firmware Version", "")
 
-    def section_post(self, url: str, **kwargs) -> requests.Response:
-        kwargs.setdefault("timeout", self.timeout)
-        return self._section.post(url, **kwargs)
+    def get_multipart_from_data(self, token_url: str, name: str, file: str, params: dict) -> dict:
+        params[name] = (os.path.basename(file), open(file, "rb"))
 
-    def login(self, url: str,
-              login_data: dict,
-              headers: dict or None = None,
-              require_token: bool = False, verify: bool = False) -> requests.Response:
-        if require_token:
-            login_data[self.token_name] = self.get_token(url)
+        if not self._stok:
+            params[self.token_name] = self.get_token(token_url)
 
-        res = self.section_post(url, data=login_data, headers=headers, verify=verify)
-        res.raise_for_status()
-        return res
+        return params
+
+    def firmware_upgrade(self, firmware: str, keep: bool = True,
+                         reboot_wait: int = 30, timeout: int = 120,
+                         output_msg: Callable[[str], None] = print):
+        total_start = time.time()
+        flash_ops_url = self.get_url("admin/system/flashops")
+        flash_ops_form_token = "" if self._stok else self.get_token(flash_ops_url)
+
+        def print_msg(msg):
+            if hasattr(output_msg, "__call__"):
+                output_msg(msg)
+
+        # Step one upload firmware
+        form_data = {
+            "keep": (None, "on"),
+            "image": (os.path.basename(firmware), open(firmware, "rb"))
+        }
+
+        if not keep:
+            form_data.pop("keep")
+
+        # Token mode
+        if not self._stok:
+            form_data[self.token_name] = (None, flash_ops_form_token)
+            flash_ops_url = "{}/sysupgrade".format(flash_ops_url)
+
+        upload_res = self._section.post(flash_ops_url, files=form_data, timeout=timeout)
+        upload_res.raise_for_status()
+
+        # Upload success get firmware information
+        print_msg("Firmware upload success")
+        print_msg(self.get_context(upload_res.text))
+
+        # Step two flash firmware
+        form_data = {
+            "step": "2",
+            "keep": "1" if keep else ""
+        }
+
+        # Token mode
+        if not self._stok:
+            form_data[self.token_name] = flash_ops_form_token
+
+        flash_res = self._section.post(flash_ops_url, data=form_data, timeout=timeout)
+        flash_res.raise_for_status()
+
+        print_msg("Firmware flash success")
+        print_msg("Wait system reboot")
+
+        cnt = 0
+        time.sleep(reboot_wait)
+        detect_start = time.time()
+        while time.time() - detect_start < timeout:
+            cnt += 1
+            print_msg("Wait system reboot.{}".format("." * cnt))
+            if self.is_alive():
+                print_msg("System reboot success, total consuming: {0:.2f} secs".format(time.time() - total_start))
+                return True
+
+        print_msg("Wait system reboot timeout")
+        return False

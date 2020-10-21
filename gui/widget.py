@@ -1071,6 +1071,11 @@ class TableWidget(QTableWidget):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
+    def resizeColumnWidthFitContents(self):
+        header = self.horizontalHeader()
+        for column in range(self.columnCount()):
+            header.setResizeMode(column, QHeaderView.ResizeToContents)
+
     def setColumnMaxWidth(self, column: int, max_width: int) -> None:
         if not self.__checkColumn(column):
             return
@@ -2549,11 +2554,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         self.ui_table.selectRow(0)
 
     def __initStyleSheet(self):
-        total_width = 75
-        for column in range(self.ui_table.columnCount()):
-            total_width += self.ui_table.columnWidth(column)
-
-        self.setMinimumWidth(total_width)
+        self.ui_table.resizeColumnWidthFitContents()
 
     def getData(self):
         return self.ui_table.getTableData()
