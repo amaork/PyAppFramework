@@ -20,20 +20,24 @@ __all__ = ['get_system_nic',
            'SocketSingleInstanceLock']
 
 
-def get_system_nic() -> dict:
+def get_system_nic(ignore_loopback: bool = True) -> dict:
     interfaces = dict()
     adapters = ifaddr.get_adapters()
     for adapter in adapters:
         for ip in adapter.ips:
             try:
                 address = ipaddress.ip_address("{}".format(ip.ip))
+
+                if ignore_loopback and address.is_loopback:
+                    continue
+
                 if address.version == 4:
                     network = ipaddress.ip_network("{}/{}".format(address, ip.network_prefix), False)
                     interfaces[adapter.nice_name] = DynamicObject(
                         ip=str(address),
                         network=str(network),
                         network_prefix=ip.network_prefix
-                    ).dict
+                    )
                     break
             except ValueError:
                 continue

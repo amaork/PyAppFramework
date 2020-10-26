@@ -323,7 +323,7 @@ class NetworkAddressSelectDialog(QDialog):
 
 
 class NetworkInterfaceSelectDialog(QDialog):
-    def __init__(self, name: str = "", address: str = "", network: str = "", parent=None):
+    def __init__(self, name: str = "", address: str = "", network: str = "", ignore_loopback: bool = True, parent=None):
         super(NetworkInterfaceSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._nic_list = QComboBox(self)
@@ -332,7 +332,7 @@ class NetworkInterfaceSelectDialog(QDialog):
         button.rejected.connect(self.reject)
 
         idx = 0
-        for nic_name, nic_attr in get_system_nic().items():
+        for nic_name, nic_attr in get_system_nic(ignore_loopback).items():
             if name == nic_name or address == nic_attr.ip or network == nic_attr.network:
                 idx = self._nic_list.count()
             self._nic_list.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
@@ -354,14 +354,20 @@ class NetworkInterfaceSelectDialog(QDialog):
         return self._nic_list.currentText() if self.result() else None
 
     @classmethod
-    def getInterface(cls, name: str = "", address: str = "", network: str = "", parent=None) -> str or None:
-        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network, parent=parent)
+    def getInterface(cls, name: str = "",
+                     address: str = "", network: str = "",
+                     ignore_loopback: bool = True, parent=None) -> str or None:
+        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
+                                              ignore_loopback=ignore_loopback, parent=parent)
         dialog.exec_()
         return dialog.getSelectedNetworkInterface()
 
     @classmethod
-    def getInterfaceNetwork(cls, name: str = "", address: str = "", network: str = "", parent=None) -> str or None:
-        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network, parent=parent)
+    def getInterfaceNetwork(cls, name: str = "",
+                            address: str = "", network: str = "",
+                            ignore_loopback: bool = True, parent=None) -> str or None:
+        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
+                                              ignore_loopback=ignore_loopback, parent=parent)
         dialog.exec_()
         return dialog.getSelectedInterfaceNetwork()
 
