@@ -63,6 +63,9 @@ class RMIShellClient(object):
     def create_new_connection(self, source):
         return None
 
+    def clear_read_buffer(self, timeout=0):
+        pass
+
     def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
         pass
 
@@ -239,6 +242,9 @@ class RMISTelnetClient(RMIShellClient):
         except AttributeError:
             pass
 
+    def clear_read_buffer(self, timeout=0):
+        return self.client.read_until(self._shell_prompt, timeout=timeout or self._timeout)
+
     def create_new_connection(self, source):
         try:
             client = TelnetBindNic(host=self._host, port=self._port,
@@ -272,11 +278,13 @@ class RMISTelnetClient(RMIShellClient):
             cmd = "{} {}\n".format(command, " ".join(params)) if params else "{}\n".format(command)
             if verbose or self._verbose:
                 print(cmd.strip())
+
             self.client.write(cmd.encode())
-            result = self.client.read_until(tail, timeout=timeout).decode()
-            return "\n".join(result.split("\n")[1:-1])
+            result = self.client.read_until(tail, timeout=timeout).decode().split("\n")
+            return "\n".join(result[1:] if tail != self._shell_prompt else result[1:-1])
         except (AttributeError, EOFError, UnicodeDecodeError) as err:
             print("Exec:[{}] error:{}".format(command, err))
+            self.clear_read_buffer()
             return ""
 
 
