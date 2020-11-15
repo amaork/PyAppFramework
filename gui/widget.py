@@ -2813,20 +2813,23 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
 class LogMessageWidget(QTextEdit):
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+    DISPLAY_INFO, DISPLAY_DEBUG, DISPLAY_ERROR = (0x1, 0x2, 0x4)
+    DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR
 
     def __init__(self, filename, log_format="%(asctime)s %(levelname)s %(message)s",
-                 level=logging.DEBUG, propagate=False, parent=None):
+                 level=logging.DEBUG, propagate=False, display_filter=DISPLAY_ALL, parent=None):
         super(LogMessageWidget, self).__init__(parent)
 
         self.setReadOnly(True)
-        self.logFilename = filename
-        self.startTime = datetime.now()
+        self._logFilename = filename
+        self._startTime = datetime.now()
+        self._displayFilter = self.DISPLAY_ALL
         self.textChanged.connect(self.slotAutoScroll)
 
         # Get logger and set level and propagate
-        self.logger = logging.getLogger(filename)
-        self.logger.propagate = propagate
-        self.logger.setLevel(level)
+        self._logger = logging.getLogger(filename)
+        self._logger.propagate = propagate
+        self._logger.setLevel(level)
 
         # Create a file handler
         file_handler = logging.FileHandler(filename, encoding="utf-8")
@@ -2842,8 +2845,8 @@ class LogMessageWidget(QTextEdit):
         stream_handler.setFormatter(formatter)
 
         # Add handlers to logger
-        self.logger.addHandler(file_handler)
-        self.logger.addHandler(stream_handler)
+        self._logger.addHandler(file_handler)
+        self._logger.addHandler(stream_handler)
 
         # Context menu
         self.ui_context_menu = QMenu(self)
@@ -2862,6 +2865,41 @@ class LogMessageWidget(QTextEdit):
         self.ui_show_info.triggered.connect(self.slotShowSelectLog)
         self.ui_show_debug.triggered.connect(self.slotShowSelectLog)
         self.ui_show_error.triggered.connect(self.slotShowSelectLog)
+        self.setDisplayFilter(display_filter)
+
+    def getLevelMask(self, level):
+        return {
+            logging.INFO: self.DISPLAY_INFO,
+            logging.DEBUG: self.DISPLAY_DEBUG,
+            logging.ERROR: self.DISPLAY_ERROR
+        }.get(level, self.DISPLAY_ALL)
+
+    def _enableInfo(self, en):
+        if en:
+            self._displayFilter |= self.DISPLAY_INFO
+        else:
+            self._displayFilter &= ~self.DISPLAY_INFO
+
+    def _enableDebug(self, en):
+        if en:
+            self._displayFilter |= self.DISPLAY_DEBUG
+        else:
+            self._displayFilter &= ~self.DISPLAY_DEBUG
+
+    def _enableError(self, en):
+        if en:
+            self._displayFilter |= self.DISPLAY_ERROR
+        else:
+            self._displayFilter &= ~self.DISPLAY_ERROR
+
+    def infoEnabled(self, target=None):
+        return (target or self._displayFilter) & self.DISPLAY_INFO
+
+    def debugEnabled(self, target=None):
+        return (target or self._displayFilter) & self.DISPLAY_DEBUG
+
+    def errorEnabled(self, target=None):
+        return (target or self._displayFilter) & self.DISPLAY_ERROR
 
     @Slot(object)
     def logging(self, message, write_to_log=True):
@@ -2869,17 +2907,18 @@ class LogMessageWidget(QTextEdit):
             return
 
         # Show log
-        self.append("<font color='{}' size={}>{}: {}</font>".format(
-            message.color, message.font_size, logging.getLevelName(message.level), message.content)
-        )
+        if self._displayFilter & self.getLevelMask(message.level):
+            self.append("<font color='{}' size={}>{}: {}</font>".format(
+                message.color, message.font_size, logging.getLevelName(message.level), message.content)
+            )
 
         # Write to log file if write_to_log set
-        write_to_log and self.logger.log(message.level, message.content)
+        write_to_log and self._logger.log(message.level, message.content)
 
     @Slot(object)
     def filterLog(self, levels):
         # First read all log to memory
-        with open(self.logFilename, encoding="utf-8") as fp:
+        with open(self._logFilename, encoding="utf-8") as fp:
             text = fp.read()
 
         # Process data
@@ -2899,7 +2938,7 @@ class LogMessageWidget(QTextEdit):
                 except ValueError:
                     continue
 
-                if record_time < self.startTime:
+                if record_time < self._startTime:
                     continue
 
                 level_name_start = record.find(level_name)
@@ -2930,8 +2969,31 @@ class LogMessageWidget(QTextEdit):
         if self.ui_show_error.isChecked():
             levels.append(logging.ERROR)
 
+        self._enableInfo(self.ui_show_info.isChecked())
+        self._enableDebug(self.ui_show_debug.isChecked())
+        self._enableError(self.ui_show_error.isChecked())
         self.filterLog(levels)
+
+    def setDisplayFilter(self, display_filter):
+        if not isinstance(display_filter, int):
+            return
+
+        if self.infoEnabled(display_filter):
+            self.ui_show_info.setChecked(True)
+        else:
+            self.ui_show_info.setChecked(False)
+
+        if self.debugEnabled(display_filter):
+            self.ui_show_debug.setChecked(True)
+        else:
+            self.ui_show_debug.setChecked(False)
+
+        if self.errorEnabled(display_filter):
+            self.ui_show_error.setChecked(True)
+        else:
+            self.ui_show_error.setChecked(False)
+
+        self.slotShowSelectLog()
 
     def contextMenuEvent(self, ev):
         self.ui_context_menu.exec_(ev.globalPos())
-
