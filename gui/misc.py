@@ -6,11 +6,10 @@ from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
-from .container import ComponentManager
 __all__ = ['SerialPortSelector', 'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
-           'ThreadSafeLabel',
+           'ThreadSafeLabel', 'HyperlinkLabel',
            'updateFilterMenu']
 
 
@@ -298,6 +297,7 @@ class NavigationBar(QToolBar):
     def __init__(self, normal_size=QSize(64, 64), fold_size=QSize(96, 96),
                  moveAble=False, disableHorizontalFold=False, parent=None):
         super(NavigationBar, self).__init__(parent)
+        from .container import ComponentManager
 
         self.__fold = False
         self.__fold_size = fold_size
@@ -405,39 +405,90 @@ class CustomEventFilterHandler(QObject):
 
 
 class ThreadSafeLabel(QWidget):
-    def __init__(self, parent=None, text="", font=QFont("等线 Light", 9), align=Qt.AlignCenter):
+    def __init__(self, parent=None, text="", font=QFont("等线 Light", 9), color=Qt.black, align=Qt.AlignCenter):
         super(ThreadSafeLabel, self).__init__(parent)
-        self.__text = text
-        self.__font = font
-        self.__align = align
+        self._text = text
+        self._font = font
+        self._align = align
+        self._color = color
         self.update()
 
     def text(self):
-        return self.__text[:]
+        return self._text[:]
 
     def setText(self, text):
-        self.__text = text
+        self._text = text
         self.update()
 
     def font(self):
-        return self.__font
+        return self._font
 
     def setFont(self, font):
         if isinstance(font, QFont):
-            self.__font = font
+            self._font = font
+
+    def color(self):
+        return self._color
+
+    def setColor(self, color):
+        if isinstance(color, (Qt.GlobalColor, QColor)):
+            self._color = color
+            self.update()
 
     def setAlignment(self, align):
-        self.__align = align
+        self._align = align
 
     def paintEvent(self, ev):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         painter.setFont(self.font())
-        painter.drawText(self.rect(), self.__align, self.__text)
+        painter.setPen(QPen(QColor(self._color)))
+        painter.drawText(self.rect(), self._align, self._text)
 
     def sizeHint(self):
         metrics = QFontMetrics(self.font())
         min_height = metrics.height()
-        min_width = metrics.width(self.__text) * 1.3
+        min_width = metrics.width(self._text) * 1.3
         return QSize(min_width, min_height)
+
+
+class HyperlinkLabel(ThreadSafeLabel):
+    signalClicked = Signal(object)
+    DEFAULT_FONT = QFont("等线 Light", 9)
+
+    def __init__(self, text="", font=DEFAULT_FONT,
+                 defaultColor=Qt.black, clickedColor=Qt.blue, hoverColor=Qt.blue, hoverFont=DEFAULT_FONT, parent=None):
+        super(HyperlinkLabel, self).__init__(parent=parent, text=text, font=font, color=defaultColor)
+        self._isClicked = False
+        self._defaultFont = font
+        self._defaultColor = defaultColor
+
+        self._hoverFont = hoverFont
+        self._hoverColor = hoverColor
+        self._clickedColor = clickedColor
+
+    def reset(self):
+        self._isClicked = False
+        self.setColor(self._defaultColor)
+
+    def click(self):
+        self._isClicked = True
+        self.setColor(self._clickedColor)
+        self.signalClicked.emit(self.text())
+
+    def isClicked(self):
+        return self._isClicked
+
+    def enterEvent(self, ev):
+        self.setFont(self._hoverFont)
+        self.setColor(self._hoverColor)
+
+    def leaveEvent(self, ev):
+        self.setFont(self._defaultFont)
+        self.setColor(self._clickedColor if self._isClicked else self._defaultColor)
+
+    def mousePressEvent(self, ev):
+        self._isClicked = True
+        self.setColor(self._clickedColor)
+        self.signalClicked.emit(self.text())

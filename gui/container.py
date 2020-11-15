@@ -11,9 +11,10 @@ from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QChe
 
 
 from .binder import *
-from ..core.datatype import str2number, str2float
+from .misc import HyperlinkLabel
+from ..core.datatype import str2number, str2float, DynamicObject
 
-__all__ = ['ComboBoxGroup', 'ComponentManager']
+__all__ = ['ComboBoxGroup', 'ComponentManager', 'HyperlinkGroup']
 
 
 class ComboBoxGroup(QObject):
@@ -653,3 +654,82 @@ class ComponentManager(QObject):
             return False
 
         return True
+
+
+class HyperlinkGroup(QObject):
+    signalCurrentLinkChanged = Signal(object)
+
+    def __init__(self, exclusive=True, template=None, links=None, parent=None):
+        super(HyperlinkGroup, self).__init__(parent)
+        self._currentText = ""
+        self._previousText = ""
+        self._linkGroup = list()
+        self._template = template
+        self._exclusive = exclusive
+        self.create(links)
+
+    def clear(self):
+        self._linkGroup.clear()
+
+    def reset(self):
+        [link.reset() for link in self._linkGroup]
+
+    def links(self):
+        return self._linkGroup[:]
+
+    def create(self, links):
+        if isinstance(self._template, DynamicObject) and links:
+            for text in links:
+                if not isinstance(text, str):
+                    continue
+                self._template.text = text
+                self.addLink(HyperlinkLabel(**self._template.dict))
+
+    def addLink(self, link):
+        if not isinstance(link, HyperlinkLabel):
+            return False
+
+        self._linkGroup.append(link)
+        link.signalClicked.connect(self.slotHyperLinkClicked)
+        return True
+
+    def delLink(self, link):
+        if not isinstance(link, HyperlinkLabel):
+            return False
+
+        if link not in self._linkGroup:
+            return False
+
+        self._linkGroup.remove(link)
+        return True
+
+    def currentLinkText(self):
+        return self._currentText[:]
+
+    def getPreviousLinkText(self):
+        return self._previousText[:]
+
+    def getLinkByIndex(self, idx):
+        return self._linkGroup[idx] if 0 <= idx < len(self._linkGroup) else None
+
+    def getLinkByText(self, text):
+        try:
+            return [link for link in self._linkGroup if link.text() == text][0]
+        except (ValueError, IndexError):
+            return None
+
+    def getCurrentClickedLink(self):
+        return self.getLinkByText(self._currentText)
+
+    def slotHyperLinkClicked(self, text):
+        sender = self.sender()
+        if not isinstance(sender, HyperlinkLabel):
+            return
+
+        if sender not in self._linkGroup:
+            return
+
+        self._previousText, self._currentText = self._currentText, text
+        self.signalCurrentLinkChanged.emit(self._currentText)
+        if self._exclusive:
+            [link.reset() for link in self._linkGroup if link != sender]

@@ -67,6 +67,7 @@ class SimpleColorDialog(QDialog):
         self.__depth.valueChanged.connect(self.slotChangeDepth)
         depthLayout.addWidget(QLabel(self.tr("Luminance")))
         depthLayout.addWidget(self.__depth)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         # Label for preview color
         self.__preview = QLabel()
@@ -247,6 +248,7 @@ class SerialPortSelectDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Please select serial port"))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getPort(self):
         return self._ports.currentText() if self.result() else None
@@ -281,6 +283,7 @@ class SerialPortSettingDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Serial Configuration Dialog"))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSerialSetting(self):
         if not self.result():
@@ -311,6 +314,7 @@ class NetworkAddressSelectDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Please select address"))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSelectedAddress(self):
         return self._address_list.currentText() if self.result() else None
@@ -345,6 +349,7 @@ class NetworkInterfaceSelectDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Please Select Network Interface"))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSelectedInterfaceNetwork(self) -> str or None:
         idx = self._nic_list.currentIndex()
@@ -382,6 +387,7 @@ class ProgressDialog(QProgressDialog):
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         if cancel_button is None:
             self.setCancelButton(None)
         else:
@@ -444,6 +450,7 @@ class BasicJsonSettingDialog(QDialog):
 
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def tr(self, text):
         return QApplication.translate("BasicJsonSettingDialog", text, None, QApplication.UnicodeUTF8)
@@ -474,6 +481,7 @@ class BasicJsonSettingDialog(QDialog):
 class JsonSettingDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
         super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, reset, apply, parent)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getJsonSettings(self):
         if not self.result():
@@ -492,12 +500,14 @@ class MultiJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
         super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget,
                                                       settings, data, reset, apply, parent=parent)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
 class MultiGroupJsonSettingsDialog(BasicJsonSettingDialog):
     def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
         super(MultiGroupJsonSettingsDialog, self).__init__(MultiGroupJsonSettingsWidget,
                                                            settings, data, reset, apply, parent=parent)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
 class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
@@ -506,6 +516,7 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
                                                          settings, data, reset, apply, parent)
         scale_x, _ = get_program_scale_factor()
         self.setMinimumWidth(len(settings.layout.layout) * 120 * scale_x)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getJsonSettings(self):
         if not self.result():
@@ -538,6 +549,7 @@ class PasswordDialog(QDialog):
         self.__initUi()
         self.__initSignalAndSlots()
         self.setStyleSheet(style)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def __initUi(self):
         # Ui elements
@@ -660,6 +672,7 @@ class OptionDialog(QDialog):
 
         self.setLayout(layout)
         self.setWindowTitle(title)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def slotSelected(self):
         sender = self.sender()
