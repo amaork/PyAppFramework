@@ -2138,6 +2138,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
     def __init__(self, settings, data=None, parent=None):
         super(JsonSettingWidget, self).__init__(settings, parent)
 
+        self.__groups = list()
         # Convert layout to grid layout
         self.top_layout = self.layout.get_grid_layout(self.settings)
 
@@ -2178,6 +2179,27 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         column += 1
                         layout.addLayout(widget, row, column)
                         column += 1
+                    elif isinstance(widget, tuple) and len(widget) == 3 and isinstance(widget[0], QLayout) and \
+                            isinstance(widget[1], QButtonGroup) and isinstance(widget[2], (QLineEdit, QSpinBox)):
+                        widget, btn_group, select_value = widget
+
+                        # Add label and layout
+                        layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
+                        column += 1
+                        layout.addLayout(widget, row, column)
+                        column += 1
+
+                        # This is necessary otherwise buttonClicked won't be emit
+                        self.__groups.append(btn_group)
+
+                        # Text mode
+                        if isinstance(select_value, QLineEdit):
+                            select_value.textChanged.connect(self.slotSettingChanged)
+                            btn_group.buttonClicked.connect(lambda x: select_value.setText(x.text()))
+                        # Value mode
+                        elif isinstance(select_value, QSpinBox):
+                            select_value.valueChanged.connect(self.slotSettingChanged)
+                            btn_group.buttonClicked.connect(lambda x: select_value.setValue(x.property("id")))
                 except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                     print("{}".format(err))
 
@@ -2346,6 +2368,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         # Line edit text content check
         if isinstance(sender, QLineEdit):
             filters = sender.property("filter")
+            if not filters:
+                return
+
             try:
                 re.search(filters, sender.text(), re.S).group(0)
                 sender.setStyleSheet("color: rgb(0, 0, 0);")
@@ -2388,14 +2413,53 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget = QComboBox()
                 widget.addItems(setting.get_check())
                 # Data is text, using text format set and get
-                if isinstance(setting.get_data(), str):
+                if isinstance(setting.get_data(), str) and setting.get_data() in setting.get_check():
                     widget.setProperty("format", "text")
                     widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
                 # Data is number, using index format set and get
-                elif isinstance(setting.get_data(), int):
+                elif isinstance(setting.get_data(), int) and setting.get_data() < len(setting.get_check()):
                     widget.setCurrentIndex(setting.get_data())
                 else:
                     widget.setCurrentIndex(0)
+            elif setting.is_sbs_select_type():
+                group = QButtonGroup()
+                layout = QHBoxLayout()
+
+                for id_, text in enumerate(setting.get_check()):
+                    btn = QRadioButton(text)
+                    btn.setProperty("id", id_)
+                    group.addButton(btn, id_)
+                    layout.addWidget(btn)
+                    layout.addWidget(QSplitter())
+
+                text_input = QLineEdit()
+                text_input.setReadOnly(True)
+                text_input.setVisible(False)
+                text_input.setProperty("data", name)
+
+                number_input = QSpinBox()
+                number_input.setVisible(False)
+                number_input.setProperty("data", name)
+
+                # Default select the first item
+                group.button(0).setChecked(True)
+
+                # Data is number, using index format set and get
+                if isinstance(setting.get_data(), str):
+                    for btn in group.buttons():
+                        if btn.text() == setting.get_data():
+                            btn.setChecked(True)
+                            text_input.setText(btn.text())
+                            layout.addWidget(text_input)
+                            return layout, group, text_input
+                elif isinstance(setting.get_data(), int):
+                    value = setting.get_data() if setting.get_data() < len(setting.get_check()) else 0
+                    group.button(value).setChecked(True)
+                    number_input.setValue(value)
+                    layout.addWidget(number_input)
+                    return layout, group, number_input
+
+                return layout, group, number_input
             elif setting.is_serial_type():
                 widget = SerialPortSelector()
                 widget.setProperty("format", "text")
@@ -2475,7 +2539,10 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
         # Set readonly option
         if setting.is_readonly():
-            widget.setDisabled(True)
+            if setting.is_text_type():
+                widget.setReadOnly(True)
+            else:
+                widget.setDisabled(True)
 
         return widget
 
@@ -2631,7 +2698,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
                     group_layout = QVBoxLayout()
 
                     # Only one group do not display title
-                    if len(self.items_name) >= 2:
+                    if len(self.items_name) > 1 or group_settings.force_display_title():
                         box.setTitle(group_settings.get_name())
 
                     settings = {"layout": group_settings}

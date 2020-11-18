@@ -68,7 +68,6 @@ class JsonSettings(DynamicObject):
 
 class UiInputSetting(DynamicObject):
     _attributes = {
-
         "INT": (int, (list, tuple)),
         "BOOL": (bool, (list, tuple)),
         "FLOAT": (float, (list, tuple)),
@@ -77,8 +76,9 @@ class UiInputSetting(DynamicObject):
         "FOLDER": (str, str),
         "FONT": (str, str),
         "COLOR": (str, str),
-        "SELECT": ((str, int), (list, tuple)),
         "SERIAL": (str, str),
+        "SELECT": ((str, int), (list, tuple)),
+        "SBS_SELECT": ((str, int), (list, tuple)),
     }
     INPUT_TYPES = [k for k, _ in _attributes.items()]
     _properties = {'name', 'data', 'type', 'check', 'default', 'readonly', 'label_left'}
@@ -166,6 +166,9 @@ class UiInputSetting(DynamicObject):
     def is_serial_type(self):
         return self.type == "SERIAL"
 
+    def is_sbs_select_type(self):
+        return self.type == "SBS_SELECT"
+
     @staticmethod
     def getDemoSettings(d2=False):
         font_input = UiFontInput(name="字体")
@@ -180,6 +183,8 @@ class UiInputSetting(DynamicObject):
                                      check=UiInputSetting.FLOAT_TYPE_CHECK_DEMO, default=3.3)
         select_input = UiInputSetting(name="选择", type="SELECT", data="C",
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
+        sbs_select_input = UiInputSetting(name="选择", type="SBS_SELECT", data=1,
+                                          check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default=1)
         file_input = UiInputSetting(name="文件", type="FILE", data="", default="", check=("*.jpg", "*.bmp"))
         folder_input = UiInputSetting(name="文件夹", type="FOLDER", data="", default="", check="")
 
@@ -189,21 +194,22 @@ class UiInputSetting(DynamicObject):
             layout = UiLayout(name="Json Demo 设置（Gird）",
                               layout=[
                                   ["int", "float"],
-                                  ["bool"],
-                                  ["text", "select"],
+                                  ["bool", 'text'],
+                                  ["select", "sbs_select"],
                                   ["file", "serial"],
                                   ["font", "color"],
                                   ['folder'],
                               ])
         else:
             layout = UiLayout(name="Json Demo 设置 （VBox）",
-                              layout=["int", "float", "bool", "text", "select",
+                              layout=["int", "float", "bool", "text", "select", 'sbs_select',
                                       "file", "folder", "serial", "font", "color"])
         return DynamicObject(int=int_input.dict, bool=bool_input.dict,
                              font=font_input.dict, color=color_input.dict,
                              folder=folder_input.dict,
                              text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
-                             float=float_input.dict, select=select_input.dict, layout=layout.dict)
+                             float=float_input.dict, select=select_input.dict, sbs_select=sbs_select_input.dict,
+                             layout=layout.dict)
 
 
 class UiFileInput(UiInputSetting):
@@ -378,9 +384,9 @@ class UiIntegerInput(UiInputSetting):
 
 
 class UiSelectInput(UiInputSetting):
-    def __init__(self, name, options, default, readonly=False):
+    def __init__(self, name, options, default, readonly=False, sbs=False):
         super(UiSelectInput, self).__init__(name=name, data=default, default=default,
-                                            check=options, readonly=readonly, type="SELECT")
+                                            check=options, readonly=readonly, type="SBS_SELECT" if sbs else "SELECT")
 
 
 class UiSerialInput(UiInputSetting):
@@ -396,10 +402,11 @@ class UiCheckBoxInput(UiInputSetting):
 
 
 class UiLayout(DynamicObject):
-    _properties = {'name', 'layout', 'margins', 'spaces'}
+    _properties = {'name', 'layout', 'margins', 'spaces', 'title'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "")
+        kwargs.setdefault("title", False)
         kwargs.setdefault("spaces", (6, 6, 6))
         kwargs.setdefault("margins", (9, 9, 9, 9))
         super(UiLayout, self).__init__(**kwargs)
@@ -421,6 +428,9 @@ class UiLayout(DynamicObject):
 
     def get_margins(self):
         return tuple(self.margins)
+
+    def force_display_title(self):
+        return self.title
 
     def check_layout(self, settings):
         return self.is_vertical_layout(self.get_layout(), settings) or self.is_grid_layout(self.get_layout(), settings)
