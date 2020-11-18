@@ -77,6 +77,8 @@ class UiInputSetting(DynamicObject):
         "FONT": (str, str),
         "COLOR": (str, str),
         "SERIAL": (str, str),
+        "NETWORK": (str, str),
+        "ADDRESS": (str, str),
         "SELECT": ((str, int), (list, tuple)),
         "SBS_SELECT": ((str, int), (list, tuple)),
     }
@@ -166,6 +168,12 @@ class UiInputSetting(DynamicObject):
     def is_serial_type(self):
         return self.type == "SERIAL"
 
+    def is_network_type(self):
+        return self.type == "NETWORK"
+
+    def is_address_type(self):
+        return self.type == "ADDRESS"
+
     def is_sbs_select_type(self):
         return self.type == "SBS_SELECT"
 
@@ -187,6 +195,8 @@ class UiInputSetting(DynamicObject):
                                           check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default=1)
         file_input = UiInputSetting(name="文件", type="FILE", data="", default="", check=("*.jpg", "*.bmp"))
         folder_input = UiInputSetting(name="文件夹", type="FOLDER", data="", default="", check="")
+        network_input = UiInputSetting(name="网络选择", type="NETWORK", data="192.168.1.0/24", default="", check="")
+        address_input = UiInputSetting(name="地址选择", type="ADDRESS", data="192.168.1.241", default="", check="")
 
         serial_input = UiSerialInput(name="串口", port="COM1")
 
@@ -197,16 +207,18 @@ class UiInputSetting(DynamicObject):
                                   ["bool", 'text'],
                                   ["select", "sbs_select"],
                                   ["file", "serial"],
+                                  ["network", "address"],
                                   ["font", "color"],
                                   ['folder'],
                               ])
         else:
             layout = UiLayout(name="Json Demo 设置 （VBox）",
                               layout=["int", "float", "bool", "text", "select", 'sbs_select',
-                                      "file", "folder", "serial", "font", "color"])
+                                      "file", "folder", "serial", "font", "color", "network", "address"])
         return DynamicObject(int=int_input.dict, bool=bool_input.dict,
                              font=font_input.dict, color=color_input.dict,
                              folder=folder_input.dict,
+                             network=network_input.dict, address=address_input.dict,
                              text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
                              float=float_input.dict, select=select_input.dict, sbs_select=sbs_select_input.dict,
                              layout=layout.dict)
@@ -393,6 +405,18 @@ class UiSerialInput(UiInputSetting):
     def __init__(self, name, port=""):
         super(UiSerialInput, self).__init__(name=name, data=port, default=port,
                                             check=port, readonly=False, type="SERIAL")
+
+
+class UiNetworkSelectInput(UiInputSetting):
+    def __init__(self, name, network="", default=""):
+        super(UiNetworkSelectInput, self).__init__(name=name, data=network, default=default,
+                                                   check=network, readonly=False, type="NETWORK")
+
+
+class UiAddressSelectInput(UiInputSetting):
+    def __init__(self, name, address="", default=""):
+        super(UiAddressSelectInput, self).__init__(name=name, data=address, default=default,
+                                                   check=address, readonly=False, type="ADDRESS")
 
 
 class UiCheckBoxInput(UiInputSetting):

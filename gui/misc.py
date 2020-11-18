@@ -6,7 +6,9 @@ from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
-__all__ = ['SerialPortSelector', 'TabBar', 'ExpandWidget',
+from ..network.utility import get_system_nic
+__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector',
+           'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel',
@@ -21,7 +23,7 @@ class SerialPortSelector(QComboBox):
     portSelected = Signal(object)
     TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, text=TIPS, one_shot=False, parent=None):
+    def __init__(self, text: str or None = TIPS, one_shot: bool = False, parent=None):
         """Select serial port
 
         :param text: selector text
@@ -32,46 +34,54 @@ class SerialPortSelector(QComboBox):
 
         self.clear()
         self.__text = text
-        self.__selected = ""
         self.__one_shot = one_shot
         self.__system = platform.system().lower()
         self.setToolTip(self.tr("Right click reset and refresh serial port"))
 
         # Flush current serial port list
         self.flushSerialPort()
-        self.currentIndexChanged.connect(self.__slotPortSelected)
+        self.currentIndexChanged.connect(self.slotPortSelected)
 
-    def getSelectedPort(self):
-        return self.__selected
+    def currentPort(self) -> str:
+        return self.getSelectedPort()
 
-    def setSelectedPort(self, port):
-        ports = [self.itemData(i) for i in range(1, self.count())]
-        if port not in ports:
+    def getSelectedPort(self) -> str:
+        if not self.count() or not self.itemData(self.currentIndex()):
+            return ""
+
+        return self.itemData(self.currentIndex())
+
+    def setCurrentPort(self, port: str) -> bool:
+        return self.setSelectedPort(port)
+
+    def setSelectedPort(self, port: str) -> bool:
+        try:
+            idx = [self.itemData(x) for x in range(self.count())].index(port)
+            self.setCurrentIndex(idx)
+            self.slotPortSelected(idx)
+            return True
+        except ValueError:
             return False
 
-        index = ports.index(port) + 1
-        self.setCurrentIndex(index)
-        self.__slotPortSelected(index)
-        return True
-
-    def flushSerialPort(self, timeout=0.04):
+    def flushSerialPort(self, timeout: float = 0.04):
         self.clear()
-        self.__selected = ""
         self.setEnabled(True)
-        self.addItem(self.tr(self.__text))
+
+        if self.__text:
+            self.addItem(self.tr(self.__text))
 
         # Scan local system serial port
         if self.__system == "linux":
             for index, port in enumerate(glob.glob("/dev/tty[A-Za-z]*")):
                 self.addItem("{}".format(port))
-                self.setItemData(index + 1, port)
+                self.setItemData(self.count() - 1, port)
         else:
             for index, port in enumerate(list(serial.tools.list_ports.comports())):
                 # Windows serial port is a object linux is a tuple
                 device = port.device
                 desc = "{0:s}".format(device).split(" - ")[-1]
                 self.addItem("{0:s}".format(desc))
-                self.setItemData(index + 1, device)
+                self.setItemData(self.count() - 1, device)
 
         # Scan LAN raspberry serial port
         try:
@@ -81,19 +91,109 @@ class SerialPortSelector(QComboBox):
         except (RaspiSocketError, IndexError, ValueError, OSError):
             pass
 
-    def __slotPortSelected(self, idx):
-        if not isinstance(idx, int) or idx == 0 or self.count() == 0:
+    def slotPortSelected(self, idx):
+        if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
             return
 
-        self.__selected = self.itemData(idx)
-        self.portSelected.emit(self.__selected)
         self.setDisabled(self.__one_shot)
+        self.portSelected.emit(self.itemData(idx))
 
     def mousePressEvent(self, ev):
         if ev.button() == Qt.RightButton:
             self.flushSerialPort()
 
         super(SerialPortSelector, self).mousePressEvent(ev)
+
+
+class NetworkInterfaceSelector(QComboBox):
+    networkChanged = Signal(object)
+    addressChanged = Signal(object)
+
+    """List current system exist network interface"""
+    TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface",
+                                  None, QApplication.UnicodeUTF8)
+
+    def __init__(self, text: str or None = TIPS, one_short: bool = False,
+                 ignore_loopback: bool = True, network_mode=False, parent=None):
+        super(NetworkInterfaceSelector, self).__init__(parent)
+
+        self._text = text
+        self._one_short = one_short
+        self._ignore_loopback = ignore_loopback
+        self.setToolTip(self.tr("Right click reset and refresh network interface"))
+
+        self.flushNic()
+        self.currentIndexChanged.connect(self.slotNicSelected)
+        self.setNetworkMode() if network_mode else self.setAddressMode()
+
+    def flushNic(self):
+        self.clear()
+        self.setEnabled(True)
+
+        if self._text:
+            self.addItem(self._text)
+
+        for nic_name, nic_attr in get_system_nic(self._ignore_loopback).items():
+            self.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
+
+    def isNetworkMode(self):
+        return self.property("format") == "network"
+
+    def setNetworkMode(self):
+        self.setProperty("format", "network")
+
+    def setAddressMode(self):
+        self.setProperty("format", "address")
+
+    def slotNicSelected(self, idx):
+        if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
+            return
+
+        self.setDisabled(self._one_short)
+        self.networkChanged.emit(self.itemData(idx))
+        self.addressChanged.emit(self.itemText(idx).split(":")[-1].strip())
+
+    def currentSelect(self):
+        return self.currentNetwork() if self.isNetworkMode() else self.currentAddress()
+
+    def currentAddress(self) -> str:
+        if not self.count() or not self.itemData(self.currentIndex()):
+            return ""
+
+        return self.currentText().split(":")[-1].strip()
+
+    def currentNetwork(self) -> str:
+        if not self.count() or not self.itemData(self.currentIndex()):
+            return ""
+
+        return self.itemData(self.currentIndex())
+
+    def setCurrentSelect(self, select: str) -> None:
+        self.setCurrentNetwork(select) if self.isNetworkMode() else self.setCurrentAddress(select)
+
+    def setCurrentAddress(self, address: str) -> bool:
+        try:
+            idx = [self.itemText(x).split(":")[-1].strip() for x in range(self.count())].index(address)
+            self.setCurrentIndex(idx)
+            self.slotNicSelected(idx)
+            return True
+        except ValueError:
+            return False
+
+    def setCurrentNetwork(self, network: str) -> bool:
+        try:
+            idx = [self.itemData(x) for x in range(self.count())].index(network)
+            self.setCurrentIndex(idx)
+            self.slotNicSelected(idx)
+            return True
+        except ValueError:
+            return False
+
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.RightButton:
+            self.flushNic()
+
+        super(NetworkInterfaceSelector, self).mousePressEvent(ev)
 
 
 class TabBar(QTabBar):

@@ -32,9 +32,9 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
 
-from .misc import SerialPortSelector
 from .container import ComponentManager
 from ..misc.windpi import get_program_scale_factor
+from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput
 
@@ -1988,33 +1988,28 @@ class SerialPortSettingWidget(QWidget):
 
     # Options
     OPTIONS = {
-
         "baudrate": {
-
             "text": BAUDRATE_STR,
-            "values": Serial.BAUDRATES
+            "values": (50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
+                       9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000, 921600)
         },
 
         "bytesize": {
-
             "text": DATABITS_STR,
             "values": Serial.BYTESIZES
         },
 
         "parity": {
-
             "text": PARITIES_STR,
             "values": Serial.PARITIES
         },
 
         "stopbits": {
-
             "text": STOPBITS_STR,
             "values": Serial.STOPBITS
         },
 
         "timeout": {
-
             "text": TIMEOUT_STR,
             "values": [0, 9999]
         }
@@ -2083,7 +2078,7 @@ class SerialPortSettingWidget(QWidget):
             if isinstance(item, QComboBox):
                 value = item.property("name")
                 if value == "port" and item.currentIndex() == 0:
-                    settings[value] = None
+                    settings[value] = ""
                 else:
                     settings[value] = item.itemData(item.currentIndex())
             elif isinstance(item, QSpinBox):
@@ -2464,6 +2459,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget = SerialPortSelector()
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
+            elif setting.is_network_type():
+                widget = NetworkInterfaceSelector(network_mode=True, text=setting.get_default())
+                widget.setCurrentNetwork(setting.get_data())
+            elif setting.is_address_type():
+                widget = NetworkInterfaceSelector(network_mode=False, text=setting.get_default())
+                widget.setCurrentAddress(setting.get_data())
             elif setting.is_file_type():
                 widget = QLineEdit()
                 widget.setReadOnly(True)

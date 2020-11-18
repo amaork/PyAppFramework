@@ -54,11 +54,29 @@ class DialogTest(QWidget):
         serial.addWidget(self.ui_get_serial)
         serial.addWidget(self.ui_serial_settings)
 
-        settings = QHBoxLayout()
+        json = QHBoxLayout()
         self.ui_json_settings = QLineEdit()
         self.ui_get_json = QPushButton(self.tr("获取 JSON 设置"))
-        settings.addWidget(self.ui_get_json)
-        settings.addWidget(self.ui_json_settings)
+        json.addWidget(self.ui_get_json)
+        json.addWidget(self.ui_json_settings)
+
+        interface = QHBoxLayout()
+        self.ui_interface = QLineEdit()
+        self.ui_get_interface = QPushButton(self.tr("获取网卡"))
+        interface.addWidget(self.ui_get_interface)
+        interface.addWidget(self.ui_interface)
+
+        network = QHBoxLayout()
+        self.ui_network = QLineEdit()
+        self.ui_get_network = QPushButton(self.tr("获取网络"))
+        network.addWidget(self.ui_get_network)
+        network.addWidget(self.ui_network)
+
+        address = QHBoxLayout()
+        self.ui_address = QLineEdit()
+        self.ui_get_address = QPushButton(self.tr("获取地址"))
+        address.addWidget(self.ui_get_address)
+        address.addWidget(self.ui_address)
 
         reset_password = QHBoxLayout()
         self.ui_reset_new_password = QLineEdit()
@@ -75,8 +93,11 @@ class DialogTest(QWidget):
         layout = QVBoxLayout()
         layout.addLayout(same)
         layout.addLayout(diff)
-        layout.addLayout(settings)
+        layout.addLayout(json)
         layout.addLayout(serial)
+        layout.addLayout(interface)
+        layout.addLayout(network)
+        layout.addLayout(address)
         layout.addLayout(reset_password)
         layout.addLayout(change_password)
         self.setLayout(layout)
@@ -90,6 +111,18 @@ class DialogTest(QWidget):
         self.ui_get_serial.clicked.connect(self.__slotGetSerialSetting)
         self.ui_reset_password.clicked.connect(self.__slotResetPassword)
         self.ui_change_password.clicked.connect(self.__slotChangePassword)
+
+        self.ui_get_network.clicked.connect(lambda: self.ui_network.setText("{}".format(
+            NetworkInterfaceSelectDialog.getInterfaceNetwork(parent=self)
+        )))
+
+        self.ui_get_address.clicked.connect(lambda: self.ui_address.setText("{}".format(
+            NetworkInterfaceSelectDialog.getAddress(parent=self)
+        )))
+
+        self.ui_get_interface.clicked.connect(lambda: self.ui_interface.setText("{}".format(
+            NetworkInterfaceSelectDialog.getInterface()
+        )))
 
     def __slotResetPassword(self):
         self.ui_reset_new_password.setText("{}".format(PasswordDialog.resetPassword(

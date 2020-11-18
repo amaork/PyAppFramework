@@ -11,7 +11,7 @@ from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QChe
 
 
 from .binder import *
-from .misc import HyperlinkLabel
+from .misc import HyperlinkLabel, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject
 
 __all__ = ['ComboBoxGroup', 'ComponentManager', 'HyperlinkGroup']
@@ -262,6 +262,8 @@ class ComponentManager(QObject):
             return component.value()
         elif isinstance(component, QDoubleSpinBox):
             return component.value()
+        elif isinstance(component, NetworkInterfaceSelector):
+            return component.currentSelect()
         elif isinstance(component, QComboBox):
             return component.currentText() if component.property("format") == "text" else component.currentIndex()
         elif isinstance(component, QCheckBox):
@@ -289,6 +291,8 @@ class ComponentManager(QObject):
             component.setValue(str2number(data))
         elif isinstance(component, QDoubleSpinBox):
             component.setValue(str2float(data))
+        elif isinstance(component, NetworkInterfaceSelector):
+            component.setCurrentSelect(data)
         elif isinstance(component, QComboBox):
             texts = [component.itemText(i) for i in range(component.count())]
             if data in texts:
