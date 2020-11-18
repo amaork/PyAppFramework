@@ -33,6 +33,7 @@ from PySide.QtCore import *
 from datetime import datetime
 
 from .container import ComponentManager
+from ..dashboard.input import VirtualNumberInput
 from ..misc.windpi import get_program_scale_factor
 from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
@@ -2381,11 +2382,15 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             widget = None
 
             if setting.is_int_type():
-                widget = QSpinBox()
-                widget.setMinimum(setting.get_check()[0])
-                widget.setMaximum(setting.get_check()[1])
-                widget.setValue(setting.get_data())
-                widget.setSingleStep(setting.get_check()[2])
+                if setting.is_readonly():
+                    widget = VirtualNumberInput(setting.get_data(), setting.get_check()[0], setting.get_check()[1])
+                    widget.setProperty("format", "int")
+                else:
+                    widget = QSpinBox()
+                    widget.setMinimum(setting.get_check()[0])
+                    widget.setMaximum(setting.get_check()[1])
+                    widget.setValue(setting.get_data())
+                    widget.setSingleStep(setting.get_check()[2])
             elif setting.is_bool_type():
                 widget = QCheckBox()
                 widget.setCheckable(True)
@@ -2399,11 +2404,18 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setValidator(QRegExpValidator(QRegExp(setting.check[0])))
                 widget.setMaxLength(setting.check[1])
             elif setting.is_float_type():
-                widget = QDoubleSpinBox()
-                widget.setMinimum(setting.get_check()[0])
-                widget.setMaximum(setting.get_check()[1])
-                widget.setValue(setting.get_data())
-                widget.setSingleStep(setting.get_check()[2])
+                if setting.is_readonly():
+                    widget = VirtualNumberInput(setting.get_data(),
+                                                setting.get_check()[0],
+                                                setting.get_check()[1],
+                                                setting.get_check()[2])
+                    widget.setProperty("format", "float")
+                else:
+                    widget = QDoubleSpinBox()
+                    widget.setMinimum(setting.get_check()[0])
+                    widget.setMaximum(setting.get_check()[1])
+                    widget.setValue(setting.get_data())
+                    widget.setSingleStep(setting.get_check()[2])
             elif setting.is_select_type():
                 widget = QComboBox()
                 widget.addItems(setting.get_check())
@@ -2540,7 +2552,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
         # Set readonly option
         if setting.is_readonly():
-            if setting.is_text_type():
+            if isinstance(widget, QLineEdit):
                 widget.setReadOnly(True)
             else:
                 widget.setDisabled(True)

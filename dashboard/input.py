@@ -2,15 +2,14 @@
 import math
 from PySide.QtGui import *
 from PySide.QtCore import *
-import framework.misc.windpi as dpi
-from framework.core.datatype import *
-from framework.misc.settings import *
-from framework.gui.widget import PaintWidget
-from framework.gui.container import ComponentManager
+from ..core.datatype import *
+from ..misc.settings import *
+from ..misc import windpi as dpi
+from ..gui.container import ComponentManager
 __all__ = ['SampleSelectInput', 'VirtualNumberKeyboard', 'VirtualNumberInput', 'VolumeSelectInput']
 
 
-class SampleSelectInput(PaintWidget):
+class SampleSelectInput(QWidget):
     MARGIN = 5
     DEFAULT_FONT = "Times New Roman"
     DEFAULT_OVER_COLOR = Qt.lightGray
@@ -287,7 +286,6 @@ class VirtualKeyboard(QDialog):
 
 class VirtualNumberKeyboard(VirtualKeyboard):
     KEY_MAP = (
-
         ("Min", "Max", "C"),
         ("7", "8", "9"),
         ("4", "5", "6"),
@@ -297,7 +295,6 @@ class VirtualNumberKeyboard(VirtualKeyboard):
     )
 
     INT_KEY_MAP = (
-
         ("Min", "Max", "C"),
         ("7", "8", "9"),
         ("4", "5", "6"),
@@ -311,8 +308,11 @@ class VirtualNumberKeyboard(VirtualKeyboard):
     DEF_FONT_NAME = "等线 Light"
     DISPLAY_FONT_SIZE = FONT_BASE_SIZE * 1.5
 
-    def __init__(self, min_=0, max_=100, initial_value=0, decimals=0,
-                 key_map=KEY_MAP, theme_color=VirtualNumberInput.themeColor, parent=None):
+    def __init__(self,
+                 min_: int or float = 0,
+                 max_: int or float = 100,
+                 initial_value: int or float = 0, decimals: int = 0,
+                 key_map: list or tuple = KEY_MAP, theme_color: QColor = VirtualNumberInput.themeColor, parent=None):
         super(VirtualNumberKeyboard, self).__init__(parent)
 
         self.timer_cnt = 0
@@ -367,11 +367,11 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.ui_manager = ComponentManager(layout)
 
     def __initData(self):
-        self.ui_display.setText(str(self.initial_value))
+        self.ui_display.setText(self.__numStr(self.initial_value))
         self.ui_min = self.ui_manager.getByValue("name", "Min", QPushButton)
         self.ui_max = self.ui_manager.getByValue("name", "Max", QPushButton)
-        self.ui_min.setText("{}".format(self.min_number))
-        self.ui_max.setText("{}".format(self.max_number))
+        self.ui_min.setText(self.__minStr())
+        self.ui_max.setText(self.__maxStr())
 
     def __initStyle(self):
         self.ui_display.setReadOnly(True)
@@ -396,6 +396,15 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         cancel = self.ui_manager.getByValue("name", "取消", QPushButton)
         ok.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)
+
+    def __minStr(self):
+        return self.__numStr(self.min_number)
+
+    def __maxStr(self):
+        return self.__numStr(self.max_number)
+
+    def __numStr(self, num):
+        return "{0:.{1}f}".format(num, self.number_decimals) if self.number_decimals else str(num)
 
     def __flush(self):
         self.ui_display.setText(self.current_display)
@@ -445,9 +454,9 @@ class VirtualNumberKeyboard(VirtualKeyboard):
                 pass
 
         elif value == "Max":
-            new_value = str(self.max_number)
+            new_value = self.__maxStr()
         elif value == "Min":
-            new_value = str(self.min_number)
+            new_value = self.__minStr()
         elif value == "C":
             new_value = ""
             self.old_display = ""
@@ -506,20 +515,21 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
         if self.timer_cnt % 2 == 0:
             v = str2float(self.current_display)
-            if v > self.max_number or v < self.min_number and v != 0:
+            if (v > self.max_number and not math.isclose(v, self.max_number)) or \
+                    (v < self.min_number and not math.isclose(v, self.min_number)) and v != 0:
                 self.setOverflow()
                 return
 
     @classmethod
-    def getInt(cls, min_=0, max_=3600, initial_value=0,
-               key_map=KEY_MAP, theme_color=VirtualNumberInput.themeColor, parent=None):
+    def getInt(cls, min_: int = 0, max_: int = 3600, initial_value: int = 0,
+               key_map: list or tuple = KEY_MAP, theme_color: QColor = VirtualNumberInput.themeColor, parent=None):
         dialog = cls(min_, max_, initial_value, 0, key_map, theme_color, parent)
         dialog.exec_()
         return dialog.getIntValue()
 
     @classmethod
-    def getDouble(cls, min_=0, max_=100.0, decimals=1, initial_value=0,
-                  key_map=KEY_MAP, theme_color=VirtualNumberInput.themeColor, parent=None):
+    def getDouble(cls, min_: float = 0.0, max_: float = 100.0, decimals: int = 1, initial_value: float = 0.0,
+                  key_map: list or tuple = KEY_MAP, theme_color: QColor = VirtualNumberInput.themeColor, parent=None):
         dialog = cls(min_, max_, initial_value, decimals, key_map, theme_color, parent)
         dialog.exec_()
         return dialog.getDoubleValue()

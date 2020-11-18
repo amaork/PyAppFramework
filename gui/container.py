@@ -271,7 +271,10 @@ class ComponentManager(QObject):
         elif isinstance(component, QRadioButton):
             return component.isChecked()
         elif isinstance(component, QLineEdit):
-            return component.text()
+            return {
+                "int": str2number(component.text()),
+                "float": str2float(component.text())
+            }.get(component.property("format"), component.text())
         elif isinstance(component, QTextEdit):
             return component.toPlainText()
         elif isinstance(component, QPlainTextEdit):

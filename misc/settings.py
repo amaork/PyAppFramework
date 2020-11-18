@@ -10,8 +10,9 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiLogMessage',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
+           'UiFileInput', 'UiFolderInput',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
-           'UiFileInput', 'UiFolderInput', 'UiSerialInput',
+           'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
 
 
@@ -70,7 +71,7 @@ class UiInputSetting(DynamicObject):
     _attributes = {
         "INT": (int, (list, tuple)),
         "BOOL": (bool, (list, tuple)),
-        "FLOAT": (float, (list, tuple)),
+        "FLOAT": ((float, int), (list, tuple)),
         "TEXT": (str, (list, tuple)),
         "FILE": (str, (list, tuple)),
         "FOLDER": (str, str),
@@ -183,12 +184,16 @@ class UiInputSetting(DynamicObject):
         color_input = UiColorInput(name="颜色", r=255, g=255, b=255)
         int_input = UiInputSetting(name="数字", type="INT", data=10,
                                    check=UiInputSetting.INT_TYPE_CHECK_DEMO, default=50)
+        ts_int_input = UiInputSetting(name="数字(TS)", type="INT", data=20,
+                                      check=UiInputSetting.INT_TYPE_CHECK_DEMO, default=50, readonly=True)
         text_input = UiInputSetting(name="文本", type="TEXT", data="192.168.1.1",
                                     check=UiInputSetting.TEXT_TYPE_CHECK_DEMO, default="192.168.1.11")
         bool_input = UiInputSetting(name="布尔", type="BOOL", data=False,
                                     check=UiInputSetting.BOOL_TYPE_CHECK_DEMO, default=True)
         float_input = UiInputSetting(name="浮点", type="FLOAT", data=5.0,
                                      check=UiInputSetting.FLOAT_TYPE_CHECK_DEMO, default=3.3)
+        ts_float_input = UiInputSetting(name="浮点(TS)", type="FLOAT", data=4.567,
+                                     check=(3.3, 12.0, 3), default=3.3, readonly=True)
         select_input = UiInputSetting(name="选择", type="SELECT", data="C",
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
         sbs_select_input = UiInputSetting(name="选择", type="SBS_SELECT", data=1,
@@ -204,6 +209,7 @@ class UiInputSetting(DynamicObject):
             layout = UiLayout(name="Json Demo 设置（Gird）",
                               layout=[
                                   ["int", "float"],
+                                  ["ts_int", "ts_float"],
                                   ["bool", 'text'],
                                   ["select", "sbs_select"],
                                   ["file", "serial"],
@@ -213,14 +219,18 @@ class UiInputSetting(DynamicObject):
                               ])
         else:
             layout = UiLayout(name="Json Demo 设置 （VBox）",
-                              layout=["int", "float", "bool", "text", "select", 'sbs_select',
+                              layout=["int", "float",
+                                      "ts_int", "ts_float",
+                                      "bool", "text", "select", 'sbs_select',
                                       "file", "folder", "serial", "font", "color", "network", "address"])
-        return DynamicObject(int=int_input.dict, bool=bool_input.dict,
+        return DynamicObject(int=int_input.dict, ts_int=ts_int_input.dict,
+                             float=float_input.dict, ts_float=ts_float_input.dict,
+                             bool=bool_input.dict,
                              font=font_input.dict, color=color_input.dict,
                              folder=folder_input.dict,
                              network=network_input.dict, address=address_input.dict,
                              text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
-                             float=float_input.dict, select=select_input.dict, sbs_select=sbs_select_input.dict,
+                             select=select_input.dict, sbs_select=sbs_select_input.dict,
                              layout=layout.dict)
 
 
