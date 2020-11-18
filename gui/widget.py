@@ -2997,9 +2997,14 @@ class LogMessageWidget(QTextEdit):
 
     @Slot(object)
     def filterLog(self, levels):
-        # First read all log to memory
-        with open(self._logFilename, encoding="utf-8") as fp:
-            text = fp.read()
+        try:
+            # First read all log to memory
+            with open(self._logFilename, encoding="utf-8") as fp:
+                text = fp.read()
+        except UnicodeDecodeError:
+            # Loading failed delete log
+            with open(self._logFilename, 'w', encoding="utf-8") as fp:
+                text = ""
 
         # Process data
         valid_record = list()
