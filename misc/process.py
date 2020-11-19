@@ -9,7 +9,8 @@ import platform
 import threading
 import subprocess
 
-__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info_without_console']
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead',
+           'restart_software', 'subprocess_startup_info_without_console']
 
 
 class ProcessManager(object):
@@ -185,6 +186,10 @@ class SubprocessWithTimeoutRead(object):
                 ret, err = self.__process.communicate()
                 self.__queue.put_nowait((ret + err).decode())
                 break
+
+
+def restart_software(file: str):
+    os.execl(sys.executable, file, *sys.argv)
 
 
 def subprocess_startup_info_without_console():

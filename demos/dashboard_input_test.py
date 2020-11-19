@@ -23,6 +23,8 @@ class DemoDashboardInput(BasicWidget):
         self.ui_double_min = QDoubleSpinBox(self)
         self.ui_double_max = QDoubleSpinBox(self)
         self.ui_theme_color = QPushButton("键盘主题色")
+        self.ui_text_color = QPushButton("键盘文字颜色")
+        self.ui_hover_color = QPushButton("键盘滑动颜色")
 
         layout.addWidget(QLabel("Integer"), 0, 0)
         layout.addWidget(self.ui_int_input, 0, 1)
@@ -32,6 +34,7 @@ class DemoDashboardInput(BasicWidget):
         layout.addWidget(self.ui_int_max, 0, 5)
         layout.addWidget(QLabel("Theme"), 0, 6)
         layout.addWidget(self.ui_theme_color, 0, 7)
+        layout.addWidget(self.ui_text_color, 0, 8)
 
         layout.addWidget(QLabel("Double"), 1, 0)
         layout.addWidget(self.ui_double_input, 1, 1)
@@ -41,6 +44,7 @@ class DemoDashboardInput(BasicWidget):
         layout.addWidget(self.ui_double_max, 1, 5)
         layout.addWidget(QLabel("Decimals"), 1, 6)
         layout.addWidget(self.ui_double_decimals, 1, 7)
+        layout.addWidget(self.ui_hover_color, 1, 8)
 
         self.setLayout(layout)
         self.ui_manager = ComponentManager(layout)
@@ -69,7 +73,10 @@ class DemoDashboardInput(BasicWidget):
     def _initSignalAndSlots(self):
         for item in self.ui_manager.getByType(QAbstractSpinBox):
             item.valueChanged.connect(self.slotInputRangeChanged)
+
+        self.ui_text_color.clicked.connect(self.slotChangeKeyboardTextColor)
         self.ui_theme_color.clicked.connect(self.slotChangeKeyboardThemeColor)
+        self.ui_hover_color.clicked.connect(self.slotChangeKeyboardHoverColor)
 
     def slotInputRangeChanged(self, value):
         if self.sender() == self.ui_int_min:
@@ -87,10 +94,14 @@ class DemoDashboardInput(BasicWidget):
             self.ui_double_min.setSingleStep(1 / math.pow(10, value))
             self.ui_double_max.setSingleStep(1 / math.pow(10, value))
 
+    def slotChangeKeyboardTextColor(self):
+        VirtualNumberInput.setTextColor(QColorDialog.getColor(VirtualNumberInput.getTextColor(), self, "请选择文字颜色"))
+
+    def slotChangeKeyboardHoverColor(self):
+        VirtualNumberInput.setHoverColor(QColorDialog.getColor(VirtualNumberInput.getHoverColor(), self, "请选择滑动颜色"))
+
     def slotChangeKeyboardThemeColor(self):
-        color = QColorDialog.getColor(VirtualNumberInput.themeColor, self, "请选择主题色")
-        if isinstance(color, QColor):
-            VirtualNumberInput.setThemeColor(color)
+        VirtualNumberInput.setThemeColor(QColorDialog.getColor(VirtualNumberInput.getThemeColor(), self, "请选择主题色"))
 
 
 if __name__ == '__main__':

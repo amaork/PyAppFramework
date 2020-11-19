@@ -2168,6 +2168,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                         # QLine edit special process re check
                         if isinstance(widget, QLineEdit):
+                            widget.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed))
                             widget.textChanged.connect(self.slotSettingChanged)
                     elif isinstance(widget, QLayout):
                         # Add label and layout
