@@ -3,7 +3,8 @@ import math
 import json
 import ctypes
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'DynamicObject', 'ComparableXml', 'DynamicObjectDecodeError',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml',
+           'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
            'str2float', 'str2number', 'resolve_number',
            'new_class', 'new_instance',
            'ip4_check']
@@ -85,10 +86,9 @@ def new_instance(name, *args, **kwargs):
     return cls(*args, **kwargs)
 
 
-def ip4_check(addr):
+def ip4_check(address):
     try:
-
-        data = addr.split(".")
+        data = address.split(".")
         if len(data) != 4:
             return False
 
@@ -97,9 +97,7 @@ def ip4_check(addr):
                 return False
 
         return True
-
     except (ValueError, AttributeError):
-
         return False
 
 
@@ -152,7 +150,15 @@ class BasicTypeBE(BasicDataType, ctypes.BigEndianStructure):
         return not self.__eq__(other)
 
 
-class DynamicObjectDecodeError(Exception):
+class DynamicObjectError(Exception):
+    pass
+
+
+class DynamicObjectEncodeError(DynamicObjectError):
+    pass
+
+
+class DynamicObjectDecodeError(DynamicObjectError):
     pass
 
 
@@ -161,7 +167,6 @@ class DynamicObject(object):
 
     def __init__(self, **kwargs):
         try:
-
             for key in self._properties:
                 if kwargs.get(key) is None:
                     raise KeyError("do not found key:{!r}".format(key))
@@ -214,6 +219,21 @@ class DynamicObject(object):
         :return:
         """
         return json.dumps(self.__dict__)
+
+    def update(self, data):
+        if not isinstance(data, (dict, DynamicObject)):
+            raise DynamicObjectEncodeError('DynamicObject update require {!r} or {!r} not {!r}'.format(
+                dict.__name__, DynamicObject.__name__, data.__class__.__name__))
+
+        data = data.dict if isinstance(data, DynamicObject) else data
+        for k, v in data.items():
+            if k not in self._properties:
+                raise DynamicObjectEncodeError("Unknown key: {}".format(k))
+
+            if not isinstance(v, type(self.__dict__[k])):
+                raise DynamicObjectEncodeError("New value type is not matched")
+
+            self.__dict__[k] = v
 
 
 class ComparableXml(XmlElementTree.Element):

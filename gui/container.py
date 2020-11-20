@@ -257,7 +257,7 @@ class ComponentManager(QObject):
         return components
 
     @staticmethod
-    def __getComponentData(component):
+    def getComponentData(component):
         if isinstance(component, QSpinBox):
             return component.value()
         elif isinstance(component, QDoubleSpinBox):
@@ -289,7 +289,7 @@ class ComponentManager(QObject):
             return ""
 
     @staticmethod
-    def __setComponentData(component, data):
+    def setComponentData(component, data):
         if isinstance(component, QSpinBox):
             component.setValue(str2number(data))
         elif isinstance(component, QDoubleSpinBox):
@@ -553,7 +553,7 @@ class ComponentManager(QObject):
             if value in exclude:
                 continue
 
-            data[value] = self.__getComponentData(component)
+            data[value] = self.getComponentData(component)
 
         return data
 
@@ -566,7 +566,7 @@ class ComponentManager(QObject):
             value = data.get(property_key)
 
             if value is not None:
-                self.__setComponentData(component, value)
+                self.setComponentData(component, value)
 
         return True
 

@@ -299,20 +299,24 @@ class VirtualNumberInput(QLineEdit):
         return UiColorInput.get_color_stylesheet(cls.color2Tuple(cls.getHoverColor())) +\
                UiColorInput.get_bg_color_stylesheet(cls.color2Tuple(cls.getThemeColor()))
 
-    def mousePressEvent(self, ev):
-        if ev.button() != Qt.LeftButton:
-            return
-
+    def showKeyboard(self):
         input_min = self.property("min")
         input_max = self.property("max")
         input_decimals = self.property("decimals")
         if not input_decimals:
             value = VirtualNumberKeyboard.getInt(min_=input_min, max_=input_max, parent=self)
         else:
-            value = VirtualNumberKeyboard.getDouble(min_=input_min, max_=input_max, decimals=input_decimals, parent=self)
+            value = VirtualNumberKeyboard.getDouble(min_=input_min, max_=input_max,
+                                                    decimals=input_decimals, parent=self)
         if value is not None:
             self.setText(str(value))
             self.numberChanged.emit(value)
+
+    def mousePressEvent(self, ev):
+        if ev.button() != Qt.LeftButton:
+            return
+
+        self.showKeyboard()
 
 
 class VirtualKeyboard(QDialog):

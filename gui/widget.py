@@ -32,6 +32,7 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
 
+from .checkbox import CheckBox
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 from ..misc.windpi import get_program_scale_factor
@@ -2375,7 +2376,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 sender.setStyleSheet("color: rgb(255, 0, 0);")
 
     @staticmethod
-    def createInputWidget(setting, name=None):
+    def createInputWidget(setting, name=None, parent=None):
         if not isinstance(setting, UiInputSetting):
             return None
 
@@ -2384,20 +2385,26 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
             if setting.is_int_type():
                 if setting.is_readonly():
-                    widget = VirtualNumberInput(setting.get_data(), setting.get_check()[0], setting.get_check()[1])
+                    widget = VirtualNumberInput(parent=parent, initial_value=setting.get_data(),
+                                                min_=setting.get_check()[0], max_=setting.get_check()[1])
                     widget.setProperty("format", "int")
                 else:
-                    widget = QSpinBox()
+                    widget = QSpinBox(parent)
                     widget.setMinimum(setting.get_check()[0])
                     widget.setMaximum(setting.get_check()[1])
                     widget.setValue(setting.get_data())
                     widget.setSingleStep(setting.get_check()[2])
             elif setting.is_bool_type():
-                widget = QCheckBox()
-                widget.setCheckable(True)
-                widget.setChecked(setting.get_data())
+                if setting.is_readonly():
+                    widget = CheckBox(parent)
+                    widget.setCheckable(True)
+                    widget.setChecked(setting.get_data())
+                else:
+                    widget = QCheckBox(parent)
+                    widget.setCheckable(True)
+                    widget.setChecked(setting.get_data())
             elif setting.is_text_type():
-                widget = QLineEdit()
+                widget = QLineEdit(parent)
                 widget.setText(setting.get_data())
                 widget.setPlaceholderText(setting.get_default())
                 # Set regular expression and max length
@@ -2406,19 +2413,20 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setMaxLength(setting.check[1])
             elif setting.is_float_type():
                 if setting.is_readonly():
-                    widget = VirtualNumberInput(setting.get_data(),
-                                                setting.get_check()[0],
-                                                setting.get_check()[1],
-                                                setting.get_check()[2])
+                    widget = VirtualNumberInput(parent=parent,
+                                                initial_value=setting.get_data(),
+                                                min_=setting.get_check()[0],
+                                                max_=setting.get_check()[1],
+                                                decimals=setting.get_check()[2])
                     widget.setProperty("format", "float")
                 else:
-                    widget = QDoubleSpinBox()
+                    widget = QDoubleSpinBox(parent)
                     widget.setMinimum(setting.get_check()[0])
                     widget.setMaximum(setting.get_check()[1])
                     widget.setValue(setting.get_data())
                     widget.setSingleStep(setting.get_check()[2])
             elif setting.is_select_type():
-                widget = QComboBox()
+                widget = QComboBox(parent)
                 widget.addItems(setting.get_check())
                 # Data is text, using text format set and get
                 if isinstance(setting.get_data(), str) and setting.get_data() in setting.get_check():
@@ -2430,22 +2438,22 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 else:
                     widget.setCurrentIndex(0)
             elif setting.is_sbs_select_type():
-                group = QButtonGroup()
+                group = QButtonGroup(parent)
                 layout = QHBoxLayout()
 
                 for id_, text in enumerate(setting.get_check()):
-                    btn = QRadioButton(text)
+                    btn = QRadioButton(text, parent=parent)
                     btn.setProperty("id", id_)
                     group.addButton(btn, id_)
                     layout.addWidget(btn)
                     layout.addWidget(QSplitter())
 
-                text_input = QLineEdit()
+                text_input = QLineEdit(parent=parent)
                 text_input.setReadOnly(True)
                 text_input.setVisible(False)
                 text_input.setProperty("data", name)
 
-                number_input = QSpinBox()
+                number_input = QSpinBox(parent=parent)
                 number_input.setVisible(False)
                 number_input.setProperty("data", name)
 
@@ -2469,77 +2477,89 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                 return layout, group, number_input
             elif setting.is_serial_type():
-                widget = SerialPortSelector()
+                widget = SerialPortSelector(parent=parent)
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
             elif setting.is_network_type():
-                widget = NetworkInterfaceSelector(network_mode=True, text=setting.get_default())
+                widget = NetworkInterfaceSelector(network_mode=True, text=setting.get_default(), parent=parent)
                 widget.setCurrentNetwork(setting.get_data())
             elif setting.is_address_type():
-                widget = NetworkInterfaceSelector(network_mode=False, text=setting.get_default())
+                widget = NetworkInterfaceSelector(network_mode=False, text=setting.get_default(), parent=parent)
                 widget.setCurrentAddress(setting.get_data())
             elif setting.is_file_type():
-                widget = QLineEdit()
+                widget = QLineEdit(parent)
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
 
                 enable = QCheckBox(QApplication.translate("JsonSettingWidget",
-                                                          "Enable", None, QApplication.UnicodeUTF8))
+                                                          "Enable", None,
+                                                          QApplication.UnicodeUTF8), parent=parent)
                 enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
                 enable.setVisible(setting.get_check()[-1] == str(True))
 
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please Select File", None, QApplication.UnicodeUTF8))
+                                                            "Please Select File",
+                                                            None, QApplication.UnicodeUTF8), parent=parent)
                 button.setProperty("clicked", "file")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check()[:-1])
+
                 layout = QHBoxLayout()
                 layout.addWidget(enable)
                 layout.addWidget(widget)
                 layout.addWidget(button)
                 return layout
             elif setting.is_folder_type():
-                widget = QLineEdit()
+                widget = QLineEdit(parent)
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
+
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please Select Directory", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Directory",
+                                                            None, QApplication.UnicodeUTF8), parent=parent)
                 button.setProperty("clicked", "folder")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_check())
+
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
                 layout.addWidget(button)
                 return layout
             elif setting.is_font_type():
-                widget = QLineEdit()
+                widget = QLineEdit(parent)
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
+
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please Select Font", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Font",
+                                                            None, QApplication.UnicodeUTF8), parent=parent)
                 button.setProperty("clicked", "font")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
+
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
                 layout.addWidget(button)
                 return layout
             elif setting.is_color_type():
                 color = setting.get_data()
-                widget = QLineEdit()
+                widget = QLineEdit(parent)
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText("{}".format(setting.get_data()))
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
+
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
-                                                            "Please Select Color", None, QApplication.UnicodeUTF8))
+                                                            "Please Select Color",
+                                                            None, QApplication.UnicodeUTF8), parent=parent)
                 button.setProperty("clicked", "color")
                 button.setProperty("title", setting.get_name())
                 button.setProperty("private", setting.get_data())
+
                 layout = QHBoxLayout()
                 layout.addWidget(widget)
                 layout.addWidget(button)
@@ -2552,7 +2572,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             widget.setProperty("data", name)
 
         # Set readonly option
-        if setting.is_readonly():
+        if setting.is_readonly() and not isinstance(widget, CheckBox):
             if isinstance(widget, QLineEdit):
                 widget.setReadOnly(True)
             else:
