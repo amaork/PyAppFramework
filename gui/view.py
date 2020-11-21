@@ -101,6 +101,9 @@ class TableView(QTableView):
         self.setSelectionBehavior(QAbstractItemView.SelectColumns)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
 
+    def setAutoWidth(self):
+        self.setColumnStretchFactor([1 / self.columnCount()] * self.columnCount())
+
     def setAutoHeight(self, enable: bool):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())

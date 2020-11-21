@@ -2,25 +2,40 @@
 import json
 from PySide.QtGui import *
 from PySide.QtCore import *
-from ..core.datatype import DynamicObject, DynamicObjectEncodeError
+from ..core.datatype import DynamicObject, DynamicObjectEncodeError, str2number
 __all__ = ['CheckBox', 'CheckBoxStyleSheet', 'CheckBoxDelegate']
 
 
 class CheckBoxStyleSheet(DynamicObject):
-    _properties = {'withBox', 'boxColor', 'fillColor',
-                   'sizeFactor', 'background', 'foreground'}
+    _properties = {'withBox', 'sizeFactor', 'font',
+                   'boxColor', 'fillColor', 'hoverColor', 'background', 'foreground'}
 
     @classmethod
     def default(cls):
-        return CheckBoxStyleSheet(withBox=True, sizeFactor=1.3,
+        return CheckBoxStyleSheet(withBox=True,
+                                  sizeFactor=1.3,
+                                  font=("等线 Light", 11),
+                                  hoverColor=(240, 154, 55),
                                   boxColor=(0, 0, 0), fillColor=(240, 154, 55),
                                   background=(255, 255, 255), foreground=(255, 0, 0))
+
+    def getFont(self):
+        try:
+            return QFont(*self.font)
+        except TypeError:
+            return QFont(("等线 Light", 11))
 
     def getBoxColor(self):
         try:
             return QColor(*self.boxColor)
         except TypeError:
             return QColor(Qt.black)
+
+    def getHoverColor(self):
+        try:
+            return QColor(*self.hoverColor)
+        except TypeError:
+            return QColor(240, 154, 55)
 
     def getFilledColor(self):
         try:
@@ -44,10 +59,14 @@ class CheckBoxStyleSheet(DynamicObject):
 class CheckBox(QCheckBox):
     editingFinished = Signal()
 
-    def __init__(self, parent=None):
-        super(CheckBox, self).__init__(parent)
-        self._styleSheet = CheckBoxStyleSheet.default()
+    def __init__(self, text: str = "", stylesheet: dict or None = None, parent: QWidget or None = None):
+        super(CheckBox, self).__init__(text, parent)
         self.setAutoFillBackground(True)
+        self._styleSheet = CheckBoxStyleSheet.default()
+        self._boxColor = self._styleSheet.getBoxColor()
+        self._sizeFactor = self._styleSheet.sizeFactor
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
 
     def reverse(self):
         self.setChecked(Qt.Unchecked if self.isChecked() else Qt.Checked)
@@ -55,13 +74,20 @@ class CheckBox(QCheckBox):
     def styleSheet(self) -> str:
         return str(self._styleSheet)
 
-    def setStyleSheet(self, stylesheet: str):
+    def getBoxColor(self):
+        return self._boxColor
+
+    def getSizeFactor(self):
+        return self._sizeFactor
+
+    def setStyleSheet(self, stylesheet: dict or DynamicObject):
         try:
-            style = json.loads(stylesheet)
-            self._styleSheet.update(style)
+            self._styleSheet.update(stylesheet)
+            self._boxColor = self._styleSheet.getBoxColor()
+            self._sizeFactor = self._styleSheet.sizeFactor
             self.update()
-        except (json.JSONDecodeError, DynamicObjectEncodeError) as e:
-            print("Invalid CheckEditor stylesheet: {}".format(stylesheet, e))
+        except (json.JSONDecodeError, DynamicObjectEncodeError, TypeError) as e:
+            print("Invalid CheckEditor stylesheet({}): {}".format(stylesheet, e))
 
     def paintEvent(self, ev):
         painter = QPainter(self)
@@ -69,14 +95,26 @@ class CheckBox(QCheckBox):
 
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(QPen(QBrush(self._styleSheet.getBoxColor()), 2))
+        painter.setPen(QPen(QBrush(self.getBoxColor()), 2))
         painter.fillRect(self.rect(), self._styleSheet.backgroundColor())
 
-        min_ = min(rect.height(), rect.width())
-        size = QSize(min_ / self._styleSheet.sizeFactor, min_ / self._styleSheet.sizeFactor)
+        try:
+            min_ = min(rect.height(), rect.width())
+            size = QSize(min_ / self.getSizeFactor(), min_ / self.getSizeFactor())
+        except (OverflowError, ZeroDivisionError):
+            self._sizeFactor = CheckBoxStyleSheet.default().sizeFactor
+            min_ = min(rect.height(), rect.width())
+            size = QSize(min_ / self.getSizeFactor(), min_ / self.getSizeFactor())
 
         x = rect.center().x() - size.width() / 2
         y = rect.center().y() - size.height() / 2
+
+        if self.text():
+            metric = QFontMetrics(self._styleSheet.getFont())
+            x += metric.width(self.text()) / 2
+
+            painter.setFont(self._styleSheet.getFont())
+            painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, self.text())
 
         if self._styleSheet.withBox:
             painter.drawRect(x, y, size.width(), size.height())
@@ -94,6 +132,22 @@ class CheckBox(QCheckBox):
 
         painter.restore()
 
+    def enterEvent(self, ev):
+        if not self.isCheckable() or not self.isEnabled():
+            return
+
+        self._sizeFactor *= 1.1
+        self._boxColor = self._styleSheet.getHoverColor()
+        self.update()
+
+    def leaveEvent(self, ev):
+        if not self.isCheckable() or not self.isEnabled():
+            return
+
+        self._sizeFactor = self._styleSheet.sizeFactor
+        self._boxColor = self._styleSheet.getBoxColor()
+        self.update()
+
     def mousePressEvent(self, ev):
         if ev.button() != Qt.LeftButton or ev.type() == QEvent.MouseButtonDblClick or not self.isCheckable():
             return
@@ -109,8 +163,9 @@ class CheckBox(QCheckBox):
 
 
 class CheckBoxDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, text="", parent=None):
         super(CheckBoxDelegate, self).__init__(parent)
+        self._text = text
 
     @Slot()
     def commitAndCloseEditor(self):
@@ -122,7 +177,7 @@ class CheckBoxDelegate(QStyledItemDelegate):
         if not isinstance(index, QModelIndex) or not isinstance(editor, CheckBox) or index.data() is None:
             return
 
-        editor.setChecked(bool(int(index.data())))
+        editor.setChecked(bool(str2number(index.data())))
 
     def setModelData(self, editor: CheckBox, model: QAbstractItemModel, index: QModelIndex):
         if not isinstance(editor, CheckBox) or not isinstance(model, QAbstractItemModel) \
@@ -135,6 +190,6 @@ class CheckBoxDelegate(QStyledItemDelegate):
         if not isinstance(index, QModelIndex):
             return
 
-        editor = CheckBox(parent)
+        editor = CheckBox(text=self._text, parent=parent)
         editor.editingFinished.connect(self.commitAndCloseEditor)
         return editor

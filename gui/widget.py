@@ -1069,6 +1069,9 @@ class TableWidget(QTableWidget):
     def __slotWidgetDataChanged(self):
         self.tableDataChanged.emit()
 
+    def setAutoWidth(self):
+        self.setColumnStretchFactor([1 / self.columnCount()] * self.columnCount())
+
     def setAutoHeight(self, enable):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
@@ -1235,23 +1238,26 @@ class TableWidget(QTableWidget):
             item.setFlags(flags)
 
         # Widget:
-        widget = self.__copyWidget(self.cellWidget(row, column))
+        widget = self.cellWidget(row, column)
         if isinstance(widget, QWidget):
             widget.setDisabled(frozen)
-            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-                widget.valueChanged.connect(self.__slotWidgetDataChanged)
-            elif isinstance(widget, QCheckBox):
-                widget.stateChanged.connect(self.__slotWidgetDataChanged)
-            elif isinstance(widget, QComboBox):
-                widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
-            elif isinstance(widget, QDateTimeEdit):
-                widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
-            elif isinstance(widget, QProgressBar):
-                widget.valueChanged.connect(self.__slotWidgetDataChanged)
-
-            self.cellWidget(row, column).setHidden(True)
-            self.removeCellWidget(row, column)
-            self.setCellWidget(row, column, widget)
+        # widget = self.__copyWidget(self.cellWidget(row, column))
+        # if isinstance(widget, QWidget):
+        #     widget.setDisabled(frozen)
+        #     if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+        #         widget.valueChanged.connect(self.__slotWidgetDataChanged)
+        #     elif isinstance(widget, QCheckBox):
+        #         widget.stateChanged.connect(self.__slotWidgetDataChanged)
+        #     elif isinstance(widget, QComboBox):
+        #         widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+        #     elif isinstance(widget, QDateTimeEdit):
+        #         widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
+        #     elif isinstance(widget, QProgressBar):
+        #         widget.valueChanged.connect(self.__slotWidgetDataChanged)
+        #
+        #     self.cellWidget(row, column).setHidden(True)
+        #     self.removeCellWidget(row, column)
+        #     self.setCellWidget(row, column, widget)
 
         return True
 
@@ -1700,6 +1706,7 @@ class TableWidget(QTableWidget):
         try:
             for row, data in enumerate(table_data):
                 self.setRowData(row, data)
+            return True
         except TypeError:
             print("{!r} request a list or tuple not {!r}".format("table_data", table_data.__class__.__name__))
             return False
@@ -2396,11 +2403,11 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget.setSingleStep(setting.get_check()[2])
             elif setting.is_bool_type():
                 if setting.is_readonly():
-                    widget = CheckBox(parent)
+                    widget = CheckBox(parent=parent)
                     widget.setCheckable(True)
                     widget.setChecked(setting.get_data())
                 else:
-                    widget = QCheckBox(parent)
+                    widget = QCheckBox(parent=parent)
                     widget.setCheckable(True)
                     widget.setChecked(setting.get_data())
             elif setting.is_text_type():
