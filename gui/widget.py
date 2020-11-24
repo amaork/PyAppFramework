@@ -27,6 +27,7 @@ import re
 import json
 import logging
 import os.path
+from typing import *
 from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
@@ -1787,10 +1788,22 @@ class TableWidget(QTableWidget):
 
 
 class TreeWidget(QTreeWidget):
+    PRIVATE_DATA_DEFAULT_COLUMN = 0
+
     def __init__(self, parent=None):
         super(TreeWidget, self).__init__(parent)
         self.__autoHeight = False
         self.__columnStretchFactor = list()
+
+        self.ui_context_menu = QMenu(self)
+        self.ui_expand_all = QAction(self.tr("Expand All"), self)
+        self.ui_collapse_all = QAction(self.tr("Collapse All"), self)
+
+        self.ui_context_menu.addAction(self.ui_expand_all)
+        self.ui_context_menu.addAction(self.ui_collapse_all)
+
+        self.ui_expand_all.triggered.connect(self.expandAll)
+        self.ui_collapse_all.triggered.connect(self.collapseAll)
 
     def disableScrollBar(self, horizontal, vertical):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
@@ -1800,22 +1813,36 @@ class TreeWidget(QTreeWidget):
         for i in range(self.topLevelItemCount()):
             self.takeTopLevelItem(0)
 
-    def addSubTree(self, name, children, private_data="", auto_expand=True):
-        if not isinstance(name, str) or not len(children):
+    def findItemByNameAndData(self, name: str, column: int, private_data: Any) -> QTreeWidgetItem or None:
+        if not isinstance(name, str) or not isinstance(column, int) or not (0 <= column < self.columnCount()):
+            return None
+
+        for item in self.findItems(name, Qt.MatchExactly | Qt.MatchRecursive, column):
+            if item.data(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole) == private_data:
+                return item
+
+        return None
+
+    def addSubTree(self, name: str, children: list or tuple, private_data: Any, auto_expand: bool = True):
+        if not isinstance(name, str):
             return False
 
         if not isinstance(children, (list, tuple)):
             return False
 
+        # Create root item
         root = QTreeWidgetItem(self, [name])
-        root.setData(0, Qt.UserRole, private_data)
+        root.setData(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole, private_data)
+
+        # Append children to root
         for child in children:
             item = QTreeWidgetItem(root, child)
-            item.setData(0, Qt.UserRole, private_data)
+            item.setData(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole, private_data)
             root.addChild(item)
 
         if auto_expand:
             self.expandAll()
+
         self.setCurrentItem(root.child(root.childCount() - 1))
         return True
 
@@ -1852,6 +1879,9 @@ class TreeWidget(QTreeWidget):
         for column, factor in enumerate(self.__columnStretchFactor):
             header.setResizeMode(column, QHeaderView.Fixed)
             header.resizeSection(column, width * factor)
+
+    def contextMenuEvent(self, ev):
+        self.ui_context_menu.exec_(ev.globalPos())
 
 
 class ListWidget(QListWidget):
