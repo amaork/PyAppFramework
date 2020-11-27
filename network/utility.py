@@ -125,7 +125,7 @@ def connect_device(address: str, port: int, timeout: float = 0.03) -> str or Non
         return None
 
 
-def scan_lan_port(port: str, network: str or ipaddress.IPv4Network,
+def scan_lan_port(port: int, network: str or ipaddress.IPv4Network,
                   timeout: float = 0.005, max_workers: int or None = None) -> List[str]:
     try:
         network = ipaddress.ip_network(network)

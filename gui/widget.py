@@ -2311,7 +2311,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     file_name = preview.property("data")
                     try:
                         enabled, path = data.get(file_name)
-                    except:
+                    except (AttributeError, TypeError, ValueError):
                         enabled, path = False, data.get(file_name)
                     data[file_name] = path
                     data[self.get_file_input_enable_key(file_name)] = enabled
@@ -2417,9 +2417,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         if not isinstance(setting, UiInputSetting):
             return None
 
-        try:
-            widget = None
+        widget = None
 
+        try:
             if setting.is_int_type():
                 if setting.is_readonly():
                     widget = VirtualNumberInput(parent=parent, initial_value=setting.get_data(),
@@ -2612,7 +2612,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         if setting.is_readonly() and not isinstance(widget, CheckBox):
             if isinstance(widget, QLineEdit):
                 widget.setReadOnly(True)
-            else:
+            elif isinstance(widget, QWidget):
                 widget.setDisabled(True)
 
         return widget
@@ -2954,8 +2954,9 @@ class LogMessageWidget(QTextEdit):
     DISPLAY_INFO, DISPLAY_DEBUG, DISPLAY_ERROR = (0x1, 0x2, 0x4)
     DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR
 
-    def __init__(self, filename, log_format="%(asctime)s %(levelname)s %(message)s",
-                 level=logging.DEBUG, propagate=False, display_filter=DISPLAY_ALL, parent=None):
+    def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
+                 level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
+                 parent: QWidget or None = None):
         super(LogMessageWidget, self).__init__(parent)
 
         self.setReadOnly(True)
@@ -3005,56 +3006,61 @@ class LogMessageWidget(QTextEdit):
         self.ui_show_error.triggered.connect(self.slotShowSelectLog)
         self.setDisplayFilter(display_filter)
 
-    def getLevelMask(self, level):
+    def getLevelMask(self, level: int) -> int:
         return {
             logging.INFO: self.DISPLAY_INFO,
             logging.DEBUG: self.DISPLAY_DEBUG,
             logging.ERROR: self.DISPLAY_ERROR
         }.get(level, self.DISPLAY_ALL)
 
-    def _enableInfo(self, en):
+    def _enableInfo(self, en: bool):
         if en:
             self._displayFilter |= self.DISPLAY_INFO
         else:
             self._displayFilter &= ~self.DISPLAY_INFO
 
-    def _enableDebug(self, en):
+    def _enableDebug(self, en: bool):
         if en:
             self._displayFilter |= self.DISPLAY_DEBUG
         else:
             self._displayFilter &= ~self.DISPLAY_DEBUG
 
-    def _enableError(self, en):
+    def _enableError(self, en: bool):
         if en:
             self._displayFilter |= self.DISPLAY_ERROR
         else:
             self._displayFilter &= ~self.DISPLAY_ERROR
 
-    def infoEnabled(self, target=None):
+    def infoEnabled(self, target: int or None = None):
         return (target or self._displayFilter) & self.DISPLAY_INFO
 
-    def debugEnabled(self, target=None):
+    def debugEnabled(self, target: int or None = None):
         return (target or self._displayFilter) & self.DISPLAY_DEBUG
 
-    def errorEnabled(self, target=None):
+    def errorEnabled(self, target: int or None = None):
         return (target or self._displayFilter) & self.DISPLAY_ERROR
 
     @Slot(object)
-    def logging(self, message, write_to_log=True):
+    def logging(self, message: UiLogMessage, write_to_log: bool = True):
         if not isinstance(message, UiLogMessage):
             return
 
         # Show log
         if self._displayFilter & self.getLevelMask(message.level):
             self.append("<font color='{}' size={}>{}: {}</font>".format(
-                message.color, message.font_size, logging.getLevelName(message.level), message.content)
+                message.color, message.font_size,
+                logging.getLevelName(message.level),
+                message.content.replace(" ", "&nbsp;"))
             )
 
         # Write to log file if write_to_log set
         write_to_log and self._logger.log(message.level, message.content)
 
     @Slot(object)
-    def filterLog(self, levels):
+    def filterLog(self, levels: List[int]):
+        if not isinstance(levels, list):
+            return
+
         try:
             # First read all log to memory
             with open(self._logFilename, encoding="utf-8") as fp:
@@ -3067,7 +3073,6 @@ class LogMessageWidget(QTextEdit):
         # Process data
         valid_record = list()
         for level in levels:
-
             level_name = logging.getLevelName(level)
 
             for record in text.split("\n"):
@@ -3117,7 +3122,7 @@ class LogMessageWidget(QTextEdit):
         self._enableError(self.ui_show_error.isChecked())
         self.filterLog(levels)
 
-    def setDisplayFilter(self, display_filter):
+    def setDisplayFilter(self, display_filter: int):
         if not isinstance(display_filter, int):
             return
 
