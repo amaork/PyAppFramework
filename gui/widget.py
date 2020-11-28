@@ -969,8 +969,11 @@ class ImageWidget(PaintWidget):
 
 class TableWidget(QTableWidget):
     tableDataChanged = Signal()
+    ALL_ACTION = 0x7
+    SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
+    COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
 
-    def __init__(self, max_column, hide_header=False, parent=None):
+    def __init__(self, max_column: int, hide_header: bool = False, parent: QWidget or None = None):
         """Create a QTableWidget
 
         :param max_column: max column number
@@ -984,11 +987,36 @@ class TableWidget(QTableWidget):
         self.hideHeaders(hide_header)
         self.__table_filters = dict()
         self.__autoHeight = False
+
         self.__columnMaxWidth = dict()
         self.__columnStretchFactor = list()
         self.__columnStretchMode = QHeaderView.Fixed
 
+        self.__contentMenu = QMenu(self)
+        self.__contentMenuEnableMask = 0x0
+
+        for group, actions in {
+            self.COMM_ACTION: [
+                (QAction(self.tr("Clear All"), self), lambda: self.setRowCount(0)),
+            ],
+
+            self.MOVE_ACTION: [
+                (QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
+                (QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
+
+                (QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
+                (QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom())
+            ],
+        }.items():
+            for action, slot in actions:
+                action.triggered.connect(slot)
+                action.setProperty("group", group)
+                self.__contentMenu.addAction(action)
+
+            self.__contentMenu.addSeparator()
+
         self.__scale_x, self.__scale_y = get_program_scale_factor()
+        self.customContextMenuRequested.connect(self.__slotShowContentMenu)
         self.setVerticalHeaderHeight(self.getVerticalHeaderHeight() * self.__scale_y)
 
     def __checkRow(self, row):
@@ -1067,6 +1095,21 @@ class TableWidget(QTableWidget):
 
         return temp
 
+    def __slotShowContentMenu(self, pos):
+        item = self.itemAt(pos)
+        if not isinstance(item, QTableWidgetItem):
+            return
+
+        row = item.row()
+        column = item.column()
+        for group in self.SUPPORT_ACTIONS:
+            enabled = group & self.__contentMenuEnableMask
+            for action in self.__contentMenu.actions():
+                if action.property("group") == group:
+                    action.setVisible(enabled)
+
+        self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+
     def __slotWidgetDataChanged(self):
         self.tableDataChanged.emit()
 
@@ -1076,6 +1119,28 @@ class TableWidget(QTableWidget):
     def setAutoHeight(self, enable):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
+
+    def setContentMenuMask(self, mask: int):
+        for group in self.SUPPORT_ACTIONS:
+            if mask & group:
+                self.__contentMenuEnableMask |= group
+            else:
+                self.__contentMenuEnableMask &= ~group
+
+        if self.__contentMenuEnableMask:
+            self.setContextMenuPolicy(Qt.CustomContextMenu)
+        else:
+            self.setContextMenuPolicy(Qt.DefaultContextMenu)
+
+    def setCustomContentMenu(self, menu: List[QAction]):
+        for action in menu:
+            if not isinstance(action, QAction):
+                continue
+
+            action.setProperty("group", self.CUSTOM_ACTION)
+            self.__contentMenu.addAction(action)
+
+        self.__contentMenu.addSeparator()
 
     def resizeColumnWidthFitContents(self):
         header = self.horizontalHeader()
@@ -1175,6 +1240,18 @@ class TableWidget(QTableWidget):
             return
         self.swapRow(row, row + 1)
 
+    def rowMoveTop(self):
+        while self.currentRow() != 0:
+            self.rowMoveUp()
+
+        self.simulateSelectRow(0)
+
+    def rowMoveBottom(self):
+        while self.currentRow() != self.rowCount() - 1:
+            self.rowMoveDown()
+
+        self.simulateSelectRow(self.rowCount() - 1)
+
     @Slot()
     def columnMoveLeft(self):
         column = self.currentColumn()
@@ -1212,10 +1289,12 @@ class TableWidget(QTableWidget):
     def simulateSelectRow(self, row):
         self.selectRow(row)
         self.setFocus(Qt.MouseFocusReason)
+        self.scrollTo(self.model().index(row, 0))
 
     def simulateSelectColumn(self, column):
         self.selectColumn(column)
         self.setFocus(Qt.MouseFocusReason)
+        self.scrollTo(self.model().index(0, column))
 
     def frozenItem(self, row, column, frozen):
         """Frozen or unfroze a item
