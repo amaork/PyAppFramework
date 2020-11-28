@@ -163,6 +163,7 @@ class DynamicObjectDecodeError(DynamicObjectError):
 
 
 class DynamicObject(object):
+    _check = dict()
     _properties = set()
 
     def __init__(self, **kwargs):
@@ -231,7 +232,11 @@ class DynamicObject(object):
                 raise DynamicObjectEncodeError("Unknown key: {}".format(k))
 
             if not isinstance(v, type(self.__dict__[k])):
-                raise DynamicObjectEncodeError("New value type is not matched")
+                raise DynamicObjectEncodeError("New value {!r} type is not matched: new({!r}) old({!r})".format(
+                    k, v.__class__.__name__, self.__dict__[k].__class__.__name__))
+
+            if k in self._check and hasattr(self._check.get(k), "__call__") and not self._check.get(k)(v):
+                raise DynamicObjectEncodeError("Key {!r} new value {!r} check failed".format(k, v))
 
             self.__dict__[k] = v
 
