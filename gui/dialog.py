@@ -414,6 +414,10 @@ class ProgressDialog(QProgressDialog):
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
         self.move(QPoint(x, y))
 
+    @Slot()
+    def slotHidden(self):
+        self.setProgress(self.maximum())
+
     def setLabelText(self, text):
         self.setWhatsThis(text)
         super(ProgressDialog, self).setLabelText(text)

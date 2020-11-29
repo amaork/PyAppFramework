@@ -33,7 +33,6 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
 
-from .checkbox import CheckBox
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 from ..misc.windpi import get_program_scale_factor
@@ -1018,6 +1017,9 @@ class TableWidget(QTableWidget):
         self.__scale_x, self.__scale_y = get_program_scale_factor()
         self.customContextMenuRequested.connect(self.__slotShowContentMenu)
         self.setVerticalHeaderHeight(self.getVerticalHeaderHeight() * self.__scale_y)
+
+    def tr(self, text):
+        return QApplication.translate("TableWidget", text, None, QApplication.UnicodeUTF8)
 
     def __checkRow(self, row):
         if not isinstance(row, int):
@@ -2511,14 +2513,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget.setValue(setting.get_data())
                     widget.setSingleStep(setting.get_check()[2])
             elif setting.is_bool_type():
-                if setting.is_readonly():
-                    widget = CheckBox(parent=parent)
-                    widget.setCheckable(True)
-                    widget.setChecked(setting.get_data())
-                else:
-                    widget = QCheckBox(parent=parent)
-                    widget.setCheckable(True)
-                    widget.setChecked(setting.get_data())
+                widget = QCheckBox(parent=parent)
+                widget.setCheckable(True)
+                widget.setChecked(setting.get_data())
             elif setting.is_text_type():
                 widget = QLineEdit(parent)
                 widget.setText(setting.get_data())
@@ -2688,7 +2685,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             widget.setProperty("data", name)
 
         # Set readonly option
-        if setting.is_readonly() and not isinstance(widget, CheckBox):
+        if setting.is_readonly():
             if isinstance(widget, QLineEdit):
                 widget.setReadOnly(True)
             elif isinstance(widget, QWidget):

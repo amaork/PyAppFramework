@@ -2,13 +2,11 @@
 """
 Tar package file manager, support package file/directory to tar, gz, bz2  or unpackage file
 """
-
-
 import os
 import shutil
 import tarfile
 import zipfile
-
+from typing import *
 
 __all__ = ['TarManager', 'TarManagerError']
 
@@ -17,7 +15,11 @@ class Compress(object):
     exception = Exception
     support_format = {}
 
-    def open(self, name, mode, fmt):
+    def __init__(self, simulate: bool = False, callback: Callable[[str], int] or None = None):
+        self._simulate = simulate
+        self._callback = callback
+
+    def open(self, name: str, mode: str, fmt: str):
         pass
 
     def close(self, obj):
@@ -35,26 +37,51 @@ class Compress(object):
     def file_check(self, file):
         pass
 
-    def get_members(self, obj):
+    def get_members(self, obj) -> List[str]:
         pass
 
-    def _pack(self, obj, filename):
+    def callback(self, name: str):
+        if hasattr(self._callback, "__call__"):
+            self._callback(name)
+
+    def _pack(self, obj, filename: str):
         pass
 
-    def pack(self, obj, filename):
+    def pack(self, obj, filename: str):
         if not self.type_check(obj) or not os.path.isfile(filename):
             return
 
-        self._pack(obj, filename)
+        if self._simulate:
+            self.callback(filename)
+        else:
+            self.callback(filename)
+            self._pack(obj, filename)
 
-    def _extractall(self, obj, extract_path):
+    def _extract(self, obj, filename: str, extract_path: str):
         pass
 
-    def extractall(self, obj, extract_path):
-        if not self.type_check(obj):
-            return False
+    def extract(self, obj, filename: str, extract_path: str):
+        if not self.type_check(obj) or not os.path.isdir(extract_path):
+            return
 
-        self._extractall(obj, extract_path)
+        if self._simulate:
+            self.callback(filename)
+        else:
+            self.callback(filename)
+            self._extract(obj, filename, extract_path)
+
+    def _extractall(self, obj, extract_path: str):
+        pass
+
+    def extractall(self, obj, extract_path: str):
+        if not self.type_check(obj):
+            return
+
+        if self._simulate:
+            self.callback(extract_path)
+        else:
+            self.callback(extract_path)
+            self._extractall(obj, extract_path)
 
 
 class TarCompress(Compress):
@@ -67,26 +94,29 @@ class TarCompress(Compress):
         "tbz2": ":bz2",
     }
 
-    def open(self, name, mode, fmt):
+    def open(self, name: str, mode: str, fmt: str):
         return tarfile.open(name, mode + self.support_format.get(fmt))
 
-    def type_check(self, obj):
+    def type_check(self, obj: object):
         return isinstance(obj, tarfile.TarFile)
 
-    def file_check(self, file):
+    def file_check(self, file: str):
         return tarfile.is_tarfile(file)
 
     def _close(self, obj):
         obj.close()
 
-    def get_members(self, obj):
+    def get_members(self, obj) -> List[str]:
         return obj.getnames()
 
-    def _pack(self, obj, filename):
+    def _pack(self, obj, filename: str):
         obj.add(filename)
 
-    def _extractall(self, obj, extract_path):
+    def _extractall(self, obj, extract_path: str):
         obj.extractall(extract_path)
+
+    def _extract(self, obj, filename: str, extract_path: str):
+        obj.extract(filename, extract_path)
 
 
 class ZipCompress(Compress):
@@ -112,7 +142,7 @@ class ZipCompress(Compress):
     def _close(self, obj):
         obj.close()
 
-    def get_members(self, obj):
+    def get_members(self, obj) -> List[str]:
         return obj.namelist()
 
     def _pack(self, obj, filename):
@@ -120,6 +150,9 @@ class ZipCompress(Compress):
 
     def _extractall(self, obj, extract_path):
         obj.extractall(extract_path)
+
+    def _extract(self, obj, filename: str, extract_path: str):
+        obj.extract(filename, extract_path)
 
 
 class TarManagerError(Exception):
@@ -134,11 +167,8 @@ class TarManager(object):
         "write": "w",
     }
 
-    def __init__(self, file_path, fmt):
-        pass
-
     @staticmethod
-    def get_file_format(name):
+    def get_file_format(name: str) -> str:
         """Get file format
 
         :param name: file name
@@ -150,20 +180,21 @@ class TarManager(object):
         return fmt if fmt in TarManager.support_formats else ""
 
     @staticmethod
-    def get_support_format():
+    def get_support_format() -> List[str]:
         return list(TarManager.support_formats)
 
     @staticmethod
-    def create_compress_object(fmt):
+    def create_compress_object(fmt: str, simulate: bool = False, callback: Callable[[str], int] or None = None):
         if fmt in TarCompress.support_format:
-            return TarCompress()
+            return TarCompress(simulate, callback)
         elif fmt in ZipCompress.support_format:
-            return ZipCompress()
+            return ZipCompress(simulate, callback)
         else:
             return None
 
     @staticmethod
-    def check_and_open_compress_object(file_path, fmt=None):
+    def check_and_open_compress_object(file_path: str, fmt: str or None = None,
+                                       simulate: bool = False, callback: Callable[[str], int] or None = None):
         # Check tar file path
         if not os.path.isfile(file_path):
             raise TarManagerError("Tarfile: {0:s} is not exist".format(file_path))
@@ -171,7 +202,7 @@ class TarManager(object):
         # Get file format
         fmt = fmt if fmt in TarManager.get_support_format() else TarManager.get_file_format(file_path)
 
-        compress = TarManager.create_compress_object(fmt)
+        compress = TarManager.create_compress_object(fmt, simulate=simulate, callback=callback)
         if not isinstance(compress, Compress):
             raise TarManagerError("Unknown package format:{0:s}".format(file_path))
 
@@ -182,7 +213,9 @@ class TarManager(object):
         return compress, compress.open(file_path, TarManager.operateDict.get("read"), fmt)
 
     @staticmethod
-    def pack(path, name, fmt=None, extensions=None, filters=None, verbose=False):
+    def pack(path: str, name: str, fmt: str or None = None,
+             extensions: list or tuple or None = None, filters: Callable[[str], bool] or None = None,
+             verbose: bool = False, simulate: bool = False, callback: Callable[[str], None] or None = None):
         """Package directory to a tarfile
 
         :param path: directory path
@@ -191,6 +224,8 @@ class TarManager(object):
         :param extensions: if set only pack those extension names
         :param filters: if set when filter is true will packed
         :param verbose: show verbose message
+        :param simulate: set simulate means not real pack only run process to get how many files it;s need to pack
+        :param callback: before pack every file will call this callback function
         """
 
         current_path = os.getcwd()
@@ -210,7 +245,7 @@ class TarManager(object):
             # Get file format
             fmt = fmt if fmt in TarManager.get_support_format() else TarManager.get_file_format(name)
 
-            compress = TarManager.create_compress_object(fmt)
+            compress = TarManager.create_compress_object(fmt, simulate, callback)
             if not isinstance(compress, Compress):
                 raise TarManagerError("Unknown package format: {}".format(os.path.basename(name)))
 
@@ -260,13 +295,18 @@ class TarManager(object):
             os.chdir(current_path)
 
     @staticmethod
-    def unpack(file_path, unpack_path="", fmt=None):
+    def unpack(file_path: str,
+               unpack_path: str = "",
+               fmt: str or None = None,
+               simulate: bool = False, callback: Callable[[str], int] or None = None):
         """Unpack file_path specified file to unpack_path
 
         :return:
         :param file_path: Tar file path
         :param unpack_path: Unpack path
         :param fmt: package format
+        :param simulate: set simulate means not real unpack only run process to get how many files it;s need to unpack
+        :param callback: before unpack every file will call this callback function
         """
         try:
             # Check unpack directory
@@ -277,14 +317,15 @@ class TarManager(object):
                 os.makedirs(unpack_path)
 
             # Open as tarfile and extractall and close finally
-            compress, tar_file = TarManager.check_and_open_compress_object(file_path, fmt)
-            compress.extractall(tar_file, unpack_path)
+            compress, tar_file = TarManager.check_and_open_compress_object(file_path, fmt, simulate, callback)
+            for member in compress.get_members(tar_file):
+                compress.extract(tar_file, member, unpack_path)
             compress.close(tar_file)
         except (IOError, OSError, ZipCompress.exception, TarCompress.exception, shutil.Error) as e:
             raise TarManagerError('Extract failed：IOError, {}'.format(e))
 
     @staticmethod
-    def get_members(file_path, fmt=None):
+    def get_members(file_path: str, fmt: str or None = None):
         try:
             compress, tar_file = TarManager.check_and_open_compress_object(file_path, fmt)
             return compress.get_members(tar_file)
