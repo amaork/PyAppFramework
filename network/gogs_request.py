@@ -9,7 +9,7 @@ from contextlib import closing
 
 from .http_request import *
 from ..core.datatype import DynamicObject
-__all__ = ['GogsRequest', 'GogsRequestException']
+__all__ = ['GogsRequest', 'GogsRequestException', 'RepoRelease']
 
 
 class GogsRequestException(HttpRequestException):
@@ -72,10 +72,10 @@ class GogsRequest(HttpRequest):
 
         return True
 
-    def download_pack(self, package: dict, path: str,
-                      parallel: bool = True, max_workers: int = 4,
-                      chunk_size: int = 1024 ** 32, timeout: int = 60,
-                      ignore_error: bool = True, callback: Callable[[str, bool], None] or None = None) -> dict:
+    def download_package(self, package: dict, path: str,
+                         parallel: bool = True, max_workers: int = 4,
+                         chunk_size: int = 1024 ** 32, timeout: int = 60,
+                         ignore_error: bool = True, callback: Callable[[str, bool], None] or None = None) -> dict:
         """
         Download an a pack of file
         :param package: Package to download, package is dict include multi-files name is key url is value
