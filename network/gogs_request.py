@@ -19,6 +19,12 @@ class GogsRequestException(HttpRequestException):
 class RepoRelease(DynamicObject):
     _properties = {'name', 'date', 'desc', 'attachment'}
 
+    def attachments(self) -> List[str]:
+        return list(self.attachment.keys())
+
+    def get_attachment_url(self, name: str) -> str:
+        return self.attachment.get(name, "")
+
 
 class GogsRequest(HttpRequest):
     TOKEN_NAME = "_csrf"
@@ -42,54 +48,62 @@ class GogsRequest(HttpRequest):
     def get_repo_url(self, repo: str) -> str:
         return "{}/{}".format(self.__host, repo)
 
-    def download(self, name: str, url: str,
-                 chunk_size: int = 1024**32, timeout: int = 60,
-                 callback: Callable[[str, bool], None] or None = None) -> bool:
+    def download(self, name: str, url: str, timeout: int = 60,
+                 callback: Callable[[str], None] or None = None) -> bool:
         """
         Download file or attachment
         :param name: download file save path
         :param url: download url
-        :param chunk_size: download chunk size
         :param timeout: download timeout
-        :param callback: callback(name: str, finished: bool) -> None
+        :param callback: callback(name: str) -> None
         :return: success return ture
         """
-
-        if hasattr(callback, "__call__"):
-            callback(name, False)
-
         try:
-            with closing(self.section_get(url, stream=True, timeout=timeout)) as response:
+            with closing(self.section_get(url, timeout=timeout)) as response:
                 with open(name, "wb") as file:
-                    for data in response.iter_content(chunk_size=chunk_size):
-                        file.write(data)
+                    file.write(response.content)
         except (OSError, requests.RequestException) as e:
             print("Download {} failed: {}".format(url, e))
             return False
 
         if hasattr(callback, "__call__"):
-            callback(name, True)
+            callback(name)
 
         return True
 
     def download_package(self, package: dict, path: str,
-                         parallel: bool = True, max_workers: int = 4,
-                         chunk_size: int = 1024 ** 32, timeout: int = 60,
-                         ignore_error: bool = True, callback: Callable[[str, bool], None] or None = None) -> dict:
+                         timeout: int = 60, parallel: bool = True, max_workers: int = 4,
+                         ignore_error: bool = True, callback: Callable[[str, int], bool] or None = None) -> dict:
         """
         Download an a pack of file
         :param package: Package to download, package is dict include multi-files name is key url is value
         :param path: Download path, path should be a directory
         :param parallel: Thread pool parallel download parallel download
         :param max_workers: Thread pool max workers
-        :param chunk_size: Download check size in bytes
         :param timeout: Download timeout for single file
         :param ignore_error: If set ignore error, when error occurred will ignore error continue download
-        :param callback: Callback function, callback(name: str, finished: bool),
-        will called twice first time means start download, second time means download finished
+        :param callback: Callback function, callback(downloaded_file_name: str, download_progress: int) -> bool if
+        callback return false mean's canceled, one serial download support this feature
         :return: Success return each file download result, dict key is file name, value is download result
         """
         download_result = dict(zip(package.keys(), [False] * len(package)))
+        download_files = list(package.keys())
+        download_count = len(download_files)
+
+        def download_callback(name: str) -> bool:
+            if not hasattr(callback, "__call__"):
+                return True
+
+            # Remove already downloaded file from list
+            filename = os.path.basename(name)
+            if filename not in download_files:
+                return True
+            else:
+                download_files.remove(filename)
+
+            # Calc download progress
+            download_progress = round(100 - len(download_files) / download_count * 100, 2)
+            return callback(name, download_progress)
 
         # Check download path if is not exist create it
         try:
@@ -101,9 +115,8 @@ class GogsRequest(HttpRequest):
         if parallel:
             # Thread pool parallel download attachment
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-                result = [pool.submit(self.download,
-                                      **DynamicObject(name=os.path.join(path, name), url=url,
-                                                      chunk_size=chunk_size, timeout=timeout, callback=callback).dict)
+                result = [pool.submit(self.download, **DynamicObject(name=os.path.join(path, name), url=url,
+                                                                     timeout=timeout, callback=download_callback).dict)
                           for name, url in package.items()]
 
             # Get each file download result
@@ -111,9 +124,12 @@ class GogsRequest(HttpRequest):
                 download_result[name] = ret.result() if ret.result() is not None else False
         else:
             for name, url in package.items():
-                ret = self.download(name=os.path.join(path, name), url=url,
-                                    chunk_size=chunk_size, timeout=timeout, callback=callback)
+                ret = self.download(name=os.path.join(path, name), url=url, timeout=timeout)
                 download_result[name] = ret
+
+                # Callback and if return false means cancel download
+                if not download_callback(os.path.join(path, name)):
+                    break
 
                 if ret or ignore_error:
                     continue
