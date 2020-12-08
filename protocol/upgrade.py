@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 import socket
 import http.client
+import pathlib
 import hashlib
+import datetime
 import threading
 import socketserver
 import http.server
-from ..core.datatype import str2float, str2number
+from typing import *
+from ..core.datatype import *
+from ..misc.settings import *
+from ..network.gogs_request import *
 
 
 NEW_VERSION_DURL_CMD = "GET_NEWEST_DURL"
 NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
-__all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler']
+__all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler', 'GogsUpgradeClient',
+           'GogsSoftwareReleaseDesc', 'GogsUpgradeClientDownloadError']
 
 
 class UpgradeClient(object):
@@ -328,3 +335,104 @@ class UpgradeServerHandler(socketserver.BaseRequestHandler):
                 self.request.close()
                 print("Error:{}".format(e))
                 break
+
+
+class GogsSoftwareReleaseDesc(JsonSettings):
+    _default_path = "release.json"
+    _properties = {'name', 'desc', 'size', 'date', 'md5', 'version', 'url'}
+
+    def check(self):
+        return self.name and self.size and self.md5 and self.url
+
+    @classmethod
+    def default(cls):
+        return GogsSoftwareReleaseDesc(name="", desc="", size=0, date="", md5="", version=0.0, url="")
+
+    @classmethod
+    def generate(cls, path: str, version: float) -> bool:
+        """
+        Generate #path specified software release desc
+        :param path: software path
+        :param version: software version
+        :return: success return True
+        """
+        try:
+            desc = GogsSoftwareReleaseDesc(
+                date=str(datetime.datetime.fromtimestamp(pathlib.Path(path).stat().st_mtime)),
+                md5=hashlib.md5(open(path, "rb").read()).hexdigest(),
+                name=os.path.basename(path),
+                size=os.path.getsize(path),
+                version=version,
+                desc="",
+                url=""
+            )
+
+            return desc.save(os.path.join(os.path.dirname(path), GogsSoftwareReleaseDesc.file_path()))
+        except (OSError, ValueError, DynamicObjectEncodeError, AttributeError) as e:
+            print("Generate {!r} release desc failed: {}".format(path, e))
+            return True
+
+
+class GogsUpgradeClientDownloadError(Exception):
+    pass
+
+
+class GogsUpgradeClient(object):
+    DESC_FILE = GogsSoftwareReleaseDesc.file_path()
+
+    def __init__(self, server: str, repo: str, username="", password=""):
+        self._repo = repo
+        self._server = server
+        self._gogs_client = GogsRequest(server, username, password)
+
+    def get_releases(self) -> List[GogsSoftwareReleaseDesc]:
+        release_list = list()
+
+        for release in self._gogs_client.get_repo_releases(self._repo):
+            if not isinstance(release, RepoRelease):
+                continue
+
+            if self.DESC_FILE not in release.attachments():
+                continue
+
+            try:
+                response = self._gogs_client.section_get(release.get_attachment_url(self.DESC_FILE))
+                if not GogsRequest.is_response_ok(response):
+                    continue
+
+                desc = GogsSoftwareReleaseDesc.default()
+                desc.update(json.loads(response.content))
+                desc.update(DynamicObject(desc=release.desc))
+                desc.update(DynamicObject(url=release.get_attachment_url(desc.name)))
+
+                release_list.append(desc)
+            except (ValueError, AttributeError, DynamicObjectEncodeError) as e:
+                print("{!r} get_releases error {}".format(self.__class__.__name__, e))
+                continue
+
+        return release_list
+
+    def get_newest_release(self) -> GogsSoftwareReleaseDesc or None:
+        releases = self.get_releases()
+        releases = sorted(releases, key=lambda x: x.version, reverse=True)
+        return releases[0] if releases else None
+
+    def download_release(self, release: GogsSoftwareReleaseDesc, path: str,
+                         callback: Callable[[float, str], bool] or None = None) -> bool:
+        if not isinstance(release, GogsSoftwareReleaseDesc) or not release.check():
+            raise GogsUpgradeClientDownloadError("Invalid software release desc")
+
+        try:
+            if not os.path.isdir(path):
+                os.makedirs(path)
+        except OSError as e:
+            raise GogsUpgradeClientDownloadError("Create download directory failed: {}".format(e))
+
+        download_path = os.path.join(path, release.name)
+        if not self._gogs_client.stream_download(download_path, release.url, release.size, callback=callback):
+            return False
+
+        if not os.path.isfile(download_path):
+            return False
+
+        return hashlib.md5(open(download_path, "rb").read()).hexdigest() == release.md5

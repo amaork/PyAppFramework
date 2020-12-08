@@ -71,6 +71,43 @@ class GogsRequest(HttpRequest):
 
         return True
 
+    def stream_download(self, name: str, url: str, size: int, chunk_size: int = 1024 * 32,
+                        timeout: int = 60, callback: Callable[[float, str], bool] or None = None) -> bool:
+        """
+        Stream download a file from gogs server
+        :param name: download path
+        :param url: download url
+        :param size: download file size in bytes
+        :param chunk_size: download chunk size in bytes
+        :param timeout: download timeout
+        :param callback: download progress callback
+        :return: success return true, failed return false
+        """
+        try:
+            if not isinstance(size, int) or not size:
+                print("{!r} stream download must specific download file size".format(self.__class__.__name__))
+                return False
+
+            download_size = 0
+            chunk_size = chunk_size if size > chunk_size else 1024
+            chunk_size = chunk_size if size > chunk_size else 1
+            with closing(self.section_get(url, timeout=timeout, stream=True)) as response:
+                with open(name, "wb") as file:
+                    for data in response.iter_content(chunk_size=chunk_size):
+                        file.write(data)
+                        download_size += len(data)
+
+                        if hasattr(callback, "__call__"):
+                            info = "{}K/{}K".format(download_size // 1024, size // 1024)
+                            if not callback(round(download_size / size * 100, 2), info):
+                                print("Download canceled")
+                                return False
+        except (OSError, requests.RequestException) as e:
+            print("Download {} failed: {}".format(url, e))
+            return False
+
+        return True
+
     def download_package(self, package: dict, path: str,
                          timeout: int = 60, parallel: bool = True, max_workers: int = 4,
                          ignore_error: bool = True, callback: Callable[[str, int], bool] or None = None) -> dict:
