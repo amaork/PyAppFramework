@@ -1,29 +1,31 @@
 # -*- coding: utf-8 -*-
+from typing import *
 from threading import Timer
-from ..gui.msgbox import MB_TYPES, showMessageBox
+from .threading import ThreadConditionWrap
+from ..gui.msgbox import MB_TYPES, showMessageBox, showQuestionBox
 from PySide.QtCore import Qt, Signal, Slot, QObject
 from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
-__all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
+__all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
 
 
 class BaseUiMail(object):
-    def __init__(self, content=""):
+    def __init__(self, content: str = ""):
         if not isinstance(content, str):
             raise RuntimeError("Mail context TypeError:{0:s}".format(content.__class__.__name__))
         self.__content = content
 
     @property
-    def content(self):
+    def content(self) -> str:
         return self.__content
 
 
 class StatusBarMail(BaseUiMail):
-    def __init__(self, color, content, timeout=0):
+    def __init__(self, color: QColor or Qt.GlobalColor, content: str, timeout: int = 0):
         """ Show message on statusBar
 
         :param color: Message color
         :param content: Message content
-        :param timeout: Message display time(second)
+        :param timeout: Message display timeout(second)
         :return:
         """
         super(StatusBarMail, self).__init__(content)
@@ -37,16 +39,16 @@ class StatusBarMail(BaseUiMail):
         self.__timeout = timeout * 1000
 
     @property
-    def color(self):
+    def color(self) -> QColor:
         return self.__color
 
     @property
-    def timeout(self):
+    def timeout(self) -> int:
         return self.__timeout
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_, content, title=None):
+    def __init__(self, type_: str, content: str, title: str or None = None):
         """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
@@ -62,16 +64,16 @@ class MessageBoxMail(BaseUiMail):
         self.__title = title
 
     @property
-    def type(self):
-        return self.__type
+    def type(self) -> str:
+        return self.__type[:]
 
     @property
-    def title(self):
+    def title(self) -> str or None:
         return self.__title
 
 
 class WindowsTitleMail(BaseUiMail):
-    def __init__(self, content):
+    def __init__(self, content: str):
         """Show a message on windows title with #content
 
         :param content: message content
@@ -81,7 +83,7 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func, timeout=0, args=(), kwargs=None):
+    def __init__(self, func: Callable, timeout: int = 0, args: tuple = (), kwargs: dict or None = None):
         """Call #func specified function with #args
 
         :param func: Callback function
@@ -103,26 +105,56 @@ class CallbackFuncMail(BaseUiMail):
         self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
 
     @property
-    def callback(self):
+    def callback(self) -> Callable:
         return self.__func
 
     @property
-    def args(self):
+    def args(self) -> tuple:
         return self.__args
 
     @property
-    def kwargs(self):
+    def kwargs(self) -> dict:
         return self.__kwargs
 
     @property
-    def timeout(self):
+    def timeout(self) -> int:
         return self.__timeout
+
+
+class QuestionBoxMail(BaseUiMail):
+    def __init__(self, content: str, title: str, condition: ThreadConditionWrap):
+        """ Show QMessageBox.Question with #title and #content,
+        when user clicked cancel or ok will pass result by ThreadConditionWrap
+
+        :param content: QMessageBox.Question content
+        :param title: QMessageBox.Question title
+        :param condition: sync user click result ThreadConditionWrap.wait
+        """
+        super(QuestionBoxMail, self).__init__(content)
+        if not isinstance(title, str):
+            raise TypeError("{!r} title require a {!r} not {!r}".format(
+                self.__class__.__name__, str.__name__, title.__class__.__name__))
+
+        if not isinstance(condition, ThreadConditionWrap):
+            raise TypeError("{!r} condition require a {!r} not {!r}".format(
+                self.__class__.__name__, ThreadConditionWrap.__name__, title.__class__.__name__))
+
+        self._title = title
+        self._condition = condition
+        self._condition.reset()
+
+    @property
+    def title(self) -> str:
+        return self._title[:]
+
+    def syncClickResult(self, result: bool):
+        self._condition.finished(True if result else False)
 
 
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
         """UI mail box using send and receive ui display message in thread
 
         :return:
@@ -134,7 +166,7 @@ class UiMailBox(QObject):
         self.__parent = parent
         self.hasNewMail.connect(self.mailProcess)
 
-    def send(self, mail):
+    def send(self, mail: BaseUiMail):
         """ Send a mail
 
         :param mail: mail
@@ -147,7 +179,7 @@ class UiMailBox(QObject):
         return True
 
     @Slot(object)
-    def mailProcess(self, mail):
+    def mailProcess(self, mail: BaseUiMail):
         """Process ui mail
 
         :param mail: BaseUiMail
@@ -185,6 +217,10 @@ class UiMailBox(QObject):
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
             showMessageBox(self.__parent, mail.type, mail.content, mail.title)
+
+        # Show a question box
+        elif isinstance(mail, QuestionBoxMail):
+            mail.syncClickResult(showQuestionBox(self.__parent, content=mail.content, title=mail.title))
 
         # Appended a message on windows title
         elif isinstance(mail, WindowsTitleMail):
