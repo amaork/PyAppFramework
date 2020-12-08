@@ -19,6 +19,14 @@ class GogsRequestException(HttpRequestException):
 class RepoRelease(DynamicObject):
     _properties = {'name', 'date', 'desc', 'attachment'}
 
+    @property
+    def raw_desc(self) -> str:
+        return self.desc[1] if len(self.desc) == 2 else ""
+
+    @property
+    def html_desc(self) -> str:
+        return self.desc[0] if len(self.desc) == 2 else ""
+
     def attachments(self) -> List[str]:
         return list(self.attachment.keys())
 
@@ -187,7 +195,7 @@ class GogsRequest(HttpRequest):
             for item in doc("#release-list")(".grid").items():
                 name = item("h3")("a").text().strip()
                 date = item(".time-since").attr("title")
-                desc = item(".desc").text()
+                desc = str(item(".desc")), item(".desc").text()
 
                 attachment = dict()
                 for a in item(".download").items():

@@ -402,11 +402,11 @@ class GogsUpgradeClient(object):
 
                 desc = GogsSoftwareReleaseDesc.default()
                 desc.update(json.loads(response.content))
-                desc.update(DynamicObject(desc=release.desc))
+                desc.update(DynamicObject(desc=release.html_desc))
                 desc.update(DynamicObject(url=release.get_attachment_url(desc.name)))
 
                 release_list.append(desc)
-            except (ValueError, AttributeError, DynamicObjectEncodeError) as e:
+            except (IndexError, ValueError, AttributeError, DynamicObjectEncodeError) as e:
                 print("{!r} get_releases error {}".format(self.__class__.__name__, e))
                 continue
 
