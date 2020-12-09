@@ -3,11 +3,11 @@ import os
 import hashlib
 from PySide.QtGui import *
 from PySide.QtCore import *
+from .msgbox import *
 from .button import RectButton
 from ..network.utility import *
 from ..misc.settings import UiLayout
 from ..protocol.serialport import SerialPort
-from .msgbox import MB_TYPE_ERR, showMessageBox
 from ..misc.windpi import get_program_scale_factor
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
@@ -390,12 +390,16 @@ class NetworkInterfaceSelectDialog(QDialog):
 
 
 class ProgressDialog(QProgressDialog):
+    progressCanceled = Signal(bool)
     DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, parent, title=DEF_TITLE, max_width=350, cancel_button=None, closeable=True):
+    def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
+                 cancel_button: str or None = None, closeable: bool = True, cancelable: bool = False):
         super(ProgressDialog, self).__init__(parent)
 
-        self.closeable = closeable
+        self.__canceled = False
+        self.__closeable = closeable
+        self.__cancelable = cancelable
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
@@ -406,10 +410,18 @@ class ProgressDialog(QProgressDialog):
             self.setCancelButtonText(self.tr(cancel_button))
 
     def closeEvent(self, ev):
-        if not self.closeable:
+        if not self.__closeable and not self.__cancelable:
+            ev.ignore()
+
+        if self.__cancelable:
+            if showQuestionBox(self, self.tr("Cancel") + self.windowTitle() + " ?"):
+                self.setLabelText(self.tr("Canceling please wait..."))
+                self.setCancelState(True)
+
             ev.ignore()
 
     def showEvent(self, ev):
+        self.setCancelState(False)
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
         self.move(QPoint(x, y))
@@ -418,12 +430,28 @@ class ProgressDialog(QProgressDialog):
     def slotHidden(self):
         self.setProgress(self.maximum())
 
-    def setLabelText(self, text):
+    def isCanceled(self) -> bool:
+        return self.__canceled if self.__cancelable else False
+
+    def setCloseable(self, en: bool):
+        self.__closeable = True if en else False
+
+    def setCancelable(self, en: bool):
+        self.__cancelable = True if en else False
+
+    def setCancelState(self, st: bool):
+        self.__canceled = True if st else False
+        self.progressCanceled.emit(self.__canceled)
+
+    def setLabelText(self, text: str):
+        if self.isCanceled():
+            return
+
         self.setWhatsThis(text)
         super(ProgressDialog, self).setLabelText(text)
 
     @Slot(int)
-    def setProgress(self, value):
+    def setProgress(self, value: int):
         self.setValue(value)
         if value != self.maximum():
             self.show()

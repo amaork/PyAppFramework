@@ -900,7 +900,7 @@ class ImageWidget(PaintWidget):
 
         # From text max length get max text size
         textMaxLength = max([len(t) for t in text.split('\n')])
-        fontMaxWidth = round(self.width() / textMaxLength)
+        fontMaxWidth = round(self.width() / textMaxLength) / 1.2
 
         if self.textFont.pointSize() > fontMaxWidth:
             self.textFont.setPointSize(fontMaxWidth)
