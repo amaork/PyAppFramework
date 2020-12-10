@@ -163,9 +163,10 @@ class CheckBox(QCheckBox):
 
 
 class CheckBoxDelegate(QStyledItemDelegate):
-    def __init__(self, text="", parent=None):
+    def __init__(self, text: str = "", stylesheet: DynamicObject or None = None, parent: QWidget or None = None):
         super(CheckBoxDelegate, self).__init__(parent)
         self._text = text
+        self._stylesheet = stylesheet.dict if isinstance(stylesheet, DynamicObject) else None
 
     @Slot()
     def commitAndCloseEditor(self):
@@ -190,6 +191,6 @@ class CheckBoxDelegate(QStyledItemDelegate):
         if not isinstance(index, QModelIndex):
             return
 
-        editor = CheckBox(text=self._text, parent=parent)
+        editor = CheckBox(text=self._text, stylesheet=self._stylesheet, parent=parent)
         editor.editingFinished.connect(self.commitAndCloseEditor)
         return editor

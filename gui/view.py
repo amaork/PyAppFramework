@@ -349,7 +349,10 @@ class TableViewDelegate(QItemDelegate):
         if not isinstance(settings, UiInputSetting):
             return None
 
-        return JsonSettingWidget.createInputWidget(settings, parent=parent)
+        if isinstance(settings, UiCheckBoxInput):
+            return CheckBox(parent=parent)
+        else:
+            return JsonSettingWidget.createInputWidget(settings, parent=parent)
 
     def setEditorData(self, editor, index):
         if not isinstance(index, QModelIndex):

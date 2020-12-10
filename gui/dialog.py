@@ -476,8 +476,9 @@ class BasicJsonSettingDialog(QDialog):
 
         layout = QVBoxLayout()
         self.ui_widget = widget_cls(settings, data, parent)
-        self.ui_buttons = QDialogButtonBox(dialog_buttons)
+        self.ui_widget.settingChanged.connect(self.slotSettingChanged)
 
+        self.ui_buttons = QDialogButtonBox(dialog_buttons)
         self.ui_buttons.accepted.connect(self.accept)
         self.ui_buttons.rejected.connect(self.reject)
         self.apply and self.ui_buttons.button(QDialogButtonBox.Apply).clicked.connect(self.applySetting)
@@ -514,6 +515,15 @@ class BasicJsonSettingDialog(QDialog):
             self.apply(self.getJsonData())
         except TypeError as error:
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Apply settings error") + " : {}".format(error))
+
+    def slotSettingChanged(self):
+        pass
+
+    def getJsonDataWithoutConfirm(self):
+        return self.ui_widget.getData()
+
+    def setJsonData(self, data: dict):
+        return self.ui_widget.setData(data)
 
     @classmethod
     def getData(cls, settings, data=None, reset=True, apply=None, parent=None):
