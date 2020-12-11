@@ -5,13 +5,14 @@ Provide UI elements container
 """
 
 import copy
-from PySide.QtCore import QObject, Signal
+from typing import *
+from PySide.QtCore import QObject, Signal, QEvent
 from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, QLCDNumber,\
     QLabel, QLineEdit, QTextEdit, QPlainTextEdit, QDateTimeEdit, QWidget, QLayout, QLayoutItem, QGridLayout
 
 
 from .binder import *
-from .misc import HyperlinkLabel, NetworkInterfaceSelector
+from .misc import HyperlinkLabel, NetworkInterfaceSelector, CustomEventFilterHandler
 from ..core.datatype import str2number, str2float, DynamicObject
 
 __all__ = ['ComboBoxGroup', 'ComponentManager', 'HyperlinkGroup']
@@ -218,6 +219,12 @@ class ComponentManager(QObject):
             raise TypeError("layout require {!r} not {!r}".format(QLayout.__name__, layout.__class__.__name__))
 
         self.__object = layout
+        self.__disabled = False
+        self.__eventHandle = CustomEventFilterHandler(
+            (QWidget,),
+            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+             QEvent.MouseButtonDblClick, QEvent.HoverLeave, QEvent.HoverEnter,
+             QEvent.KeyPress, QEvent.KeyRelease), self)
 
         # For dynamic bind usage
         self.__bindingList = list()
@@ -570,6 +577,13 @@ class ComponentManager(QObject):
 
         return True
 
+    def setEnabled(self, enabled: bool):
+        return self.setDisabled(not enabled)
+
+    def setDisabled(self, disable: bool):
+        self.__disabled = disable
+        [self.__eventHandle.process(element, self.__disabled) for element in self.getAll()]
+
     def bindSpinBox(self, key, sender, receiver, factor, enable=False):
         """Bind two spinbox, when one spinbox is changes another will linkage
 
@@ -666,13 +680,22 @@ class ComponentManager(QObject):
 class HyperlinkGroup(QObject):
     signalCurrentLinkChanged = Signal(object)
 
-    def __init__(self, exclusive=True, template=None, links=None, parent=None):
+    def __init__(self, exclusive: bool = True,
+                 template: DynamicObject or None = None,
+                 links: List[str] or None = None, parent: QWidget or None = None):
         super(HyperlinkGroup, self).__init__(parent)
         self._currentText = ""
         self._previousText = ""
         self._linkGroup = list()
+
         self._template = template
         self._exclusive = exclusive
+        self._eventHandle = CustomEventFilterHandler(
+            (HyperlinkLabel,),
+            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+             QEvent.MouseButtonDblClick, QEvent.HoverLeave, QEvent.HoverEnter,
+             QEvent.KeyPress, QEvent.KeyRelease), self
+        )
         self.create(links)
 
     def clear(self):
@@ -681,10 +704,13 @@ class HyperlinkGroup(QObject):
     def reset(self):
         [link.reset() for link in self._linkGroup]
 
-    def links(self):
+    def count(self) -> int:
+        return len(self._linkGroup)
+
+    def links(self) -> List[HyperlinkLabel]:
         return self._linkGroup[:]
 
-    def create(self, links):
+    def create(self, links: List[str]):
         if isinstance(self._template, DynamicObject) and links:
             for text in links:
                 if not isinstance(text, str):
@@ -692,7 +718,7 @@ class HyperlinkGroup(QObject):
                 self._template.text = text
                 self.addLink(HyperlinkLabel(**self._template.dict))
 
-    def addLink(self, link):
+    def addLink(self, link: HyperlinkLabel) -> bool:
         if not isinstance(link, HyperlinkLabel):
             return False
 
@@ -700,7 +726,7 @@ class HyperlinkGroup(QObject):
         link.signalClicked.connect(self.slotHyperLinkClicked)
         return True
 
-    def delLink(self, link):
+    def delLink(self, link: HyperlinkLabel) -> bool:
         if not isinstance(link, HyperlinkLabel):
             return False
 
@@ -710,25 +736,25 @@ class HyperlinkGroup(QObject):
         self._linkGroup.remove(link)
         return True
 
-    def currentLinkText(self):
+    def currentLinkText(self) -> str:
         return self._currentText[:]
 
-    def getPreviousLinkText(self):
+    def getPreviousLinkText(self) -> str:
         return self._previousText[:]
 
-    def getLinkByIndex(self, idx):
+    def getLinkByIndex(self, idx: int) -> HyperlinkLabel or None:
         return self._linkGroup[idx] if 0 <= idx < len(self._linkGroup) else None
 
-    def getLinkByText(self, text):
+    def getLinkByText(self, text: str) -> HyperlinkLabel or None:
         try:
             return [link for link in self._linkGroup if link.text() == text][0]
         except (ValueError, IndexError):
             return None
 
-    def getCurrentClickedLink(self):
+    def getCurrentClickedLink(self) -> HyperlinkLabel or None:
         return self.getLinkByText(self._currentText)
 
-    def slotHyperLinkClicked(self, text):
+    def slotHyperLinkClicked(self, text: str):
         sender = self.sender()
         if not isinstance(sender, HyperlinkLabel):
             return
@@ -740,3 +766,6 @@ class HyperlinkGroup(QObject):
         self.signalCurrentLinkChanged.emit(self._currentText)
         if self._exclusive:
             [link.reset() for link in self._linkGroup if link != sender]
+
+    def setDisabled(self, disabled: bool):
+        [self._eventHandle.process(link, disabled) for link in self._linkGroup]

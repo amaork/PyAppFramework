@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import glob
 import platform
+from typing import *
 from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports
@@ -477,10 +478,10 @@ class NavigationBar(QToolBar):
 
 
 class CustomEventFilterHandler(QObject):
-    def __init__(self, types, events, parent=None):
+    def __init__(self, types: tuple, events: list or tuple, parent: QWidget or None = None):
         super(CustomEventFilterHandler, self).__init__(parent)
 
-        if not isinstance(types, (list, tuple)):
+        if not isinstance(types, tuple):
             raise TypeError("{!r} request a list or tuple".format("objs"))
 
         if not isinstance(events, (list, tuple)):
@@ -489,14 +490,14 @@ class CustomEventFilterHandler(QObject):
         self.__filter_types = types
         self.__filter_events = events
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QObject, event: QEvent):
         if isinstance(obj, self.__filter_types) and event.type() in self.__filter_events:
             event.ignore()
             return True
         else:
             return super(CustomEventFilterHandler, self).eventFilter(obj, event)
 
-    def process(self, obj, install):
+    def process(self, obj: QObject, install: bool):
         if isinstance(obj, QObject):
             if install:
                 obj.installEventFilter(self)

@@ -2248,6 +2248,9 @@ class BasicJsonSettingWidget(QWidget):
     def slotSettingChanged(self):
         pass
 
+    def slotDisableInput(self, disable: bool):
+        pass
+
 
 class JsonSettingWidget(BasicJsonSettingWidget):
     def __init__(self, settings, data=None, parent=None):
@@ -2492,6 +2495,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 sender.setStyleSheet("color: rgb(0, 0, 0);")
             except AttributeError:
                 sender.setStyleSheet("color: rgb(255, 0, 0);")
+
+    def slotDisableInput(self, disable: bool):
+        self.ui_manager.setDisabled(disable)
 
     @staticmethod
     def createInputWidget(setting, name=None, parent=None):
@@ -2814,6 +2820,9 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
             except AttributeError:
                 sender.setStyleSheet("color: rgb(255, 0, 0);")
 
+    def slotDisableInput(self, disable: bool):
+        self.ui_table.frozenTable(disable)
+
 
 class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
     def __init__(self, settings, data, parent=None):
@@ -2903,6 +2912,9 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
                 return widget.ui_manager
 
         return None
+
+    def slotDisableInput(self, disable: bool):
+        [widget.ui_manager.setDisabled(disable) for widget in self.widget_list]
 
 
 class MultiTabJsonSettingsWidget(QTabWidget):
@@ -3023,6 +3035,9 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                 return manager
 
         return None
+
+    def slotDisableInput(self, disable: bool):
+        [widget.ui_manager.setDisabled(disable) for widget in self.widget_list]
 
 
 class LogMessageWidget(QTextEdit):
