@@ -5,6 +5,7 @@ import random
 import shutil
 import sqlite3
 import hashlib
+from typing import *
 from .datatype import DynamicObject
 
 try:
@@ -24,7 +25,7 @@ class SQLiteDatabase(object):
     TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
     TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
-    def __init__(self, db_path, timeout=20, check_same_thread=True):
+    def __init__(self, db_path: str, timeout: int = 20, check_same_thread: bool = True):
         if not os.path.isfile(db_path):
             raise IOError("{} do not exist".format(db_path))
 
@@ -32,30 +33,30 @@ class SQLiteDatabase(object):
         self._cursor = self._conn.cursor()
 
     @property
-    def raw_cursor(self):
+    def raw_cursor(self) -> sqlite3.Cursor:
         return self._cursor
 
     @property
-    def raw_connect(self):
+    def raw_connect(self) -> sqlite3.Connection:
         return self._conn
 
     @staticmethod
-    def conditionFormat(k, v, t=None):
+    def conditionFormat(k: str, v: Any, t: int or None = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
 
     @staticmethod
-    def searchConditionFormat(k, v, t=None):
+    def searchConditionFormat(k: str, v: Any, t: int or None = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
 
     @staticmethod
-    def globalSearchConditionFormat(k, v, t=None):
+    def globalSearchConditionFormat(k: str, v: Any, t: int or None = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
 
     @staticmethod
-    def detectDataType(data):
+    def detectDataType(data: Any) -> int:
         if isinstance(data, (int, bool)):
             return SQLiteDatabase.TYPE_INTEGER
         elif isinstance(data, str):
@@ -66,7 +67,7 @@ class SQLiteDatabase(object):
             return SQLiteDatabase.TYPE_BLOB
 
     @staticmethod
-    def str2type(type_str):
+    def str2type(type_str: str) -> int:
         try:
             if type_str.find("INT") != -1:
                 return SQLiteDatabase.TYPE_INTEGER
@@ -80,7 +81,7 @@ class SQLiteDatabase(object):
             return SQLiteDatabase.TYPE_BLOB
 
     @staticmethod
-    def type2str(type_):
+    def type2str(type_: int) -> str:
         if type_ == SQLiteDatabase.TYPE_BLOB:
             return "BLOB"
         elif type_ == SQLiteDatabase.TYPE_REAL:
@@ -92,7 +93,7 @@ class SQLiteDatabase(object):
         else:
             return "UNKNOWN"
 
-    def rawExecute(self, sql):
+    def rawExecute(self, sql: str):
         try:
             self._cursor.execute(sql)
             self._conn.commit()
@@ -100,7 +101,7 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
 
-    def getTableList(self):
+    def getTableList(self) -> List[str]:
         """Get database table name list
 
         :return: table name list (utf-8)
@@ -109,7 +110,7 @@ class SQLiteDatabase(object):
         tables = [i[0] for i in self._cursor.fetchall()]
         return tables
 
-    def getTableInfo(self, name):
+    def getTableInfo(self, name: str) -> dict:
         """Get table info
 
         :param name:  table name
@@ -120,7 +121,7 @@ class SQLiteDatabase(object):
         column_list = [x[self.TBL_NAME] for x in table_info]
         return dict(list(zip(column_list, table_info)))
 
-    def getColumnList(self, name):
+    def getColumnList(self, name: str) -> List[str]:
         """Get table column name list
 
         :param name: table name
@@ -130,7 +131,7 @@ class SQLiteDatabase(object):
         table_info = self._cursor.fetchall()
         return [x[self.TBL_NAME] for x in table_info]
 
-    def getColumnType(self, name):
+    def getColumnType(self, name: str) -> List[int]:
         """Get table column data type
 
         :param name: table name
@@ -143,10 +144,10 @@ class SQLiteDatabase(object):
         except (TypeError, AttributeError, IndexError):
             return []
 
-    def getColumnTypeStr(self, name):
+    def getColumnTypeStr(self, name: str) -> List[str]:
         return list(map(self.type2str, self.getColumnType(name)))
 
-    def getColumnIndex(self, table_name, column_name):
+    def getColumnIndex(self, table_name: str, column_name: str):
         """Get table specify column index
 
         :param table_name: table name
@@ -159,12 +160,12 @@ class SQLiteDatabase(object):
         except (TypeError, AttributeError, IndexError):
             return -1
 
-    def getTableDefault(self, name):
+    def getTableDefault(self, name: str) -> List[Any]:
         table_info = self.getTableInfo(name)
         column_names = self.getColumnList(name)
         return [table_info.get(n)[self.TBL_DEF] for n in column_names]
 
-    def getTablePrimaryKey(self, name):
+    def getTablePrimaryKey(self, name: str) -> Tuple[int, str, type]:
         """Get table primary key column if do not have pk return 0
 
         :param name: table name
@@ -176,16 +177,16 @@ class SQLiteDatabase(object):
             if schema[self.TBL_PK] == 1:
                 return i, schema[self.TBL_NAME], schema[self.TBL_TYPE]
         else:
-            return 0, table_info[0][self.TBL_NAME], schema[self.TBL_TYPE]
+            return 0, table_info[0][self.TBL_NAME], Any
 
-    def getTableData(self, name):
+    def getTableData(self, name: str) -> list:
         try:
             self._cursor.execute("SELECT * from {}".format(name))
             return self._cursor.fetchall()
         except sqlite3.DatabaseError:
             return list()
 
-    def createTable(self, name, columns):
+    def createTable(self, name: str, columns: int):
         try:
 
             if not isinstance(columns, (list, tuple)):
@@ -213,7 +214,7 @@ class SQLiteDatabase(object):
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
 
-    def insertRecord(self, name, record):
+    def insertRecord(self, name: str, record: list or tuple):
         """Insert a record to table
 
         :param name: table name
@@ -249,9 +250,9 @@ class SQLiteDatabase(object):
             self._cursor.execute("INSERT INTO {} VALUES({})".format(name, recode_data), blob_records)
             self._conn.commit()
         except sqlite3.DatabaseError as error:
-                raise SQLiteDatabaseError(error)
+            raise SQLiteDatabaseError(error)
 
-    def updateRecord(self, name, record, condition=None):
+    def updateRecord(self, name: str, record: list or tuple or dict, condition: str or None = None):
         """Update an exist recode
 
         :param name: table name
@@ -260,7 +261,6 @@ class SQLiteDatabase(object):
         :return: error raise DatabaseError
         """
         try:
-
             condition = condition or ""
 
             if not isinstance(record, (list, tuple, dict)):
@@ -314,7 +314,7 @@ class SQLiteDatabase(object):
         except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
 
-    def deleteRecord(self, name, condition):
+    def deleteRecord(self, name: str, condition: str):
         """Delete records from table, when conditions matched
 
         :param name: table name
@@ -322,13 +322,12 @@ class SQLiteDatabase(object):
         :return: error raise an exception
         """
         try:
-
             self._cursor.execute("DELETE FROM {} WHERE {};".format(name, condition))
             self._conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError("Delete error:{}".format(error))
 
-    def selectRecord(self, name, columns=None, condition=None):
+    def selectRecord(self, name: str, columns: list or None = None, condition: str or None = None):
         """Select record from table and matches conditions
 
         :param name: table name
@@ -362,7 +361,7 @@ class SQLiteDatabase(object):
 
 
 class SQLCipherDatabase(SQLiteDatabase):
-    def __init__(self, db_path, key, timeout=20, check_same_thread=True):
+    def __init__(self, db_path: str, key: str, timeout: int = 20, check_same_thread: bool = True):
         super(SQLCipherDatabase, self).__init__(db_path, timeout, check_same_thread)
         self._conn.close()
         self._conn = sqlcipher.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
@@ -384,7 +383,7 @@ class SQLiteUserPasswordDatabase(object):
     CIPHER_KEY = "cipher"
     CIPHER_LEVEL_KEY = "level"
 
-    def __init__(self, magic=MAGIC_STR, path=DEF_PATH, self_check=True):
+    def __init__(self, magic: str = MAGIC_STR, path: str = DEF_PATH, self_check: bool = True):
         """SQLite user password database
         c1 = c1_encrypt_func(raw_password)
         c2 = c2_encrypt_func(c1 + magic)
@@ -404,16 +403,19 @@ class SQLiteUserPasswordDatabase(object):
         except SQLiteDatabaseError as error:
             raise RuntimeError("打开密码数据库错误，{}".format(error))
 
-    def _c1_encrypt_func(self, x):
+    @classmethod
+    def _c1_encrypt_func(cls, x: bytes) -> str:
         return hashlib.sha256(x).hexdigest()
 
-    def _c2_encrypt_func(self, x):
+    @classmethod
+    def _c2_encrypt_func(cls, x: bytes) -> str:
         return hashlib.sha3_256(x).hexdigest()
 
-    def _c3_encrypt_func(self, x):
+    @classmethod
+    def _c3_encrypt_func(cls, x: bytes) -> str:
         return hashlib.shake_256(x).hexdigest(32)
 
-    def selfTest(self):
+    def selfTest(self) -> bool:
         try:
             _, pk, _ = self.db.getTablePrimaryKey(self.CIPHER_TBL)
             for user in self.getUserList():
@@ -433,10 +435,10 @@ class SQLiteUserPasswordDatabase(object):
         except SQLiteDatabaseError as error:
             raise RuntimeError("数据库读取错误：{}".format(error))
 
-    def getUserList(self):
+    def getUserList(self) -> List[str]:
         return [user[0] for user in self.db.selectRecord(self.USER_TBL, [self.USER_NAME_KEY])]
 
-    def getCipherLevel(self, username):
+    def getCipherLevel(self, username: str):
         try:
             _, pk, _ = self.db.getTablePrimaryKey(self.USER_TBL)
             uid = self.db.selectRecord(self.USER_TBL, [pk], self.db.conditionFormat(self.USER_NAME_KEY, username))[0][0]
@@ -444,7 +446,7 @@ class SQLiteUserPasswordDatabase(object):
         except IndexError:
             raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
 
-    def getUserPassword(self, username):
+    def getUserPassword(self, username: str):
         try:
             level, _, _ = self.getCipherLevel(username)
             _, pk, _ = self.db.getTablePrimaryKey(self.CIPHER_TBL)
@@ -454,20 +456,20 @@ class SQLiteUserPasswordDatabase(object):
         except SQLiteDatabaseError as error:
             raise RuntimeError("数据库读取错误：{}".format(error))
 
-    def getUserDescriptor(self, username):
+    def getUserDescriptor(self, username: str):
         try:
             condition = self.db.conditionFormat(self.USER_NAME_KEY, username)
             return self.db.selectRecord(self.USER_TBL, [self.USER_DESC_KEY], condition)[0][0]
         except IndexError:
             raise RuntimeError("数据库读取错误：无此用户「{}」！！！".format(username))
 
-    def generateC1(self, password):
+    def generateC1(self, password: bytes) -> str:
         return self._c1_encrypt_func(password)
 
-    def checkPassword(self, username, c1):
+    def checkPassword(self, username: str, c1: str):
         return c1 == self.getUserPassword(username)
 
-    def updatePassword(self, username, c1):
+    def updatePassword(self, username: str, c1: str):
         try:
             r2 = c1 + self.magic
             c2 = self._c2_encrypt_func(r2.encode())
@@ -485,7 +487,7 @@ class SQLiteUserPasswordDatabase(object):
         except SQLiteDatabaseError as error:
             raise RuntimeError("数据库读取错误：{}".format(error))
 
-    def addUser(self, user, password, desc=""):
+    def addUser(self, user: str, password: str, desc: str = ""):
         try:
 
             # Calc uid
@@ -507,7 +509,7 @@ class SQLiteUserPasswordDatabase(object):
         except SQLiteDatabaseError as error:
             raise RuntimeError("添加用户「{}」,失败：{}！！！".format(user, error))
 
-    def deleteUser(self, user):
+    def deleteUser(self, user: str):
         try:
             # First get user level
             level1, level2, level3 = self.getCipherLevel(user)
@@ -523,7 +525,7 @@ class SQLiteUserPasswordDatabase(object):
             raise RuntimeError("删除用户「{}」失败：{}！！！".format(user, error))
 
     @classmethod
-    def create_database(cls, name):
+    def create_database(cls, name: str):
         db = sqlite3.connect(name)
         cursor = db.cursor()
         cursor.execute("CREATE TABLE {}("
@@ -542,7 +544,8 @@ class SQLiteGeneralSettingsItem(DynamicObject):
     SEQUENCE = ('id', 'name', 'data', 'min', 'max', 'precision', 'desc')
     _properties = {'id', 'name', 'data', 'min', 'max', 'precision', 'desc'}
 
-    def __init__(self, id_, name, data, min_=0, max_=0, precision=0, desc=""):
+    def __init__(self, id_: int, name: str, data: int or float,
+                 min_: int or float = 0, max_: int or float = 0, precision: int = 0, desc: str = ""):
         """SQLite settings item
 
         :param id_:  data index corresponding database row id
@@ -582,7 +585,7 @@ class SQLiteDatabaseCreator(object):
     ENUM_TAIL_ITEM_NAME = "MaxItemNum"
     ENUM_DEFAULT_NAME = "enum DataIndex"
 
-    def __init__(self, name, output_dir="SQLiteDatabaseCreator_output"):
+    def __init__(self, name: str, output_dir: str = "SQLiteDatabaseCreator_output"):
         """
 
         :param name: database file name
@@ -607,36 +610,44 @@ class SQLiteDatabaseCreator(object):
         self._db_conn.commit()
         self._db_conn.close()
 
-    def __get_header_file_name(self, name):
+    def __get_header_file_name(self, name: str) -> str:
         return os.path.join(self._output_dir, "{}.h".format(name))
 
-    def __is_table_exist(self, table_name):
+    def __is_table_exist(self, table_name: str) -> bool:
         self._db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
         tables = [i[0] for i in self._db_cursor.fetchall()]
         return table_name in tables
 
     @staticmethod
-    def __format_enum_item(name, index):
+    def __format_enum_item(name: str, index: int) -> str:
         return "\t{} = {}".format(name, index)
 
+    @staticmethod
+    def __output_protobuf_items(fp, name: str, items: List[str]):
+        fp.write("\n\n")
+        fp.write("/*\nFor protocol buffer\n\n")
+        fp.write("{}{}".format(SQLiteDatabaseCreator.ENUM_DEFAULT_NAME, name.capitalize()) + " {\n")
+        fp.write(";\n".join(items))
+        fp.write(";\n}\n/*")
+
     @property
-    def database_path(self):
+    def database_path(self) -> str:
         return self._db_name
 
-    def create_settings_table(self, name):
+    def create_settings_table(self, name: str):
         self._db_cursor.execute("CREATE TABLE {} ("
-                               "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
-                               "name TEXT NOT NULL,"
-                               "data TEXT NOT NULL,"
-                               "min TEXT DEFAULT 0,"
-                               "max TEXT DEFAULT 0,"
-                               "precision INTEGER DEFAULT 0,"
-                               "description TEXT"
-                               ");".format(name))
+                                "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
+                                "name TEXT NOT NULL,"
+                                "data TEXT NOT NULL,"
+                                "min TEXT DEFAULT 0,"
+                                "max TEXT DEFAULT 0,"
+                                "precision INTEGER DEFAULT 0,"
+                                "description TEXT"
+                                ");".format(name))
 
         return True
 
-    def create_general_table(self, name, max_column):
+    def create_general_table(self, name: str, max_column: int):
         """Create a generate database table with specified name and column count
 
         :param name: database table name
@@ -645,10 +656,10 @@ class SQLiteDatabaseCreator(object):
         """
         data_sentence = ",".join(["data{} TEXT".format(idx) for idx in range(max_column)])
         self._db_cursor.execute("CREATE TABLE {} ("
-                               "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
-                               "{}, description TEXT);".format(name, data_sentence))
+                                "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
+                                "{}, description TEXT);".format(name, data_sentence))
 
-    def get_general_table_limit(self, table_name):
+    def get_general_table_limit(self, table_name: str) -> Tuple[str, str]:
         """Get table lower and upper limit value
 
         :param table_name:  table name
@@ -662,11 +673,16 @@ class SQLiteDatabaseCreator(object):
 
         return tuple(zip(lower_limit, upper_limit))
 
-    def get_general_table_precision(self, table_name):
-        self._db_cursor.execute("SELECT * FROM {} where id = {}".format(table_name, self.PRECISION_ID))
-        return self._db_cursor.fetchall()[0][1:]
+    def get_general_table_precision(self, table_name: str) -> tuple:
+        try:
+            self._db_cursor.execute("SELECT * FROM {} where id = {}".format(table_name, self.PRECISION_ID))
+            return self._db_cursor.fetchall()[0][1:]
+        except IndexError:
+            return ()
 
-    def set_settings_data(self, table_name, settings, protobuf_enum=False):
+    def set_settings_data(self, table_name: str,
+                          settings: List[SQLiteGeneralSettingsItem] or Tuple[SQLiteGeneralSettingsItem, ...],
+                          protobuf_enum: bool = False):
         """Create settings table and fill settings data
 
         :param table_name: settings table name
@@ -690,6 +706,7 @@ class SQLiteDatabaseCreator(object):
                 enum_items.append(self.__format_enum_item(item.name, item.id))
 
             self._db_conn.commit()
+
             # Headers for C/C++
             fp.write("{}".format(self.ENUM_DEFAULT_NAME) + " {\n")
             fp.write(",\n".join(enum_items))
@@ -697,15 +714,13 @@ class SQLiteDatabaseCreator(object):
 
             # For protocol buffer
             if protobuf_enum:
-                fp.write("\n\n")
-                fp.write("/*\nFor protocol buffer\n\n")
-                fp.write("{}".format(self.ENUM_DEFAULT_NAME) + " {\n")
-                fp.write(";\n".join(enum_items))
-                fp.write(";\n}\n/*")
+                self.__output_protobuf_items(fp, table_name, enum_items)
 
         return True
 
-    def set_general_table_limit(self, table_name, max_column, limit):
+    def set_general_table_limit(self, table_name: str, max_column: int,
+                                limit: List[SQLiteGeneralSettingsItem] or Tuple[SQLiteGeneralSettingsItem, ...],
+                                protobuf_enum: bool = False):
         try:
             print("{} data count: {}".format(table_name, len(limit)))
             with open(self.__get_header_file_name(table_name), "wt") as fp:
@@ -713,12 +728,15 @@ class SQLiteDatabaseCreator(object):
                 fp.write(self.ENUM_DEFAULT_NAME + " {\n")
                 for id_, item in enumerate(limit):
                     if not isinstance(item, SQLiteGeneralSettingsItem):
-                        return  False
+                        return False
                     enum_items.append(self.__format_enum_item(item.name, id_))
 
                 enum_items.append(self.__format_enum_item(self.ENUM_TAIL_ITEM_NAME, len(enum_items)))
                 fp.write(",\n".join(enum_items))
                 fp.write("\n};\n")
+
+                if protobuf_enum:
+                    self.__output_protobuf_items(fp, table_name, enum_items)
 
             lower_limit = [self.LOWER_LIMIT_ID]
             lower_limit.extend(tuple(x.min for x in limit))
@@ -760,7 +778,7 @@ class SQLiteDatabaseCreator(object):
         except (TypeError,):
             print("Error limit request a tuple list")
 
-    def set_general_table_data(self, table_name, row_count, fill_random_data=False):
+    def set_general_table_data(self, table_name: str, row_count: int, fill_random_data: bool = False):
         """Create general table and fill data
 
         :param table_name: general table name
