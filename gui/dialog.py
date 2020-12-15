@@ -429,6 +429,7 @@ class ProgressDialog(QProgressDialog):
     @Slot()
     def slotHidden(self):
         self.setProgress(self.maximum())
+        self.setHidden(True)
 
     def isCanceled(self) -> bool:
         return self.__canceled if self.__cancelable else False
