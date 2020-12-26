@@ -6,12 +6,13 @@ import tftpy
 import random
 import string
 import socket
+import hashlib
 import paramiko
 import telnetlib
 import threading
 import ipaddress
 from ..protocol.ftp import FTPClient
-from ..network.utility import get_host_address
+from ..network.utility import get_host_address, set_keepalive
 __all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
 
 
@@ -24,6 +25,7 @@ class TelnetBindNic(telnetlib.Telnet):
         super(TelnetBindNic, self).__init__()
         source_address = (source, 0) if source else None
         self.sock = socket.create_connection((host, port), timeout, source_address=source_address)
+        set_keepalive(self.sock)
 
         if verbose:
             print("Telnet connect: {} ===> {}".format(self.sock.getsockname(), (host, port)))
@@ -71,6 +73,9 @@ class RMIShellClient(object):
 
     def connected(self):
         return self.is_dir_exist('/')
+
+    def check_connection(self):
+        return self.connected()
 
     def get_memory_info(self):
         """Get memory usage from /proc/meminfo
@@ -149,6 +154,21 @@ class RMIShellClient(object):
 
         return info
 
+    def get_file_md5(self, path: str) -> str:
+        if not self.is_file_exist(path):
+            return ""
+
+        return self.exec("md5sum {} | awk '{{print $1}}'".format(path)).strip()
+
+    def get_file_size(self, path: str) -> int:
+        if not self.is_file_exist(path):
+            return -1
+
+        try:
+            return int(self.exec("ls -l {} | awk '{{print $5}}'".format(path)).strip())
+        except (ValueError, AttributeError):
+            return -1
+
     def is_alive(self, timeout=1):
         return ping3.ping(dest_addr=self._host, timeout=timeout) is not None
 
@@ -168,7 +188,7 @@ class RMIShellClient(object):
         return self.exec("chmod", ["a+x", script_path, "&&", script_path], timeout=timeout)
 
     def tftp_upload_file(self, local_file, remote_path="/tmp", remote_name="",
-                         network=None, random_port=True, verbose=False):
+                         network=None, random_port=True, verbose=False, verify_by_md5=False):
         """
         Uoload a local_file from local to remote
         :param local_file: file to upload
@@ -177,6 +197,7 @@ class RMIShellClient(object):
         :param network: tftp server network(ipaddress.IPv4Network)
         :param random_port: tftp using random port
         :param verbose: display verbose info
+        :param verify_by_md5: if set compare local and remote file md5 else only compare file size
         :return: success return true, failed return false
         """
         def server_listen(server, address, port):
@@ -218,15 +239,23 @@ class RMIShellClient(object):
         self.exec("sync")
 
         # Check if download success
-        return self.is_file_exist(remote_file)
+        if not self.is_file_exist(remote_file):
+            return False
+
+        remote_file_md5 = self.get_file_md5(remote_file)
+        remote_file_size = self.get_file_size(remote_file)
+
+        local_file_size = os.path.getsize(local_file)
+        local_file_md5 = hashlib.md5(open(local_file, "rb").read()).hexdigest()
+        return remote_file_md5 == local_file_md5 if verify_by_md5 else remote_file_size == local_file_size
 
 
 class RMISTelnetClient(RMIShellClient):
     DEF_PORT = 23
-    LOGIN_PROPMT, PASSWORD_PROPMT, SHELL_PROPMT = (b'login:', b'Password:', b'#')
+    LOGIN_PROMPT, PASSWORD_PROMPT, SHELL_PROMPT = (b'login:', b'Password:', b'#')
 
     def __init__(self, host, user, password, port=DEF_PORT,
-                 timeout=5, shell_prompt=SHELL_PROPMT, source="", verbose=False):
+                 timeout=5, shell_prompt=SHELL_PROMPT, source="", verbose=False):
         super(RMISTelnetClient, self).__init__(host, timeout, source, verbose)
         self._port = port
         self._user = user
@@ -242,6 +271,9 @@ class RMISTelnetClient(RMIShellClient):
         except AttributeError:
             pass
 
+    def check_connection(self):
+        self.client.sock.sendall(telnetlib.IAC + telnetlib.NOP)
+
     def clear_read_buffer(self, timeout=0):
         return self.client.read_until(self._shell_prompt, timeout=timeout or self._timeout)
 
@@ -250,13 +282,13 @@ class RMISTelnetClient(RMIShellClient):
             client = TelnetBindNic(host=self._host, port=self._port,
                                    timeout=self._timeout, source=source, verbose=self._verbose)
             # Login in
-            if self.LOGIN_PROPMT not in client.read_until(self.LOGIN_PROPMT, self._timeout):
+            if self.LOGIN_PROMPT not in client.read_until(self.LOGIN_PROMPT, self._timeout):
                 raise RMIShellClientException("Login failed")
 
             client.write("{}\n".format(self._user).encode())
 
             if self._password:
-                if self.PASSWORD_PROPMT not in client.read_until(self.PASSWORD_PROPMT, self._timeout):
+                if self.PASSWORD_PROMPT not in client.read_until(self.PASSWORD_PROMPT, self._timeout):
                     raise RMIShellClientException("Wait input password failed")
 
                 client.write("{}\n".format(self._password).encode())
@@ -279,6 +311,7 @@ class RMISTelnetClient(RMIShellClient):
             if verbose or self._verbose:
                 print(cmd.strip())
 
+            self.check_connection()
             self.client.write(cmd.encode())
             result = self.client.read_until(tail, timeout=timeout).decode().split("\n")
             return "\n".join(result[1:] if tail != self._shell_prompt else result[1:-1])
@@ -313,7 +346,8 @@ class RMISSecureShellClient(RMIShellClient):
             client = paramiko.SSHClient()
             address = (self._host, self._port)
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            sock = socket.create_connection(address, self._timeout, source_address=(source, 0)) if source else None
+            sock = socket.create_connection(address, self._timeout, source_address=(source, 0))
+            set_keepalive(sock)
 
             if self._verbose:
                 print("SSH connect: {} ===> {}".format(sock.getsockname(), address))
@@ -323,7 +357,7 @@ class RMISSecureShellClient(RMIShellClient):
 
             return client
         except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError,
-                ConnectionError, TimeoutError, socket.error, OSError) as error:
+                ConnectionError, TimeoutError, socket.error, OSError, AttributeError) as error:
             if isinstance(sock, socket.socket):
                 sock.close()
             raise RMIShellClientException(error)
@@ -336,6 +370,8 @@ class RMISSecureShellClient(RMIShellClient):
             cmd = "{} {}\n".format(command, " ".join(params)) if params else "{}\n".format(command)
             if verbose or self._verbose:
                 print(cmd.strip())
+
+            self.check_connection()
             _, out, err = self.client.exec_command(cmd, timeout=timeout)
             result = (out.read() + err.read()).decode()
             return "\n".join(result.split("\n"))[:-1]

@@ -6,9 +6,8 @@ Provide UI elements container
 
 import copy
 from typing import *
-from PySide.QtCore import QObject, Signal, QEvent
-from PySide.QtGui import QComboBox, QSpinBox, QDoubleSpinBox, QRadioButton, QCheckBox, QDial, QLCDNumber,\
-    QLabel, QLineEdit, QTextEdit, QPlainTextEdit, QDateTimeEdit, QWidget, QLayout, QLayoutItem, QGridLayout
+from PySide.QtCore import *
+from PySide.QtGui import *
 
 
 from .binder import *
@@ -222,7 +221,7 @@ class ComponentManager(QObject):
         self.__disabled = False
         self.__eventHandle = CustomEventFilterHandler(
             (QWidget,),
-            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease, QEvent.Wheel,
              QEvent.MouseButtonDblClick, QEvent.HoverLeave, QEvent.HoverEnter,
              QEvent.KeyPress, QEvent.KeyRelease), self)
 
@@ -692,7 +691,7 @@ class HyperlinkGroup(QObject):
         self._exclusive = exclusive
         self._eventHandle = CustomEventFilterHandler(
             (HyperlinkLabel,),
-            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+            (QEvent.MouseButtonPress, QEvent.MouseButtonRelease, QEvent.Wheel,
              QEvent.MouseButtonDblClick, QEvent.HoverLeave, QEvent.HoverEnter,
              QEvent.KeyPress, QEvent.KeyRelease), self
         )
