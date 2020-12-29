@@ -11,6 +11,7 @@ import paramiko
 import telnetlib
 import threading
 import ipaddress
+from typing import *
 from ..protocol.ftp import FTPClient
 from ..network.utility import get_host_address, set_keepalive
 __all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
@@ -21,7 +22,8 @@ class RMIShellClientException(Exception):
 
 
 class TelnetBindNic(telnetlib.Telnet):
-    def __init__(self, host=None, port=0, timeout=5, source="", verbose=False):
+    def __init__(self, host: str or None = None, port: int = 0,
+                 timeout: int = 5, source: str = "", verbose: int = False):
         super(TelnetBindNic, self).__init__()
         source_address = (source, 0) if source else None
         self.sock = socket.create_connection((host, port), timeout, source_address=source_address)
@@ -35,14 +37,15 @@ class RMIShellClient(object):
     TFTP_CLIENT = 'tftp'
     TFTP_DEF_PORT = 69
 
-    def __init__(self, host, timeout=5, source="", verbose=False):
+    def __init__(self, host: str, timeout: int = 5, source: str = "", verbose: bool = False):
         self._host = host
         self._source = source
         self._timeout = timeout
         self._verbose = verbose
 
     @staticmethod
-    def create_client(connection_type, host, user, password, port=None, timeout=5, source=""):
+    def create_client(connection_type: str, host: str, user: str, password: str,
+                      port: int or None = None, timeout: int = 5, source: str = ""):
         if connection_type == "telnet":
             port = port or RMISTelnetClient.DEF_PORT
             return RMISTelnetClient(host=host, user=user, password=password,
@@ -55,29 +58,31 @@ class RMIShellClient(object):
             raise RMIShellClientException("Unknown connection type: {!r}".format(connection_type))
 
     @staticmethod
-    def check_exec_result(result, pass_output):
+    def check_exec_result(result: str, pass_output: str) -> bool:
         for ret in result.split("\r\n"):
             if pass_output in ret:
                 return True
 
         return False
 
-    def create_new_connection(self, source):
+    def create_new_connection(self, source: str):
         return None
 
-    def clear_read_buffer(self, timeout=0):
+    def clear_read_buffer(self, timeout: int = 0):
         pass
 
-    def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
+    def exec(self, command: str, params: List[str] or None = None,
+             tail: bytes or None = None, timeout: int = 0, verbose: bool = False) -> str:
         pass
 
-    def connected(self):
+    def connected(self) -> bool:
         return self.is_dir_exist('/')
 
     def check_connection(self):
-        return self.connected()
+        if not self.is_alive(1):
+            raise ConnectionResetError("[WinError 10054] 远程主机强迫关闭了一个现有的连接。")
 
-    def get_memory_info(self):
+    def get_memory_info(self) -> Tuple[int, ...]:
         """Get memory usage from /proc/meminfo
 
         :return: MemTotal/MemFree
@@ -87,7 +92,7 @@ class RMIShellClient(object):
             raise RMIShellClientException("Get memory usage failed")
         return tuple([int(x) for x in result])
 
-    def get_cpu_usage_dict(self):
+    def get_cpu_usage_dict(self) -> dict:
         """Get cpu usage from top
 
         :return: cpu usage
@@ -96,7 +101,7 @@ class RMIShellClient(object):
         result = [x for x in result.split(":")[-1].split(" ") if len(x)]
         return dict(zip(result[1::2], result[::2]))
 
-    def get_disk_usage_dict(self):
+    def get_disk_usage_dict(self) -> dict:
         disk = dict()
         header = ['filesystem', 'size', 'used', 'available', 'percentage', 'mounted_on']
         result = self.exec("df -h").strip().split("\n")
@@ -110,7 +115,7 @@ class RMIShellClient(object):
 
         return disk
 
-    def get_memory_usage_dict(self):
+    def get_memory_usage_dict(self) -> dict:
         cmd = string.Template("top -n 1 | sed '1!d' | awk '{print $column}'").substitute(
             column=" ".join(["${}".format(c) for c in range(2, 12)])
         )
@@ -125,14 +130,14 @@ class RMIShellClient(object):
 
         return usage
 
-    def get_process_info_dict(self, pid):
+    def get_process_info_dict(self, pid: int) -> dict:
         """cat /proc/pid/status"""
         result = self.exec("cat /proc/{}/status".format(pid)).strip().split('\n')
         return dict(
             zip([x.split(":")[0] for x in result if ":" in x], [x.split(":")[-1].strip() for x in result if ":" in x])
         )
 
-    def get_memory_info_dict(self, unit="kB"):
+    def get_memory_info_dict(self, unit: str = "kB") -> dict:
         """cat cat /proc/meminfo"""
         info = dict()
         unit = unit.lower() if isinstance(unit, str) else "kb"
@@ -169,26 +174,27 @@ class RMIShellClient(object):
         except (ValueError, AttributeError):
             return -1
 
-    def is_alive(self, timeout=1):
+    def is_alive(self, timeout: int = 1) -> bool:
         return ping3.ping(dest_addr=self._host, timeout=timeout) is not None
 
-    def is_exist(self, abs_path):
+    def is_exist(self, abs_path: str) -> bool:
         return True if '0' in self.exec("test", ["-e", abs_path, "&&", "echo $?"]) else False
 
-    def is_dir_exist(self, dir_abs_path):
+    def is_dir_exist(self, dir_abs_path: str) -> bool:
         return True if '0' in self.exec("test", ["-d", dir_abs_path, "&&", "echo $?"]) else False
 
-    def is_file_exist(self, file_abs_path):
+    def is_file_exist(self, file_abs_path: str) -> bool:
         return True if '0' in self.exec("test", ["-f", file_abs_path, "&&", "echo $?"]) else False
 
-    def exec_script_get_result(self, script_path, timeout=0):
+    def exec_script_get_result(self, script_path: str, timeout: int = 0) -> str:
         if not self.is_file_exist(script_path):
             raise RMIShellClientException("Script: [{}] do not exist".format(script_path))
 
         return self.exec("chmod", ["a+x", script_path, "&&", script_path], timeout=timeout)
 
-    def tftp_upload_file(self, local_file, remote_path="/tmp", remote_name="",
-                         network=None, random_port=True, verbose=False, verify_by_md5=False):
+    def tftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
+                         network: ipaddress.IPv4Network or None = None, random_port: bool = True,
+                         verbose: bool = False, verify_by_md5: bool = False) -> bool:
         """
         Uoload a local_file from local to remote
         :param local_file: file to upload
@@ -254,8 +260,8 @@ class RMISTelnetClient(RMIShellClient):
     DEF_PORT = 23
     LOGIN_PROMPT, PASSWORD_PROMPT, SHELL_PROMPT = (b'login:', b'Password:', b'#')
 
-    def __init__(self, host, user, password, port=DEF_PORT,
-                 timeout=5, shell_prompt=SHELL_PROMPT, source="", verbose=False):
+    def __init__(self, host: str, user: str, password: str, port: int = DEF_PORT,
+                 timeout: int = 5, shell_prompt: bytes = SHELL_PROMPT, source: str = "", verbose: bool = False):
         super(RMISTelnetClient, self).__init__(host, timeout, source, verbose)
         self._port = port
         self._user = user
@@ -271,13 +277,10 @@ class RMISTelnetClient(RMIShellClient):
         except AttributeError:
             pass
 
-    def check_connection(self):
-        self.client.sock.sendall(telnetlib.IAC + telnetlib.NOP)
-
-    def clear_read_buffer(self, timeout=0):
+    def clear_read_buffer(self, timeout: int = 0):
         return self.client.read_until(self._shell_prompt, timeout=timeout or self._timeout)
 
-    def create_new_connection(self, source):
+    def create_new_connection(self, source: str):
         try:
             client = TelnetBindNic(host=self._host, port=self._port,
                                    timeout=self._timeout, source=source, verbose=self._verbose)
@@ -301,7 +304,8 @@ class RMISTelnetClient(RMIShellClient):
         except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout, OSError) as error:
             raise RMIShellClientException("Login error: {}".format(error))
 
-    def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
+    def exec(self, command: str, params: List[str] or None = None,
+             tail: bytes or None = None, timeout: int = 0, verbose: bool = False):
         try:
             command.strip()
             params = params or list()
@@ -324,7 +328,8 @@ class RMISTelnetClient(RMIShellClient):
 class RMISSecureShellClient(RMIShellClient):
     DEF_PORT = 22
 
-    def __init__(self, host, user, password, port=DEF_PORT, timeout=5, source="",  verbose=False):
+    def __init__(self, host: str, user: str, password: str,
+                 port: int = DEF_PORT, timeout: int = 5, source: str = "",  verbose: bool = False):
         super(RMISSecureShellClient, self).__init__(host, timeout, source, verbose)
         self._port = port
         self._user = user
@@ -339,7 +344,7 @@ class RMISSecureShellClient(RMIShellClient):
         except AttributeError:
             pass
 
-    def create_new_connection(self, source):
+    def create_new_connection(self, source: str):
         sock = None
 
         try:
@@ -362,7 +367,8 @@ class RMISSecureShellClient(RMIShellClient):
                 sock.close()
             raise RMIShellClientException(error)
 
-    def exec(self, command, params=None, tail=None, timeout=0, verbose=False):
+    def exec(self, command: str, params: List[str] = None,
+             tail: bytes or None = None, timeout: int = 0, verbose: bool = False):
         try:
             command.strip()
             params = params or list()
