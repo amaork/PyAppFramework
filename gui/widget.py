@@ -2544,6 +2544,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget.setMaximum(setting.get_check()[1])
                     widget.setValue(setting.get_data())
                     widget.setSingleStep(setting.get_check()[2])
+                    if len(setting.get_check()) > 3:
+                        widget.setDecimals(setting.get_check()[3])
             elif setting.is_select_type():
                 widget = QComboBox(parent)
                 widget.addItems(setting.get_check())
@@ -3047,13 +3049,14 @@ class LogMessageWidget(QTextEdit):
 
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
-                 parent: QWidget or None = None):
+                 transform_space: bool = False, parent: QWidget or None = None):
         super(LogMessageWidget, self).__init__(parent)
 
         self.setReadOnly(True)
         self._logFilename = filename
         self._startTime = datetime.now()
         self._displayFilter = self.DISPLAY_ALL
+        self._transformSpace = transform_space
         self.textChanged.connect(self.slotAutoScroll)
 
         # Get logger and set level and propagate
@@ -3141,7 +3144,7 @@ class LogMessageWidget(QTextEdit):
             self.append("<font color='{}' size={}>{}: {}</font>".format(
                 message.color, message.font_size,
                 logging.getLevelName(message.level),
-                message.content.replace(" ", "&nbsp;"))
+                message.content.replace(" ", "&nbsp;") if self._transformSpace else message.content)
             )
 
         # Write to log file if write_to_log set

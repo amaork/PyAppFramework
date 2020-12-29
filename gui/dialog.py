@@ -414,7 +414,7 @@ class ProgressDialog(QProgressDialog):
             ev.ignore()
 
         if self.__cancelable:
-            if showQuestionBox(self, self.tr("Cancel") + self.windowTitle() + " ?"):
+            if showQuestionBox(self, self.tr("Cancel") + " " + self.windowTitle() + " ?"):
                 self.setLabelText(self.tr("Canceling please wait..."))
                 self.setCancelState(True)
 

@@ -394,9 +394,9 @@ class UiColorInput(UiInputSetting):
 
 
 class UiDoubleInput(UiInputSetting):
-    def __init__(self, name, minimum, maximum, default=0.0, step=1.0, readonly=False):
+    def __init__(self, name, minimum, maximum, default=0.0, step=1.0, decimals=1, readonly=False):
         super(UiDoubleInput, self).__init__(name=name, data=default, default=default,
-                                            check=(minimum, maximum, step), readonly=readonly, type="FLOAT")
+                                            check=(minimum, maximum, step, decimals), readonly=readonly, type="FLOAT")
 
 
 class UiIntegerInput(UiInputSetting):
