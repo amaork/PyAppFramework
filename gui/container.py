@@ -211,6 +211,7 @@ class ComboBoxGroup(QObject):
 
 class ComponentManager(QObject):
     dataChanged = Signal()
+    dataChangedDetail = Signal(str, object)
 
     def __init__(self, layout, parent=None):
         super(ComponentManager, self).__init__(parent)
@@ -404,6 +405,7 @@ class ComponentManager(QObject):
 
         # Emit dataChanged signal
         self.dataChanged.emit()
+        self.dataChangedDetail.emit(sender.property("data"), self.getComponentData(sender))
 
     def getAll(self):
         return self.getAllComponents(self.__object)

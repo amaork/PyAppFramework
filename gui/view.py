@@ -328,6 +328,8 @@ class TableView(QTableView):
 
 
 class TableViewDelegate(QItemDelegate):
+    dataChanged = Signal(QModelIndex, object)
+
     def __init__(self, parent: QWidget or None = None):
         super(TableViewDelegate, self).__init__(parent)
         self._columnDelegateSettings = dict()
@@ -350,22 +352,50 @@ class TableViewDelegate(QItemDelegate):
             return None
 
         if isinstance(settings, UiCheckBoxInput):
-            return CheckBox(parent=parent)
+            checkbox = CheckBox(parent=parent)
+            checkbox.stateChanged.connect(lambda x: self.commitData.emit(checkbox))
+            return checkbox
         else:
-            return JsonSettingWidget.createInputWidget(settings, parent=parent)
+            widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
 
-    def setEditorData(self, editor, index):
+            if isinstance(widget, QSpinBox):
+                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
+            if isinstance(widget, QDoubleSpinBox):
+                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QComboBox):
+                widget.currentIndexChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QCheckBox):
+                widget.stateChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QRadioButton):
+                widget.clicked.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QLineEdit):
+                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QTextEdit):
+                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QPlainTextEdit):
+                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QDateTimeEdit):
+                widget.dateTimeChanged.connect(lambda x: self.commitData.emit(widget))
+            elif isinstance(widget, QDial):
+                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
+
+            return widget
+
+    def setEditorData(self, editor: QWidget, index: QModelIndex):
         if not isinstance(index, QModelIndex):
             return None
 
         value = index.model().data(index, Qt.EditRole)
         ComponentManager.setComponentData(editor, value)
 
-    def setModelData(self, editor, model, index):
+    def setModelData(self, editor: QWidget, model: QStandardItemModel, index: QModelIndex):
         if not isinstance(index, QModelIndex) or not isinstance(model, QStandardItemModel):
             return None
 
-        model.setData(index, ComponentManager.getComponentData(editor), Qt.EditRole)
+        data = ComponentManager.getComponentData(editor)
+        if model.data(index) != data:
+            model.setData(index, data, Qt.EditRole)
+            self.dataChanged.emit(index, data)
 
     def updateEditorGeometry(self, editor, option, index):
         editor.setGeometry(option.rect)

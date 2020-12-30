@@ -2209,6 +2209,7 @@ class SerialPortSettingWidget(QWidget):
 
 class BasicJsonSettingWidget(QWidget):
     settingChanged = Signal()
+    settingChangedDetail = Signal(str, object)
 
     def __init__(self, settings, parent=None):
         super(BasicJsonSettingWidget, self).__init__(parent)
@@ -2292,6 +2293,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         if isinstance(widget, QLineEdit):
                             widget.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed))
                             widget.textChanged.connect(self.slotSettingChanged)
+                            widget.textChanged.connect(
+                                lambda x: self.settingChangedDetail.emit(widget.property("data"), x)
+                            )
                     elif isinstance(widget, QLayout):
                         # Add label and layout
                         layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
@@ -2314,10 +2318,16 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         # Text mode
                         if isinstance(select_value, QLineEdit):
                             select_value.textChanged.connect(self.slotSettingChanged)
+                            select_value.textChanged.connect(
+                                lambda x: self.settingChangedDetail.emit(select_value.property("data"), x)
+                            )
                             btn_group.buttonClicked.connect(lambda x: select_value.setText(x.text()))
                         # Value mode
                         elif isinstance(select_value, QSpinBox):
                             select_value.valueChanged.connect(self.slotSettingChanged)
+                            select_value.textChanged.connect(
+                                lambda x: self.settingChangedDetail.emit(select_value.property("data"), x)
+                            )
                             btn_group.buttonClicked.connect(lambda x: select_value.setValue(x.property("id")))
                 except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                     print("{}".format(err))
@@ -2326,6 +2336,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         self.setLayout(layout)
         self.ui_manager = ComponentManager(layout)
         self.ui_manager.dataChanged.connect(self.slotSettingChanged)
+        self.ui_manager.dataChangedDetail.connect(self.settingChangedDetail.emit)
 
     def __initData(self, data):
         self.setData(data)
@@ -2885,7 +2896,9 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
         self.setData(data)
 
     def __initSignalAndSlots(self):
-        [widget.settingChanged.connect(self.slotSettingChanged) for widget in self.widget_list]
+        for widget in self.widget_list:
+            widget.settingChanged.connect(self.slotSettingChanged)
+            widget.settingChangedDetail.connect(self.settingChangedDetail.emit)
 
     def getData(self):
         data = dict()
@@ -2921,6 +2934,8 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
 
 class MultiTabJsonSettingsWidget(QTabWidget):
     settingChanged = Signal()
+    settingChangedDetail = Signal(str, object)
+
     SET_DATA_METHOD_NAME = "setData"
     GET_DATA_METHOD_NAME = "getData"
     RESET_DATA_METHOD_NAME = "resetDefaultData"
@@ -2985,7 +3000,9 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         self.setData(data)
 
     def __initSignalAndSlots(self):
-        [widget.settingChanged.connect(self.slotSettingChanged) for widget in self.widget_list]
+        for widget in self.widget_list:
+            widget.settingChanged.connect(self.slotSettingChanged)
+            widget.settingChangedDetail.connect(self.settingChangedDetail.emit)
 
     def insertCustomTabWidget(self, name, widget, position=None):
         if not isinstance(widget, QWidget):
