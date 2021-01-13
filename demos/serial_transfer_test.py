@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--baudrate", help="Serial port baudrate", default=38400)
     args = vars(parser.parse_args())
 
-    port = SerialPort(args.get("port"), args.get("baudrate"), args.get("timeout"))
+    port = SerialPort(port=args.get("port"), baudrate=args.get("baudrate"), timeout=args.get("timeout"))
     serial_transaction = SerialTransferProtocol(port.write, port.read)
 
     # Read test

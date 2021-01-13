@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import time
 import glob
 import ctypes
 import serial
 import platform
+from typing import *
 from threading import Thread
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
@@ -330,26 +332,38 @@ class SerialTransferProtocol(object):
 
 
 class SerialPort(object):
-    def __init__(self, port, baudrate, timeout=0):
+    def __init__(self, port: str, baudrate: int,
+                 bytesize: int = 8, parity: str = 'N', stopbits: int = 1,
+                 timeout: float = 0, ending_check: Callable[[bytes], bool] or None = None):
         """Serial port
 
         :param port: local serial port("COM1" , "/dev/ttyS1"), or WebsocketSerial("xxx.xxx.xxx.xxx", "/dev/ttyS1")
         :param baudrate:  serial port baudrate
+        :param bytesize:  number of data bits. Possible values: 5, 6, 7, 8
+        :param parity: enable parity checking. Possible values: 'N', 'E', 'O'
+        :param stopbits: number of stop bits. Possible values: 1, 2
         :param timeout: serial port timeout
+        :param ending_check: dynamic check if receive is ending or not
         """
         try:
 
             # xxx.xxx.xxx.xxx/ttyXXX
             if ip4_check(port.split("/")[0]):
-                addr = port.split("/")[0]
-                remote_port = port.replace(addr, "/dev")
-                port = (addr, remote_port)
+                address = port.split("/")[0]
+                remote_port = port.replace(address, "/dev")
+                port = (address, remote_port)
                 raise AttributeError
 
-            self.__port = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+            self.__timeout = timeout
+            self.__ending_check = ending_check
+            self.__port = serial.Serial(port=port, baudrate=baudrate,
+                                        bytesize=bytesize, parity=parity, stopbits=stopbits,
+                                        timeout=0.01 if hasattr(ending_check, "__call__") else timeout)
         except (AttributeError, ValueError, TypeError):
             try:
-                self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate, timeout=timeout, verbose=0)
+                self.__port = WebsocketSerial(host=port[0], port=port[1], baudrate=baudrate,
+                                              bytesize=bytesize, parity=parity, stopbits=stopbits,
+                                              timeout=timeout, verbose=0)
             except IndexError:
                 raise serial.SerialException("Unknown port type:{}".format(port))
             except ValueError:
@@ -376,7 +390,7 @@ class SerialPort(object):
         self.__port.flushInput()
         self.__port.flushOutput()
 
-    def write(self, data):
+    def write(self, data: bytes) -> int:
         """Basic send data
 
         :param data: will send data
@@ -394,12 +408,15 @@ class SerialPort(object):
 
         return len(data)
 
-    def read(self, size):
+    def read(self, size: int, timeout: float or None = None):
         """Basic receive data
 
         :param size: receive data size
+        :param timeout: receive data timeout(s)
         :return: received data or timeout exception
         """
+        start = time.time()
+        timeout = timeout if timeout else self.__timeout
 
         if size == 0:
             raise serial.SerialException("Receive data length error")
@@ -408,14 +425,13 @@ class SerialPort(object):
             raise serial.SerialException("Serial port: {} is not opened".format(self.__port.port))
 
         data = bytes()
-        while len(data) != size:
-            tmp = self.__port.read(size - len(data))
-            if len(tmp) == 0 and len(data) == 0:
-                raise serial.SerialTimeoutException("Receive data timeout!")
-            elif len(tmp) == 0:
+        while len(data) < size and time.time() - start < timeout:
+            data += self.__port.read(size - len(data))
+            if data and hasattr(self.__ending_check, "__call__") and self.__ending_check(data):
                 break
 
-            data += tmp
+        if not data:
+            raise serial.SerialTimeoutException("Receive data timeout!")
 
         return data
 

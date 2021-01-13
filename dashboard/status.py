@@ -57,6 +57,10 @@ class DashboardStatusIcon(QWidget):
         return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
 
     @property
+    def name(self):
+        return self._name[:]
+
+    @property
     def font(self):
         return self._font
 
