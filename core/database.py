@@ -619,6 +619,10 @@ class SQLiteDatabaseCreator(object):
         return table_name in tables
 
     @staticmethod
+    def _enum_tail(table_name: str) -> str:
+        return "{}{}".format(table_name.capitalize(), SQLiteDatabaseCreator.ENUM_TAIL_ITEM_NAME)
+
+    @staticmethod
     def __format_enum_item(name: str, index: int) -> str:
         return "\t{} = {}".format(name, index)
 
@@ -731,7 +735,7 @@ class SQLiteDatabaseCreator(object):
                         return False
                     enum_items.append(self.__format_enum_item(item.name, id_))
 
-                enum_items.append(self.__format_enum_item(self.ENUM_TAIL_ITEM_NAME, len(enum_items)))
+                enum_items.append(self.__format_enum_item(self._enum_tail(table_name), len(enum_items)))
                 fp.write(",\n".join(enum_items))
                 fp.write("\n};\n")
 
