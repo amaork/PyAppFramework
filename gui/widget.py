@@ -32,6 +32,7 @@ from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
+from threading import Thread
 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
@@ -3115,7 +3116,7 @@ class LogMessageWidget(QTextEdit):
         self.ui_show_info.triggered.connect(self.slotShowSelectLog)
         self.ui_show_debug.triggered.connect(self.slotShowSelectLog)
         self.ui_show_error.triggered.connect(self.slotShowSelectLog)
-        self.setDisplayFilter(display_filter)
+        self.setDisplayFilter(display_filter, load=False)
 
     def getLevelMask(self, level: int) -> int:
         return {
@@ -3233,7 +3234,7 @@ class LogMessageWidget(QTextEdit):
         self._enableError(self.ui_show_error.isChecked())
         self.filterLog(levels)
 
-    def setDisplayFilter(self, display_filter: int):
+    def setDisplayFilter(self, display_filter: int, load: bool = True):
         if not isinstance(display_filter, int):
             return
 
@@ -3252,7 +3253,8 @@ class LogMessageWidget(QTextEdit):
         else:
             self.ui_show_error.setChecked(False)
 
-        self.slotShowSelectLog()
+        if load:
+            self.slotShowSelectLog()
 
     def contextMenuEvent(self, ev):
         self.ui_context_menu.exec_(ev.globalPos())
