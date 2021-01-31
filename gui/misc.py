@@ -443,14 +443,14 @@ class NavigationBar(QToolBar):
         if isinstance(sender, NavigationItem):
             sender.setActivate(True)
 
-    def slotOrientationChanged(self, dir):
+    def slotOrientationChanged(self, direction):
         if not self.isFold():
             self.foldExpand()
 
         if not self.__disable_horizontal_fold:
             return
 
-        if dir == Qt.Horizontal and self.isFold():
+        if direction == Qt.Horizontal and self.isFold():
             self.foldExpand()
 
     def setActivateItem(self, name):
@@ -482,7 +482,7 @@ class CustomEventFilterHandler(QObject):
         super(CustomEventFilterHandler, self).__init__(parent)
 
         if not isinstance(types, tuple):
-            raise TypeError("{!r} request a list or tuple".format("objs"))
+            raise TypeError("{!r} request a list or tuple".format("types"))
 
         if not isinstance(events, (list, tuple)):
             raise TypeError("{!r} request a list or tuple".format("events"))
@@ -506,48 +506,53 @@ class CustomEventFilterHandler(QObject):
 
 
 class ThreadSafeLabel(QWidget):
-    def __init__(self, parent=None, text="", font=QFont("等线 Light", 9), color=Qt.black, align=Qt.AlignCenter):
+    def __init__(self, parent: QWidget or None = None,
+                 text: str = "", font: QFont = QFont("等线 Light", 9),
+                 color: QColor or Qt.GlobalColor = Qt.black, align: Qt.AlignmentFlag = Qt.AlignCenter):
         super(ThreadSafeLabel, self).__init__(parent)
         self._text = text
         self._font = font
         self._align = align
-        self._color = color
+        self._color = QColor(color)
         self.update()
 
-    def text(self):
+    def text(self) -> str:
         return self._text[:]
 
-    def setText(self, text):
+    def setText(self, text: str):
         self._text = text
+        metrics = QFontMetrics(self.font())
+        self.setMinimumWidth(metrics.width(self._text))
         self.update()
 
-    def font(self):
+    def font(self) -> QFont:
         return self._font
 
-    def setFont(self, font):
+    def setFont(self, font: QFont):
         if isinstance(font, QFont):
             self._font = font
 
-    def color(self):
+    def color(self) -> QColor:
         return self._color
 
-    def setColor(self, color):
+    def setColor(self, color: Qt.GlobalColor or QColor):
         if isinstance(color, (Qt.GlobalColor, QColor)):
-            self._color = color
+            self._color = QColor(color)
             self.update()
 
-    def setAlignment(self, align):
-        self._align = align
+    def setAlignment(self, align: Qt.AlignmentFlag):
+        if isinstance(align, Qt.AlignmentFlag):
+            self._align = align
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         painter.setFont(self.font())
-        painter.setPen(QPen(QColor(self._color)))
+        painter.setPen(QPen(self._color))
         painter.drawText(self.rect(), self._align, self._text)
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         metrics = QFontMetrics(self.font())
         min_height = metrics.height()
         min_width = metrics.width(self._text) * 1.3
@@ -558,8 +563,13 @@ class HyperlinkLabel(ThreadSafeLabel):
     signalClicked = Signal(object)
     DEFAULT_FONT = QFont("等线 Light", 9)
 
-    def __init__(self, text="", font=DEFAULT_FONT,
-                 defaultColor=Qt.black, clickedColor=Qt.blue, hoverColor=Qt.blue, hoverFont=DEFAULT_FONT, parent=None):
+    def __init__(self, text: str = "",
+                 font: QFont = DEFAULT_FONT,
+                 selectedFormat: str = "{}",
+                 defaultColor: QColor or Qt.GlobalColor = Qt.black,
+                 clickedColor: QColor or Qt.GlobalColor = Qt.blue,
+                 hoverColor: QColor or Qt.GlobalColor = Qt.blue,
+                 hoverFont: QFont = DEFAULT_FONT, parent: QWidget or None = None):
         super(HyperlinkLabel, self).__init__(parent=parent, text=text, font=font, color=defaultColor)
         self._isClicked = False
         self._defaultFont = font
@@ -568,28 +578,30 @@ class HyperlinkLabel(ThreadSafeLabel):
         self._hoverFont = hoverFont
         self._hoverColor = hoverColor
         self._clickedColor = clickedColor
+        self._defaultText = text
+        self._selectedFormat = selectedFormat
 
     def reset(self):
         self._isClicked = False
+        self.setText(self._defaultText)
         self.setColor(self._defaultColor)
 
     def click(self):
         self._isClicked = True
         self.setColor(self._clickedColor)
-        self.signalClicked.emit(self.text())
+        self.signalClicked.emit(self._defaultText)
+        self.setText(self._selectedFormat.format(self._defaultText))
 
-    def isClicked(self):
+    def isClicked(self) -> bool:
         return self._isClicked
 
-    def enterEvent(self, ev):
+    def enterEvent(self, ev: QEvent):
         self.setFont(self._hoverFont)
         self.setColor(self._hoverColor)
 
-    def leaveEvent(self, ev):
+    def leaveEvent(self, ev: QEvent):
         self.setFont(self._defaultFont)
         self.setColor(self._clickedColor if self._isClicked else self._defaultColor)
 
-    def mousePressEvent(self, ev):
-        self._isClicked = True
-        self.setColor(self._clickedColor)
-        self.signalClicked.emit(self.text())
+    def mousePressEvent(self, ev: QMouseEvent):
+        self.click()
