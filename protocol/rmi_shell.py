@@ -194,7 +194,7 @@ class RMIShellClient(object):
 
     def tftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
                          network: ipaddress.IPv4Network or None = None, random_port: bool = True,
-                         verbose: bool = False, verify_by_md5: bool = False) -> bool:
+                         verbose: bool = False, verify_by_md5: bool = False, timeout: int = 60) -> bool:
         """
         Uoload a local_file from local to remote
         :param local_file: file to upload
@@ -204,6 +204,7 @@ class RMIShellClient(object):
         :param random_port: tftp using random port
         :param verbose: display verbose info
         :param verify_by_md5: if set compare local and remote file md5 else only compare file size
+        :param timeout: tftp client download file timeout
         :return: success return true, failed return false
         """
         def server_listen(server, address, port):
@@ -235,7 +236,7 @@ class RMIShellClient(object):
         # Download file
         ret = self.exec(self.TFTP_CLIENT,
                         ["-g", "-r", os.path.basename(local_file), "-l", remote_file, server_address, str(server_port)],
-                        verbose=verbose)
+                        verbose=verbose, timeout=timeout)
 
         if self._verbose or verbose:
             print(ret)
@@ -315,7 +316,6 @@ class RMISTelnetClient(RMIShellClient):
             if verbose or self._verbose:
                 print(cmd.strip())
 
-            self.check_connection()
             self.client.write(cmd.encode())
             result = self.client.read_until(tail, timeout=timeout).decode().split("\n")
             return "\n".join(result[1:] if tail != self._shell_prompt else result[1:-1])
@@ -377,7 +377,6 @@ class RMISSecureShellClient(RMIShellClient):
             if verbose or self._verbose:
                 print(cmd.strip())
 
-            self.check_connection()
             _, out, err = self.client.exec_command(cmd, timeout=timeout)
             result = (out.read() + err.read()).decode()
             return "\n".join(result.split("\n"))[:-1]

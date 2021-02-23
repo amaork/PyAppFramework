@@ -12,7 +12,7 @@ import concurrent.futures
 from threading import Thread
 from typing import List
 from ..core.datatype import DynamicObject
-__all__ = ['get_system_nic',
+__all__ = ['get_system_nic', 'get_address_source_network',
            'get_host_address', 'get_broadcast_address',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
@@ -43,6 +43,18 @@ def get_system_nic(ignore_loopback: bool = True) -> dict:
                 continue
 
     return interfaces
+
+
+def get_address_source_network(ip: str) -> ipaddress.IPv4Network or None:
+    for nic in get_system_nic().values():
+        try:
+            network = ipaddress.ip_network(nic.network)
+            if ipaddress.ip_address(ip) in network.hosts():
+                return network
+        except ValueError:
+            return None
+
+    return None
 
 
 def get_host_address(network: None or ipaddress.IPv4Network = None) -> List[str]:
