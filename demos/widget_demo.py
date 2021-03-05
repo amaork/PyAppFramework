@@ -9,6 +9,7 @@ from ..gui.widget import *
 from ..misc.settings import *
 from .images import ImagesPath
 from ..gui.container import ComponentManager
+from ..gui.dialog import showFileImportDialog
 from ..gui.widget import SerialPortSettingWidget
 from ..gui.misc import NavigationItem, NavigationBar
 
@@ -617,11 +618,11 @@ class Demo(QMainWindow):
 
     def showImage(self):
         if self.sender() == self.imageFsButton:
-            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*.jpg)")
+            file = showFileImportDialog(parent=self, title="Select image", path=ImagesPath, fmt="All Files (*.jpg)")
             self.drawFromFs.emit(file)
             self.imageWidget.setHidden(False)
         elif self.sender() == self.imageMemButton:
-            file, _ = QFileDialog.getOpenFileName(self, "Select image", ImagesPath, "All Files (*.jpg)")
+            file = showFileImportDialog(parent=self, title="Select image", path=ImagesPath, fmt="All Files (*.jpg)")
             if os.path.isfile(file):
                 data = ""
                 with open(file, "rb") as fp:

@@ -2326,7 +2326,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         # Value mode
                         elif isinstance(select_value, QSpinBox):
                             select_value.valueChanged.connect(self.slotSettingChanged)
-                            select_value.textChanged.connect(
+                            select_value.valueChanged.connect(
                                 lambda x: self.settingChangedDetail.emit(select_value.property("data"), x)
                             )
                             btn_group.buttonClicked.connect(lambda x: select_value.setValue(x.property("id")))
@@ -2422,10 +2422,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
     def slotSelectFile(self):
         sender = self.sender()
+        from .dialog import showFileImportDialog
         file_format = " ".join(sender.property("private") or list())
         title = self.tr("Please select") + " {}".format(sender.property("title"))
-        path, ret = QFileDialog.getOpenFileName(self, title, "", self.tr(file_format))
-        if not ret or not os.path.isfile(path):
+
+        path = showFileImportDialog(parent=self, title=title, fmt=self.tr(file_format))
+        if not os.path.isfile(path):
             return
 
         path_edit = self.ui_manager.getPrevSibling(sender)
@@ -2805,10 +2807,11 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         self.setData([data for _ in range(self.ui_table.rowCount())])
 
     def slotSelectFile(self):
-        sender = self.sender()
         file_format = "*"
-        path, ret = QFileDialog.getOpenFileName(self, self.tr("Please Select File"), "", self.tr(file_format))
-        if not ret or not os.path.isfile(path):
+        sender = self.sender()
+        from .dialog import showFileImportDialog
+        path = showFileImportDialog(parent=self, title=self.tr("Please Select File"), fmt=self.tr(file_format))
+        if not os.path.isfile(path):
             return
 
         sender.setProperty("private", path)

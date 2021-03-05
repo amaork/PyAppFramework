@@ -19,6 +19,8 @@ __all__ = ['SimpleColorDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
+__showFileImportDialogRecentPathDict = dict()
+
 
 class SimpleColorDialog(QDialog):
     # This signal is emitted just after the user has clicked OK to select a color to use
@@ -774,8 +776,13 @@ def showFileImportDialog(parent, fmt, path="",
                          title=QApplication.translate("dialog",
                                                       "Please select import file",
                                                       None, QApplication.UnicodeUTF8)):
-    path, ret = QFileDialog.getOpenFileName(parent, parent.tr(title), path, parent.tr(fmt))
-    if not ret or not os.path.isfile(path):
+
+    # If not specified path load recently used path
+    path = __showFileImportDialogRecentPathDict.get(title, "") if not path else path
+
+    import_path, ret = QFileDialog.getOpenFileName(parent, parent.tr(title), path, parent.tr(fmt))
+    if not ret or not os.path.isfile(import_path):
         return ""
 
-    return path
+    __showFileImportDialogRecentPathDict[title] = os.path.dirname(import_path)
+    return import_path
