@@ -263,7 +263,7 @@ class TableView(QTableView):
         return sum([self.setItemData(row, column, data[row], role)
                     for row in range(model.rowCount())]) == len(data)
 
-    def getItemData(self, row, column, role=Qt.EditRole):
+    def getItemData(self, row, column, role=Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return ""
@@ -337,6 +337,10 @@ class TableViewDelegate(QItemDelegate):
     def setColumnDelegate(self, filter_: Dict[int, UiInputSetting]):
         if isinstance(filter_, dict):
             self._columnDelegateSettings = filter_
+
+    def updateColumnDelegate(self, column: int, filter_: UiInputSetting):
+        if column in self._columnDelegateSettings and isinstance(filter_, UiInputSetting):
+            self._columnDelegateSettings[column] = filter_
 
     def isFrozen(self, index: QStyleOptionViewItem) -> bool:
         row = index.row()
