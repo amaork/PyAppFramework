@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import threading
-__all__ = ['ThreadLockContentManager', 'ThreadConditionWrap']
+from typing import *
+__all__ = ['ThreadLockContentManager', 'ThreadConditionWrap', 'ThreadLockAndDataWrap']
 
 
 class ThreadLockContentManager(object):
@@ -37,3 +38,19 @@ class ThreadConditionWrap(object):
             self.__result = result
             self.__finished = True
             self.__condition.notify()
+
+
+class ThreadLockAndDataWrap(object):
+    def __init__(self, data: Any):
+        self.__data = data
+        self.__lock = threading.Lock()
+
+    @property
+    def data(self):
+        with self.__lock:
+            return self.__data
+
+    @data.setter
+    def data(self, data):
+        with self.__lock:
+            self.__data = data
