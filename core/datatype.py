@@ -186,7 +186,7 @@ class DynamicObject(object):
     def __len__(self):
         return len(self._properties)
 
-    def __str__(self):
+    def __repr__(self):
         return self.dumps()
 
     def __iter__(self):

@@ -45,6 +45,9 @@ class ThreadLockAndDataWrap(object):
         self.__data = data
         self.__lock = threading.Lock()
 
+    def __bool__(self):
+        return bool(self.data)
+
     @property
     def data(self):
         with self.__lock:

@@ -2994,6 +2994,8 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                         settings[item] = self.settings.get(item)
 
                 widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
+                widget.setProperty('name', tab_setting.name)
+
                 self.widget_list.append(widget)
                 tab_layout.addWidget(widget)
                 self.insertTab(self.count(), widget, tab_setting.name)
@@ -3050,6 +3052,13 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
     def slotSettingChanged(self):
         self.settingChanged.emit()
+
+    def getTabWidget(self, name: str) -> QWidget or None:
+        for widget in self.widget_list:
+            if widget.property('name') == name:
+                return widget
+
+        return None
 
     def getGroupWidgetManager(self, name):
         for widget in self.widget_list:
