@@ -18,7 +18,6 @@ def usage():
 
 
 if __name__ == '__main__':
-
     try:
 
         opts, args = getopt.getopt(sys.argv[1:], "hcxvf:s:d:", ["help", "create", "extract", "verbose",

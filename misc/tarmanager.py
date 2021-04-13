@@ -6,16 +6,21 @@ import os
 import shutil
 import tarfile
 import zipfile
+import lz4.frame
 from typing import *
+__all__ = ['TarManager', 'TarManagerError', 'TarManagerCallback']
 
-__all__ = ['TarManager', 'TarManagerError']
+# callback(processingFilename, processingFileIndex)
+TarManagerCallback = Callable[[str, int], None]
+TarManagerFilterCallback = Callable[[str], bool]
 
 
 class Compress(object):
     exception = Exception
     support_format = {}
 
-    def __init__(self, simulate: bool = False, callback: Callable[[str], int] or None = None):
+    def __init__(self, simulate: bool = False, callback: TarManagerCallback or None = None):
+        self._processing = 0
         self._simulate = simulate
         self._callback = callback
 
@@ -41,8 +46,10 @@ class Compress(object):
         pass
 
     def callback(self, name: str):
+        self._processing += 1
+
         if hasattr(self._callback, "__call__"):
-            self._callback(name)
+            self._callback(name, self._processing)
 
     def _pack(self, obj, filename: str):
         pass
@@ -155,12 +162,76 @@ class ZipCompress(Compress):
         obj.extract(filename, extract_path)
 
 
+class Lz4Compress(TarCompress):
+    support_format = {
+        'lz4': ':'
+    }
+
+    @staticmethod
+    def __get_lz4_filename(filename: str) -> str:
+        return filename + '.lz4'
+
+    @staticmethod
+    def __get_org_filename(filename: str) -> str:
+        return os.path.splitext(filename)[0] if '.lz4' in filename else filename
+
+    def open(self, name: str, mode: str, fmt: str):
+        return tarfile.open(name, mode + self.support_format.get(fmt))
+
+    def _pack(self, obj, filename: str):
+        # Read original file
+        with open(filename, 'rb') as read_fp:
+            input_data = read_fp.read()
+
+        # Compress to lz4
+        lz4_file = self.__get_lz4_filename(filename)
+        with open(lz4_file, 'wb') as write_fp:
+            write_fp.write(lz4.frame.compress(input_data))
+
+        try:
+            # Add lz4 to tar
+            obj.add(lz4_file)
+        finally:
+            if os.path.isfile(lz4_file):
+                os.unlink(lz4_file)
+
+    def _extractall(self, obj, extract_path: str):
+        obj.extractall(extract_path)
+
+        for filename in os.listdir(extract_path):
+            lz4_file_path = os.path.join(extract_path, filename)
+
+            try:
+                with open(os.path.join(extract_path, self.__get_org_filename(filename)), 'wb') as write_fp:
+                    with open(lz4_file_path, 'rb') as read_fp:
+                        write_fp.write(lz4.frame.decompress(read_fp.read()))
+            finally:
+                if os.path.isfile(lz4_file_path):
+                    os.unlink(lz4_file_path)
+
+    def _extract(self, obj, filename: str, extract_path: str):
+        obj.extract(filename, extract_path)
+        lz4_file_path = os.path.join(extract_path, filename)
+
+        try:
+            with open(os.path.join(extract_path, self.__get_org_filename(filename)), 'wb') as write_fp:
+                with open(lz4_file_path, 'rb') as read_fp:
+                    write_fp.write(lz4.frame.decompress(read_fp.read()))
+        finally:
+            if os.path.isfile(lz4_file_path):
+                os.unlink(lz4_file_path)
+
+
 class TarManagerError(Exception):
     pass
 
 
 class TarManager(object):
-    support_formats = set(list(TarCompress.support_format.keys()) + list(ZipCompress.support_format.keys()))
+    support_formats = set(
+        list(TarCompress.support_format.keys()) +
+        list(ZipCompress.support_format.keys()) +
+        list(Lz4Compress.support_format.keys())
+    )
 
     operateDict = {
         "read": "r",
@@ -184,17 +255,19 @@ class TarManager(object):
         return list(TarManager.support_formats)
 
     @staticmethod
-    def create_compress_object(fmt: str, simulate: bool = False, callback: Callable[[str], int] or None = None):
+    def create_compress_object(fmt: str, simulate: bool = False, callback: TarManagerCallback or None = None):
         if fmt in TarCompress.support_format:
             return TarCompress(simulate, callback)
         elif fmt in ZipCompress.support_format:
             return ZipCompress(simulate, callback)
+        elif fmt in Lz4Compress.support_format:
+            return Lz4Compress(simulate, callback)
         else:
             return None
 
     @staticmethod
     def check_and_open_compress_object(file_path: str, fmt: str or None = None,
-                                       simulate: bool = False, callback: Callable[[str], int] or None = None):
+                                       simulate: bool = False, callback: TarManagerCallback or None = None):
         # Check tar file path
         if not os.path.isfile(file_path):
             raise TarManagerError("Tarfile: {0:s} is not exist".format(file_path))
@@ -214,8 +287,8 @@ class TarManager(object):
 
     @staticmethod
     def pack(path: str, name: str, fmt: str or None = None,
-             extensions: list or tuple or None = None, filters: Callable[[str], bool] or None = None,
-             verbose: bool = False, simulate: bool = False, callback: Callable[[str], None] or None = None):
+             extensions: list or tuple or None = None, filters: TarManagerFilterCallback or None = None,
+             verbose: bool = False, simulate: bool = False, callback: TarManagerCallback or None = None):
         """Package directory to a tarfile
 
         :param path: directory path
@@ -298,7 +371,7 @@ class TarManager(object):
     def unpack(file_path: str,
                unpack_path: str = "",
                fmt: str or None = None,
-               simulate: bool = False, callback: Callable[[str], int] or None = None):
+               simulate: bool = False, callback: TarManagerCallback or None = None):
         """Unpack file_path specified file to unpack_path
 
         :return:
