@@ -1099,12 +1099,6 @@ class TableWidget(QTableWidget):
         return temp
 
     def __slotShowContentMenu(self, pos):
-        item = self.itemAt(pos)
-        if not isinstance(item, QTableWidgetItem):
-            return
-
-        row = item.row()
-        column = item.column()
         for group in self.SUPPORT_ACTIONS:
             enabled = group & self.__contentMenuEnableMask
             for action in self.__contentMenu.actions():
@@ -3191,8 +3185,7 @@ class LogMessageWidget(QTextEdit):
                 text = fp.read()
         except UnicodeDecodeError:
             # Loading failed delete log
-            with open(self._logFilename, 'w', encoding="utf-8") as fp:
-                text = ""
+            text = ""
 
         # Process data
         valid_record = list()

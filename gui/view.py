@@ -12,11 +12,41 @@ __all__ = ['TableView', 'TableViewDelegate']
 
 
 class TableView(QTableView):
-    def __init__(self, parent=None):
+    tableDataChanged = Signal()
+
+    ALL_ACTION = 0x7
+    SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
+    COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
+
+    def __init__(self, parent: QWidget or None = None):
         super(TableView, self).__init__(parent)
         self.__autoHeight = False
+        self.__contentMenu = QMenu(self)
+        self.__contentMenuEnableMask = 0x0
         self.__columnStretchFactor = list()
         self.__scale_x, self.__scale_y = get_program_scale_factor()
+
+        for group, actions in {
+            self.COMM_ACTION: [
+                (QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
+            ],
+
+            self.MOVE_ACTION: [
+                (QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
+                (QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
+
+                (QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
+                (QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom()),
+            ],
+        }.items():
+            for action, slot in actions:
+                action.triggered.connect(slot)
+                action.setProperty("group", group)
+                self.__contentMenu.addAction(action)
+
+            self.__contentMenu.addSeparator()
+
+        self.customContextMenuRequested.connect(self.__slotShowContentMenu)
 
     def __checkModel(self) -> bool:
         return isinstance(self.model(), QAbstractItemModel)
@@ -39,6 +69,37 @@ class TableView(QTableView):
 
         return True
 
+    def __slotShowContentMenu(self, pos: QPoint):
+        for group in self.SUPPORT_ACTIONS:
+            enabled = group & self.__contentMenuEnableMask
+            for action in self.__contentMenu.actions():
+                if action.property("group") == group:
+                    action.setVisible(enabled)
+
+        self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+
+    def setContentMenuMask(self, mask: int):
+        for group in self.SUPPORT_ACTIONS:
+            if mask & group:
+                self.__contentMenuEnableMask |= group
+            else:
+                self.__contentMenuEnableMask &= ~group
+
+        if self.__contentMenuEnableMask:
+            self.setContextMenuPolicy(Qt.CustomContextMenu)
+        else:
+            self.setContextMenuPolicy(Qt.DefaultContextMenu)
+
+    def setCustomContentMenu(self, menu: List[QAction]):
+        for action in menu:
+            if not isinstance(action, QAction):
+                continue
+
+            action.setProperty("group", self.CUSTOM_ACTION)
+            self.__contentMenu.addAction(action)
+
+        self.__contentMenu.addSeparator()
+
     def item(self, row: int, column: int) -> QTableWidgetItem or None:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
@@ -51,21 +112,21 @@ class TableView(QTableView):
     def columnCount(self) -> int:
         return self.model().columnCount() if self.__checkModel() else 0
 
-    def hideHeaders(self, hide):
+    def hideHeaders(self, hide: bool):
         self.hideRowHeader(hide)
         self.hideColumnHeader(hide)
 
-    def hideRowHeader(self, hide):
+    def hideRowHeader(self, hide: bool):
         self.verticalHeader().setVisible(not hide)
 
-    def hideColumnHeader(self, hide):
+    def hideColumnHeader(self, hide: bool):
         self.horizontalHeader().setVisible(not hide)
 
     def getVerticalHeaderHeight(self):
         vertical_header = self.verticalHeader()
         return vertical_header.defaultSectionSize()
 
-    def setVerticalHeaderHeight(self, height):
+    def setVerticalHeaderHeight(self, height: int):
         vertical_header = self.verticalHeader()
         vertical_header.setResizeMode(QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
@@ -75,13 +136,13 @@ class TableView(QTableView):
         horizontal_header = self.horizontalHeader()
         return horizontal_header.defaultSectionSize()
 
-    def setHorizontalHeaderWidth(self, width):
+    def setHorizontalHeaderWidth(self, width: int):
         horizontal_header = self.horizontalHeader()
         horizontal_header.setResizeMode(QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
 
-    def disableScrollBar(self, horizontal, vertical):
+    def disableScrollBar(self, horizontal: bool, vertical: bool):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
 
@@ -197,27 +258,34 @@ class TableView(QTableView):
             header.setResizeMode(column, QHeaderView.Fixed)
             self.setColumnWidth(column, width * factor)
 
-    def getCurrentRow(self):
+    def getCurrentRow(self) -> int:
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return 0
 
         return self.currentIndex().row()
 
-    def setCurrentRow(self, row):
+    def getCurrentColumn(self) -> int:
+        model = self.model()
+        if not isinstance(model, QAbstractItemModel):
+            return 0
+
+        return self.currentIndex().column()
+
+    def setCurrentRow(self, row: int) -> bool:
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
 
         return self.setCurrentIndex(model.index(row, 0, QModelIndex()))
 
-    def getTableData(self, role=Qt.DisplayRole):
+    def getTableData(self, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return list()
         return [self.getRowData(row, role) for row in range(model.rowCount())]
 
-    def setTableData(self, data, role=Qt.EditRole):
+    def setTableData(self, data: List[Any], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -227,14 +295,14 @@ class TableView(QTableView):
 
         return sum([self.setRowData(row, data[row], role) for row in range(model.rowCount())]) == len(data)
 
-    def getRowData(self, row, role=Qt.DisplayRole):
+    def getRowData(self, row: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return list()
 
         return [self.getItemData(row, column, role) for column in range(model.columnCount())]
 
-    def setRowData(self, row, data, role=Qt.EditRole):
+    def setRowData(self, row: int, data: List[Any] or Tuple[Any, ...], role: Qt.ItemIsEditable = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -245,14 +313,14 @@ class TableView(QTableView):
         return sum([self.setItemData(row, column, data[column], role)
                     for column in range(model.columnCount())]) == len(data)
 
-    def getColumnData(self, column, role=Qt.DisplayRole):
+    def getColumnData(self, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return list()
 
         return [self.getItemData(row, column, role) for row in range(model.rowCount())]
 
-    def setColumnData(self, column, data, role=Qt.EditRole):
+    def setColumnData(self, column: int, data: List[Any] or Tuple[Any, ...], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -263,7 +331,7 @@ class TableView(QTableView):
         return sum([self.setItemData(row, column, data[row], role)
                     for row in range(model.rowCount())]) == len(data)
 
-    def getItemData(self, row, column, role=Qt.DisplayRole):
+    def getItemData(self, row: int, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return ""
@@ -275,7 +343,7 @@ class TableView(QTableView):
         else:
             return model.itemData(model.index(row, column, QModelIndex())).get(role)
 
-    def setItemData(self, row, column, data, role=Qt.EditRole):
+    def setItemData(self, row: int, column: int, data: List[Any], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -325,6 +393,71 @@ class TableView(QTableView):
                 return False
 
         return True
+
+    def swapItem(self, src_row: int, src_column: int, dst_row: int, dst_column: int) -> bool:
+        if not self.__checkRow(src_row) or not self.__checkRow(dst_row):
+            return False
+
+        if not self.__checkColumn(src_column) or not self.__checkColumn(dst_column):
+            return False
+
+        src_data = self.getItemData(src_row, src_column)
+        dst_data = self.getItemData(dst_row, dst_column)
+        self.setItemData(src_row, src_column, dst_data)
+        self.setItemData(dst_row, dst_column, src_data)
+        return True
+
+    def swapRow(self, src: int, dst: int):
+        for column in range(self.columnCount()):
+            self.swapItem(src, column, dst, column)
+
+            # Select dst row
+        self.selectRow(dst)
+        self.tableDataChanged.emit()
+
+    def swapColumn(self, src: int, dst: int):
+        for row in range(self.rowCount()):
+            self.swapItem(row, src, row, dst)
+
+        # Select destination column
+        self.selectColumn(dst)
+        self.tableDataChanged.emit()
+
+    def rowMoveUp(self):
+        row = self.getCurrentRow()
+        if row == 0:
+            return
+        self.swapRow(row, row - 1)
+
+    def rowMoveDown(self):
+        row = self.getCurrentRow()
+        if row == self.rowCount() - 1:
+            return
+        self.swapRow(row, row + 1)
+
+    def rowMoveTop(self):
+        while self.getCurrentRow() != 0:
+            self.rowMoveUp()
+
+        self.setCurrentRow(0)
+
+    def rowMoveBottom(self):
+        while self.getCurrentRow() != self.rowCount() - 1:
+            self.rowMoveDown()
+
+        self.setCurrentRow(self.rowCount() - 1)
+
+    def columnMoveLeft(self):
+        column = self.getCurrentColumn()
+        if column == 0:
+            return
+        self.swapColumn(column, column - 1)
+
+    def columnMoveRight(self):
+        column = self.getCurrentColumn()
+        if column == self.columnCount() - 1:
+            return
+        self.swapColumn(column, column + 1)
 
 
 class TableViewDelegate(QItemDelegate):
