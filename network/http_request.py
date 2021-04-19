@@ -2,6 +2,7 @@
 import requests
 import ipaddress
 import fake_useragent
+from typing import Optional
 from pyquery import PyQuery
 import requests_toolbelt.adapters
 __all__ = ['HttpRequest', 'HttpRequestException']
@@ -21,7 +22,7 @@ class HttpRequest(object):
 
     TOKEN_NAME = "token"
 
-    def __init__(self, token_name: str = TOKEN_NAME, source_address: str = "", timeout: int = 5):
+    def __init__(self, token_name: str = TOKEN_NAME, source_address: str = "", timeout: float = 5.0):
         self._timeout = timeout
         self.__token_name = token_name
         self._section = requests.Session()
@@ -38,7 +39,7 @@ class HttpRequest(object):
         self._section.headers = {'User-Agent': self._fake_ua.chrome}
 
     @property
-    def timeout(self) -> int:
+    def timeout(self) -> float:
         return self._timeout
 
     @property
@@ -71,8 +72,8 @@ class HttpRequest(object):
 
     def login(self, url: str,
               login_data: dict,
-              headers: dict or None = None,
-              require_token: bool = False, verify: bool = False):
+              headers: Optional[dict] = None,
+              require_token: bool = False, verify: bool = False) -> requests.Response:
         if require_token:
             login_data[self.token_name] = self.get_token(url)
 

@@ -4,10 +4,10 @@ import glob
 import ctypes
 import serial
 import platform
-from typing import *
 from threading import Thread
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
+from typing import Callable, Optional, Union, Tuple, List, Any
 from raspi_io import Serial as WebsocketSerial, RaspiSocketError, Query
 
 from .crc16 import crc16
@@ -18,6 +18,11 @@ __all__ = ['SerialPort',
            'ReadAckMsg', 'ReadReqMsg',
            'SerialPortProtocolSimulate',
            'SerialTransferProtocol', 'SerialTransferError', 'SerialTransferProtocolReadSimulate']
+
+PrintMsgCallback = Callable[[str], None]
+SerialSendCallback = Callable[[bytes], int]
+SerialRecvCallback = Callable[[int], bytes]
+SimulatorRequestHandle = Callable[[Any], bytes]
 
 
 class ErrorCode(object):
@@ -31,7 +36,7 @@ class ErrorCode(object):
     E_UNKNOWN = 0x7
 
     @staticmethod
-    def get_desc(code):
+    def get_desc(code: int) -> str:
         return {
             ErrorCode.E_OK: "OK",
             ErrorCode.E_LEN: "E_LEN",
@@ -45,13 +50,13 @@ class ErrorCode(object):
 
 
 class BasicMsg(BasicTypeLE):
-    def calc_crc(self):
+    def calc_crc(self) -> int:
         return crc16(self.cdata()[1:ctypes.sizeof(self) - 2])
 
-    def calc_len(self):
+    def calc_len(self) -> int:
         return ctypes.sizeof(self) - 1
 
-    def init_and_check(self, data):
+    def init_and_check(self, data: bytes) -> Tuple[bool, str]:
         """Init self and check data illegal
 
         :param data: data
@@ -65,7 +70,7 @@ class BasicMsg(BasicTypeLE):
         if crc16(self.cdata()[1:]):
             return False, ErrorCode.get_desc(ErrorCode.E_CRC)
 
-        return True, self
+        return True, ""
 
 
 class ReadReqMsg(BasicMsg):
@@ -79,26 +84,26 @@ class ReadReqMsg(BasicMsg):
     DATA_DONE = 0xe
 
     _fields_ = [
-        ('len',     ctypes.c_ubyte),
-        ('req',     ctypes.c_ubyte),
-        ('args',    ctypes.c_ushort),
-        ('crc16',   ctypes.c_ushort),
+        ('len', ctypes.c_ubyte),
+        ('req', ctypes.c_ubyte),
+        ('arg', ctypes.c_ushort),
+        ('crc16', ctypes.c_ushort),
     ]
 
-    def __init__(self, req, args):
+    def __init__(self, req: int, arg: int):
         super(ReadReqMsg, self).__init__()
         self.req = req
-        self.args = args
+        self.arg = arg
         self.len = self.calc_len()
         self.crc16 = self.calc_crc()
 
-    def is_init_request(self):
+    def is_init_request(self) -> bool:
         return self.req == self.INIT_REQ
 
-    def is_data_request(self):
+    def is_data_request(self) -> bool:
         return self.req == self.DATA_REQ
 
-    def is_done_request(self):
+    def is_done_request(self) -> bool:
         return self.req == self.DATA_DONE
 
 
@@ -107,33 +112,29 @@ class ReadAckMsg(BasicMsg):
     PAYLOAD_SIZE = 128
 
     _fields_ = [
-        ('len',     ctypes.c_ubyte),
-        ('ack',     ctypes.c_ubyte),
-        ('args',    ctypes.c_ushort),
+        ('len', ctypes.c_ubyte),
+        ('ack', ctypes.c_ubyte),
+        ('arg', ctypes.c_ushort),
         ('payload', ctypes.c_ubyte * PAYLOAD_SIZE),
-        ('crc16',   ctypes.c_ushort),
+        ('crc16', ctypes.c_ushort),
     ]
 
-    @property
-    def args(self):
-        return self.args
-
     @staticmethod
-    def create(ack, args, payload):
+    def create(ack: int, arg: int, payload: bytes) -> BasicMsg:
         instance = ReadAckMsg()
         instance.ack = ack
-        instance.args = args
+        instance.arg = arg
         instance.len = instance.calc_len()
         instance.set_data_payload(payload)
         instance.crc16 = instance.calc_crc()
         return instance
 
     # Get payload data
-    def get_data_payload(self):
+    def get_data_payload(self) -> bytes:
         return ctypes.string_at(ctypes.addressof(self.payload), ctypes.sizeof(self.payload))
 
     # Set payload data
-    def set_data_payload(self, cdata):
+    def set_data_payload(self, cdata: bytes):
         size = min(len(cdata), ctypes.sizeof(self.payload))
         ctypes.memmove(ctypes.addressof(self.payload), cdata, size)
 
@@ -148,40 +149,33 @@ class WriteReqMsg(BasicMsg):
     PAYLOAD_SIZE = 128
 
     _fields_ = [
-
-        ('len',     ctypes.c_ubyte),
-        ('req',     ctypes.c_ubyte),
-        ('args',    ctypes.c_ushort),
+        ('len', ctypes.c_ubyte),
+        ('req', ctypes.c_ubyte),
+        ('arg', ctypes.c_ushort),
         ('payload', ctypes.c_ubyte * PAYLOAD_SIZE),
-        ('crc16',   ctypes.c_ushort),
+        ('crc16', ctypes.c_ushort),
     ]
 
-    def __init__(self, req, args, payload):
+    def __init__(self, req: int, arg: int, payload: bytes):
         super(WriteReqMsg, self).__init__()
         self.req = req
-        self.args = args
+        self.arg = arg
         self.len = self.calc_len()
         self.set_payload_data(payload)
         self.crc16 = self.calc_crc()
 
-    def set_payload_data(self, cdata):
+    def set_payload_data(self, cdata: bytes):
         size = min(len(cdata), ctypes.sizeof(self.payload))
         ctypes.memmove(ctypes.addressof(self.payload), cdata, size)
 
 
 class WriteAckMsg(BasicMsg):
-
     _fields_ = [
-
-        ('len',     ctypes.c_ubyte),
-        ('ack',     ctypes.c_ubyte),
-        ('args',    ctypes.c_ushort),
-        ('crc16',   ctypes.c_ushort),
+        ('len', ctypes.c_ubyte),
+        ('ack', ctypes.c_ubyte),
+        ('arg', ctypes.c_ushort),
+        ('crc16', ctypes.c_ushort),
     ]
-
-    @property
-    def args(self):
-        return self.args
 
 
 class SerialTransferError(Exception):
@@ -192,7 +186,7 @@ class SerialTransferError(Exception):
 class SerialTransferProtocol(object):
     PAYLOAD_SIZE = 128
 
-    def __init__(self, send, recv):
+    def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback):
         """"Init a serial port transfer protocol object
 
         :param send: serial port send function
@@ -208,18 +202,18 @@ class SerialTransferProtocol(object):
         self.__send, self.__recv = send, recv
 
     @staticmethod
-    def calc_package_size(data):
+    def calc_package_size(data: bytes) -> int:
         return len(data) // SerialTransferProtocol.PAYLOAD_SIZE
 
     @staticmethod
-    def get_package_data(idx, data):
+    def get_package_data(idx: int, data: bytes) -> bytes:
         size = SerialTransferProtocol.calc_package_size(data)
         if not 0 <= idx < size:
-            return ""
+            return bytes()
 
         return data[idx * SerialTransferProtocol.PAYLOAD_SIZE: (idx + 1) * SerialTransferProtocol.PAYLOAD_SIZE]
 
-    def recv(self, callback=None):
+    def recv(self, callback: Optional[Callable[[float], None]] = None) -> Tuple[bytes, bytes]:
         """Receive data
 
         :param callback: update recv percentage callback callback(percentage)
@@ -238,7 +232,7 @@ class SerialTransferProtocol(object):
 
         return global_data, package_data
 
-    def send(self, global_data, package_data, callback=None):
+    def send(self, global_data: bytes, package_data: bytes, callback: Optional[Callable[[float], None]] = None) -> bool:
         """Write data
 
         :param global_data: global data
@@ -260,7 +254,7 @@ class SerialTransferProtocol(object):
 
         return True
 
-    def __basic_transfer(self, req):
+    def __basic_transfer(self, req: Union[ReadReqMsg, WriteReqMsg]) -> Union[ReadAckMsg, WriteAckMsg]:
         """Basic transfer
 
         :param req: will send request data
@@ -280,14 +274,14 @@ class SerialTransferProtocol(object):
             success, error = ack.init_and_check(data)
             if success:
                 if ack.ack != req.req:
-                    raise SerialTransferError(ErrorCode.get_desc(ack.args))
+                    raise SerialTransferError(ErrorCode.get_desc(ack.arg))
                 return ack
             else:
                 raise SerialTransferError(error)
         except serial.SerialException as error:
             raise SerialTransferError(error)
 
-    def __r_init(self):
+    def __r_init(self) -> Tuple[int, bytes]:
         """Launch a read transfer session
 
         :return: total package_size and global_data
@@ -298,9 +292,9 @@ class SerialTransferProtocol(object):
         ack = self.__basic_transfer(req)
 
         # Return package size data global data
-        return int(ack.args), ack.get_data_payload()
+        return int(ack.arg), ack.get_data_payload()
 
-    def __r_data(self, package_index):
+    def __r_data(self, package_index: int) -> bytes:
         """Read package_index specified package index
 
         :param package_index:  will read package data
@@ -312,7 +306,7 @@ class SerialTransferProtocol(object):
         ack = self.__basic_transfer(req)
         return ack.get_data_payload()
 
-    def __w_init(self, package_size, global_data):
+    def __w_init(self, package_size: int, global_data: bytes) -> WriteAckMsg:
         """Launch a write transfer section
 
         :param package_size: will write total package size
@@ -321,7 +315,7 @@ class SerialTransferProtocol(object):
         """
         return self.__basic_transfer(WriteReqMsg(WriteReqMsg.INIT_REQ, package_size, global_data))
 
-    def __w_data(self, package_index, package_data):
+    def __w_data(self, package_index: int, package_data: bytes) -> WriteAckMsg:
         """Write data
 
         :param package_index: data package index number
@@ -334,7 +328,7 @@ class SerialTransferProtocol(object):
 class SerialPort(object):
     def __init__(self, port: str, baudrate: int,
                  bytesize: int = 8, parity: str = 'N', stopbits: int = 1,
-                 timeout: float = 0, ending_check: Callable[[bytes], bool] or None = None):
+                 timeout: float = 0, ending_check: Optional[Callable[[bytes], bool]] = None):
         """Serial port
 
         :param port: local serial port("COM1" , "/dev/ttyS1"), or WebsocketSerial("xxx.xxx.xxx.xxx", "/dev/ttyS1")
@@ -346,7 +340,6 @@ class SerialPort(object):
         :param ending_check: dynamic check if receive is ending or not
         """
         try:
-
             # xxx.xxx.xxx.xxx/ttyXXX
             if ip4_check(port.split("/")[0]):
                 address = port.split("/")[0]
@@ -376,11 +369,11 @@ class SerialPort(object):
         self.__port.flushInput()
         self.__port.flushOutput()
 
-    def __str__(self):
+    def __repr__(self):
         return "{0:s}, baudrate:{1:d}}".format(self.__port.port, self.__port.baudrate)
 
     @property
-    def raw_port(self):
+    def raw_port(self) -> Union[serial.Serial, WebsocketSerial]:
         return self.__port
 
     def close(self):
@@ -408,7 +401,7 @@ class SerialPort(object):
 
         return len(data)
 
-    def read(self, size: int, timeout: float or None = None):
+    def read(self, size: int, timeout: Optional[float] = None) -> bytes:
         """Basic receive data
 
         :param size: receive data size
@@ -436,7 +429,7 @@ class SerialPort(object):
         return data
 
     @staticmethod
-    def get_serial_list(timeout=0.04):
+    def get_serial_list(timeout: float = 0.04) -> List[str]:
         port_list = list()
         system = platform.system().lower()
 
@@ -463,7 +456,7 @@ class SerialPort(object):
 
 
 class SerialPortProtocolSimulate(object):
-    def __init__(self, send, recv, error_handle=print):
+    def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback, error_handle: PrintMsgCallback = print):
         if not hasattr(send, "__call__"):
             raise AttributeError("{} send function is not callable".format(self.__class__.__name__))
 
@@ -475,19 +468,19 @@ class SerialPortProtocolSimulate(object):
         self.__handle = error_handle
         self.__send, self.__recv = send, recv
 
-    def _get_request_size(self):
+    def _get_request_size(self) -> int:
         pass
 
-    def _check_request(self, req):
+    def _check_request(self, req: Any) -> Tuple[bool, str]:
         return False, "Unknown request"
 
-    def _get_req_handle(self, req):
+    def _get_req_handle(self, req: Any) -> SimulatorRequestHandle:
         pass
 
-    def _error_request(self, req):
+    def _error_request(self, req: Any) -> bytes:
         pass
 
-    def __error_handle(self, error):
+    def __error_handle(self, error: str):
         if hasattr(self.__handle, "__call__"):
             self.__handle(error)
 
@@ -523,7 +516,7 @@ class SerialPortProtocolSimulate(object):
             except serial.SerialException as error:
                 self.__error_handle("SerialPort error:{}".format(error))
 
-    def start(self):
+    def start(self) -> bool:
         if self.__running:
             print("{} is running!".format(self.__class__.__name__))
             return False
@@ -542,37 +535,34 @@ class SerialPortProtocolSimulate(object):
 
 
 class SerialTransferProtocolReadSimulate(SerialPortProtocolSimulate):
-    def __init__(self, send, recv, data, error_handle=print):
+    def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback,
+                 data: Tuple[bytes, bytes], error_handle: PrintMsgCallback = print):
         super(SerialTransferProtocolReadSimulate, self).__init__(send, recv, error_handle)
         self.__global_data, self.__config_data = data
         self.__total_package = SerialTransferProtocol.calc_package_size(self.__config_data)
 
-    def _get_request_size(self):
+    def _get_request_size(self) -> int:
         return ctypes.sizeof(ReadReqMsg)
 
-    def _check_request(self, data):
-        if not isinstance(data, str):
+    def _check_request(self, data: bytes) -> Tuple[bool, str]:
+        if not isinstance(data, bytes):
             return False, "Request data type error!"
 
         return ReadReqMsg(0, 0).init_and_check(data)
 
-    def _get_req_handle(self, req):
-        if not isinstance(req, ReadReqMsg):
-            return self._check_request
-
+    def _get_req_handle(self, req: ReadReqMsg) -> SimulatorRequestHandle:
         return {
-
             ReadReqMsg.INIT_REQ: self.read_init,
             ReadReqMsg.DATA_REQ: self.read_data,
 
         }.get(req.req, self._error_request)
 
-    def _error_request(self, req):
-        return ""
+    def _error_request(self, req) -> bytes:
+        return bytes()
 
-    def read_init(self, req):
+    def read_init(self, req: ReadReqMsg) -> bytes:
         return ReadAckMsg.create(req.req, self.__total_package, self.__global_data).cdata()
 
-    def read_data(self, req):
-        data = SerialTransferProtocol.get_package_data(req.args, self.__config_data)
-        return ReadAckMsg.create(req.req, req.args, data).cdata()
+    def read_data(self, req: ReadReqMsg) -> bytes:
+        data = SerialTransferProtocol.get_package_data(req.arg, self.__config_data)
+        return ReadAckMsg.create(req.req, req.arg, data).cdata()

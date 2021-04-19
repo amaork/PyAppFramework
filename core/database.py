@@ -5,8 +5,8 @@ import random
 import shutil
 import sqlite3
 import hashlib
-from typing import *
 from .datatype import DynamicObject
+from typing import Any, Optional, Union, List, Tuple, Sequence
 
 try:
     from pysqlcipher3 import dbapi2 as sqlcipher
@@ -41,17 +41,17 @@ class SQLiteDatabase(object):
         return self._conn
 
     @staticmethod
-    def conditionFormat(k: str, v: Any, t: int or None = None) -> str:
+    def conditionFormat(k: str, v: Any, t: Optional[int] = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} = "{}"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} = {}'.format(k, v)
 
     @staticmethod
-    def searchConditionFormat(k: str, v: Any, t: int or None = None) -> str:
+    def searchConditionFormat(k: str, v: Any, t: Optional[int] = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} LIKE "%{}%"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE %{}%'.format(k, v)
 
     @staticmethod
-    def globalSearchConditionFormat(k: str, v: Any, t: int or None = None) -> str:
+    def globalSearchConditionFormat(k: str, v: Any, t: Optional[int] = None) -> str:
         t = SQLiteDatabase.str2type(t) if isinstance(t, str) else SQLiteDatabase.detectDataType(v)
         return '{} GLOB "*{}*"'.format(k, v) if t == SQLiteDatabase.TYPE_TEXT else '{} LIKE *{}*'.format(k, v)
 
@@ -214,7 +214,7 @@ class SQLiteDatabase(object):
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
 
-    def insertRecord(self, name: str, record: list or tuple):
+    def insertRecord(self, name: str, record: Union[list, tuple]):
         """Insert a record to table
 
         :param name: table name
@@ -252,7 +252,7 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
 
-    def updateRecord(self, name: str, record: list or tuple or dict, condition: str or None = None):
+    def updateRecord(self, name: str, record: Union[list, tuple, dict], condition: Optional[str] = None):
         """Update an exist recode
 
         :param name: table name
@@ -327,7 +327,7 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError("Delete error:{}".format(error))
 
-    def selectRecord(self, name: str, columns: list or None = None, condition: str or None = None):
+    def selectRecord(self, name: str, columns: Optional[List[str]] = None, condition: Optional[str] = None):
         """Select record from table and matches conditions
 
         :param name: table name
@@ -544,8 +544,8 @@ class SQLiteGeneralSettingsItem(DynamicObject):
     SEQUENCE = ('id', 'name', 'data', 'min', 'max', 'precision', 'desc')
     _properties = {'id', 'name', 'data', 'min', 'max', 'precision', 'desc'}
 
-    def __init__(self, id_: int, name: str, data: int or float,
-                 min_: int or float = 0, max_: int or float = 0, precision: int = 0, desc: str = ""):
+    def __init__(self, id_: int, name: str, data: Union[int, float],
+                 min_: Union[int, float] = 0, max_: Union[int, float] = 0, precision: int = 0, desc: str = ""):
         """SQLite settings item
 
         :param id_:  data index corresponding database row id
@@ -566,7 +566,7 @@ class SQLiteGeneralSettingsItem(DynamicObject):
         kwargs["precision"] = precision
         super(SQLiteGeneralSettingsItem, self).__init__(**kwargs)
 
-    def __str__(self):
+    def __repr__(self):
         data = list()
         dict_ = self.dict
         for name in self.SEQUENCE:
@@ -663,7 +663,7 @@ class SQLiteDatabaseCreator(object):
                                 "id INTEGER PRIMARY KEY NOT NULL UNIQUE,"
                                 "{}, description TEXT);".format(name, data_sentence))
 
-    def get_general_table_limit(self, table_name: str) -> Tuple[str, str]:
+    def get_general_table_limit(self, table_name: str) -> Tuple[Tuple[Any, Any]]:
         """Get table lower and upper limit value
 
         :param table_name:  table name
@@ -685,7 +685,7 @@ class SQLiteDatabaseCreator(object):
             return ()
 
     def set_settings_data(self, table_name: str,
-                          settings: List[SQLiteGeneralSettingsItem] or Tuple[SQLiteGeneralSettingsItem, ...],
+                          settings: Sequence[SQLiteGeneralSettingsItem],
                           protobuf_enum: bool = False):
         """Create settings table and fill settings data
 
@@ -723,7 +723,7 @@ class SQLiteDatabaseCreator(object):
         return True
 
     def set_general_table_limit(self, table_name: str, max_column: int,
-                                limit: List[SQLiteGeneralSettingsItem] or Tuple[SQLiteGeneralSettingsItem, ...],
+                                limit: Sequence[SQLiteGeneralSettingsItem],
                                 protobuf_enum: bool = False):
         try:
             print("{} data count: {}".format(table_name, len(limit)))

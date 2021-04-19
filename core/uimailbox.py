@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-from typing import *
 from threading import Timer
-from .threading import ThreadConditionWrap
-from ..gui.msgbox import MB_TYPES, showMessageBox, showQuestionBox
+from typing import Callable, Optional, Union
 from PySide.QtCore import Qt, Signal, Slot, QObject
 from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
+
+from .threading import ThreadConditionWrap
+from ..gui.msgbox import MB_TYPES, showMessageBox, showQuestionBox
+
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
 
 
@@ -20,7 +22,7 @@ class BaseUiMail(object):
 
 
 class StatusBarMail(BaseUiMail):
-    def __init__(self, color: QColor or Qt.GlobalColor, content: str, timeout: int = 0):
+    def __init__(self, color: Union[QColor, Qt.GlobalColor], content: str, timeout: int = 0):
         """ Show message on statusBar
 
         :param color: Message color
@@ -48,7 +50,7 @@ class StatusBarMail(BaseUiMail):
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_: str, content: str, title: str or None = None):
+    def __init__(self, type_: str, content: str, title: Optional[str] = None):
         """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
@@ -83,7 +85,7 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func: Callable, timeout: int = 0, args: tuple = (), kwargs: dict or None = None):
+    def __init__(self, func: Callable, timeout: int = 0, args: tuple = (), kwargs: Optional[dict] = None):
         """Call #func specified function with #args
 
         :param func: Callback function
@@ -166,7 +168,7 @@ class UiMailBox(QObject):
         self.__parent = parent
         self.hasNewMail.connect(self.mailProcess)
 
-    def send(self, mail: BaseUiMail):
+    def send(self, mail: BaseUiMail) -> bool:
         """ Send a mail
 
         :param mail: mail
@@ -179,7 +181,7 @@ class UiMailBox(QObject):
         return True
 
     @Slot(object)
-    def mailProcess(self, mail: BaseUiMail):
+    def mailProcess(self, mail: BaseUiMail) -> bool:
         """Process ui mail
 
         :param mail: BaseUiMail

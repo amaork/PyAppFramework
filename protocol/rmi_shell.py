@@ -11,7 +11,7 @@ import paramiko
 import telnetlib
 import threading
 import ipaddress
-from typing import *
+from typing import List, Tuple, Optional, Dict
 from ..protocol.ftp import FTPClient
 from ..network.utility import get_host_address, set_keepalive
 __all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
@@ -22,7 +22,7 @@ class RMIShellClientException(Exception):
 
 
 class TelnetBindNic(telnetlib.Telnet):
-    def __init__(self, host: str or None = None, port: int = 0,
+    def __init__(self, host: Optional[str] = None, port: int = 0,
                  timeout: int = 5, source: str = "", verbose: int = False):
         super(TelnetBindNic, self).__init__()
         source_address = (source, 0) if source else None
@@ -45,7 +45,7 @@ class RMIShellClient(object):
 
     @staticmethod
     def create_client(connection_type: str, host: str, user: str, password: str,
-                      port: int or None = None, timeout: int = 5, source: str = ""):
+                      port: Optional[int] = None, timeout: int = 5, source: str = ""):
         if connection_type == "telnet":
             port = port or RMISTelnetClient.DEF_PORT
             return RMISTelnetClient(host=host, user=user, password=password,
@@ -71,8 +71,8 @@ class RMIShellClient(object):
     def clear_read_buffer(self, timeout: int = 0):
         pass
 
-    def exec(self, command: str, params: List[str] or None = None,
-             tail: bytes or None = None, timeout: int = 0, verbose: bool = False) -> str:
+    def exec(self, command: str, params: Optional[List[str]] = None,
+             tail: Optional[bytes] = None, timeout: int = 0, verbose: bool = False) -> str:
         pass
 
     def connected(self) -> bool:
@@ -92,7 +92,7 @@ class RMIShellClient(object):
             raise RMIShellClientException("Get memory usage failed")
         return tuple([int(x) for x in result])
 
-    def get_cpu_usage_dict(self) -> dict:
+    def get_cpu_usage_dict(self) -> Dict[str, str]:
         """Get cpu usage from top
 
         :return: cpu usage
@@ -115,7 +115,7 @@ class RMIShellClient(object):
 
         return disk
 
-    def get_memory_usage_dict(self) -> dict:
+    def get_memory_usage_dict(self) -> Dict[str, int]:
         cmd = string.Template("top -n 1 | sed '1!d' | awk '{print $column}'").substitute(
             column=" ".join(["${}".format(c) for c in range(2, 12)])
         )
@@ -137,7 +137,7 @@ class RMIShellClient(object):
             zip([x.split(":")[0] for x in result if ":" in x], [x.split(":")[-1].strip() for x in result if ":" in x])
         )
 
-    def get_memory_info_dict(self, unit: str = "kB") -> dict:
+    def get_memory_info_dict(self, unit: str = "kB") -> Dict[str, int]:
         """cat cat /proc/meminfo"""
         info = dict()
         unit = unit.lower() if isinstance(unit, str) else "kb"
@@ -193,7 +193,7 @@ class RMIShellClient(object):
         return self.exec("chmod", ["a+x", script_path, "&&", script_path], timeout=timeout)
 
     def tftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
-                         network: ipaddress.IPv4Network or None = None, random_port: bool = True,
+                         network: Optional[ipaddress.IPv4Network] = None, random_port: bool = True,
                          verbose: bool = False, verify_by_md5: bool = False, timeout: int = 60) -> bool:
         """
         Uoload a local_file from local to remote
@@ -305,8 +305,8 @@ class RMISTelnetClient(RMIShellClient):
         except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout, OSError) as error:
             raise RMIShellClientException("Login error: {}".format(error))
 
-    def exec(self, command: str, params: List[str] or None = None,
-             tail: bytes or None = None, timeout: int = 0, verbose: bool = False):
+    def exec(self, command: str, params: Optional[List[str]] = None,
+             tail: Optional[bytes] = None, timeout: int = 0, verbose: bool = False):
         try:
             command.strip()
             params = params or list()
@@ -367,8 +367,8 @@ class RMISSecureShellClient(RMIShellClient):
                 sock.close()
             raise RMIShellClientException(error)
 
-    def exec(self, command: str, params: List[str] = None,
-             tail: bytes or None = None, timeout: int = 0, verbose: bool = False):
+    def exec(self, command: str, params: Optional[List[str]] = None,
+             tail: Optional[bytes] = None, timeout: int = 0, verbose: bool = False):
         try:
             command.strip()
             params = params or list()

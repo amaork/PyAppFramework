@@ -5,6 +5,8 @@ import json
 import codecs
 import logging
 from string import Template
+from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple
+
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiLogMessage',
@@ -13,7 +15,16 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiFileInput', 'UiFolderInput',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
-           'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput']
+           'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
+           'Font', 'Time', 'Color', 'Layout', 'LayoutSpace', 'LayoutMargins']
+
+Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
+Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
+Color = Tuple[int, int, int]
+
+Layout = Sequence[str]
+LayoutSpace = Tuple[int, int, int]
+LayoutMargins = Tuple[int, int, int, int]
 
 
 class JsonSettingsDecodeError(Exception):
@@ -26,7 +37,7 @@ class JsonSettings(DynamicObject):
     def __init__(self, **kwargs):
         super(JsonSettings, self).__init__(**kwargs)
 
-    def save(self, path=None):
+    def save(self, path: Optional[str] = None):
         return self.store(self, path)
 
     @classmethod
@@ -34,7 +45,7 @@ class JsonSettings(DynamicObject):
         return cls._default_path[:]
 
     @classmethod
-    def load(cls, path=None):
+    def load(cls, path: Optional[str] = None):
         try:
             path = path or cls._default_path
             if not os.path.isfile(path):
@@ -49,7 +60,7 @@ class JsonSettings(DynamicObject):
             raise JsonSettingsDecodeError(err)
 
     @classmethod
-    def store(cls, settings, path=None):
+    def store(cls, settings: DynamicObject, path: Optional[str] = None):
         if not isinstance(settings, cls):
             print("TypeError: require:{!r}".format(cls.__name__))
             return False
@@ -63,7 +74,7 @@ class JsonSettings(DynamicObject):
         return True
 
     @classmethod
-    def default(cls):
+    def default(cls) -> DynamicObject:
         pass
 
 
@@ -124,62 +135,62 @@ class UiInputSetting(DynamicObject):
         if not isinstance(self.data, data_type) or not isinstance(self.default, data_type):
             raise TypeError("default must match type, it require {!r}".format(data_type.__name__))
 
-    def get_data(self):
+    def get_data(self) -> Any:
         return self.data
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.name
 
-    def get_check(self):
+    def get_check(self) -> tuple:
         return self.check
 
-    def get_default(self):
+    def get_default(self) -> Any:
         return self.default
 
-    def is_readonly(self):
+    def is_readonly(self) -> bool:
         return True if self.readonly else False
 
-    def is_int_type(self):
+    def is_int_type(self) -> bool:
         return self.type == "INT"
 
-    def is_bool_type(self):
+    def is_bool_type(self) -> bool:
         return self.type == "BOOL"
 
-    def is_text_type(self):
+    def is_text_type(self) -> bool:
         return self.type == "TEXT"
 
     def is_file_type(self):
         return self.type == "FILE"
 
-    def is_font_type(self):
+    def is_font_type(self) -> bool:
         return self.type == "FONT"
 
-    def is_float_type(self):
+    def is_float_type(self) -> bool:
         return self.type == "FLOAT"
 
-    def is_color_type(self):
+    def is_color_type(self) -> bool:
         return self.type == "COLOR"
 
-    def is_folder_type(self):
+    def is_folder_type(self) -> bool:
         return self.type == "FOLDER"
 
-    def is_select_type(self):
+    def is_select_type(self) -> bool:
         return self.type == "SELECT"
 
-    def is_serial_type(self):
+    def is_serial_type(self) -> bool:
         return self.type == "SERIAL"
 
-    def is_network_type(self):
+    def is_network_type(self) -> bool:
         return self.type == "NETWORK"
 
-    def is_address_type(self):
+    def is_address_type(self) -> bool:
         return self.type == "ADDRESS"
 
-    def is_sbs_select_type(self):
+    def is_sbs_select_type(self) -> bool:
         return self.type == "SBS_SELECT"
 
     @staticmethod
-    def getDemoSettings(d2=False):
+    def getDemoSettings(d2: bool = False) -> DynamicObject:
         font_input = UiFontInput(name="字体")
         color_input = UiColorInput(name="颜色", r=255, g=255, b=255)
         int_input = UiInputSetting(name="数字", type="INT", data=10,
@@ -193,7 +204,7 @@ class UiInputSetting(DynamicObject):
         float_input = UiInputSetting(name="浮点", type="FLOAT", data=5.0,
                                      check=UiInputSetting.FLOAT_TYPE_CHECK_DEMO, default=3.3)
         ts_float_input = UiInputSetting(name="浮点(TS)", type="FLOAT", data=4.567,
-                                     check=(3.3, 12.0, 3), default=3.3, readonly=True)
+                                        check=(3.3, 12.0, 3), default=3.3, readonly=True)
         select_input = UiInputSetting(name="选择", type="SELECT", data="C",
                                       check=UiInputSetting.SELECT_TYPE_CHECK_DEMO, default="B")
         sbs_select_input = UiInputSetting(name="选择", type="SBS_SELECT", data=1,
@@ -235,14 +246,14 @@ class UiInputSetting(DynamicObject):
 
 
 class UiFileInput(UiInputSetting):
-    def __init__(self, name, fmt, default="", selectable=False):
+    def __init__(self, name: str, fmt: Tuple[str, ...], default: str = "", selectable: bool = False):
         fmt = list(fmt)
         fmt.append(str(selectable))
         super(UiFileInput, self).__init__(name=name, data="", default=default,
                                           check=fmt, readonly=False, type="FILE")
 
     @staticmethod
-    def getFilePath(data):
+    def getFilePath(data) -> str:
         try:
             _, file_path = data
             return file_path
@@ -251,30 +262,30 @@ class UiFileInput(UiInputSetting):
 
 
 class UiFolderInput(UiInputSetting):
-    def __init__(self, name, default=""):
+    def __init__(self, name: str, default: str = ""):
         super(UiFolderInput, self).__init__(name=name, data="", default=default,
                                             check="", readonly=False, type="FOLDER")
 
 
 class UiFontInput(UiInputSetting):
-    def __init__(self, name, font_name="宋体", point_size=9, weight=50):
+    def __init__(self, name: str, font_name: str = "宋体", point_size: int = 9, weight: int = 50):
         font = font_name, point_size, weight
         super(UiFontInput, self).__init__(name=name, data="{}".format(font), default="{}".format(font),
                                           check="", readonly=False, type="FONT")
 
     @staticmethod
-    def get_font(font_setting):
-        default_font = "宋体", 9, 50
+    def get_font(font_setting: str) -> Font:
+        default_font = Font("宋体", 9, 50)
         try:
             font_setting = font_setting[1:-1].split(", ")
-            return font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2])
+            return Font(font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2]))
         except AttributeError:
             return tuple(font_setting) if isinstance(font_setting, (list, tuple)) else default_font
         except (TypeError, IndexError, ValueError):
             return default_font
 
     @staticmethod
-    def get_stylesheet(font_setting):
+    def get_stylesheet(font_setting: str) -> str:
         try:
             font_name, point_size, _ = UiFontInput.get_font(font_setting)
             return 'font: {}pt "{}";'.format(point_size, font_name)
@@ -283,7 +294,7 @@ class UiFontInput(UiInputSetting):
 
 
 class UiTextInput(UiInputSetting):
-    def __init__(self, name, length, default="", re_="[\s\S]*", readonly=False):
+    def __init__(self, name: str, length: int, default: str = "", re_: str = "[\s\S]*", readonly: bool = False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length), readonly=readonly, type="TEXT")
 
@@ -291,7 +302,8 @@ class UiTextInput(UiInputSetting):
 class UiTimeInput(UiTextInput):
     WallTimeRegExp = "^(2[0-3]|[01]?[0-9]):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$"
 
-    def __init__(self, name, default="00:00:00", hour_number=4, readonly=False, wall_time=False):
+    def __init__(self, name: str, default: str = "00:00:00",
+                 hour_number: int = 4, readonly: bool = False, wall_time: bool = False):
         if wall_time:
             super(UiTimeInput, self).__init__(name, 8, default=default, re_=self.WallTimeRegExp, readonly=readonly)
         else:
@@ -301,17 +313,17 @@ class UiTimeInput(UiTextInput):
             super(UiTimeInput, self).__init__(name, length, default=default, re_=re_.substitute(h=h), readonly=readonly)
 
     @staticmethod
-    def isValidTime(time_string):
+    def isValidTime(time_string: str) -> bool:
         if not isinstance(time_string, str) or len(time_string) != 8:
             return False
         return re.match(UiTimeInput.WallTimeRegExp, time_string) is not None
 
     @staticmethod
-    def str2time(time_string):
+    def str2time(time_string: str) -> Time:
         return UiTimeInput.seconds2time(UiTimeInput.str2seconds(time_string))
 
     @staticmethod
-    def str2seconds(time_string):
+    def str2seconds(time_string: str) -> int:
         try:
             times = time_string.split(":")
             if len(times) != 3:
@@ -321,44 +333,44 @@ class UiTimeInput(UiTextInput):
             return 0
 
     @staticmethod
-    def second2str(seconds):
+    def second2str(seconds: int) -> str:
         h, m, s = UiTimeInput.seconds2time(seconds)
         return "{0:02d}:{1:02d}:{2:02d}".format(h, m, s)
 
     @staticmethod
-    def seconds2time(seconds):
+    def seconds2time(seconds: int) -> Time:
         try:
             h = seconds // 3600
             m = (seconds % 3600) // 60
             s = (seconds % 60)
-            return h, m, s
+            return Time(h, m, s)
         except TypeError:
-            return 0, 0, 0
+            return Time(0, 0, 0)
 
 
 class UiAddressInput(UiTextInput):
     RegExp = "((?:(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d?\\d))"
 
-    def __init__(self, name, default="000.000.000.000", readonly=False):
+    def __init__(self, name: str, default: str = "000.000.000.000", readonly: bool = False):
         super(UiAddressInput, self).__init__(name, 16, default=default, re_=self.RegExp, readonly=readonly)
 
 
 class UiHexByteInput(UiTextInput):
     RegExp = Template("^([0-9a-fA-F]{2}\ ?){0,$len}")
 
-    def __init__(self, name, length, default="00 01 02 03 04 05 06", readonly=False):
+    def __init__(self, name: str, length: int, default: str = "00 01 02 03 04 05 06", readonly: bool = False):
         re_ = self.RegExp.substitute(len=length)
         super(UiHexByteInput, self).__init__(name, length * 3 - 1, default=default, re_=re_, readonly=readonly)
 
 
 class UiColorInput(UiInputSetting):
-    def __init__(self, name, r, g, b):
+    def __init__(self, name: str, r: int, g: int, b: int):
         color = r, g, b
         super(UiColorInput, self).__init__(name=name, data="{}".format(color), default="{}".format(color),
                                            check="", readonly=False, type="COLOR")
 
     @staticmethod
-    def get_color(color_setting):
+    def get_color(color_setting: str) -> Color:
         default_color = 255, 255, 255
         try:
             color_setting = color_setting[1:-1].split(", ")
@@ -369,7 +381,7 @@ class UiColorInput(UiInputSetting):
             return default_color
 
     @staticmethod
-    def get_color_stylesheet(color_setting, border=False):
+    def get_color_stylesheet(color_setting: str, border: bool = False) -> str:
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
@@ -381,7 +393,7 @@ class UiColorInput(UiInputSetting):
             return ""
 
     @staticmethod
-    def get_bg_color_stylesheet(color_setting, border=False):
+    def get_bg_color_stylesheet(color_setting: str, border: bool = False) -> str:
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
@@ -394,43 +406,45 @@ class UiColorInput(UiInputSetting):
 
 
 class UiDoubleInput(UiInputSetting):
-    def __init__(self, name, minimum, maximum, default=0.0, step=1.0, decimals=1, readonly=False):
+    def __init__(self, name: str, minimum: float, maximum: float,
+                 default: float = 0.0, step: float = 1.0, decimals: int = 1, readonly: bool = False):
         super(UiDoubleInput, self).__init__(name=name, data=default, default=default,
                                             check=(minimum, maximum, step, decimals), readonly=readonly, type="FLOAT")
 
 
 class UiIntegerInput(UiInputSetting):
-    def __init__(self, name, minimum, maximum, default=0, step=1, readonly=False):
+    def __init__(self, name: str, minimum: int, maximum: int, default: int = 0, step: int = 1, readonly: bool = False):
         super(UiIntegerInput, self).__init__(name=name, data=default, default=default,
                                              check=(minimum, maximum, step), readonly=readonly, type="INT")
 
 
 class UiSelectInput(UiInputSetting):
-    def __init__(self, name, options, default, readonly=False, sbs=False):
+    def __init__(self, name: str, options: Sequence[str],
+                 default: Union[int, str], readonly: bool = False, sbs: bool = False):
         super(UiSelectInput, self).__init__(name=name, data=default, default=default,
                                             check=options, readonly=readonly, type="SBS_SELECT" if sbs else "SELECT")
 
 
 class UiSerialInput(UiInputSetting):
-    def __init__(self, name, port=""):
+    def __init__(self, name: str, port: str = ""):
         super(UiSerialInput, self).__init__(name=name, data=port, default=port,
                                             check=port, readonly=False, type="SERIAL")
 
 
 class UiNetworkSelectInput(UiInputSetting):
-    def __init__(self, name, network="", default=""):
+    def __init__(self, name: str, network: str = "", default: str = ""):
         super(UiNetworkSelectInput, self).__init__(name=name, data=network, default=default,
                                                    check=network, readonly=False, type="NETWORK")
 
 
 class UiAddressSelectInput(UiInputSetting):
-    def __init__(self, name, address="", default=""):
+    def __init__(self, name: str, address: str = "", default: str = ""):
         super(UiAddressSelectInput, self).__init__(name=name, data=address, default=default,
                                                    check=address, readonly=False, type="ADDRESS")
 
 
 class UiCheckBoxInput(UiInputSetting):
-    def __init__(self, name, default=False, readonly=False, label_left=False):
+    def __init__(self, name: str, default: bool = False, readonly: bool = False, label_left: bool = False):
         super(UiCheckBoxInput, self).__init__(name=name, data=default, default=default, label_left=label_left,
                                               check=(True, False), readonly=readonly, type="BOOL")
 
@@ -451,31 +465,31 @@ class UiLayout(DynamicObject):
         if not isinstance(self.layout, (list, tuple)):
             raise TypeError("layout must be a tuple or list")
 
-    def get_name(self):
+    def get_name(self) -> str:
         return self.name
 
-    def get_layout(self):
+    def get_layout(self) -> Layout:
         return self.layout
 
-    def get_spaces(self):
+    def get_spaces(self) -> LayoutSpace:
         return self.spaces
 
-    def get_margins(self):
+    def get_margins(self) -> LayoutMargins:
         return tuple(self.margins)
 
     def force_display_title(self):
         return self.title
 
-    def check_layout(self, settings):
+    def check_layout(self, settings: dict) -> bool:
         return self.is_vertical_layout(self.get_layout(), settings) or self.is_grid_layout(self.get_layout(), settings)
 
-    def get_grid_layout(self, settings):
+    def get_grid_layout(self, settings: dict) -> Union[Layout, List[Layout]]:
         if self.is_grid_layout(self.get_layout(), settings):
             return self.get_layout()
         else:
             return [[x] for x in self.get_layout()]
 
-    def get_vertical_layout(self, settings):
+    def get_vertical_layout(self, settings: dict) -> Layout:
         if self.is_vertical_layout(self.get_layout(), settings):
             return self.get_layout()
         else:
@@ -484,13 +498,16 @@ class UiLayout(DynamicObject):
             return layout
 
     @staticmethod
-    def is_grid_layout(layout, settings):
+    def is_grid_layout(layout: Layout, settings: dict) -> bool:
         return set([isinstance(x, (list, tuple)) and UiLayout.is_vertical_layout(x, settings)
                     for x in layout]) == {True}
 
     @staticmethod
-    def is_vertical_layout(layout, settings):
+    def is_vertical_layout(layout: Layout, settings: dict) -> bool:
         return set([isinstance(x, str) and settings.get(x) is not None for x in layout]) == {True}
+
+
+T = TypeVar('T', bound='UiLogMessage')
 
 
 class UiLogMessage(DynamicObject):
@@ -504,7 +521,7 @@ class UiLogMessage(DynamicObject):
         super(UiLogMessage, self).__init__(**kwargs)
 
     @staticmethod
-    def genDefaultMessage(content, level):
+    def genDefaultMessage(content: str, level: int) -> T:
         return {
 
             logging.INFO: UiLogMessage.genDefaultInfoMessage,
@@ -513,13 +530,13 @@ class UiLogMessage(DynamicObject):
         }.get(level, UiLogMessage.genDefaultInfoMessage)(content)
 
     @staticmethod
-    def genDefaultInfoMessage(content):
+    def genDefaultInfoMessage(content: str) -> T:
         return UiLogMessage(content=content, level=logging.INFO, color="#000000")
 
     @staticmethod
-    def genDefaultDebugMessage(content):
+    def genDefaultDebugMessage(content) -> T:
         return UiLogMessage(content=content, level=logging.DEBUG, color="#0000FF")
 
     @staticmethod
-    def genDefaultErrorMessage(content):
+    def genDefaultErrorMessage(content) -> T:
         return UiLogMessage(content=content, level=logging.ERROR, color="#FF0000")

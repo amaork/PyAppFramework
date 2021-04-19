@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import threading
-
+from typing import Optional, Callable
 __all__ = ['SwTimer']
 
 
 class SwTimer(object):
-    def __init__(self, base=1, callback=None, args=None):
+    def __init__(self, base: int = 1, callback: Optional[Callable] = None, args: Optional[tuple] = None):
         """Software timer
 
         :param self:
@@ -35,7 +35,7 @@ class SwTimer(object):
         self.lock.release()
         self.timer.start()
 
-    def is_timeout(self, time):
+    def is_timeout(self, time: int) -> bool:
         self.lock.acquire()
         timeout = self.timer_cnt >= time
         self.lock.release()

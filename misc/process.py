@@ -8,16 +8,15 @@ import signal
 import platform
 import threading
 import subprocess
-
-__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead',
-           'restart_software', 'subprocess_startup_info_without_console']
+from typing import List, Type
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info_without_console']
 
 
 class ProcessManager(object):
     WAIT_TIME = 0.5
     SYSTEM = platform.system().lower()
 
-    def __init__(self, cmdline, autostart=True):
+    def __init__(self, cmdline: str, autostart: bool = True):
         """Process manager
 
         :param cmdline: command line
@@ -30,7 +29,7 @@ class ProcessManager(object):
         if autostart:
             self.resume()
 
-    def __process_control(self, run):
+    def __process_control(self, run: bool):
         """Process control
 
         :param run:
@@ -41,7 +40,6 @@ class ProcessManager(object):
         cwd = os.getcwd()
 
         try:
-
             # Absolute path, enter path
             if os.path.isdir(self.path):
                 os.chdir(self.path)
@@ -69,33 +67,31 @@ class ProcessManager(object):
                 if not self.is_windows():
                     for pid in lst:
                         os.kill(pid, signal.SIGCONT if run else signal.SIGSTOP)
-        except Exception:
-            pass
         finally:
             os.chdir(cwd)
 
     @property
-    def args(self):
+    def args(self) -> str:
         return self.__args
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__name
 
     @property
-    def path(self):
+    def path(self) -> str:
         return self.__path
 
     @property
-    def cmdline(self):
+    def cmdline(self) -> str:
         return self.__cmdline
 
     @staticmethod
-    def is_windows():
+    def is_windows() -> bool:
         return ProcessManager.SYSTEM == "windows"
 
     @staticmethod
-    def get_pid(name):
+    def get_pid(name: str) -> List[int]:
         """Get process id
 
         :param name: process name
@@ -112,7 +108,7 @@ class ProcessManager(object):
         return pid_list
 
     @staticmethod
-    def kill(name):
+    def kill(name: str) -> bool:
         """Kill name specified process
 
         :param name: process name
@@ -126,22 +122,22 @@ class ProcessManager(object):
         time.sleep(ProcessManager.WAIT_TIME)
         return True if not ProcessManager.get_pid(name) else False
 
-    def suspend(self):
+    def suspend(self) -> bool:
         if self.is_windows():
             return self.kill(self.name)
 
         self.__process_control(False)
         return True if self.get_pid(self.name) else False
 
-    def resume(self):
+    def resume(self) -> bool:
         self.__process_control(True)
         time.sleep(ProcessManager.WAIT_TIME)
         return True if self.get_pid(self.name) else False
 
-    def terminate(self):
+    def terminate(self) -> bool:
         return self.kill(self.name)
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return len(self.get_pid(self.name)) != 0
 
 
@@ -158,11 +154,11 @@ class SubprocessWithTimeoutRead(object):
     def __del__(self):
         self.kill()
 
-    def wait(self, timeout):
+    def wait(self, timeout: float):
         try:
             timeout = timeout or None
             self.__process.wait(timeout)
-        except subprocess.TimeoutExpired as err:
+        except subprocess.TimeoutExpired:
             pass
 
     def kill(self):
@@ -170,7 +166,7 @@ class SubprocessWithTimeoutRead(object):
         ret, err = self.__process.communicate()
         self.__queue.put_nowait((ret + err).decode())
 
-    def read(self, timeout=0):
+    def read(self, timeout: float = 0):
         try:
             return self.__queue.get(timeout=timeout)
         except queue.Empty:
@@ -188,11 +184,7 @@ class SubprocessWithTimeoutRead(object):
                 break
 
 
-def restart_software(file: str):
-    os.execl(sys.executable, file, *sys.argv)
-
-
-def subprocess_startup_info_without_console():
+def subprocess_startup_info_without_console() -> Type[subprocess.STARTUPINFO]:
     startup_info = subprocess.STARTUPINFO
     startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
     startup_info.wShowWindow = subprocess.SW_HIDE

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from PySide.QtGui import *
 from PySide.QtCore import *
+from typing import Union, Optional, Sequence
 from ..misc.windpi import get_program_scale_factor
 __all__ = ['DashboardStatusIcon']
 
@@ -16,7 +17,8 @@ class DashboardStatusIcon(QWidget):
     clicked = Signal(object)
     doubleClicked = Signal(object)
 
-    def __init__(self, parent, name, status, tips="", size=None, differ_font_size=False):
+    def __init__(self, parent: QWidget, name: str, status: Sequence[str],
+                 tips: str = "", size: Optional[QSize] = None, differ_font_size: bool = False):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
@@ -43,73 +45,76 @@ class DashboardStatusIcon(QWidget):
             self.setMinimumSize(self.__scaleSize(size))
         self.setToolTip(tips)
 
-    def __scaleSize(self, size):
+    def __repr__(self):
+        return "{}: {}".format(self.name, self.status())
+
+    def __scaleSize(self, size: QSize) -> QSize:
         return QSize(self._scale_x * size.width(), self._scale_y * size.height()) if isinstance(size, QSize) else size
 
-    def __getFontSize(self):
+    def __getFontSize(self) -> float:
         try:
             return self.width() / 10 / self._scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         meter = QFontMetrics(self._font)
         return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name[:]
 
     @property
-    def font(self):
+    def font(self) -> QFont:
         return self._font
 
     @property
-    def font_size(self):
+    def font_size(self) -> int:
         return self._display_font.pixelSize()
 
     @font_size.setter
-    def font_size(self, size):
+    def font_size(self, size: int):
         if isinstance(size, int):
             self._display_font.setPointSize(size)
             self.update()
 
     @property
-    def bg_color(self):
+    def bg_color(self) -> QColor:
         return self._bg_color
 
     @property
-    def fg_color(self):
+    def fg_color(self) -> QColor:
         return self._fg_color
 
     @bg_color.setter
-    def bg_color(self, color):
+    def bg_color(self, color: Union[QColor, Qt.GlobalColor]):
         if isinstance(color, (QColor, Qt.GlobalColor)):
             self._bg_color = color
             self.update()
 
     @fg_color.setter
-    def fg_color(self, color):
+    def fg_color(self, color: Union[QColor, Qt.GlobalColor]):
         if isinstance(color, (QColor, Qt.GlobalColor)):
             self._fg_color = color
             self.update()
 
     @property
-    def font_color(self):
+    def font_color(self) -> QColor:
         return self._font_color
 
     @font_color.setter
-    def font_color(self, color):
+    def font_color(self, color: Union[QColor, Qt.GlobalColor]):
         if isinstance(color, (QColor, Qt.GlobalColor)):
             self._font_color = color
             self.update()
 
     @property
-    def hover_color(self):
+    def hover_color(self) -> QColor:
         return self._hover_color
 
     @hover_color.setter
-    def hover_color(self, color):
+    def hover_color(self, color: Union[QColor, Qt.GlobalColor]):
         if isinstance(color, (QColor, Qt.GlobalColor)):
             self._hover_color = color
             self.update()
@@ -119,7 +124,7 @@ class DashboardStatusIcon(QWidget):
         self._display = self._status[self._current]
         self.update()
 
-    def status(self):
+    def status(self) -> str:
         return self._display
 
     def switchStatus(self):
@@ -128,7 +133,7 @@ class DashboardStatusIcon(QWidget):
         self._display = self._status[self._current]
         self.update()
 
-    def changeStatus(self, st):
+    def changeStatus(self, st: str):
         if st in self._status:
             self._current = self._status.index(st)
             self._display = self._status[self._current]
@@ -137,26 +142,26 @@ class DashboardStatusIcon(QWidget):
             self._display = st
             self.update()
 
-    def enterEvent(self, ev):
+    def enterEvent(self, ev: QEvent):
         self._font_color_bk = self._font_color
         self._font_color = self._hover_color
         self.update()
 
-    def leaveEvent(self, ev):
+    def leaveEvent(self, ev: QEvent):
         self._font_color = self._font_color_bk
         self.update()
 
-    def resizeEvent(self, ev):
+    def resizeEvent(self, ev: QResizeEvent):
         self._font = QFont(self.DEF_FONT_NAME, self.__getFontSize())
         self.update()
 
-    def mousePressEvent(self, ev):
+    def mousePressEvent(self, ev: QMouseEvent):
         self.clicked.emit(self._display)
 
-    def mouseDoubleClickEvent(self, ev):
+    def mouseDoubleClickEvent(self, ev: QMouseEvent):
         self.doubleClicked.emit(self._display)
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 

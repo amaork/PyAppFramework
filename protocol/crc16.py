@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Sequence
 __all__ = ['crc16', 'crc16IBM']
 
 
@@ -54,7 +55,7 @@ __CRC_TABLE_LOW = [
 ]
 
 
-def crc16(data):
+def crc16(data: Sequence[int]) -> int:
     """Calculate data crc16(modbus)
 
     :param data: data string
@@ -90,7 +91,7 @@ def crc16(data):
     return (crc_hi << 8 | crc_low) & 0xffff
 
 
-def crc16IBM(data):
+def crc16IBM(data: Sequence[int]) -> int:
     """Calculate data crc16(IBM)
 
     :param data: data string

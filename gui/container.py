@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-
 """
 Provide UI elements container
 """
 
-import copy
-from typing import *
-from PySide.QtCore import *
 from PySide.QtGui import *
-
+from PySide.QtCore import *
+from typing import Union, Optional, List, Any, Sequence
 
 from .binder import *
 from .misc import HyperlinkLabel, NetworkInterfaceSelector, CustomEventFilterHandler
@@ -20,7 +17,8 @@ __all__ = ['ComboBoxGroup', 'ComponentManager', 'HyperlinkGroup']
 class ComboBoxGroup(QObject):
     sequenceChanged = Signal()
 
-    def __init__(self, template, autoCreate=False, ordered=False, parent=None):
+    def __init__(self, template: QComboBox, autoCreate: bool = False,
+                 ordered: bool = False, parent: Optional[QWidget] = None):
         super(ComboBoxGroup, self).__init__(parent)
 
         self.__group = list()
@@ -47,7 +45,10 @@ class ComboBoxGroup(QObject):
             item.currentIndexChanged.connect(self.slotDataChanged)
             self.__group.append(item)
 
-    def __typeCheck(self, item):
+    def __len__(self):
+        return len(self.__group)
+
+    def __typeCheck(self, item: QComboBox) -> bool:
         if not self.__template:
             print("TypeError: template is None")
             return False
@@ -67,7 +68,7 @@ class ComboBoxGroup(QObject):
 
         return True
 
-    def __indexCheck(self, index):
+    def __indexCheck(self, index: int) -> bool:
         if not isinstance(index, int):
             print("TypeError:{!r}".format(index.__class__.__name__))
             return False
@@ -78,7 +79,7 @@ class ComboBoxGroup(QObject):
 
         return True
 
-    def __findConflictItem(self, current):
+    def __findConflictItem(self, current: QComboBox) -> Union[QComboBox, None]:
         if not isinstance(current, QComboBox) or current not in self.__group:
             return None
 
@@ -94,7 +95,7 @@ class ComboBoxGroup(QObject):
 
         return None
 
-    def __findUnusedIndex(self):
+    def __findUnusedIndex(self) -> Union[int, None]:
         if self.count() == 0:
             return None
 
@@ -109,14 +110,14 @@ class ComboBoxGroup(QObject):
 
         return None
 
-    def count(self):
+    def count(self) -> int:
         return len(self.__group)
 
-    def items(self):
+    def items(self) -> List[QComboBox]:
         """Get all ComboBox items in group"""
         return self.__group
 
-    def itemAt(self, idx):
+    def itemAt(self, idx: int) -> Union[QComboBox, None]:
         """Get idx specified ComboBox item
 
         :param idx: index
@@ -127,11 +128,11 @@ class ComboBoxGroup(QObject):
 
         return self.__group[idx]
 
-    def setEditable(self, editable):
+    def setEditable(self, editable: bool):
         for item in list(self.items()):
             item.setEnabled(editable)
 
-    def addComboBox(self, box, ordered=False):
+    def addComboBox(self, box: QComboBox, ordered: bool = False) -> bool:
         """And a QComboBox to group
 
         :param box: QComboBox item
@@ -167,17 +168,17 @@ class ComboBoxGroup(QObject):
         if index is not None:
             item.setCurrentIndex(index)
 
-    def getSequence(self):
+    def getSequence(self) -> List[int]:
         """Get group QComboBox index sequence
         """
         return [item.currentIndex() for item in self.__group]
 
-    def getSequenceText(self):
+    def getSequenceText(self) -> List[str]:
         """Get group QComboBox texts
         """
         return [item.currentText() for item in self.__group]
 
-    def setSequence(self, sequence):
+    def setSequence(self, sequence: Sequence[int]) -> bool:
         """Set group QComboBox sequence
 
         :param sequence: QComboBox index sequence
@@ -196,10 +197,7 @@ class ComboBoxGroup(QObject):
                 print("Sequence item TypeError: {!r}".format(index.__class__.__name__))
                 return False
 
-        values = copy.copy(sequence)
-        values.sort()
-
-        if values != list(range(len(sequence))):
+        if len(set(sequence)) != len(sequence):
             print("Sequence item conflict")
             return False
 
@@ -213,7 +211,7 @@ class ComponentManager(QObject):
     dataChanged = Signal()
     dataChangedDetail = Signal(str, object)
 
-    def __init__(self, layout, parent=None):
+    def __init__(self, layout: QLayout, parent: Optional[QWidget] = None):
         super(ComponentManager, self).__init__(parent)
         if not isinstance(layout, QLayout):
             raise TypeError("layout require {!r} not {!r}".format(QLayout.__name__, layout.__class__.__name__))
@@ -255,7 +253,7 @@ class ComponentManager(QObject):
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
 
-    def __getComponentsWithType(self, componentType):
+    def __getComponentsWithType(self, componentType: type) -> List[QWidget]:
         if isinstance(componentType, type):
             components = self.getByType(componentType)
         else:
@@ -264,7 +262,7 @@ class ComponentManager(QObject):
         return components
 
     @staticmethod
-    def getComponentData(component):
+    def getComponentData(component: QWidget) -> Any:
         if isinstance(component, QSpinBox):
             return component.value()
         elif isinstance(component, QDoubleSpinBox):
@@ -296,7 +294,7 @@ class ComponentManager(QObject):
             return ""
 
     @staticmethod
-    def setComponentData(component, data):
+    def setComponentData(component: QWidget, data: Any):
         if isinstance(component, QSpinBox):
             component.setValue(str2number(data))
         elif isinstance(component, QDoubleSpinBox):
@@ -332,7 +330,7 @@ class ComponentManager(QObject):
             component.display(str2float(data))
 
     @staticmethod
-    def findParentLayout(obj, top):
+    def findParentLayout(obj: QWidget, top: QLayout) -> Union[QLayout, None]:
         if not isinstance(obj, QWidget) or not isinstance(top, QLayout):
             return None
 
@@ -364,7 +362,7 @@ class ComponentManager(QObject):
         return None
 
     @staticmethod
-    def getAllComponents(obj):
+    def getAllComponents(obj: QWidget) -> List[QWidget]:
         """Get object specified object all components
 
         :param obj: should be a QWidget or Layout
@@ -407,19 +405,19 @@ class ComponentManager(QObject):
         self.dataChanged.emit()
         self.dataChangedDetail.emit(sender.property("data"), self.getComponentData(sender))
 
-    def getAll(self):
+    def getAll(self) -> List[QWidget]:
         return self.getAllComponents(self.__object)
 
-    def getParentLayout(self, obj):
+    def getParentLayout(self, obj: QWidget) -> Union[QLayout, None]:
         if obj not in self.getAll():
             return None
 
         return self.findParentLayout(obj, self.__object)
 
-    def findRowSibling(self, obj):
+    def findRowSibling(self, obj: QWidget) -> List[QWidget]:
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print("Only QGridLayout support find row sibling:{!r}".format(layout.__class__.__name__))
+            print("Only QGridLayout support find row sibling")
             return []
 
         for row in range(layout.rowCount()):
@@ -431,10 +429,10 @@ class ComponentManager(QObject):
 
         return []
 
-    def findColumnSibling(self, obj):
+    def findColumnSibling(self, obj: QWidget) -> List[QWidget]:
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QGridLayout):
-            print("Only QGridLayout support find column sibling:{!r}".format(layout.__class__.__name__))
+            print("Only QGridLayout support find column sibling")
             return []
 
         for row in range(layout.rowCount()):
@@ -446,7 +444,7 @@ class ComponentManager(QObject):
 
         return []
 
-    def getNextSibling(self, obj):
+    def getNextSibling(self, obj: QWidget) -> Union[QWidget, None]:
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QLayout):
             return None
@@ -458,7 +456,7 @@ class ComponentManager(QObject):
         else:
             return components[index + 1]
 
-    def getPrevSibling(self, obj):
+    def getPrevSibling(self, obj: QWidget) -> Union[QWidget, None]:
         layout = self.getParentLayout(obj)
         if not isinstance(layout, QLayout):
             return None
@@ -470,7 +468,7 @@ class ComponentManager(QObject):
         else:
             return components[index - 1]
 
-    def getByType(self, componentType):
+    def getByType(self, componentType: type) -> List[QWidget]:
         """Get componentType specified type components
 
         :param componentType: component type
@@ -488,7 +486,7 @@ class ComponentManager(QObject):
 
         return components
 
-    def getByValue(self, key, value, componentType=None):
+    def getByValue(self, key: str, value: Any, componentType: Optional[type] = None) -> Union[QWidget, None]:
         """Get componentType specified component property key  is value
 
         :param key: property key
@@ -497,8 +495,8 @@ class ComponentManager(QObject):
         :return:
         """
 
-        if not isinstance(key, str) or not isinstance(value, str):
-            print("Property TypeError:{!r}, {!r}".format(key.__class__.__name__, value.__class__.__name__))
+        if not isinstance(key, str):
+            print("Property key TypeError:{!r}".format(key.__class__.__name__))
             return None
 
         # Search by property
@@ -508,7 +506,7 @@ class ComponentManager(QObject):
 
         return None
 
-    def findKey(self, key, componentType=None):
+    def findKey(self, key: str, componentType: Optional[type] = None) -> List[QWidget]:
         """find component with componentType specified type, and key specified property key
 
         :param key: property key
@@ -522,12 +520,12 @@ class ComponentManager(QObject):
 
         lst = list()
         for component in self.__getComponentsWithType(componentType):
-            if component.property(key):
+            if component.property(key) is not None:
                 lst.append(component)
 
         return lst
 
-    def findValue(self, key, searchValue, componentType=None):
+    def findValue(self, key: str, searchValue: str, componentType: Optional[QWidget] = None) -> List[QWidget]:
         """Find component with componentType specified types and property key hast value
 
         :param key: property key
@@ -538,12 +536,14 @@ class ComponentManager(QObject):
         lst = list()
         for component in self.findKey(key, componentType):
             value = component.property(key)
-            if value is not None and searchValue in value:
+            if isinstance(value, str) and searchValue in value:
                 lst.append(component)
 
         return lst
 
-    def getData(self, key, componentType=None, exclude=None):
+    def getData(self, key: str,
+                componentType: Optional[Sequence[type]] = None,
+                exclude: Optional[Sequence[str]] = None) -> dict:
         data = dict()
         components = list()
         exclude = exclude if isinstance(exclude, (list, tuple)) else []
@@ -565,7 +565,7 @@ class ComponentManager(QObject):
 
         return data
 
-    def setData(self, key, data):
+    def setData(self, key: str, data: str) -> bool:
         if not isinstance(key, str) or not isinstance(data, dict):
             return False
 
@@ -579,13 +579,14 @@ class ComponentManager(QObject):
         return True
 
     def setEnabled(self, enabled: bool):
-        return self.setDisabled(not enabled)
+        self.setDisabled(not enabled)
 
     def setDisabled(self, disable: bool):
         self.__disabled = disable
         [self.__eventHandle.process(element, self.__disabled) for element in self.getAll()]
 
-    def bindSpinBox(self, key, sender, receiver, factor, enable=False):
+    def bindSpinBox(self, key: str, sender: Any, receiver: Any,
+                    factor: Union[int, float], enable: bool = False) -> bool:
         """Bind two spinbox, when one spinbox is changes another will linkage
 
         :param key: property key
@@ -608,7 +609,7 @@ class ComponentManager(QObject):
         receiverSpinBox.setEnabled(enable)
         return True
 
-    def bindComboBox(self, key, sender, receiver, reverse=False, enable=False):
+    def bindComboBox(self, key: str, sender: Any, receiver: Any, reverse: bool = False, enable: bool = False) -> bool:
         """Bind two ComboBox, on changed, another changed too
 
         :param key: property key
@@ -631,7 +632,7 @@ class ComponentManager(QObject):
         receiverComboBox.setEnabled(enable)
         return True
 
-    def bindComboBoxWithLabel(self, key, sender, receiver, texts):
+    def bindComboBoxWithLabel(self, key: str, sender: Any, receiver: Any, texts: Sequence[str]) -> bool:
         """Bind ComboBox with label, ComboBox current index changed, label text changed too
 
         :param key: property key
@@ -652,7 +653,7 @@ class ComponentManager(QObject):
 
         return True
 
-    def bindComboBoxWithSpinBox(self, key, sender, receiver, limit):
+    def bindComboBoxWithSpinBox(self, key: str, sender: Any, receiver: Any, limit: Sequence[Union[int, float]]) -> bool:
         """Bind ComboBox with SpinBox, ComboBox current index changed, SpinBox will changed
 
         limit length = 3 (min, max, step)
@@ -682,8 +683,8 @@ class HyperlinkGroup(QObject):
     signalCurrentLinkChanged = Signal(object)
 
     def __init__(self, exclusive: bool = True,
-                 template: DynamicObject or None = None,
-                 links: List[str] or None = None, parent: QWidget or None = None):
+                 template: Optional[DynamicObject] = None,
+                 links: Optional[List[str]] = None, parent: Optional[QWidget] = None):
         super(HyperlinkGroup, self).__init__(parent)
         self._currentText = ""
         self._previousText = ""
@@ -698,6 +699,12 @@ class HyperlinkGroup(QObject):
              QEvent.KeyPress, QEvent.KeyRelease), self
         )
         self.create(links)
+
+    def __len__(self):
+        return len(self._linkGroup)
+
+    def __repr__(self):
+        return [x.text() for x in self._linkGroup]
 
     def clear(self):
         self._linkGroup.clear()
@@ -743,16 +750,16 @@ class HyperlinkGroup(QObject):
     def getPreviousLinkText(self) -> str:
         return self._previousText[:]
 
-    def getLinkByIndex(self, idx: int) -> HyperlinkLabel or None:
+    def getLinkByIndex(self, idx: int) -> Union[HyperlinkLabel, None]:
         return self._linkGroup[idx] if 0 <= idx < len(self._linkGroup) else None
 
-    def getLinkByText(self, text: str) -> HyperlinkLabel or None:
+    def getLinkByText(self, text: str) -> Union[HyperlinkLabel, None]:
         try:
             return [link for link in self._linkGroup if link.text() == text][0]
         except (ValueError, IndexError):
             return None
 
-    def getCurrentClickedLink(self) -> HyperlinkLabel or None:
+    def getCurrentClickedLink(self) -> Union[HyperlinkLabel, None]:
         return self.getLinkByText(self._currentText)
 
     def slotHyperLinkClicked(self, text: str):

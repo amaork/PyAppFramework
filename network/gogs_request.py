@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import requests
-from typing import *
 import concurrent.futures
 from pyquery import PyQuery
 from contextlib import closing
-
+from typing import List, Callable, Optional, Dict
 
 from .http_request import *
 from ..core.datatype import DynamicObject
@@ -37,7 +36,7 @@ class RepoRelease(DynamicObject):
 class GogsRequest(HttpRequest):
     TOKEN_NAME = "_csrf"
 
-    def __init__(self, host: str, username: str, password: str, source_address: str = "", timeout: int = 5):
+    def __init__(self, host: str, username: str, password: str, source_address: str = "", timeout: float = 5):
         super(GogsRequest, self).__init__(token_name=self.TOKEN_NAME, source_address=source_address, timeout=timeout)
         self.__host = host
         self.__username = username
@@ -57,7 +56,7 @@ class GogsRequest(HttpRequest):
         return "{}/{}".format(self.__host, repo)
 
     def download(self, name: str, url: str, timeout: int = 60,
-                 callback: Callable[[str], None] or None = None) -> bool:
+                 callback: Optional[Callable[[str], None]] = None) -> bool:
         """
         Download file or attachment
         :param name: download file save path
@@ -80,7 +79,7 @@ class GogsRequest(HttpRequest):
         return True
 
     def stream_download(self, name: str, url: str, size: int, chunk_size: int = 1024 * 32,
-                        timeout: int = 60, callback: Callable[[float, str], bool] or None = None) -> bool:
+                        timeout: int = 60, callback: Optional[Callable[[float, str], bool]] = None) -> bool:
         """
         Stream download a file from gogs server
         :param name: download path
@@ -117,8 +116,9 @@ class GogsRequest(HttpRequest):
         return True
 
     def download_package(self, package: dict, path: str,
-                         timeout: int = 60, parallel: bool = True, max_workers: int = 4,
-                         ignore_error: bool = True, callback: Callable[[str, int], bool] or None = None) -> dict:
+                         timeout: int = 60, parallel: bool = True,
+                         max_workers: int = 4, ignore_error: bool = True,
+                         callback: Optional[Callable[[str, float], bool]] = None) -> Dict[str, bool]:
         """
         Download an a pack of file
         :param package: Package to download, package is dict include multi-files name is key url is value
@@ -155,7 +155,7 @@ class GogsRequest(HttpRequest):
             if not os.path.isdir(path):
                 os.makedirs(path)
         except (OSError, FileExistsError) as err:
-            raise GogsRequestException("Download attachment error: {}".format(err))
+            raise GogsRequestException(404, "Download attachment error: {}".format(err))
 
         if parallel:
             # Thread pool parallel download attachment
@@ -211,7 +211,7 @@ class GogsRequest(HttpRequest):
             print("get_repo_releases exception: {}".format(e))
             return list()
 
-    def upload_repo_avatar(self, repo_path: str, avatar: str, timeout: int or None = None):
+    def upload_repo_avatar(self, repo_path: str, avatar: str, timeout: Optional[float] = None):
         avatar_url = "{}/{}/settings/avatar".format(self.__host, repo_path)
         avatar_from_data = DynamicObject(
             _csrf=(None, self.__token), avatar=(os.path.basename(avatar), open(avatar, "rb"))

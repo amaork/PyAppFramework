@@ -91,11 +91,11 @@ class UpgradeClient(object):
             newest_version = str2float(recv)
             return newest_version > current_ver
 
-        except Exception as e:
-            print("has_new_version Error:{}".format(e))
-            return False
         except socket.error as e:
             print("socket_error: {}".format(e))
+            return False
+        except Exception as e:
+            print("has_new_version Error:{}".format(e))
             return False
 
     def get_new_version_info(self):
@@ -251,14 +251,12 @@ class UpgradeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             return 0.0
 
         try:
-
             # Get software upgrade package dir all upgrade files
             file_list = [name for name in os.listdir(package_dir) if self.UPGRADE_PACKAGE_SUFFIX in name]
             version_list = [str2float(os.path.splitext(name)[0]) for name in file_list]
             newest_version = str2float(max(version_list))
             return newest_version
-
-        except Exception as e:
+        except Exception:
             return 0.0
 
     def get_newest_version_durl(self, software):
@@ -337,6 +335,9 @@ class UpgradeServerHandler(socketserver.BaseRequestHandler):
                 break
 
 
+T = TypeVar('T', bound='GogsSoftwareReleaseDesc')
+
+
 class GogsSoftwareReleaseDesc(JsonSettings):
     _default_path = "release.json"
     _properties = {'name', 'desc', 'size', 'date', 'md5', 'version', 'url'}
@@ -345,7 +346,7 @@ class GogsSoftwareReleaseDesc(JsonSettings):
         return self.name and self.size and self.md5 and self.url
 
     @classmethod
-    def default(cls):
+    def default(cls) -> T:
         return GogsSoftwareReleaseDesc(name="", desc="", size=0, date="", md5="", version=0.0, url="")
 
     @classmethod

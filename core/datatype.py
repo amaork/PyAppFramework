@@ -2,15 +2,14 @@
 import math
 import json
 import ctypes
+from typing import Tuple, List, Union
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
-           'str2float', 'str2number', 'resolve_number',
-           'new_class', 'new_instance',
-           'ip4_check']
+           'str2float', 'str2number', 'resolve_number', 'ip4_check']
 
 
-def resolve_number(number, decimals):
+def resolve_number(number: float, decimals: int) -> Tuple[int, int]:
     """
     resolve_number to fractional and integer part
     10.3 ==> 10 3
@@ -23,7 +22,7 @@ def resolve_number(number, decimals):
     return int(integer), int(round(math.pow(10, decimals) * fractional))
 
 
-def str2float(text):
+def str2float(text: Union[str, int, float]) -> float:
     if isinstance(text, (int, float)):
         return text
 
@@ -36,7 +35,7 @@ def str2float(text):
         return 0.0
 
 
-def str2number(text):
+def str2number(text: Union[str, bool, int, float]) -> int:
     if isinstance(text, (bool, int, float)):
         return text
 
@@ -68,25 +67,7 @@ def str2number(text):
         return 0
 
 
-def new_class(name):
-    if not isinstance(name, str):
-        raise TypeError("Class name TypeError:{!r}".format(name.__class__.__name__))
-
-    parts = name.split('.')
-    module = ".".join(parts[:-1])
-    cls = __import__(module)
-    for component in parts[1:]:
-        cls = getattr(cls, component)
-
-    return cls
-
-
-def new_instance(name, *args, **kwargs):
-    cls = new_class(name)
-    return cls(*args, **kwargs)
-
-
-def ip4_check(address):
+def ip4_check(address: str) -> bool:
     try:
         data = address.split(".")
         if len(data) != 4:
@@ -101,15 +82,18 @@ def ip4_check(address):
         return False
 
 
-class BasicDataType(object):
+class BasicDataType(ctypes.Structure):
     # 1 byte alignment
     _pack_ = 1
 
-    def cdata(self):
+    def __repr__(self):
+        return self.cdata().hex()
+
+    def cdata(self) -> bytes:
         """Get C-style data"""
         return ctypes.string_at(ctypes.addressof(self), ctypes.sizeof(self))
 
-    def set_cdata(self, cdata):
+    def set_cdata(self, cdata: bytes):
         """Set C-style data
 
         :param cdata: data
@@ -122,7 +106,7 @@ class BasicDataType(object):
         ctypes.memmove(ctypes.addressof(self), cdata, size)
         return True
 
-    def set_cstr(self, offset, maxsize, data):
+    def set_cstr(self, offset: int, maxsize: int, data: Union[str, bytes]):
         if data and offset + len(data) <= ctypes.sizeof(self):
             try:
                 ctypes.memmove(ctypes.addressof(self) + offset, data.encode(), min(len(data), maxsize))
@@ -201,20 +185,20 @@ class DynamicObject(object):
             raise AttributeError(msg.format(type(self).__name__, name))
 
     @property
-    def dict(self):
+    def dict(self) -> dict:
         return self.__dict__.copy()
 
     @classmethod
-    def properties(cls):
+    def properties(cls) -> List[str]:
         return list(cls._properties)
 
-    def xml(self, tag):
+    def xml(self, tag: str) -> XmlElementTree.Element:
         element = XmlElementTree.Element(tag)
         for k, v in self.dict.items():
             element.set("{}".format(k), "{}".format(v))
         return element
 
-    def dumps(self):
+    def dumps(self) -> str:
         """Encode data to a dict string
 
         :return:
@@ -252,14 +236,14 @@ class ComparableXml(XmlElementTree.Element):
         return not self.__eq__(other)
 
     @staticmethod
-    def string_strip(data):
+    def string_strip(data: str) -> Union[str, None]:
         if not isinstance(data, str):
             return None
         
         return "".join([s.strip() for s in data.split("\n")])
 
     @staticmethod
-    def xml2string(xml, encode="utf-8"):
+    def xml2string(xml: XmlElementTree.Element, encode="utf-8") -> Union[str, None]:
         """Xml to string with specified encode
 
         :param xml: xml Element object
@@ -274,7 +258,7 @@ class ComparableXml(XmlElementTree.Element):
         return ComparableXml.string_strip(data.decode())
 
     @staticmethod
-    def string2xml(data):
+    def string2xml(data: str) -> Union[XmlElementTree.Element, None]:
         """String to xml Element object
 
         :param data: string with xml element

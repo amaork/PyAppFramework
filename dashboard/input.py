@@ -2,6 +2,8 @@
 import math
 from PySide.QtGui import *
 from PySide.QtCore import *
+from typing import Union, Optional, Tuple
+
 from ..core.datatype import *
 from ..misc.settings import *
 from ..misc import windpi as dpi
@@ -17,7 +19,8 @@ class SampleSelectInput(QWidget):
 
     sampleSelected = Signal(object)
 
-    def __init__(self, diameter=400, numbers=12, font_name=DEFAULT_FONT, parent=None):
+    def __init__(self, diameter: int = 400, numbers: int = 12,
+                 font_name: str = DEFAULT_FONT, parent: Optional[QWidget] = None):
         super(SampleSelectInput, self).__init__(parent)
 
         self.state = ""
@@ -36,7 +39,7 @@ class SampleSelectInput(QWidget):
             self.sample_angles.append(360 - single_sample_angle * i)
         self.setMouseTracking(True)
 
-    def __updatePanelDiameter(self, diameter):
+    def __updatePanelDiameter(self, diameter: int):
         self.outer_ring_diameter = diameter - self.MARGIN * 2
         self.outer_ring_radius = self.outer_ring_diameter / 2
 
@@ -53,45 +56,45 @@ class SampleSelectInput(QWidget):
         self.update()
 
     @staticmethod
-    def angle_to_pos(radius, angle):
+    def angle_to_pos(radius: float, angle: float) -> Tuple[float, float]:
         pg = angle * math.pi / 180.0
         return radius * math.cos(pg), radius * math.sin(pg)
 
-    def get_font_size(self, diameter, number):
+    def get_font_size(self, diameter: float, number: int):
         number_text_length = len("{}".format(number))
         return min(diameter / number_text_length / 0.618, diameter * 0.618) / self.__scale_factor
 
-    def setState(self, st):
+    def setState(self, st: str):
         if isinstance(st, str):
             self.state = st
             self.update()
 
-    def getState(self, st):
+    def getState(self) -> str:
         return self.state
 
-    def setThemeColor(self, color):
+    def setThemeColor(self, color: QColor):
         if not isinstance(color, QColor):
             return
 
         self.bg_color = color
         self.update()
 
-    def getSelectLocation(self):
+    def getSelectLocation(self) -> int:
         return self.current_selected + 1
 
-    def setSelectLocation(self, loc):
+    def setSelectLocation(self, loc: int):
         if 1 <= loc <= 12:
             self.current_selected = loc - 1
             self.update()
 
-    def getSelectedNumber(self, point):
+    def getSelectedNumber(self, point: QRect) -> int:
         for number, rect in self.sample_poses.items():
             if rect.contains(point):
                 return number - 1
 
         return -1
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         font = QFont(self.font_name, self.get_font_size(self.sample_diameter, self.numbers))
@@ -145,16 +148,16 @@ class SampleSelectInput(QWidget):
             painter.setFont(font)
             painter.drawText(x, y, self.sample_diameter, self.sample_diameter, Qt.AlignCenter, "{}".format(idx + 1))
 
-    def resizeEvent(self, ev):
+    def resizeEvent(self, ev: QResizeEvent):
         width = ev.size().width()
         height = ev.size().height()
         self.__updatePanelDiameter(min(width, height))
 
-    def mouseMoveEvent(self, ev):
+    def mouseMoveEvent(self, ev: QMouseEvent):
         self.move_over_idx = self.getSelectedNumber(ev.pos())
         self.update()
 
-    def mouseReleaseEvent(self, ev):
+    def mouseReleaseEvent(self, ev: QMouseEvent):
         if ev.button() != Qt.LeftButton:
             return
 
@@ -166,10 +169,10 @@ class SampleSelectInput(QWidget):
             # print(number + 1)
             self.update()
 
-    def enterEvent(self, ev):
+    def enterEvent(self, ev: QEvent):
         pass
 
-    def leaveEvent(self, ev):
+    def leaveEvent(self, ev: QEvent):
         self.move_over_idx = -1
         self.update()
 
@@ -178,7 +181,8 @@ class VolumeSelectInput(QRadioButton):
     DEFAULT_FG_COLOR = Qt.lightGray
     DEFAULT_BG_COLOR = QColor(0x5d, 0x4e, 0x60)
 
-    def __init__(self, text, width=60, height=150, cap_height=25, parent=None):
+    def __init__(self, text: str, width: int = 60, height: int = 150,
+                 cap_height: int = 25, parent: Optional[QWidget] = None):
         super(VolumeSelectInput, self).__init__(parent)
         self.clicked.connect(self.slotChecked)
 
@@ -189,10 +193,10 @@ class VolumeSelectInput(QRadioButton):
         self.__scale_x, self.__scale_y = dpi.get_program_scale_factor()
         self.__updateSize(width, height, cap_height)
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         return QSize(self.__width, self.__height + self.__cap_height * 2)
 
-    def __updateSize(self, width, height, cap_height):
+    def __updateSize(self, width: int, height: int, cap_height: int):
         self.__width = width * self.__scale_x
         self.__height = height * self.__scale_y
         self.__cap_height = cap_height
@@ -201,7 +205,7 @@ class VolumeSelectInput(QRadioButton):
         self.__neck_y_start = self.__neck_height
         self.update()
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         if self.isChecked():
@@ -223,17 +227,17 @@ class VolumeSelectInput(QRadioButton):
     def slotChecked(self):
         self.setChecked(True)
 
-    def mousePressEvent(self, ev):
+    def mousePressEvent(self, ev: QMouseEvent):
         self.clicked.emit()
 
-    def setThemeColor(self, color):
+    def setThemeColor(self, color: QColor):
         if not isinstance(color, QColor):
             return
 
         self.__bg_color = color
         self.update()
 
-    # def resizeEvent(self, ev):
+    # def resizeEvent(self, ev: QResizeEvent):
     #     print(ev.size())
     #     self.__updateSize(ev.size().width(), ev.size().height())
 
@@ -323,7 +327,7 @@ class VirtualKeyboard(QDialog):
     KEY_MAP = ()
     KeyPressed = Signal(object)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super(VirtualKeyboard, self).__init__(parent)
 
 
@@ -355,9 +359,10 @@ class VirtualNumberKeyboard(VirtualKeyboard):
     DISPLAY_FONT_SIZE = FONT_BASE_SIZE * 1.5
 
     def __init__(self,
-                 min_: int or float = 0,
-                 max_: int or float = 100,
-                 initial_value: int or float = 0, decimals: int = 0, key_map: list or tuple = KEY_MAP, parent=None):
+                 min_: Union[int, float] = 0,
+                 max_: Union[int, float] = 100,
+                 initial_value: Union[int, float] = 0, decimals: int = 0,
+                 key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None):
         super(VirtualNumberKeyboard, self).__init__(parent)
 
         self.timer_cnt = 0
@@ -449,22 +454,22 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         ok.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)
 
-    def __minStr(self):
+    def __minStr(self) -> str:
         return self.__numStr(self.min_number)
 
-    def __maxStr(self):
+    def __maxStr(self) -> str:
         return self.__numStr(self.max_number)
 
-    def __numStr(self, num):
+    def __numStr(self, num: Union[int, float]) -> str:
         return "{0:.{1}f}".format(num, self.number_decimals) if self.number_decimals else str(num)
 
     def __flush(self):
         self.ui_display.setText(self.current_display)
 
-    def __checkValue(self):
+    def __checkValue(self) -> bool:
         return self.min_number <= str2float(self.current_display) <= self.max_number
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         meter = QFontMetrics(QFont(self.DEF_FONT_NAME, self.FONT_BASE_SIZE))
         width = meter.width(str(self.min_number) + str(self.max_number) + "  C  ")
         return QSize(width * self.__scale_factor, meter.height() * len(self.key_map) * self.__scale_factor)
@@ -543,7 +548,7 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
         self.__flush()
 
-    def getIntValue(self):
+    def getIntValue(self) -> int:
         if self.result():
             try:
                 v = int(self.current_display, 10)
@@ -551,12 +556,12 @@ class VirtualNumberKeyboard(VirtualKeyboard):
                 v = 0
             return v if self.min_number <= v <= self.max_number else str2number(self.old_display)
 
-    def getDoubleValue(self):
+    def getDoubleValue(self) -> float:
         if self.result():
             v = str2float(self.current_display)
             return v if self.min_number <= v <= self.max_number else str2float(self.old_display)
 
-    def timerEvent(self, ev):
+    def timerEvent(self, ev: QTimerEvent):
         self.timer_cnt += 1
 
         if self.overflow_flag:
@@ -574,14 +579,14 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
     @classmethod
     def getInt(cls, min_: int = 0, max_: int = 3600, initial_value: int = 0,
-               key_map: list or tuple = KEY_MAP, parent=None):
+               key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None) -> int:
         dialog = cls(min_, max_, initial_value, 0, key_map, parent)
         dialog.exec_()
         return dialog.getIntValue()
 
     @classmethod
     def getDouble(cls, min_: float = 0.0, max_: float = 100.0, decimals: int = 1, initial_value: float = 0.0,
-                  key_map: list or tuple = KEY_MAP, parent=None):
+                  key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None) -> float:
         dialog = cls(min_, max_, initial_value, decimals, key_map, parent)
         dialog.exec_()
         return dialog.getDoubleValue()

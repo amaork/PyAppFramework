@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from PySide.QtGui import *
 from PySide.QtCore import *
+from typing import Union, Optional
+
 from ..gui.widget import BasicWidget
 from ..core.datatype import resolve_number
 from ..misc.windpi import get_program_scale_factor
@@ -15,7 +17,8 @@ class NumberMonitor(BasicWidget):
     DISPLAY_UNITS = ("", "")
     SETTINGS_UNITS = ("", "")
 
-    def __init__(self, title, unit_id=0, sv=None, max_numbers=4, decimal=True, parent=None):
+    def __init__(self, title: str, unit_id: int = 0, sv: Optional[Union[int, float]] = None,
+                 max_numbers: int = 4, decimal: bool = True, parent: Optional[QWidget] = None):
         """
         Number monitor
         :param title: Number meaning label
@@ -37,6 +40,9 @@ class NumberMonitor(BasicWidget):
         self.__scale_factor = max(get_program_scale_factor())
         super(NumberMonitor, self).__init__(parent)
 
+    def __repr__(self):
+        return self._title
+
     def _initUi(self):
         self.ui_title = QLabel("\n".join(self._title))
         left_layout = QVBoxLayout()
@@ -52,23 +58,23 @@ class NumberMonitor(BasicWidget):
     def _initStyle(self):
         self.setStyleSheet('color: rgb(255, 255, 255);font: {}pt "宋体";'.format(self.DEF_FONT_SIZE))
 
-    def getSV(self):
+    def getSV(self) -> Union[int, float]:
         return self._sv
 
-    def setSV(self, sv):
+    def setSV(self, sv: Union[int, float]):
         self._sv = self.unitConvert(sv)
         self.update()
 
-    def getRV(self):
+    def getRV(self) -> Union[int, float]:
         return self._current
 
-    def setRV(self, rv):
+    def setRV(self, rv: Union[int, float]):
         self._current = self.unitConvert(rv)
         self.update()
 
-    def setUnit(self, unit_setting):
+    def setUnit(self, unit: str):
         try:
-            self._unit_id = self.SETTINGS_UNITS.index(unit_setting)
+            self._unit_id = self.SETTINGS_UNITS.index(unit)
         except ValueError:
             self._unit_id = 0
 
@@ -76,11 +82,11 @@ class NumberMonitor(BasicWidget):
         self._current = self.unitConvert(self.getRV())
         self.update()
 
-    def setMaximumNumber(self, number):
+    def setMaximumNumber(self, number: int):
         self._max_number = number + 1 if self._decimal_display else number
         self.update()
 
-    def setDecimalDisplay(self, display):
+    def setDecimalDisplay(self, display: bool):
         display = True if display else False
         if self._decimal_display == display:
             return
@@ -88,26 +94,26 @@ class NumberMonitor(BasicWidget):
         self._decimal_display = display
         self.setMaximumNumber(self._max_number + 1 if display else self._max_number - 1)
 
-    def unitConvert(self, data):
+    def unitConvert(self, data: Union[int, float]) -> Union[int, float]:
         return data
 
-    def setThemeColor(self, color):
+    def setThemeColor(self, color: QColor):
         if not isinstance(color, QColor):
             return
 
         self._bg_color = color
         self.update()
 
-    def __getFontSize(self):
+    def __getFontSize(self) -> float:
         try:
             return self.width() / self._max_number / self.__scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 
-    def __getNoneState(self):
+    def __getNoneState(self) -> str:
         return "-" * (self._max_number - 1)
 
-    def sizeHint(self):
+    def sizeHint(self) -> QSize:
         meter1 = QFontMetrics(QFont("宋体", self.DEF_FONT_SIZE))
         meter2 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize()))
         meter3 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize() / 2))
@@ -116,7 +122,7 @@ class NumberMonitor(BasicWidget):
         min_width = meter1.width("中") + meter2.width(self._max_number * "0") + meter3.width(".00") * 2.5
         return QSize(min_width, min_height)
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -174,10 +180,10 @@ class PressureMonitor(NumberMonitor):
     DISPLAY_UNITS = ("psi", "kPa", "bar")
     SETTINGS_UNITS = ("psi", "kPa", "bar")
 
-    def __init__(self, title, unit_id=2, max_numbers=3, parent=None):
+    def __init__(self, title: str, unit_id: int = 2, max_numbers: int = 3, parent: Optional[QWidget] = None):
         super(PressureMonitor, self).__init__(title=title, unit_id=unit_id, max_numbers=max_numbers, parent=parent)
 
-    def unitConvert(self, data):
+    def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
         def bar2psi(bar):
             self.setMaximumNumber(4)
             self.setDecimalDisplay(True)
@@ -204,10 +210,11 @@ class TemperatureMonitor(NumberMonitor):
     DISPLAY_UNITS = ("℃", "℉")
     SETTINGS_UNITS = ("摄氏温度℃", "华氏温度℉")
 
-    def __init__(self, title, sv=None, unit_id=0, max_number=3, parent=None):
+    def __init__(self, title: str, sv: Optional[Union[int, float]] = None,
+                 unit_id: int = 0, max_number: int = 3, parent: Optional[QWidget] = None):
         super(TemperatureMonitor, self).__init__(title, unit_id=unit_id, sv=sv, max_numbers=max_number, parent=parent)
 
-    def unitConvert(self, data):
+    def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
         if self._unit_id == 0:
             return data
 

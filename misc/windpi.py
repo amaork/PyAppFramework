@@ -4,11 +4,14 @@ try:
     import win32print
 except ImportError:
     pass
+from typing import NamedTuple
+__all__ = ['get_win_dpi', 'get_program_scale_factor', 'DPI', 'ScaleFactor']
 
-__all__ = ['get_win_dpi', 'get_program_scale_factor']
+DPI = NamedTuple('DPI', [('x', int), ('y', int)])
+ScaleFactor = NamedTuple('ScaleFactor', [('x', float), ('y', float)])
 
 
-def get_win_dpi():
+def get_win_dpi() -> DPI:
     """ this function get the dpi on X and Y axis of default windows desktop.
 
     In:
@@ -27,12 +30,12 @@ def get_win_dpi():
         hdc = win32gui.GetDC(0)
         x_dpi = win32print.GetDeviceCaps(hdc, para_x)
         y_dpi = win32print.GetDeviceCaps(hdc, para_y)
-        return x_dpi, y_dpi
-    except (NameError, AttributeError):
-        return 96, 96
+        return DPI(x_dpi, y_dpi)
+    except (NameError, AttributeError) as e:
+        return DPI(96, 96)
 
 
-def get_program_scale_factor():
+def get_program_scale_factor() -> ScaleFactor:
     """ This function calculate the scale factor based on the current DPI setting.
 
     In:
@@ -54,7 +57,7 @@ def get_program_scale_factor():
     scale_x = current_dpi_x / default_dpi_x
     scale_y = current_dpi_y / default_dpi_y
 
-    return scale_x, scale_y
+    return ScaleFactor(scale_x, scale_y)
 
 
 if __name__ == '__main__':

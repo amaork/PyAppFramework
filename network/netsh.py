@@ -3,9 +3,10 @@ import os
 import re
 import time
 import subprocess
-from typing import *
-from ..core.datatype import *
+from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
+
+from ..core.datatype import *
 __all__ = ['WirelessNetwork', 'WirelessInterface', 'WirelessNetworkShell']
 
 
@@ -108,7 +109,9 @@ class WirelessNetworkShell(object):
                 if (v[0] in line or v[1] in line) and v[2] not in line and current_interface in ifc_dict:
                     data = re.findall(":\\s?(.+)", line)
                     if k == 'connected':
-                        ifc_dict[current_interface].update({k: data[0].strip() in ('connected', '已连接') if data else False})
+                        ifc_dict[current_interface].update(
+                            {k: data[0].strip() in ('connected', '已连接') if data else False}
+                        )
                     elif k in ('rx_rate', 'tx_rate'):
                         ifc_dict[current_interface].update({k: str2float(data[0].strip()) if data else 0.0})
                     elif k in ('channel',):

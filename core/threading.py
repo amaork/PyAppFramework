@@ -1,18 +1,7 @@
 # -*- coding: utf-8 -*-
 import threading
-from typing import *
-__all__ = ['ThreadLockContentManager', 'ThreadConditionWrap', 'ThreadLockAndDataWrap']
-
-
-class ThreadLockContentManager(object):
-    def __init__(self, lock: threading.Lock):
-        self.__lock = lock
-
-    def __enter__(self):
-        self.__lock.acquire(blocking=True)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__lock.release()
+from typing import Any
+__all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap']
 
 
 class ThreadConditionWrap(object):
@@ -21,7 +10,7 @@ class ThreadConditionWrap(object):
         self.__finished = False
         self.__condition = threading.Condition()
 
-    def wait(self):
+    def wait(self) -> bool:
         self.__finished = False
         with self.__condition:
             while not self.__finished:
@@ -33,7 +22,7 @@ class ThreadConditionWrap(object):
         self.__result = False
         self.__finished = False
 
-    def finished(self, result):
+    def finished(self, result: bool):
         with self.__condition:
             self.__result = result
             self.__finished = True
@@ -49,11 +38,11 @@ class ThreadLockAndDataWrap(object):
         return bool(self.data)
 
     @property
-    def data(self):
+    def data(self) -> Any:
         with self.__lock:
             return self.__data
 
     @data.setter
-    def data(self, data):
+    def data(self, data: Any):
         with self.__lock:
             self.__data = data

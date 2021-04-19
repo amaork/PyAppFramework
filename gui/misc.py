@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import glob
 import platform
-from typing import *
 from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports

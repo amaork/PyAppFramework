@@ -10,17 +10,26 @@ import platform
 import ipaddress
 import concurrent.futures
 from threading import Thread
-from typing import List
+from typing import List, Optional, Dict, Union
 from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network',
            'get_host_address', 'get_broadcast_address',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
            'create_socket_and_connect',
-           'SocketSingleInstanceLock']
+           'SocketSingleInstanceLock', 'NicInfo']
 
 
-def get_system_nic(ignore_loopback: bool = True) -> dict:
+class NicInfo(DynamicObject):
+    _properties = {'ip', 'network', 'network_prefix'}
+    _check = {
+        'ip': lambda x: isinstance(x, str),
+        'network': lambda x: isinstance(x, str),
+        'network_prefix': lambda x: isinstance(x, int),
+    }
+
+
+def get_system_nic(ignore_loopback: bool = True) -> Dict[str, NicInfo]:
     interfaces = dict()
     adapters = ifaddr.get_adapters()
     for adapter in adapters:
@@ -33,7 +42,7 @@ def get_system_nic(ignore_loopback: bool = True) -> dict:
 
                 if address.version == 4:
                     network = ipaddress.ip_network("{}/{}".format(address, ip.network_prefix), False)
-                    interfaces[adapter.nice_name] = DynamicObject(
+                    interfaces[adapter.nice_name] = NicInfo(
                         ip=str(address),
                         network=str(network),
                         network_prefix=ip.network_prefix
@@ -45,7 +54,7 @@ def get_system_nic(ignore_loopback: bool = True) -> dict:
     return interfaces
 
 
-def get_address_source_network(ip: str) -> ipaddress.IPv4Network or None:
+def get_address_source_network(ip: str) -> Union[ipaddress.IPv4Network, None]:
     for nic in get_system_nic().values():
         try:
             network = ipaddress.ip_network(nic.network)
@@ -57,7 +66,7 @@ def get_address_source_network(ip: str) -> ipaddress.IPv4Network or None:
     return None
 
 
-def get_host_address(network: None or ipaddress.IPv4Network = None) -> List[str]:
+def get_host_address(network: Optional[ipaddress.IPv4Network] = None) -> List[str]:
     try:
         address_set = set()
 
@@ -126,7 +135,7 @@ def set_linger_option(sock: socket.socket, onoff: int = 1, linger: int = 0) -> N
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, option)
 
 
-def connect_device(address: str, port: int, timeout: float = 0.03) -> str or None:
+def connect_device(address: str, port: int, timeout: float = 0.03) -> Union[str, None]:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
@@ -137,8 +146,8 @@ def connect_device(address: str, port: int, timeout: float = 0.03) -> str or Non
         return None
 
 
-def scan_lan_port(port: int, network: str or ipaddress.IPv4Network,
-                  timeout: float = 0.005, max_workers: int or None = None) -> List[str]:
+def scan_lan_port(port: int, network: Union[ipaddress.IPv4Network, str],
+                  timeout: float = 0.005, max_workers: Optional[int] = None) -> List[str]:
     try:
         network = ipaddress.ip_network(network)
     except ValueError:
@@ -151,7 +160,7 @@ def scan_lan_port(port: int, network: str or ipaddress.IPv4Network,
     return [x.result() for x in result if x.result() is not None]
 
 
-def scan_lan_alive(network: str or ipaddress.IPv4Network, timeout: int = 1, max_workers: int = 256):
+def scan_lan_alive(network: Union[ipaddress.IPv4Network, str], timeout: int = 1, max_workers: int = 256) -> List[str]:
     try:
         network = ipaddress.ip_network(network)
     except ValueError:
@@ -197,7 +206,7 @@ def create_socket_and_connect(address: str, port: int, timeout: int,
 
 
 class SocketSingleInstanceLock(object):
-    def __init__(self, port):
+    def __init__(self, port: int):
         """
         Socket single instance lock, using this make sure that is only one instance running in the same time
         If another instance is running will display running instance path and pid

@@ -2,6 +2,7 @@
 import os
 import re
 import ftplib
+from typing import Optional, Callable, List, Sequence
 __all__ = ['FTPClient', 'FTPClientError']
 
 
@@ -13,10 +14,11 @@ class FTPClient(object):
     ROOT = "/"
     EXTx_FS_RECOVERY_DIR = "lost+found"
 
-    def __init__(self, addr, port=21, username="anonymous", password="anonymous@", timeout=30, verbose=False):
+    def __init__(self, address: str, port: int = 21,
+                 username: str = "anonymous", password: str = "anonymous@", timeout: int = 30, verbose: bool = False):
         """FTP client base ftplib, support recursive download, upload, delete whole directory
 
-        :param addr: FTP Server address
+        :param address: FTP Server address
         :param port: FTP Server port
         :param username: Username default is anonymous
         :param password: Username password
@@ -24,8 +26,8 @@ class FTPClient(object):
         :param verbose: output verbose message
         :return:
         """
-        self.addr = addr
         self.port = port
+        self.address = address
         self.verbose = verbose
         self.timeout = timeout
         self.password = password
@@ -39,23 +41,23 @@ class FTPClient(object):
             pass
 
     @staticmethod
-    def dirname(path):
+    def dirname(path: str) -> str:
         origin = os.path.dirname(path)
         return origin.replace("\\", "/")
 
     @staticmethod
-    def join(path, *paths):
+    def join(path: str, *paths) -> str:
         org = os.path.join(path, *paths)
         return org.replace("\\", "/")
 
     @staticmethod
-    def root_join(*paths):
+    def root_join(*paths) -> str:
         return FTPClient.join(FTPClient.ROOT, *paths)
 
-    def relative_join(self, *path):
+    def relative_join(self, *path) -> str:
         return self.join(self.ftp.pwd(), *path)
 
-    def create_new_connection(self):
+    def create_new_connection(self) -> ftplib.FTP:
         """Create a ftp object and connect to server
 
         :return:
@@ -66,14 +68,14 @@ class FTPClient(object):
         
         try:
             # Connect ftp server
-            ftp.connect(host=self.addr, port=self.port, timeout=self.timeout)
+            ftp.connect(host=self.address, port=self.port, timeout=self.timeout)
             ftp.login(self.username, self.password)
         except ftplib.all_errors as e:
-            raise FTPClientError("FTP connect to:{} error:{}".format(self.addr, e))
+            raise FTPClientError("FTP connect to:{} error:{}".format(self.address, e))
         
         return ftp
         
-    def is_dir(self, name):
+    def is_dir(self, name: str) -> bool:
         """Check if name specified path is a directory
 
         :param name: path name
@@ -93,7 +95,7 @@ class FTPClient(object):
         except ftplib.all_errors:
             return False
 
-    def is_file(self, name):
+    def is_file(self, name: str) -> bool:
         """Check if name specified path is a normal file
 
         :param name: path name
@@ -105,7 +107,7 @@ class FTPClient(object):
         
         return not self.is_dir(name)
 
-    def is_exist(self, path):
+    def is_exist(self, path: str) -> bool:
         """Check if path is exist
 
         :param path: absolute path
@@ -113,7 +115,7 @@ class FTPClient(object):
         """
         return os.path.basename(path) in self.get_file_list(self.dirname(path))
 
-    def is_file_abs(self, path):
+    def is_file_abs(self, path: str) -> bool:
         """Check if path is a file
 
         :param path: absolute path
@@ -124,7 +126,7 @@ class FTPClient(object):
 
         return not self.is_dir(path)
 
-    def create_dirs(self, path):
+    def create_dirs(self, path: str) -> bool:
         """Recursive Create a directory at ftp server
 
         :param path: path
@@ -153,7 +155,7 @@ class FTPClient(object):
             
         return True
            
-    def get_file_list(self, path):
+    def get_file_list(self, path: str) -> List[str]:
         """Get specified path file list
 
         :param path:
@@ -178,7 +180,9 @@ class FTPClient(object):
         
         return lst
         
-    def download_dir(self, remote_dir, local_dir, exclude=None, callback=None):
+    def download_dir(self, remote_dir: str, local_dir: str,
+                     exclude: Optional[Sequence[str]] = None,
+                     callback: Optional[Callable[[str], None]] = None):
         """Recursive download remote directory data to local dir without remote dir name equal cp remoteDir/* localDir/
 
         :param remote_dir: remote directory path
@@ -228,7 +232,7 @@ class FTPClient(object):
             if len(pwd):
                 self.ftp.cwd(pwd)
                       
-    def download_file(self, remote_path, local_path, local_name=''):
+    def download_file(self, remote_path: str, local_path: str, local_name: str = ''):
         """Download a file to local directory save as local_name
 
         :param remote_path: FTP Server file path
@@ -264,7 +268,9 @@ class FTPClient(object):
         except AttributeError as e:
             raise FTPClientError("Download file:{} error:{}".format(remote_path, e))
 
-    def upload_dir(self, local_dir, remote_dir, exclude=None, callback=None):
+    def upload_dir(self, local_dir: str, remote_dir: str,
+                   exclude: Optional[Sequence[str]] = None,
+                   callback=Optional[Callable[[str], None]]):
         """Recursive upload local dir to remote, if remote dir is not exist create it, else replace all files
 
         :param local_dir: Local path, will upload
@@ -313,7 +319,7 @@ class FTPClient(object):
             if len(pwd):
                 os.chdir(pwd)
 
-    def upload_file(self, local_path, remote_path, remote_name=""):
+    def upload_file(self, local_path: str, remote_path: str, remote_name: str = ""):
         """Upload local_path specified file to remote path
 
         :param local_path: Local file path
@@ -352,7 +358,8 @@ class FTPClient(object):
             if len(pwd):
                 self.ftp.cwd(pwd)
              
-    def remove_files(self, remote_dir, remove_files, callback=None):
+    def remove_files(self, remote_dir: str, remove_files: List[str],
+                     callback: Optional[Callable[[str], None]] = None):
         """Remove files form remote dir
 
         :param remote_dir: Remote dir
@@ -406,7 +413,7 @@ class FTPClient(object):
             if len(pwd):
                 self.ftp.cwd(pwd)
                 
-    def remove_dir(self, remote_dir):
+    def remove_dir(self, remote_dir: str):
         """Recursive delete remote dir all files
 
         :param remote_dir: Remote dir will delete all files
@@ -419,7 +426,7 @@ class FTPClient(object):
         except ftplib.all_errors as e:
             raise FTPClientError("Remove dir:{} error:{}".format(remote_dir, e))
 
-    def force_remove_dir(self, remote_dir):
+    def force_remove_dir(self, remote_dir: str):
         try:
             # Try remove the whole dir
             self.remove_dir(remote_dir)
@@ -430,7 +437,7 @@ class FTPClient(object):
             except FTPClientError:
                 pass
 
-    def force_remote_file(self, file):
+    def force_remote_file(self, file: str):
         try:
             if self.is_file_abs(file):
                 self.remove_files(self.dirname(file), [os.path.basename(file)])

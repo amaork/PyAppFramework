@@ -8,7 +8,7 @@ import requests
 import datetime
 import ipaddress
 import urllib.parse
-from typing import Callable
+from typing import Callable, Union
 from pyquery import PyQuery
 from .http_request import *
 from ..core.datatype import DynamicObject
@@ -21,7 +21,7 @@ class LuciRequestException(HttpRequestException):
 
 class LuciRequest(HttpRequest):
     def __init__(self, host: str, username: str, password: str,
-                 main_container_id: str = "", source_address: str = "", timeout: int = 5):
+                 main_container_id: str = "", source_address: str = "", timeout: float = 5.0):
         super(LuciRequest, self).__init__(source_address=source_address, timeout=timeout)
 
         try:
@@ -49,7 +49,7 @@ class LuciRequest(HttpRequest):
         seconds = self.get_dynamic_status().get("uptime", 0.0)
         return "{}".format(datetime.timedelta(seconds=seconds)) if seconds else ""
 
-    def is_alive(self, timeout: int = 1) -> float or None:
+    def is_alive(self, timeout: int = 1) -> Union[float, None]:
         return ping3.ping(dest_addr=str(self._address), timeout=timeout)
 
     def get_url(self, path: str) -> str:
