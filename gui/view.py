@@ -343,7 +343,7 @@ class TableView(QTableView):
         else:
             return model.itemData(model.index(row, column, QModelIndex())).get(role)
 
-    def setItemData(self, row: int, column: int, data: List[Any], role: Qt.ItemDataRole = Qt.EditRole):
+    def setItemData(self, row: int, column: int, data: Any, role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False

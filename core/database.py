@@ -5,8 +5,9 @@ import random
 import shutil
 import sqlite3
 import hashlib
-from .datatype import DynamicObject
-from typing import Any, Optional, Union, List, Tuple, Sequence
+from .datatype import DynamicObject, str2float, str2number
+from typing import Any, Optional, Union, List, Tuple, Sequence, Dict
+from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
 
 try:
     from pysqlcipher3 import dbapi2 as sqlcipher
@@ -14,7 +15,7 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem']
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'SQLiteUIElementScheme']
 
 
 class SQLiteDatabaseError(Exception):
@@ -575,6 +576,25 @@ class SQLiteGeneralSettingsItem(DynamicObject):
         return ", ".join(data)
 
 
+class SQLiteUIElementScheme(DynamicObject):
+    _properties = {'name', 'min', 'max', 'precision'}
+    _check = {
+        'name': lambda x: isinstance(x, str),
+        'min': lambda x: isinstance(x, (int, float)),
+        'nax': lambda x: isinstance(x, (int, float)),
+        'precision': lambda x: isinstance(x, int)
+    }
+
+    def getNumericalInput(self, name: str = '', readonly: bool = False) -> UiInputSetting:
+        name = name or self.name
+        if self.precision:
+            return UiDoubleInput(
+                name=name, minimum=self.min, maximum=self.max, decimals=self.precision, readonly=readonly
+            )
+        else:
+            return UiIntegerInput(name=name, minimum=self.min, maximum=self.max, readonly=readonly)
+
+
 class SQLiteDatabaseCreator(object):
     DESC_ID = -5
     NAME_ID = -4
@@ -633,6 +653,57 @@ class SQLiteDatabaseCreator(object):
         fp.write("{}{}".format(SQLiteDatabaseCreator.ENUM_DEFAULT_NAME, name.capitalize()) + " {\n")
         fp.write(";\n".join(items))
         fp.write(";\n}\n/*")
+
+    @staticmethod
+    def get_settings_table_ui_scheme(name: str) -> Dict[int, SQLiteUIElementScheme]:
+        try:
+            db = SQLiteDatabase(os.path.join('config', 'gas_sampler.db'))
+        except (OSError, SQLiteDatabaseError) as e:
+            print("Load db scheme error: {}".format(e))
+            return dict()
+
+        scheme = dict()
+        for item in db.getTableData(name):
+            idx, name, data, min_, max_, precision, desc = item
+            precision = str2number(precision)
+            process = str2float if precision else str2number
+            scheme[idx] = SQLiteUIElementScheme(name=name, data=process(data),
+                                                precision=precision, min=process(min_), max=process(max_))
+
+        return scheme
+
+    @staticmethod
+    def get_general_table_ui_scheme(name: str) -> Dict[int, SQLiteUIElementScheme]:
+        try:
+            db = SQLiteDatabase(os.path.join('config', 'gas_sampler.db'))
+        except (OSError, SQLiteDatabaseError) as e:
+            print("Load db scheme error: {}".format(e))
+            return dict()
+
+        names = db.selectRecord(
+            name, condition=SQLiteDatabase.conditionFormat('id', SQLiteDatabaseCreator.NAME_ID)
+        )[0][1: -1]
+
+        lowers = db.selectRecord(
+            name, condition=SQLiteDatabase.conditionFormat('id', SQLiteDatabaseCreator.LOWER_LIMIT_ID)
+        )[0][1: -1]
+
+        uppers = db.selectRecord(
+            name, condition=SQLiteDatabase.conditionFormat('id', SQLiteDatabaseCreator.UPPER_LIMIT_ID)
+        )[0][1: -1]
+
+        precisions = db.selectRecord(
+            name, condition=SQLiteDatabase.conditionFormat('id', SQLiteDatabaseCreator.PRECISION_ID)
+        )[0][1: -1]
+
+        scheme = dict()
+        for idx in range(len(names)):
+            precision = str2number(precisions[idx])
+            process = str2float if precision else str2number
+            scheme[idx] = SQLiteUIElementScheme(name=names[idx], precision=precision,
+                                                min=process(lowers[idx]), max=process(uppers[idx]))
+
+        return scheme
 
     @property
     def database_path(self) -> str:

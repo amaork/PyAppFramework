@@ -177,8 +177,11 @@ class UiMailBox(QObject):
         if not isinstance(mail, BaseUiMail):
             return False
 
-        self.hasNewMail.emit(mail)
-        return True
+        try:
+            self.hasNewMail.emit(mail)
+            return True
+        except RuntimeError:
+            return False
 
     @Slot(object)
     def mailProcess(self, mail: BaseUiMail) -> bool:

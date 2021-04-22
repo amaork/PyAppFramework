@@ -231,6 +231,8 @@ class ComponentManager(QObject):
         self.__initSignalAndSlots()
 
     def __initSignalAndSlots(self):
+        from ..dashboard.input import VirtualNumberInput
+
         for component in self.getAll():
             if isinstance(component, QSpinBox):
                 component.valueChanged.connect(self.slotDataChanged)
@@ -242,6 +244,8 @@ class ComponentManager(QObject):
                 component.stateChanged.connect(self.slotDataChanged)
             elif isinstance(component, QRadioButton):
                 component.clicked.connect(self.slotDataChanged)
+            elif isinstance(component, VirtualNumberInput):
+                component.numberChanged.connect(self.slotDataChanged)
             elif isinstance(component, QLineEdit):
                 component.textChanged.connect(self.slotDataChanged)
             elif isinstance(component, QTextEdit):
@@ -295,6 +299,8 @@ class ComponentManager(QObject):
 
     @staticmethod
     def setComponentData(component: QWidget, data: Any):
+        from ..dashboard.input import VirtualNumberInput
+
         if isinstance(component, QSpinBox):
             component.setValue(str2number(data))
         elif isinstance(component, QDoubleSpinBox):
@@ -315,9 +321,10 @@ class ComponentManager(QObject):
         elif isinstance(component, QRadioButton):
             component.setCheckable(True)
             component.setChecked(str2number(data))
+        elif isinstance(component, VirtualNumberInput):
+            component.setValue(data)
         elif isinstance(component, QLineEdit):
-            if isinstance(data, str):
-                component.setText(data)
+            component.setText(str(data))
         elif isinstance(component, QTextEdit):
             if isinstance(data, str):
                 component.setText(data)

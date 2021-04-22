@@ -316,6 +316,10 @@ class VirtualNumberInput(QLineEdit):
             self.setText(str(value))
             self.numberChanged.emit(value)
 
+    def setValue(self, value: Union[int, float]):
+        number_decimals = self.property('decimals')
+        self.setText("{0:.{1}f}".format(value, number_decimals) if number_decimals else str(value))
+
     def mousePressEvent(self, ev):
         if ev.button() != Qt.LeftButton:
             return

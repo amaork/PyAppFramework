@@ -32,14 +32,14 @@ from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
-from threading import Thread
 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 from ..misc.windpi import get_program_scale_factor
 from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
-from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput
+from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
+    UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput
 
 
 __all__ = ['BasicWidget', 'PaintWidget',
@@ -2287,10 +2287,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         # QLine edit special process re check
                         if isinstance(widget, QLineEdit):
                             widget.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed))
-                            widget.textChanged.connect(self.slotSettingChanged)
-                            widget.textChanged.connect(
-                                lambda x: self.settingChangedDetail.emit(widget.property("data"), x)
-                            )
+
+                            if not isinstance(widget, VirtualNumberInput):
+                                widget.textChanged.connect(self.slotSettingChanged)
+                                widget.textChanged.connect(
+                                    lambda x: self.settingChangedDetail.emit(widget.property("data"), x)
+                                )
                     elif isinstance(widget, QLayout):
                         # Add label and layout
                         layout.addWidget(QLabel(self.tr(ui_input.get_name())), row, column)
@@ -2518,14 +2520,15 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             if setting.is_int_type():
                 if setting.is_readonly():
                     widget = VirtualNumberInput(parent=parent, initial_value=setting.get_data(),
-                                                min_=setting.get_check()[0], max_=setting.get_check()[1])
+                                                min_=setting.get_check()[UiIntegerInput.CHECK.MIN],
+                                                max_=setting.get_check()[UiIntegerInput.CHECK.MAX])
                     widget.setProperty("format", "int")
                 else:
                     widget = QSpinBox(parent)
-                    widget.setMinimum(setting.get_check()[0])
-                    widget.setMaximum(setting.get_check()[1])
+                    widget.setMinimum(setting.get_check()[UiIntegerInput.CHECK.MIN])
+                    widget.setMaximum(setting.get_check()[UiIntegerInput.CHECK.MAX])
                     widget.setValue(setting.get_data())
-                    widget.setSingleStep(setting.get_check()[2])
+                    widget.setSingleStep(setting.get_check()[UiIntegerInput.CHECK.STEP])
             elif setting.is_bool_type():
                 widget = QCheckBox(parent=parent)
                 widget.setCheckable(True)
@@ -2535,25 +2538,25 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setText(setting.get_data())
                 widget.setPlaceholderText(setting.get_default())
                 # Set regular expression and max length
-                widget.setProperty("filter", setting.check[0])
-                widget.setValidator(QRegExpValidator(QRegExp(setting.check[0])))
-                widget.setMaxLength(setting.check[1])
+                widget.setProperty("filter", setting.check[UiTextInput.CHECK.REGEXP])
+                widget.setValidator(QRegExpValidator(QRegExp(setting.check[UiTextInput.CHECK.REGEXP])))
+                widget.setMaxLength(setting.check[UiTextInput.CHECK.LENGTH])
             elif setting.is_float_type():
                 if setting.is_readonly():
                     widget = VirtualNumberInput(parent=parent,
                                                 initial_value=setting.get_data(),
-                                                min_=setting.get_check()[0],
-                                                max_=setting.get_check()[1],
-                                                decimals=setting.get_check()[2])
+                                                min_=setting.get_check()[UiDoubleInput.CHECK.MIN],
+                                                max_=setting.get_check()[UiDoubleInput.CHECK.MAX],
+                                                decimals=setting.get_check()[UiDoubleInput.CHECK.DECIMALS])
                     widget.setProperty("format", "float")
                 else:
                     widget = QDoubleSpinBox(parent)
-                    widget.setMinimum(setting.get_check()[0])
-                    widget.setMaximum(setting.get_check()[1])
+                    widget.setMinimum(setting.get_check()[UiDoubleInput.CHECK.MIN])
+                    widget.setMaximum(setting.get_check()[UiDoubleInput.CHECK.MAX])
                     widget.setValue(setting.get_data())
-                    widget.setSingleStep(setting.get_check()[2])
-                    if len(setting.get_check()) > 3:
-                        widget.setDecimals(setting.get_check()[3])
+                    widget.setSingleStep(setting.get_check()[UiDoubleInput.CHECK.STEP])
+                    if len(setting.get_check()) > UiDoubleInput.CHECK.DECIMALS:
+                        widget.setDecimals(setting.get_check()[UiDoubleInput.CHECK.DECIMALS])
             elif setting.is_select_type():
                 widget = QComboBox(parent)
                 widget.addItems(setting.get_check())
@@ -2625,14 +2628,14 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                                                           "Enable", None,
                                                           QApplication.UnicodeUTF8), parent=parent)
                 enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
-                enable.setVisible(setting.get_check()[-1] == str(True))
+                enable.setVisible(setting.get_check()[UiFileInput.CHECK_SELECTABLE] == str(True))
 
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select File",
                                                             None, QApplication.UnicodeUTF8), parent=parent)
                 button.setProperty("clicked", "file")
                 button.setProperty("title", setting.get_name())
-                button.setProperty("private", setting.get_check()[:-1])
+                button.setProperty("private", setting.get_check()[:UiFileInput.CHECK_SELECTABLE])
 
                 layout = QHBoxLayout()
                 layout.addWidget(enable)

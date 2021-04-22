@@ -4,6 +4,7 @@ import re
 import json
 import codecs
 import logging
+import collections
 from string import Template
 from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple
 
@@ -66,10 +67,15 @@ class JsonSettings(DynamicObject):
             return False
 
         path = path if path else cls._default_path
-        if not os.path.isdir(os.path.dirname(path)) and len(os.path.dirname(path)):
-            os.makedirs(os.path.dirname(path))
-        with codecs.open(path, "w", "utf-8") as fp:
-            json.dump(settings.dict, fp, indent=4, ensure_ascii=False)
+
+        try:
+            if not os.path.isdir(os.path.dirname(path)) and len(os.path.dirname(path)):
+                os.makedirs(os.path.dirname(path))
+            with codecs.open(path, "w", "utf-8") as fp:
+                json.dump(settings.dict, fp, indent=4, ensure_ascii=False)
+        except OSError as e:
+            print("store settings to {}, failed: {}".format(path, e))
+            return False
 
         return True
 
@@ -246,6 +252,8 @@ class UiInputSetting(DynamicObject):
 
 
 class UiFileInput(UiInputSetting):
+    CHECK_SELECTABLE = -1
+
     def __init__(self, name: str, fmt: Tuple[str, ...], default: str = "", selectable: bool = False):
         fmt = list(fmt)
         fmt.append(str(selectable))
@@ -294,6 +302,8 @@ class UiFontInput(UiInputSetting):
 
 
 class UiTextInput(UiInputSetting):
+    CHECK = collections.namedtuple('UiTextInputCheck', ['REGEXP', 'LENGTH'])(*range(2))
+
     def __init__(self, name: str, length: int, default: str = "", re_: str = "[\s\S]*", readonly: bool = False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length), readonly=readonly, type="TEXT")
@@ -406,6 +416,8 @@ class UiColorInput(UiInputSetting):
 
 
 class UiDoubleInput(UiInputSetting):
+    CHECK = collections.namedtuple('UiDoubleInputCheck', ['MIN', 'MAX', 'STEP', 'DECIMALS'])(*range(4))
+
     def __init__(self, name: str, minimum: float, maximum: float,
                  default: float = 0.0, step: float = 1.0, decimals: int = 1, readonly: bool = False):
         super(UiDoubleInput, self).__init__(name=name, data=default, default=default,
@@ -413,6 +425,8 @@ class UiDoubleInput(UiInputSetting):
 
 
 class UiIntegerInput(UiInputSetting):
+    CHECK = collections.namedtuple('UiIntegerInputCheck', ['MIN', 'MAX', 'STEP'])(*range(3))
+
     def __init__(self, name: str, minimum: int, maximum: int, default: int = 0, step: int = 1, readonly: bool = False):
         super(UiIntegerInput, self).__init__(name=name, data=default, default=default,
                                              check=(minimum, maximum, step), readonly=readonly, type="INT")
