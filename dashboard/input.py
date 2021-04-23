@@ -292,7 +292,7 @@ class VirtualNumberInput(QLineEdit):
         cls.__hoverColor = color
 
     @staticmethod
-    def color2Tuple(color: QColor):
+    def color2Tuple(color: QColor) -> Color:
         if not isinstance(color, QColor):
             return 0, 0, 0
 

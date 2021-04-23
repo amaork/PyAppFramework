@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 from PySide.QtCore import QObject
-from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox
+from typing import Optional, Union, Callable, Sequence
+from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget
 
 
 __all__ = ['SpinBoxBinder', 'ComboBoxBinder']
+BinderFactor = Union[int, float, Callable[[Union[int, float]], Union[int, float, str]]]
 
 
 class SpinBoxBinder(QObject):
-
-    def __init__(self, spinbox, parent=None):
+    def __init__(self, spinbox, parent: Optional[QWidget] = None):
         super(SpinBoxBinder, self).__init__(parent)
         if not isinstance(spinbox, (QSpinBox, QDoubleSpinBox)):
             raise TypeError("spinbox require a {!r} or {!r} not {!r}".format(
@@ -19,7 +20,7 @@ class SpinBoxBinder(QObject):
         self.__spinbox.valueChanged.connect(self.eventProcess)
 
     @staticmethod
-    def __remap(factor, value):
+    def __remap(factor: BinderFactor, value: Union[int, float]) -> Union[int, float, str]:
         if isinstance(factor, (int, float)):
             return value * factor
         elif hasattr(factor, "__call__"):
@@ -27,25 +28,25 @@ class SpinBoxBinder(QObject):
         else:
             return value
 
-    def bindLabel(self, obj, factor):
+    def bindLabel(self, obj: QLabel, factor: BinderFactor) -> bool:
         if not isinstance(obj, QLabel):
             print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error{!r}".format(factor.__class__.__name__))
+            print("Bind error, factor type error, require: {!r}".format(BinderFactor))
             return False
 
         self.__binding.append((obj, factor))
         return True
 
-    def bindSpinBox(self, obj, factor):
+    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], factor: BinderFactor) -> bool:
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
             print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error{!r}".format(factor.__class__.__name__))
+            print("Bind error, factor type error, require: {!r}".format(BinderFactor))
             return False
 
         # Set spinbox range and single step
@@ -62,7 +63,7 @@ class SpinBoxBinder(QObject):
         self.__binding.append((obj, factor))
         return True
 
-    def eventProcess(self, value):
+    def eventProcess(self, value: Union[int, float]):
         if not isinstance(value, (int, float)):
             return
 
@@ -77,7 +78,7 @@ class SpinBoxBinder(QObject):
 
 
 class ComboBoxBinder(QObject):
-    def __init__(self, combobox, parent=None):
+    def __init__(self, combobox: QComboBox, parent: Optional[QWidget] = None):
         super(ComboBoxBinder, self).__init__(parent)
         if not isinstance(combobox, QComboBox):
             raise TypeError("combobox require {!r} not {!r}".format(QComboBox.__name__, combobox.__class__.__name__))
@@ -86,7 +87,7 @@ class ComboBoxBinder(QObject):
         self.__binding = list()
         self.__combobox.currentIndexChanged.connect(self.eventProcess)
 
-    def bindLabel(self, obj, text):
+    def bindLabel(self, obj: QLabel, text: Sequence[str]) -> bool:
         if not self.__combobox:
             return False
 
@@ -102,7 +103,7 @@ class ComboBoxBinder(QObject):
         self.eventProcess(self.__combobox.currentIndex())
         return True
 
-    def bindSpinBox(self, obj, limit):
+    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], limit: Union[list, tuple]) -> bool:
         if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
             print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
@@ -115,15 +116,15 @@ class ComboBoxBinder(QObject):
         self.eventProcess(self.__combobox.currentIndex())
         return True
 
-    def bindCallback(self, obj, *args):
+    def bindCallback(self, obj: Callable, *args):
         if not hasattr(obj, "__call__"):
-            print("Bind error, object must be callable object not {!r}".format(obj.__class__.__name__))
+            print("Bind error, object must be callable object not 'Callable'")
             return False
 
         self.__binding.append((obj, *args))
         self.eventProcess(self.__combobox.currentIndex())
 
-    def bindComboBox(self, obj, reverse=False):
+    def bindComboBox(self, obj: QComboBox, reverse: bool = False) -> bool:
         if not isinstance(obj, QComboBox):
             print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
             return False
@@ -136,7 +137,7 @@ class ComboBoxBinder(QObject):
         self.eventProcess(self.__combobox.currentIndex())
         return True
 
-    def eventProcess(self, index):
+    def eventProcess(self, index: int):
         if not isinstance(index, int) or index >= self.__combobox.count():
             return
 
@@ -151,7 +152,7 @@ class ComboBoxBinder(QObject):
                     receiver.setCurrentIndex(index)
             # QLabel
             elif isinstance(receiver, QLabel) and isinstance(data[index], str):
-                    receiver.setText(data[index])
+                receiver.setText(data[index])
             # QSpinBox
             elif isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
                 setting = data[index]

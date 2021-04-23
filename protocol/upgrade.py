@@ -256,7 +256,7 @@ class UpgradeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             version_list = [str2float(os.path.splitext(name)[0]) for name in file_list]
             newest_version = str2float(max(version_list))
             return newest_version
-        except Exception:
+        except (TypeError, IndexError, AttributeError):
             return 0.0
 
     def get_newest_version_durl(self, software):

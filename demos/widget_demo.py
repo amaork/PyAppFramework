@@ -624,7 +624,6 @@ class Demo(QMainWindow):
         elif self.sender() == self.imageMemButton:
             file = showFileImportDialog(parent=self, title="Select image", path=ImagesPath, fmt="All Files (*.jpg)")
             if os.path.isfile(file):
-                data = ""
                 with open(file, "rb") as fp:
                     data = fp.read()
 
@@ -634,7 +633,7 @@ class Demo(QMainWindow):
                 self.imageWidget.setHidden(False)
         elif self.sender() == self.imageTextButton:
             text, ok = QInputDialog.getText(self, "Please enter text", "Text:",
-                                        QLineEdit.Normal, QDir.home().dirName())
+                                            QLineEdit.Normal, QDir.home().dirName())
             if ok:
                 self.drawText.emit(text)
                 self.imageWidget.setHidden(False)

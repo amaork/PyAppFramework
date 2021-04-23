@@ -7,6 +7,8 @@ import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
 from ..network.utility import get_system_nic
+from ..misc.settings import Color
+from typing import Optional, Union, Sequence, Tuple, Callable
 __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector',
            'TabBar', 'ExpandWidget',
            'NavigationItem', 'NavigationBar',
@@ -23,7 +25,7 @@ class SerialPortSelector(QComboBox):
     portSelected = Signal(object)
     TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, text: str or None = TIPS, one_shot: bool = False, parent=None):
+    def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False, parent: Optional[QWidget] = None):
         """Select serial port
 
         :param text: selector text
@@ -91,14 +93,15 @@ class SerialPortSelector(QComboBox):
         except (RaspiSocketError, IndexError, ValueError, OSError):
             pass
 
-    def slotPortSelected(self, idx):
+    def slotPortSelected(self, idx: int) -> bool:
         if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
-            return
+            return False
 
         self.setDisabled(self.__one_shot)
         self.portSelected.emit(self.itemData(idx))
+        return True
 
-    def mousePressEvent(self, ev):
+    def mousePressEvent(self, ev: QMouseEvent):
         if ev.button() == Qt.RightButton:
             self.flushSerialPort()
 
@@ -113,8 +116,8 @@ class NetworkInterfaceSelector(QComboBox):
     TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface",
                                   None, QApplication.UnicodeUTF8)
 
-    def __init__(self, text: str or None = TIPS, one_short: bool = False,
-                 ignore_loopback: bool = True, network_mode=False, parent=None):
+    def __init__(self, text: Optional[str] = TIPS, one_short: bool = False,
+                 ignore_loopback: bool = True, network_mode: bool = False, parent: Optional[QWidget] = None):
         super(NetworkInterfaceSelector, self).__init__(parent)
 
         self._text = text
@@ -136,7 +139,7 @@ class NetworkInterfaceSelector(QComboBox):
         for nic_name, nic_attr in get_system_nic(self._ignore_loopback).items():
             self.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
 
-    def isNetworkMode(self):
+    def isNetworkMode(self) -> bool:
         return self.property("format") == "network"
 
     def setNetworkMode(self):
@@ -145,15 +148,16 @@ class NetworkInterfaceSelector(QComboBox):
     def setAddressMode(self):
         self.setProperty("format", "address")
 
-    def slotNicSelected(self, idx):
+    def slotNicSelected(self, idx: int) -> bool:
         if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
-            return
+            return False
 
         self.setDisabled(self._one_short)
         self.networkChanged.emit(self.itemData(idx))
         self.addressChanged.emit(self.itemText(idx).split(":")[-1].strip())
+        return True
 
-    def currentSelect(self):
+    def currentSelect(self) -> str:
         return self.currentNetwork() if self.isNetworkMode() else self.currentAddress()
 
     def currentAddress(self) -> str:
@@ -168,8 +172,8 @@ class NetworkInterfaceSelector(QComboBox):
 
         return self.itemData(self.currentIndex())
 
-    def setCurrentSelect(self, select: str) -> None:
-        self.setCurrentNetwork(select) if self.isNetworkMode() else self.setCurrentAddress(select)
+    def setCurrentSelect(self, select: str) -> bool:
+        return self.setCurrentNetwork(select) if self.isNetworkMode() else self.setCurrentAddress(select)
 
     def setCurrentAddress(self, address: str) -> bool:
         try:
@@ -189,7 +193,7 @@ class NetworkInterfaceSelector(QComboBox):
         except ValueError:
             return False
 
-    def mousePressEvent(self, ev):
+    def mousePressEvent(self, ev: QMouseEvent):
         if ev.button() == Qt.RightButton:
             self.flushNic()
 
@@ -201,16 +205,16 @@ class TabBar(QTabBar):
         self.tabSize = QSize(kwargs.pop('width'), kwargs.pop('height'))
         super(TabBar, self).__init__(*args, **kwargs)
 
-    def updateTabSize(self, size):
+    def updateTabSize(self, size: QSize):
         if isinstance(size, QSize):
             self.tabSize = size
             self.update()
 
     @staticmethod
-    def calcHorizonTablePerfectSize(windows_size, tab_number):
+    def calcHorizonTablePerfectSize(windows_size: QSize, tab_number: int) -> Tuple[float, float]:
         return (windows_size.width() / tab_number) - 5, windows_size.height() / 10
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         option = QStyleOptionTab()
         painter = QStylePainter(self)
         for index in range(self.count()):
@@ -222,11 +226,11 @@ class TabBar(QTabBar):
             else:
                 painter.drawText(tabRect, Qt.AlignCenter | Qt.TextDontClip, "\n".join(self.tabText(index)))
 
-    def tabSizeHint(self, index):
+    def tabSizeHint(self, index: int) -> QSize:
         return self.tabSize
 
 
-def updateFilterMenu(options, menu, group, slot, select=None):
+def updateFilterMenu(options: Sequence[str], menu: QMenu, group: QActionGroup, slot: Callable, select: str = ''):
     """Update filter menu
 
     :param options: menu options
@@ -270,11 +274,11 @@ def updateFilterMenu(options, menu, group, slot, select=None):
 
 
 class ExpandWidget(QWidget):
-    def __init__(self, orientation=Qt.Horizontal, parent=None):
+    def __init__(self, orientation: Qt.Orientation = Qt.Horizontal, parent: Optional[QWidget] = None):
         super(ExpandWidget, self).__init__(parent)
         self.setOrientation(orientation)
 
-    def setOrientation(self, orientation):
+    def setOrientation(self, orientation: Qt.Orientation):
         if orientation == Qt.Vertical:
             self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         else:
@@ -288,8 +292,9 @@ class NavigationItem(QToolButton):
     DEFAULT_COLOR = (255, 255, 255)
     DEFAULT_FONT = 'font: 20pt "宋体";'
 
-    def __init__(self, text, icon, slot=None, activate_invert=True, font=DEFAULT_FONT,
-                 hover_color=HOVER_COLOR, default_color=DEFAULT_COLOR, activate_color=ACTIVATE_COLOR, parent=None):
+    def __init__(self, text: str, icon: str, slot: Optional[Callable] = None, activate_invert: bool = True,
+                 font: str = DEFAULT_FONT, hover_color: Color = HOVER_COLOR, default_color: Color = DEFAULT_COLOR,
+                 activate_color: Color = ACTIVATE_COLOR, parent: Optional[QWidget] = None):
         super(NavigationItem, self).__init__(parent)
         self.__text = text
         self.__icon = icon
@@ -318,7 +323,8 @@ class NavigationItem(QToolButton):
         self.setStyleSheet(self.__color2StyleSheet(self.__default_color))
 
     @staticmethod
-    def __checkColor(new_color, old_color):
+    def __checkColor(new_color: Union[QColor, Qt.GlobalColor, Sequence[int]],
+                     old_color: Union[QColor, Qt.GlobalColor, Sequence[int]]) -> Color:
         if isinstance(new_color, (QColor, Qt.GlobalColor)):
             new_color = QColor(new_color)
             return new_color.red(), new_color.green(), new_color.blue()
@@ -331,7 +337,7 @@ class NavigationItem(QToolButton):
         else:
             return old_color
 
-    def __getColoredIcon(self, color):
+    def __getColoredIcon(self, color: Color) -> QPixmap:
         r, g, b = color
         image = QImage(self.__icon)
         for x in range(image.width()):
@@ -341,10 +347,10 @@ class NavigationItem(QToolButton):
 
         return QPixmap.fromImage(image)
 
-    def __color2StyleSheet(self, color):
+    def __color2StyleSheet(self, color: Color) -> str:
         return 'color: rgb{}; {}'.format(color, self.__font)
 
-    def _setColorAndIcon(self, color, icon):
+    def _setColorAndIcon(self, color: Color, icon: QIcon):
         self.__action.setIcon(icon)
         self.setStyleSheet(self.__color2StyleSheet(color))
 
@@ -353,19 +359,19 @@ class NavigationItem(QToolButton):
         if hasattr(self.__slot, "__call__"):
             self.__slot()
 
-    def text(self):
+    def text(self) -> str:
         return self.__text
 
-    def isActivate(self):
+    def isActivate(self) -> bool:
         return self.__activate
 
-    def isActivateInvert(self):
+    def isActivateInvert(self) -> bool:
         return self.__activate_invert
 
-    def setFold(self, fold):
+    def setFold(self, fold: bool):
         self.setToolButtonStyle(Qt.ToolButtonIconOnly if fold else Qt.ToolButtonTextBesideIcon)
 
-    def setActivate(self, activate):
+    def setActivate(self, activate: bool):
         self.__activate = activate
         if not self.__activate_invert:
             return
@@ -374,28 +380,28 @@ class NavigationItem(QToolButton):
         self.current_color_icon = self.__activate_color_icon if activate else self.__default_color_icon
         self._setColorAndIcon(self.current_color, self.current_color_icon)
 
-    def setHoverColor(self, color):
+    def setHoverColor(self, color: Union[QColor, Qt.GlobalColor, Sequence[int]]):
         self.__hover_color = self.__checkColor(color, self.__hover_color)
         self.__hover_color_icon = self.__getColoredIcon(self.__hover_color)
 
-    def setDefaultColor(self, color):
+    def setDefaultColor(self, color: Union[QColor, Qt.GlobalColor, Sequence[int]]):
         self.__default_color = self.__checkColor(color, self.__default_color)
         self.__default_color_icon = self.__getColoredIcon(self.__default_color)
 
-    def setActivateColor(self, color):
+    def setActivateColor(self, color: Union[QColor, Qt.GlobalColor, Sequence[int]]):
         self.__activate_color = self.__checkColor(color, self.__activate_color)
         self.__activate_color_icon = self.__getColoredIcon(self.__activate_color)
 
-    def enterEvent(self, ev):
+    def enterEvent(self, ev: QEvent):
         self._setColorAndIcon(self.__hover_color, self.__hover_color_icon)
 
-    def leaveEvent(self, ev):
+    def leaveEvent(self, ev: QEvent):
         self._setColorAndIcon(self.current_color, self.current_color_icon)
 
 
 class NavigationBar(QToolBar):
-    def __init__(self, normal_size=QSize(64, 64), fold_size=QSize(96, 96),
-                 moveAble=False, disableHorizontalFold=False, parent=None):
+    def __init__(self, normal_size: QSize = QSize(64, 64), fold_size: QSize = QSize(96, 96),
+                 moveAble: bool = False, disableHorizontalFold: bool = False, parent: Optional[QWidget] = None):
         super(NavigationBar, self).__init__(parent)
         from .container import ComponentManager
 
@@ -411,7 +417,7 @@ class NavigationBar(QToolBar):
         self.ui_manager = ComponentManager(self.layout())
         self.orientationChanged.connect(self.slotOrientationChanged)
 
-    def isFold(self):
+    def isFold(self) -> bool:
         return self.__fold
 
     def foldExpand(self):
@@ -422,7 +428,7 @@ class NavigationBar(QToolBar):
         self.setIconSize(self.__fold_size if self.__fold else self.__normal_size)
         [item.setFold(self.__fold) for item in self.ui_manager.getByType(NavigationItem)]
 
-    def addItem(self, item):
+    def addItem(self, item: NavigationItem):
         if not isinstance(item, NavigationItem):
             return
 
@@ -442,7 +448,7 @@ class NavigationBar(QToolBar):
         if isinstance(sender, NavigationItem):
             sender.setActivate(True)
 
-    def slotOrientationChanged(self, direction):
+    def slotOrientationChanged(self, direction: Qt.Orientation):
         if not self.isFold():
             self.foldExpand()
 
@@ -452,32 +458,32 @@ class NavigationBar(QToolBar):
         if direction == Qt.Horizontal and self.isFold():
             self.foldExpand()
 
-    def setActivateItem(self, name):
+    def setActivateItem(self, name: str):
         for item in self.ui_manager.getByType(NavigationItem):
             if item.text() == name:
                 item.activated.emit()
 
-    def getActivateItem(self):
+    def getActivateItem(self) -> Optional[NavigationItem]:
         for item in self.ui_manager.getByType(NavigationItem):
             if item.isActivate():
                 return item
 
         return None
 
-    def getActivateItemName(self):
+    def getActivateItemName(self) -> str:
         item = self.getActivateItem()
         if isinstance(item, NavigationItem):
             return item.text()
 
         return ""
 
-    def moveEvent(self, ev):
+    def moveEvent(self, ev: QMoveEvent):
         for expand_widget in self.ui_manager.getByType(ExpandWidget):
             expand_widget.setOrientation(self.orientation())
 
 
 class CustomEventFilterHandler(QObject):
-    def __init__(self, types: tuple, events: list or tuple, parent: QWidget or None = None):
+    def __init__(self, types: Tuple[type, ...], events: Sequence[QEvent.Type], parent: Optional[QWidget] = None):
         super(CustomEventFilterHandler, self).__init__(parent)
 
         if not isinstance(types, tuple):
@@ -489,7 +495,7 @@ class CustomEventFilterHandler(QObject):
         self.__filter_types = types
         self.__filter_events = events
 
-    def eventFilter(self, obj: QObject, event: QEvent):
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if isinstance(obj, self.__filter_types) and event.type() in self.__filter_events:
             event.ignore()
             return True
@@ -505,9 +511,9 @@ class CustomEventFilterHandler(QObject):
 
 
 class ThreadSafeLabel(QWidget):
-    def __init__(self, parent: QWidget or None = None,
+    def __init__(self, parent: Optional[QWidget] = None,
                  text: str = "", font: QFont = QFont("等线 Light", 9),
-                 color: QColor or Qt.GlobalColor = Qt.black, align: Qt.AlignmentFlag = Qt.AlignCenter):
+                 color: Union[QColor, Qt.GlobalColor] = Qt.black, align: Qt.AlignmentFlag = Qt.AlignCenter):
         super(ThreadSafeLabel, self).__init__(parent)
         self._text = text
         self._font = font
@@ -534,7 +540,7 @@ class ThreadSafeLabel(QWidget):
     def color(self) -> QColor:
         return self._color
 
-    def setColor(self, color: Qt.GlobalColor or QColor):
+    def setColor(self, color: Union[Qt.GlobalColor, QColor]):
         if isinstance(color, (Qt.GlobalColor, QColor)):
             self._color = QColor(color)
             self.update()
@@ -565,10 +571,10 @@ class HyperlinkLabel(ThreadSafeLabel):
     def __init__(self, text: str = "",
                  font: QFont = DEFAULT_FONT,
                  selectedFormat: str = "{}",
-                 defaultColor: QColor or Qt.GlobalColor = Qt.black,
-                 clickedColor: QColor or Qt.GlobalColor = Qt.blue,
-                 hoverColor: QColor or Qt.GlobalColor = Qt.blue,
-                 hoverFont: QFont = DEFAULT_FONT, parent: QWidget or None = None):
+                 defaultColor: Union[QColor, Qt.GlobalColor] = Qt.black,
+                 clickedColor: Union[QColor, Qt.GlobalColor] = Qt.blue,
+                 hoverColor: Union[QColor, Qt.GlobalColor] = Qt.blue,
+                 hoverFont: QFont = DEFAULT_FONT, parent: Optional[QWidget] = None):
         super(HyperlinkLabel, self).__init__(parent=parent, text=text, font=font, color=defaultColor)
         self._isClicked = False
         self._defaultFont = font

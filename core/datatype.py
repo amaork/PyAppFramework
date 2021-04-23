@@ -254,6 +254,7 @@ class ComparableXml(XmlElementTree.Element):
             print("xml2string error is not xml element object")
             return None
 
+        # Return data is bytes, always need decode
         data = XmlElementTree.tostring(xml, encode).strip()
         return ComparableXml.string_strip(data.decode())
 

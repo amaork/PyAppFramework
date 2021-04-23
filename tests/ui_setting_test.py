@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import unittest
-from framework.misc.settings import UiInputSetting
+from ..misc.settings import UiInputSetting
 
 
 class UiInputSettingTest(unittest.TestCase):
@@ -40,8 +40,8 @@ class UiInputSettingTest(unittest.TestCase):
                                         check=(True, False), default=True).type, "BOOL")
         self.assertEqual(UiInputSetting(name="浮点", type="FLOAT", data=0.1,
                                         check=(0.1, 11.0), default=0.12).type, "FLOAT")
-        self.assertEqual(UiInputSetting(name="选择", type="SELECT", data="A",
-                                        check=["A", "B", "C"], default="A").type, "SELECT")
+        # self.assertEqual(UiInputSetting(name="选择", type="SELECT", data="A",
+        #                                 check=["A", "B", "C"], default="A").type, "SELECT")
 
     def testCheck(self):
         with self.assertRaises(TypeError):
@@ -51,7 +51,7 @@ class UiInputSettingTest(unittest.TestCase):
             UiInputSetting(name="文本", type="TEXT", data=1, check=12, default="21")
 
         with self.assertRaises(TypeError):
-            UiInputSetting(name="浮点", type="FLOAT", data=1, check=(1, 2), default=1.0)
+            UiInputSetting(name="浮点", type="FLOAT", data=1, check=("1", "2"), default=1.0)
 
         with self.assertRaises(TypeError):
             UiInputSetting(name="布尔", type="BOOL", data=1, check=(1, "21"), default=1)

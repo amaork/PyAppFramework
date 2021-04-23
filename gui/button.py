@@ -11,15 +11,18 @@ BaseButton
                             |------StateButton
 """
 import os.path
-from PySide.QtCore import Signal, Qt, QSize
-from PySide.QtGui import QPushButton, QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen
+from typing import Optional, Union, Tuple, Sequence
+from PySide.QtCore import Signal, Qt, QSize, QRect
+from PySide.QtGui import QPushButton, QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen, \
+    QWidget, QPaintEvent
 
 
 __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton']
 
 
 class BaseButton(QPushButton):
-    def __init__(self, width=0, height=0, shortCut="", styleSheet="", tips="", parent=None):
+    def __init__(self, width: int = 0, height: int = 0, shortCut: str = "",
+                 styleSheet: str = "", tips: str = "", parent: Optional[QWidget] = None):
         super(BaseButton, self).__init__(parent)
         if isinstance(shortCut, str) and len(shortCut):
             self.setShortcut(QKeySequence(self.tr(shortCut)))
@@ -33,10 +36,10 @@ class BaseButton(QPushButton):
         self.setToolTip(tips)
         self.setStatusTip(tips)
 
-    def getState(self):
+    def getState(self) -> bool:
         return self.isChecked() if self.isCheckable() else False
 
-    def slotChangeView(self, ck):
+    def slotChangeView(self, ck: bool):
         """Change button view
 
         :param ck:
@@ -47,7 +50,8 @@ class BaseButton(QPushButton):
 
 
 class TextButton(BaseButton):
-    def __init__(self, width=0, height=0, text=("", ""), shortCut="", styleSheet="", tips="", parent=None):
+    def __init__(self, width: int = 0, height: int = 0, text: Tuple[str, str] = ("", ""),
+                 shortCut: str = "", styleSheet: str = "", tips: str = "", parent: Optional[QWidget] = None):
         super(TextButton, self).__init__(width, height, shortCut, styleSheet, tips, parent)
         self.setCheckable(True)
         self.toggled.connect(self.slotChangeView)
@@ -57,7 +61,7 @@ class TextButton(BaseButton):
             self.text = text
             self.setText(self.tr(text[0]))
 
-    def slotChangeView(self, ck):
+    def slotChangeView(self, ck: bool):
         """When button is clicked, change button text
 
         :param ck: Button clicked
@@ -68,7 +72,7 @@ class TextButton(BaseButton):
 
 
 class IconButton(BaseButton):
-    def __init__(self, icons, shortCut="", tips="", parent=None):
+    def __init__(self, icons: Sequence[str], shortCut: str = "", tips: str = "", parent: Optional[QWidget] = None):
         if not isinstance(icons, (list, tuple)):
             raise TypeError("icons require a list or tuple type")
 
@@ -99,7 +103,7 @@ class IconButton(BaseButton):
                 else:
                     print("Icon size mismatched or icon is not a image!")
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         pixmap = QPixmap()
         painter = QPainter(self)
         idx = self.isChecked()
@@ -110,7 +114,9 @@ class IconButton(BaseButton):
 
 
 class RectButton(BaseButton):
-    def __init__(self, width=0, height=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+    def __init__(self, width: int = 0, height: int = 0, text: Tuple[str, str] = ("", ""), shortCut: str = "",
+                 color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
+                 tips: str = "", parent: Optional[QWidget] = None):
         super(RectButton, self).__init__(width, height, shortCut, tips=tips, parent=parent)
         self.setCheckable(True)
 
@@ -123,12 +129,12 @@ class RectButton(BaseButton):
         self.setColor(color)
         self.textLength = max(len(self.text[0]), len(self.text[1]), 1)
 
-    def draw(self, painter, rect):
+    def draw(self, painter: QPainter, rect: QRect):
         painter.setPen(self.textColor[self.getState()])
         painter.setFont(QFont("Times New Roman", min(rect.width() / self.textLength / 0.618, rect.height() * 0.618)))
         painter.drawText(rect, Qt.AlignCenter, self.tr(self.text[self.getState()]))
 
-    def setText(self, text):
+    def setText(self, text: Sequence[str]):
         if not isinstance(text, (list, tuple)) or len(text) != 2:
             return False
 
@@ -139,7 +145,7 @@ class RectButton(BaseButton):
         self.update()
         return True
 
-    def setColor(self, colors):
+    def setColor(self, colors: Sequence[Union[Qt.GlobalColor, QColor]]):
         if not isinstance(colors, (list, tuple)) or len(colors) != 2:
             return False
 
@@ -150,10 +156,10 @@ class RectButton(BaseButton):
         self.textColor = self.drawColor[1], self.drawColor[0]
         self.update()
 
-    def getBrush(self):
+    def getBrush(self) -> QBrush:
         return QBrush(self.drawColor[self.getState()], Qt.SolidPattern)
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect()
@@ -168,10 +174,12 @@ class RectButton(BaseButton):
 
 
 class RoundButton(RectButton):
-    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+    def __init__(self, diameter: int = 0, text: Tuple[str, str] = ("", ""),
+                 shortCut: str = "", color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
+                 tips: str = "", parent: Optional[QWidget] = None):
         super(RoundButton, self).__init__(diameter, diameter, text, shortCut, color, tips, parent)
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = self.rect()
@@ -192,14 +200,16 @@ class StateButton(RoundButton):
     # Single when state changed
     stateChanged = Signal(bool)
 
-    def __init__(self, diameter=0, text=("", ""), shortCut="", color=(Qt.red, Qt.green), tips="", parent=None):
+    def __init__(self, diameter: int = 0, text: Tuple[str, str] = ("", ""),
+                 shortCut: str = "", color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
+                 tips: str = "", parent: Optional[QWidget] = None):
         super(StateButton, self).__init__(diameter, text, shortCut, color, tips, parent)
         self.setCheckable(False)
 
         # Internal state
         self.state = False
 
-    def getState(self):
+    def getState(self) -> bool:
         return self.state
 
     def turnOn(self):
@@ -212,7 +222,7 @@ class StateButton(RoundButton):
         self.stateChanged.emit(False)
         self.update()
 
-    def slotChangeView(self, ck):
+    def slotChangeView(self, ck: bool):
         if ck:
             self.turnOn()
         else:

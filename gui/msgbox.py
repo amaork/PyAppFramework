@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import QMessageBox, QApplication
+from PySide.QtGui import QMessageBox, QApplication, QWidget
 
 __all__ = ['showQuestionBox', 'showMessageBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
@@ -12,7 +12,7 @@ MB_TYPE_QUESTION = "question"
 MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN, MB_TYPE_QUESTION)
 
 
-def showQuestionBox(parent, content, title=None):
+def showQuestionBox(parent: QWidget, content: str, title: str = '') -> bool:
     """ Show a Question message box and return result
 
     :param parent: parent widget
@@ -24,7 +24,7 @@ def showQuestionBox(parent, content, title=None):
     return showMessageBox(parent, MB_TYPE_QUESTION, content, title)
 
 
-def showMessageBox(parent, msg_type, content, title=None):
+def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = '') -> bool:
     """Show a QMessage box
 
     :param parent: parent widget
@@ -34,7 +34,6 @@ def showMessageBox(parent, msg_type, content, title=None):
     :return: result
     """
     attributes = {
-
         MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error",
                                                                    None, QApplication.UnicodeUTF8)),
 

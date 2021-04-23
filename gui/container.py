@@ -257,8 +257,8 @@ class ComponentManager(QObject):
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
 
-    def __getComponentsWithType(self, componentType: type) -> List[QWidget]:
-        if isinstance(componentType, type):
+    def __getComponentsWithType(self, componentType: QWidget.__class__) -> List[QWidget]:
+        if isinstance(componentType, QWidget.__class__):
             components = self.getByType(componentType)
         else:
             components = self.getAll()
@@ -475,14 +475,14 @@ class ComponentManager(QObject):
         else:
             return components[index - 1]
 
-    def getByType(self, componentType: type) -> List[QWidget]:
+    def getByType(self, componentType: QWidget.__class__) -> List[QWidget]:
         """Get componentType specified type components
 
         :param componentType: component type
         :return: matched objects
         """
 
-        if not isinstance(componentType, type):
+        if not isinstance(componentType, QWidget.__class__):
             print("TypeError:{!r}".format(componentType.__class__.__name__))
             return []
 
@@ -493,7 +493,8 @@ class ComponentManager(QObject):
 
         return components
 
-    def getByValue(self, key: str, value: Any, componentType: Optional[type] = None) -> Union[QWidget, None]:
+    def getByValue(self, key: str, value: Any,
+                   componentType: Optional[QWidget.__class__] = None) -> Union[QWidget, None]:
         """Get componentType specified component property key  is value
 
         :param key: property key
@@ -513,7 +514,7 @@ class ComponentManager(QObject):
 
         return None
 
-    def findKey(self, key: str, componentType: Optional[type] = None) -> List[QWidget]:
+    def findKey(self, key: str, componentType: Optional[QWidget.__class__] = None) -> List[QWidget]:
         """find component with componentType specified type, and key specified property key
 
         :param key: property key
@@ -532,7 +533,7 @@ class ComponentManager(QObject):
 
         return lst
 
-    def findValue(self, key: str, searchValue: str, componentType: Optional[QWidget] = None) -> List[QWidget]:
+    def findValue(self, key: str, searchValue: str, componentType: Optional[QWidget.__class__] = None) -> List[QWidget]:
         """Find component with componentType specified types and property key hast value
 
         :param key: property key
@@ -549,18 +550,18 @@ class ComponentManager(QObject):
         return lst
 
     def getData(self, key: str,
-                componentType: Optional[Sequence[type]] = None,
+                componentTypes: Optional[Sequence[QWidget.__class__]] = None,
                 exclude: Optional[Sequence[str]] = None) -> dict:
         data = dict()
         components = list()
         exclude = exclude if isinstance(exclude, (list, tuple)) else []
 
-        if hasattr(componentType, "__iter__"):
-            for t in componentType:
-                if isinstance(t, type):
+        if hasattr(componentTypes, "__iter__"):
+            for t in componentTypes:
+                if isinstance(t, QWidget.__class__):
                     components.extend(self.findKey(key, t))
         else:
-            components = self.findKey(key, componentType)
+            components = self.findKey(key, componentTypes)
 
         for component in components:
             value = component.property(key)
@@ -572,7 +573,7 @@ class ComponentManager(QObject):
 
         return data
 
-    def setData(self, key: str, data: str) -> bool:
+    def setData(self, key: str, data: Union[str, dict]) -> bool:
         if not isinstance(key, str) or not isinstance(data, dict):
             return False
 
@@ -660,7 +661,7 @@ class ComponentManager(QObject):
 
         return True
 
-    def bindComboBoxWithSpinBox(self, key: str, sender: Any, receiver: Any, limit: Sequence[Union[int, float]]) -> bool:
+    def bindComboBoxWithSpinBox(self, key: str, sender: Any, receiver: Any, limit: Union[list, tuple]) -> bool:
         """Bind ComboBox with SpinBox, ComboBox current index changed, SpinBox will changed
 
         limit length = 3 (min, max, step)

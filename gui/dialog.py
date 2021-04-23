@@ -3,12 +3,15 @@ import os
 import hashlib
 from PySide.QtGui import *
 from PySide.QtCore import *
+from typing import Optional, Union, Sequence, Callable
+
 from .msgbox import *
 from .button import RectButton
 from ..network.utility import *
-from ..misc.settings import UiLayout
 from ..protocol.serialport import SerialPort
 from ..misc.windpi import get_program_scale_factor
+from ..misc.settings import UiLayout, Color, IndexColor
+from ..core.datatype import DynamicObject
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
@@ -20,6 +23,8 @@ __all__ = ['SimpleColorDialog',
            'showFileImportDialog', 'showFileExportDialog']
 
 __showFileImportDialogRecentPathDict = dict()
+DialogApplyFunction = Callable[[dict], None]
+PasswordHashFunction = Callable[[Union[bytes, bytearray, memoryview]], str]
 
 
 class SimpleColorDialog(QDialog):
@@ -28,7 +33,9 @@ class SimpleColorDialog(QDialog):
     # This signal is emitted just after the user selected a color
     currentColorChanged = Signal(QColor)
 
-    def __init__(self, basic=False, color=Qt.black, button_box=False, parent=None):
+    def __init__(self, basic: bool = False,
+                 color: Union[QColor, Qt.GlobalColor] = Qt.black,
+                 button_box: bool = False, parent: Optional[QWidget] = None):
         """Simple color dialog
 
         :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
@@ -46,7 +53,7 @@ class SimpleColorDialog(QDialog):
         self.__color = QColor(color)
         self.__updateColor(self.__color)
 
-    def __initUi(self, without_buttons):
+    def __initUi(self, without_buttons: bool):
         # Color select buttons
         colorLayout = QGridLayout()
         colors = (Qt.black, Qt.red, Qt.blue, Qt.magenta, Qt.yellow, Qt.green, Qt.cyan, Qt.white)
@@ -106,14 +113,14 @@ class SimpleColorDialog(QDialog):
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Please select color"))
 
-    def __getColor(self):
+    def __getColor(self) -> Color:
         """Get select color setting
 
         :return: r, g, b
         """
         return self.__color.red(), self.__color.green(), self.__color.blue()
 
-    def __setColor(self, color):
+    def __setColor(self, color: QColor):
         """Save color and update spinbox color
 
         :param color: select color
@@ -128,7 +135,7 @@ class SimpleColorDialog(QDialog):
         self.__green.setValue(color.green())
         return True
 
-    def __getCurrentColor(self):
+    def __getCurrentColor(self) -> Color:
         """Get ui spinbox color setting
 
         :return: r, g, b
@@ -138,7 +145,7 @@ class SimpleColorDialog(QDialog):
         g = self.__green.value()
         return r, g, b
 
-    def __updateColor(self, color):
+    def __updateColor(self, color: QColor):
         """Update ui elements setting
 
         :param color:
@@ -169,7 +176,7 @@ class SimpleColorDialog(QDialog):
         self.__updateColor(color)
         self.currentColorChanged.emit(color)
 
-    def slotChangeDepth(self, value):
+    def slotChangeDepth(self, value: int):
         if self.__basic or self.sender() == self.__depth:
             r, g, b = self.__getColor()
             if r:
@@ -187,7 +194,7 @@ class SimpleColorDialog(QDialog):
         self.currentColorChanged.emit(QColor(r, g, b))
         self.__preview.setStyleSheet("background:rgb({0:d},{1:d},{2:d})".format(r, g, b))
 
-    def getSelectColor(self):
+    def getSelectColor(self) -> QColor:
         if self.result():
             r, g, b = self.__getCurrentColor()
             self.colorSelected.emit(QColor(r, g, b))
@@ -196,26 +203,26 @@ class SimpleColorDialog(QDialog):
             return self.__color
 
     @classmethod
-    def getColor(cls, parent, color=Qt.red):
+    def getColor(cls, parent: QWidget, color: Union[QColor, Qt.GlobalColor] = Qt.red) -> QColor:
         panel = cls(color=color, parent=parent)
         panel.exec_()
         return panel.getSelectColor()
 
     @classmethod
-    def getBasicColor(cls, parent, color=Qt.red):
+    def getBasicColor(cls, parent: QWidget, color: Union[QColor, Qt.GlobalColor] = Qt.red) -> QColor:
         panel = cls(True, color, False, parent)
         panel.exec_()
         return panel.getSelectColor()
 
     @staticmethod
-    def convertToRgb(color):
+    def convertToRgb(color: QColor) -> Color:
         if not isinstance(color, QColor):
             return 0, 0, 0
 
         return color.red(), color.green(), color.blue()
 
     @staticmethod
-    def convertToIndexColor(color):
+    def convertToIndexColor(color: QColor) -> IndexColor:
         if not isinstance(color, QColor):
             return 0, 0
 
@@ -235,7 +242,7 @@ class SimpleColorDialog(QDialog):
 
 
 class SerialPortSelectDialog(QDialog):
-    def __init__(self, timeout=0.04, parent=None):
+    def __init__(self, timeout: float = 0.04, parent: Optional[QWidget] = None):
         super(SerialPortSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._ports = QComboBox(self)
@@ -252,18 +259,18 @@ class SerialPortSelectDialog(QDialog):
         self.setWindowTitle(self.tr("Please select serial port"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def getPort(self):
+    def getPort(self) -> Union[str, None]:
         return self._ports.currentText() if self.result() else None
 
     @classmethod
-    def getSerialPort(cls, timeout=0.04, parent=None):
+    def getSerialPort(cls, timeout: float = 0.04, parent: Optional[QWidget] = None) -> Union[str, None]:
         dialog = cls(timeout, parent)
         dialog.exec_()
         return dialog.getPort()
 
 
 class SerialPortSettingDialog(QDialog):
-    def __init__(self, settings=SerialPortSettingWidget.DEFAULTS, parent=None):
+    def __init__(self, settings: dict = SerialPortSettingWidget.DEFAULTS, parent: Optional[QWidget] = None):
         """Serial port configure dialog
 
         :param settings: serial port settings
@@ -287,25 +294,25 @@ class SerialPortSettingDialog(QDialog):
         self.setWindowTitle(self.tr("Serial Configuration Dialog"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def getSerialSetting(self):
+    def getSerialSetting(self) -> Union[dict, None]:
         if not self.result():
             return None
 
         return self.__widget.getSetting()
 
     @classmethod
-    def getSetting(cls, parent, settings=SerialPortSettingWidget.DEFAULTS):
+    def getSetting(cls, parent: QWidget, settings: dict = SerialPortSettingWidget.DEFAULTS) -> Union[dict, None]:
         dialog = cls(settings, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
 
 
 class NetworkAddressSelectDialog(QDialog):
-    def __init__(self, port, timeout=0.04, parent=None):
+    def __init__(self, port: int, timeout: float = 0.04, network: str = '', parent: Optional[QWidget] = None):
         super(NetworkAddressSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._address_list = QComboBox(self)
-        self._address_list.addItems(scan_lan_port(port, timeout))
+        self._address_list.addItems(scan_lan_port(port=port, network=network, timeout=timeout))
         button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
@@ -318,18 +325,19 @@ class NetworkAddressSelectDialog(QDialog):
         self.setWindowTitle(self.tr("Please select address"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def getSelectedAddress(self):
+    def getSelectedAddress(self) -> Union[str, None]:
         return self._address_list.currentText() if self.result() else None
 
     @classmethod
-    def getAddress(cls, port, timeout=0.04, parent=None):
+    def getAddress(cls, port: int, timeout: float = 0.04, parent: Optional[QWidget] = None) -> Union[str, None]:
         dialog = NetworkAddressSelectDialog(port, timeout, parent)
         dialog.exec_()
         return dialog.getSelectedAddress()
 
 
 class NetworkInterfaceSelectDialog(QDialog):
-    def __init__(self, name: str = "", address: str = "", network: str = "", ignore_loopback: bool = True, parent=None):
+    def __init__(self, name: str = "", address: str = "", network: str = "",
+                 ignore_loopback: bool = True, parent: Optional[QWidget] = None):
         super(NetworkInterfaceSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._nic_list = QComboBox(self)
@@ -366,7 +374,7 @@ class NetworkInterfaceSelectDialog(QDialog):
     @classmethod
     def getAddress(cls, name: str = "",
                    address: str = "", network: str = "",
-                   ignore_loopback: bool = True, parent=None) -> str:
+                   ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
         dialog.exec_()
@@ -375,7 +383,7 @@ class NetworkInterfaceSelectDialog(QDialog):
     @classmethod
     def getInterface(cls, name: str = "",
                      address: str = "", network: str = "",
-                     ignore_loopback: bool = True, parent=None) -> str:
+                     ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
         dialog.exec_()
@@ -384,7 +392,7 @@ class NetworkInterfaceSelectDialog(QDialog):
     @classmethod
     def getInterfaceNetwork(cls, name: str = "",
                             address: str = "", network: str = "",
-                            ignore_loopback: bool = True, parent=None) -> str:
+                            ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
         dialog.exec_()
@@ -396,7 +404,7 @@ class ProgressDialog(QProgressDialog):
     DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None, QApplication.UnicodeUTF8)
 
     def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
-                 cancel_button: str or None = None, closeable: bool = True, cancelable: bool = False):
+                 cancel_button: Optional[str] = None, closeable: bool = True, cancelable: bool = False):
         super(ProgressDialog, self).__init__(parent)
 
         self.__canceled = False
@@ -411,7 +419,7 @@ class ProgressDialog(QProgressDialog):
         else:
             self.setCancelButtonText(self.tr(cancel_button))
 
-    def closeEvent(self, ev):
+    def closeEvent(self, ev: QCloseEvent):
         if not self.__closeable and not self.__cancelable:
             ev.ignore()
 
@@ -422,7 +430,7 @@ class ProgressDialog(QProgressDialog):
 
             ev.ignore()
 
-    def showEvent(self, ev):
+    def showEvent(self, ev: QShowEvent):
         self.setCancelState(False)
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
@@ -464,7 +472,9 @@ class ProgressDialog(QProgressDialog):
 
 
 class BasicJsonSettingDialog(QDialog):
-    def __init__(self, widget_cls, settings, data=None, reset=True, apply=None, parent=None):
+    def __init__(self, widget_cls: Union[BasicJsonSettingWidget.__class__, MultiTabJsonSettingsWidget.__class__],
+                 settings: DynamicObject, data: Optional[dict] = None,
+                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(BasicJsonSettingDialog, self).__init__(parent)
 
         if not issubclass(widget_cls, (BasicJsonSettingWidget, MultiTabJsonSettingsWidget)):
@@ -500,10 +510,10 @@ class BasicJsonSettingDialog(QDialog):
         self.setWindowTitle(self.tr(title))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def tr(self, text):
+    def tr(self, text: str) -> str:
         return QApplication.translate("BasicJsonSettingDialog", text, None, QApplication.UnicodeUTF8)
 
-    def getJsonData(self):
+    def getJsonData(self) -> Optional[dict]:
         if not self.result():
             return None
 
@@ -517,84 +527,96 @@ class BasicJsonSettingDialog(QDialog):
             self.setResult(1)
             self.apply(self.getJsonData())
         except TypeError as error:
-            return showMessageBox(self, MB_TYPE_ERR, self.tr("Apply settings error") + " : {}".format(error))
+            showMessageBox(self, MB_TYPE_ERR, self.tr("Apply settings error") + " : {}".format(error))
 
     def slotSettingChanged(self):
         pass
 
-    def getJsonDataWithoutConfirm(self):
+    def getJsonDataWithoutConfirm(self) -> dict:
         return self.ui_widget.getData()
 
-    def setJsonData(self, data: dict):
+    def setJsonData(self, data: dict) -> bool:
         return self.ui_widget.setData(data)
 
     @classmethod
-    def getData(cls, settings, data=None, reset=True, apply=None, parent=None):
-        dialog = cls(settings, data, reset, apply, parent)
+    def getData(cls, settings: DynamicObject, data: Optional[dict] = None,
+                reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
+        # BasicJsonSettingDialog is abstract class derived class __init__ don't need widget_cls arg
+        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
         dialog.exec_()
         return dialog.getJsonData()
 
 
 class JsonSettingDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+    def __init__(self, settings: DynamicObject, data: Optional[dict] = None,
+                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, reset, apply, parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def getJsonSettings(self):
+    def getJsonSettings(self) -> Optional[DynamicObject]:
         if not self.result():
             return None
 
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getSettings(cls, settings, data=None, reset=True, apply=None, parent=None):
-        dialog = cls(settings, data, reset, apply, parent)
+    def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
+                    reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
+        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
         dialog.exec_()
         return dialog.getJsonSettings()
 
 
 class MultiJsonSettingsDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+    def __init__(self, settings: DynamicObject, data: Optional[dict] = None,
+                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget,
                                                       settings, data, reset, apply, parent=parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
 class MultiGroupJsonSettingsDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data=None, reset=True, apply=None, parent=None):
+    def __init__(self, settings: DynamicObject, data: Optional[dict] = None,
+                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(MultiGroupJsonSettingsDialog, self).__init__(MultiGroupJsonSettingsWidget,
                                                            settings, data, reset, apply, parent=parent)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
 class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
-    def __init__(self, settings, data, reset=True, apply=None, parent=None):
+    def __init__(self, settings: DynamicObject, data: Optional[dict] = None,
+                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(MultiTabJsonSettingsDialog, self).__init__(MultiTabJsonSettingsWidget,
                                                          settings, data, reset, apply, parent)
         scale_x, _ = get_program_scale_factor()
         self.setMinimumWidth(len(settings.layout.layout) * 120 * scale_x)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-    def getJsonSettings(self):
+    def getJsonSettings(self) -> Optional[DynamicObject]:
         if not self.result():
             return None
 
         return self.ui_widget.getSettings()
 
-    def insertCustomTabWidget(self, name, widget, position=None):
+    def insertCustomTabWidget(self, name: str, widget: QWidget, position: Optional[int] = None) -> bool:
         return self.ui_widget.insertCustomTabWidget(name, widget, position)
 
     @classmethod
-    def getSettings(cls, settings, data=None, reset=True, apply=None, parent=None):
-        dialog = cls(settings, data, reset, apply, parent)
+    def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
+                    reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
+        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
         dialog.exec_()
         return dialog.getJsonSettings()
 
 
 class PasswordDialog(QDialog):
-    DefaultHashFunction = lambda x: hashlib.md5(x).hexdigest()
+    @staticmethod
+    def defaultHashFunction(data: Union[bytes, bytearray, memoryview]) -> str:
+        return hashlib.md5(data).hexdigest()
 
-    def __init__(self, password=None, hash_function=DefaultHashFunction, style='font: 75 16pt "Arial"', parent=None):
+    def __init__(self, password: Optional[str] = None,
+                 hash_function: PasswordHashFunction = defaultHashFunction,
+                 style: str = 'font: 75 16pt "Arial"', parent: Optional[QWidget] = None):
         super(PasswordDialog, self).__init__(parent)
         if not hasattr(hash_function, "__call__"):
             raise TypeError("hash_function must be a callable object}")
@@ -667,7 +689,7 @@ class PasswordDialog(QDialog):
         self.ui_buttons.rejected.connect(self.reject)
         self.ui_show_password.stateChanged.connect(self.slotShowPassword)
 
-    def slotShowPassword(self, ck):
+    def slotShowPassword(self, ck: bool):
         for item in (self.ui_old_password, self.ui_new_password, self.ui_confirm_password):
             item.setEchoMode(QLineEdit.Normal if ck else QLineEdit.Password)
             item.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
@@ -692,17 +714,19 @@ class PasswordDialog(QDialog):
         self.close()
         return True
 
-    def getNewPassword(self):
+    def getNewPassword(self) -> str:
         return self.__new_password
 
     @staticmethod
-    def resetPassword(hash_function=DefaultHashFunction, style='', parent=None):
+    def resetPassword(hash_function: PasswordHashFunction = defaultHashFunction,
+                      style: str = '', parent: Optional[QWidget] = None) -> str:
         dialog = PasswordDialog(hash_function=hash_function, style=style, parent=parent)
         dialog.exec_()
         return dialog.getNewPassword()
 
     @staticmethod
-    def changePassword(password=None, hash_function=DefaultHashFunction, style='', parent=None):
+    def changePassword(password: Optional[str] = None, hash_function: PasswordHashFunction = defaultHashFunction,
+                       style: str = '', parent: Optional[QWidget] = None) -> str:
         dialog = PasswordDialog(password, hash_function, style, parent)
         dialog.exec_()
         return dialog.getNewPassword()
@@ -711,7 +735,7 @@ class PasswordDialog(QDialog):
 class OptionDialog(QDialog):
     DEF_TITLE = QApplication.translate("OptionDialog", "Please select", None, QApplication.UnicodeUTF8)
 
-    def __init__(self, options, title=DEF_TITLE, parent=None):
+    def __init__(self, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None):
         super(OptionDialog, self).__init__(parent)
 
         self.selection = ""
@@ -739,32 +763,32 @@ class OptionDialog(QDialog):
         self.selection = sender.text()
         self.accept()
 
-    def getSelectionText(self):
+    def getSelectionText(self) -> str:
         return self.selection
 
-    def getSelectionIndex(self):
+    def getSelectionIndex(self) -> int:
         try:
             return self.options.index(self.selection)
         except IndexError:
             return -1
 
     @classmethod
-    def getOptionText(cls, options, title=DEF_TITLE, parent=None):
+    def getOptionText(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> str:
         dialog = cls(options, title, parent)
         dialog.exec_()
         return dialog.getSelectionText()
 
     @classmethod
-    def getOptionIndex(cls, options, title=DEF_TITLE, parent=None):
+    def getOptionIndex(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> int:
         dialog = cls(options, title, parent)
         dialog.exec_()
         return dialog.getSelectionIndex()
 
 
-def showFileExportDialog(parent, fmt, name="",
-                         title=QApplication.translate("dialog",
-                                                      "Please select export file save path",
-                                                      None, QApplication.UnicodeUTF8)):
+def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
+                         title: str = QApplication.translate("dialog",
+                                                             "Please select export file save path",
+                                                             None, QApplication.UnicodeUTF8)) -> str:
     path, ret = QFileDialog.getSaveFileName(parent, parent.tr(title), name, parent.tr(fmt))
     if not ret or len(path) == 0:
         return ""
@@ -772,10 +796,10 @@ def showFileExportDialog(parent, fmt, name="",
     return path
 
 
-def showFileImportDialog(parent, fmt, path="",
-                         title=QApplication.translate("dialog",
-                                                      "Please select import file",
-                                                      None, QApplication.UnicodeUTF8)):
+def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
+                         title: str = QApplication.translate("dialog",
+                                                             "Please select import file",
+                                                             None, QApplication.UnicodeUTF8)) -> str:
 
     # If not specified path load recently used path
     path = __showFileImportDialogRecentPathDict.get(title, "") if not path else path

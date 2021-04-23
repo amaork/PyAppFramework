@@ -31,7 +31,7 @@ def get_win_dpi() -> DPI:
         x_dpi = win32print.GetDeviceCaps(hdc, para_x)
         y_dpi = win32print.GetDeviceCaps(hdc, para_y)
         return DPI(x_dpi, y_dpi)
-    except (NameError, AttributeError) as e:
+    except (NameError, AttributeError):
         return DPI(96, 96)
 
 
@@ -54,10 +54,7 @@ def get_program_scale_factor() -> ScaleFactor:
     current_dpi_x = float(current_dpi_x)
     current_dpi_y = float(current_dpi_y)
 
-    scale_x = current_dpi_x / default_dpi_x
-    scale_y = current_dpi_y / default_dpi_y
-
-    return ScaleFactor(scale_x, scale_y)
+    return ScaleFactor(current_dpi_x / default_dpi_x, current_dpi_y / default_dpi_y)
 
 
 if __name__ == '__main__':

@@ -95,7 +95,7 @@ if __name__ == '__main__':
         # Operate
         if package_operate:
             try:
-                TarManager.pack(src_path, dest_path, formats, verbose)
+                TarManager.pack(src_path, dest_path, formats, verbose=verbose)
             except TarManagerError as error:
                 print("Pack error:{}".format(error))
 

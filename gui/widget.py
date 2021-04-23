@@ -27,11 +27,11 @@ import re
 import json
 import logging
 import os.path
-from typing import *
 from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
+from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
@@ -49,9 +49,11 @@ __all__ = ['BasicWidget', 'PaintWidget',
            'BasicJsonSettingWidget', 'JsonSettingWidget', 'MultiJsonSettingsWidget',
            'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
+TableDataFilter = Union[list, tuple, str]
+
 
 class BasicWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super(BasicWidget, self).__init__(parent)
 
         self._initUi()
@@ -76,7 +78,7 @@ class BasicWidget(QWidget):
         pass
 
     @staticmethod
-    def createInputWithLabel(label, key, input_cls):
+    def createInputWithLabel(label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
         input_ = input_cls()
         label = QLabel(label)
         input_.setProperty("name", key)
@@ -84,7 +86,7 @@ class BasicWidget(QWidget):
         return label, input_
 
     @staticmethod
-    def createMultiInputWithLabel(texts, input_cls):
+    def createMultiInputWithLabel(texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
         layout = QGridLayout()
         for row, text in enumerate(texts):
             label, key = text
@@ -97,7 +99,7 @@ class BasicWidget(QWidget):
         return layout
 
     @staticmethod
-    def createButtonGroup(key, names, title):
+    def createButtonGroup(key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
         """Create button group and set button id
 
         :param key: button group key name
@@ -124,12 +126,12 @@ class BasicWidget(QWidget):
 
 
 class PaintWidget(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         """Base class provide basic draw functions and get widget message """
 
         super(PaintWidget, self).__init__(parent)
 
-    def getXRatio(self, maxValue):
+    def getXRatio(self, maxValue: Union[int, float]) -> int:
         if not self.isNumber(maxValue):
             return 0
 
@@ -139,7 +141,7 @@ class PaintWidget(QWidget):
         x = self.cursor().pos().x()
         return int(round(maxValue / self.width() * x))
 
-    def getYRatio(self, maxValue):
+    def getYRatio(self, maxValue: Union[int, float]) -> int:
         if not self.isNumber(maxValue):
             return 0
 
@@ -149,12 +151,12 @@ class PaintWidget(QWidget):
         y = self.cursor().pos().y()
         return int(round(maxValue / self.height() * y))
 
-    def getCursorPos(self):
+    def getCursorPos(self) -> Tuple[int, int]:
         x = self.cursor().pos().x()
         y = self.cursor().pos().y()
         return x, y
 
-    def getCursorLum(self):
+    def getCursorLum(self) -> int:
         """Get current cursor position luminance
 
         :return:
@@ -163,7 +165,7 @@ class PaintWidget(QWidget):
         color = QColor(QPixmap().grabWindow(self.winId()).toImage().pixel(x, y))
         return max(color.red(), color.green(), color.blue())
 
-    def getDynamicTextPos(self, fontSize, textSize):
+    def getDynamicTextPos(self, fontSize: int, textSize: int) -> QPoint:
         """Get dynamic text position
 
         :param fontSize: Font size
@@ -192,7 +194,7 @@ class PaintWidget(QWidget):
 
         return QPoint(tx, ty)
 
-    def drawCenterText(self, painter, font, color, text):
+    def drawCenterText(self, painter: QPainter, font: QFont, color: Union[QColor, Qt.GlobalColor], text: str):
         """Draw dynamic text follow mouse movement
 
         :param painter:
@@ -203,7 +205,7 @@ class PaintWidget(QWidget):
         """
         if not isinstance(painter, QPainter) or not isinstance(font, QFont) or not self.isColor(color):
             print("TypeError")
-            return False
+            return
 
         try:
             painter.setFont(font)
@@ -212,7 +214,7 @@ class PaintWidget(QWidget):
         except TypeError:
             print("Text TypeError")
 
-    def drawDynamicText(self, painter, font, color, text):
+    def drawDynamicText(self, painter: QPainter, font: QFont, color: Union[QColor, Qt.GlobalColor], text: str):
         """Draw dynamic text follow mouse movement
 
         :param painter:
@@ -222,19 +224,21 @@ class PaintWidget(QWidget):
         :return:
         """
         if not isinstance(painter, QPainter) or not isinstance(font, QFont) or not self.isColor(color):
-            return False
+            return
 
         if not isinstance(text, str):
-            return False
+            return
 
         painter.setFont(font)
         painter.setPen(QPen(QColor(color)))
         painter.drawText(self.getDynamicTextPos(font.pointSize(), len(text)), text)
 
-    def drawSquare(self, painter, color, start, side):
+    def drawSquare(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor], start: QPoint, side: int):
         return self.drawRectangle(painter, color, start, side, side)
 
-    def drawRectangle(self, painter, color, start, width, height):
+    def drawRectangle(self, painter: QPainter,
+                      color: Union[QColor, Qt.GlobalColor],
+                      start: QPoint, width: int, height: int) -> bool:
         """Draw Rectangle at start point
 
         :param painter:QPainter
@@ -255,7 +259,7 @@ class PaintWidget(QWidget):
         painter.drawRect(start.x(), start.y(), width, height)
         return True
 
-    def drawCenterRect(self, painter, color, width, height):
+    def drawCenterRect(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor], width: int, height: int) -> bool:
         if not self.isValidWidth(width) or not self.isValidHeight(height):
             return False
 
@@ -264,10 +268,10 @@ class PaintWidget(QWidget):
         start = QPoint(x - width / 2, y - height / 2)
         return self.drawRectangle(painter, color, start, width, height)
 
-    def drawCenterSquare(self, painter, color, side):
+    def drawCenterSquare(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor], side: int) -> bool:
         return self.drawCenterRect(painter, color, side, side)
 
-    def drawBackground(self, painter, color):
+    def drawBackground(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor]) -> bool:
         if not isinstance(painter, QPainter) or not self.isColor(color):
             return False
 
@@ -276,7 +280,7 @@ class PaintWidget(QWidget):
         painter.drawRect(self.rect())
         return True
 
-    def drawHorizontalLine(self, painter, color, y, xs, xe):
+    def drawHorizontalLine(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor], y: int, xs: int, xe: int):
         """Draw a horizontal line at y form xs to xe
 
         :param painter:
@@ -287,15 +291,15 @@ class PaintWidget(QWidget):
         :return:True or false
         """
         if not isinstance(painter, QPainter) or not self.isColor(color):
-            return False
+            return
 
         if not self.isValidHeight(y) or not self.isValidHRange(xs, xe):
-            return False
+            return
 
         painter.setPen(QPen(color))
         painter.drawLine(QPoint(xs, y), QPoint(xe, y))
 
-    def drawVerticalLine(self, painter, color, x, ys, ye):
+    def drawVerticalLine(self, painter: QPainter, color: Union[QColor, Qt.GlobalColor], x: int, ys: int, ye: int):
         """
 
         :param painter:
@@ -306,16 +310,16 @@ class PaintWidget(QWidget):
         :return:
         """
         if not isinstance(painter, QPainter) or not self.isColor(color):
-            return False
+            return
 
         if not self.isValidWidth(x) or not self.isValidVRange(ys, ye):
-            return False
+            return
 
         painter.setPen(QPen(color))
         painter.drawLine(QPoint(x, ys), QPoint(x, ye))
 
     @staticmethod
-    def adjustColorBrightness(color, brightness):
+    def adjustColorBrightness(color: Union[QColor, Qt.GlobalColor], brightness: int) -> QColor:
         """Adjust color brightness
 
         :param color: QColor
@@ -348,11 +352,11 @@ class PaintWidget(QWidget):
         return color
 
     @staticmethod
-    def getMonitorResolution():
+    def getMonitorResolution() -> QSize:
         return QApplication.desktop().screenGeometry().size()
 
     @staticmethod
-    def getColorMode(color):
+    def getColorMode(color: Union[QColor, Qt.GlobalColor]) -> int:
         """Return color mode, blue -> 1, red -> 4 white -> 7
 
         :param color:
@@ -377,7 +381,7 @@ class PaintWidget(QWidget):
         return mode
 
     @staticmethod
-    def getColorRawValue(color):
+    def getColorRawValue(color: Union[QColor, Qt.GlobalColor]) -> int:
         if not PaintWidget.isColor(color):
             return 0
 
@@ -385,7 +389,7 @@ class PaintWidget(QWidget):
         return color.rgb() & 0xffffff
 
     @staticmethod
-    def getRgbMode(r, g, b):
+    def getRgbMode(r: int, g: int, b: int) -> int:
         """From rgb to rgb mode (255, 0, 0) -> 4 (True, True, True) -> 7
 
         :param r: Red color value or is red set boolean value
@@ -406,38 +410,38 @@ class PaintWidget(QWidget):
         return mode
 
     @staticmethod
-    def isColor(color):
+    def isColor(color: Any) -> bool:
         if not isinstance(color, QColor) and not isinstance(color, Qt.GlobalColor):
             return False
 
         return True
 
     @staticmethod
-    def isNumber(number):
+    def isNumber(number: Any) -> bool:
         if not isinstance(number, float) and not isinstance(number, int):
             return False
 
         return True
 
-    def isValidWidth(self, x):
+    def isValidWidth(self, x: int) -> bool:
         if x < 0 or x > self.width():
             return False
 
         return True
 
-    def isValidHeight(self, y):
+    def isValidHeight(self, y: int) -> bool:
         if y < 0 or y > self.height():
             return False
 
         return True
 
-    def isValidHRange(self, start, end):
+    def isValidHRange(self, start: int, end: int) -> bool:
         if not self.isValidWidth(start) or not self.isValidWidth(end):
             return False
 
         return start < end
 
-    def isValidVRange(self, start, end):
+    def isValidVRange(self, start: int, end: int) -> bool:
         if not self.isValidHeight(start) or not self.isValidHeight(end):
             return False
 
@@ -453,7 +457,7 @@ class ColorWidget(PaintWidget):
     # When mouse release send this signal
     colorStopChange = Signal(int, int, int)
 
-    def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
         """Color grab widget double click mouse left button change color, mouse horizontal move change color brightness
 
         ColorWidget provide two signal 'colorChanged' and 'colorStopChange', when mouse horizontal moved, the color
@@ -481,14 +485,14 @@ class ColorWidget(PaintWidget):
         self.colorTable = [(Qt.blue, Qt.white), (Qt.green, Qt.black), (Qt.cyan, Qt.black), (Qt.red, Qt.white),
                            (Qt.magenta, Qt.white), (Qt.yellow, Qt.black), (Qt.white, Qt.black), (Qt.black, Qt.white)]
 
-    def getColor(self):
+    def getColor(self) -> Tuple[Qt.GlobalColor, Qt.GlobalColor]:
         self.colorIndex += 1
         if self.colorIndex >= len(self.colorTable):
             self.colorIndex = 0
 
         return self.colorTable[self.colorIndex]
 
-    def addColor(self, color):
+    def addColor(self, color: Sequence[Union[QColor, Qt.GlobalColor]]) -> bool:
         """Add color to color group
 
         :param color:(QColor, QColor)
@@ -501,14 +505,15 @@ class ColorWidget(PaintWidget):
             return False
 
         self.colorTable.append(color)
+        return True
 
-    def getBackgroundColor(self):
+    def getBackgroundColor(self) -> QColor:
         return QColor(self.color[0])
 
-    def getForegroundColor(self):
+    def getForegroundColor(self) -> QColor:
         return QColor(self.color[1])
 
-    def mouseDoubleClickEvent(self, ev):
+    def mouseDoubleClickEvent(self, ev: QMouseEvent):
         # Left button change background color
         if ev.button() == Qt.LeftButton:
             self.color = self.getColor()
@@ -517,7 +522,7 @@ class ColorWidget(PaintWidget):
         elif ev.button() == Qt.RightButton:
             self.close()
 
-    def mouseReleaseEvent(self, ev):
+    def mouseReleaseEvent(self, ev: QMouseEvent):
         # Send color changed signal
         if ev.button() == Qt.LeftButton:
             value = self.getXRatio(self.colorMax)
@@ -525,11 +530,11 @@ class ColorWidget(PaintWidget):
             self.colorChanged.emit(color.red(), color.green(), color.blue())
             self.colorStopChange.emit(color.red(), color.green(), color.blue())
 
-    def mouseMoveEvent(self, ev):
+    def mouseMoveEvent(self, ev: QMouseEvent):
         # Update re paint
         self.update()
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         value = self.getXRatio(self.colorMax)
         color = ColorWidget.adjustColorBrightness(self.getBackgroundColor(), value)
@@ -551,7 +556,7 @@ class CursorWidget(ColorWidget):
     # When cursor stop changed will send this signal
     cursorStopChange = Signal(int, int, int)
 
-    def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
         """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
 
         CursorWidget provide two signal 'cursorChanged' and 'cursorStopChange', when mouse moved, the cursor position
@@ -571,12 +576,12 @@ class CursorWidget(ColorWidget):
         self.oldColor = self.getForegroundColor()
         self.remap_width, self.remap_height = self.width(), self.height()
 
-    def __remapCursor(self, x, y):
+    def __remapCursor(self, x: int, y: int) -> Tuple[int, int]:
         px = 1 if x == 0 else self.remap_width * 1.0 / self.width() * (x + 1)
         py = 1 if y == 0 else self.remap_height * 1.0 / self.height() * (y + 1)
         return int(round(px)) - 1, int(round(py)) - 1
 
-    def setRemap(self, width, height):
+    def setRemap(self, width: int, height: int) -> bool:
         """Set cursor remap width and height
 
         :param width: remap width
@@ -591,7 +596,7 @@ class CursorWidget(ColorWidget):
         self.remap_height = height
         return True
 
-    def mouseReleaseEvent(self, ev):
+    def mouseReleaseEvent(self, ev: QMouseEvent):
         # Send color changed signal
         if self.getBackgroundColor() != self.oldColor:
             color = self.getBackgroundColor()
@@ -605,7 +610,7 @@ class CursorWidget(ColorWidget):
             self.cursorChanged.emit(rx, ry, self.getColorRawValue(self.getBackgroundColor()))
             self.cursorStopChange.emit(rx, ry, self.getColorRawValue(self.getBackgroundColor()))
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         x, y = self.getCursorPos()
         rx, ry = self.__remapCursor(x, y)
@@ -625,7 +630,7 @@ class RgbWidget(PaintWidget):
     # When r, g, b changed send this signal
     rgbChanged = Signal(bool, bool, bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         """ RGB color control widget, double click the color zone will turn of or turn off this color.
 
         When color states changed will send 'rgbChanged' signal
@@ -642,7 +647,7 @@ class RgbWidget(PaintWidget):
         self.colorTable = (Qt.red, Qt.green, Qt.blue)
         self.rgbChanged.emit(self.rgb[0], self.rgb[1], self.rgb[2])
 
-    def mouseDoubleClickEvent(self, ev):
+    def mouseDoubleClickEvent(self, ev: QMouseEvent):
         # Left button change background color
         if ev.button() == Qt.LeftButton:
             _, y = self.getCursorPos()
@@ -659,10 +664,10 @@ class RgbWidget(PaintWidget):
         elif ev.button() == Qt.RightButton:
             self.close()
 
-    def hideEvent(self, ev):
+    def hideEvent(self, ev: QHideEvent):
         self.rgbChanged.emit(True, True, True)
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         self.rgbChanged.emit(self.rgb[0], self.rgb[1], self.rgb[2])
 
@@ -692,7 +697,7 @@ class LumWidget(PaintWidget):
     CT_MODE = 5
     LUM_MODE = (CE1_MODE, CE2_MODE, LF_MODE, UD_MODE, CT_MODE)
 
-    def __init__(self, font=QFont("Times New Roman", 10), parent=None):
+    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
         """Luminance grab widget, double click mouse left button change mode, mouse moved change windows Luminance
 
         Press mouse left button, then move mouse will change the low luminance
@@ -723,24 +728,24 @@ class LumWidget(PaintWidget):
         self.lum = [0, int(self.lumMax)]
         self.oldLum = [int(self.lumMax), 0]
 
-    def getLumMode(self):
+    def getLumMode(self) -> int:
         self.lumIndex += 1
         if self.lumIndex >= len(self.LUM_MODE):
             self.lumIndex = 0
 
         return self.LUM_MODE[self.lumIndex]
 
-    def getLowLum(self):
+    def getLowLum(self) -> QColor:
         return QColor(self.lum[0], self.lum[0], self.lum[0])
 
-    def getHighLum(self):
+    def getHighLum(self) -> QColor:
         return QColor(self.lum[1], self.lum[1], self.lum[1])
 
-    def mouseMoveEvent(self, ev):
+    def mouseMoveEvent(self, ev: QMouseEvent):
         self.lum[self.adjustHigh] = self.getXRatio(self.lumMax)
         self.update()
 
-    def mousePressEvent(self, ev):
+    def mousePressEvent(self, ev: QMouseEvent):
         # If left key press adjust low
         if ev.button() == Qt.LeftButton:
             self.adjustHigh = False
@@ -748,13 +753,13 @@ class LumWidget(PaintWidget):
         elif ev.button() == Qt.RightButton:
             self.adjustHigh = True
 
-    def mouseReleaseEvent(self, ev):
+    def mouseReleaseEvent(self, ev: QMouseEvent):
         if self.lum != self.oldLum:
             self.oldLum = self.lum
             self.lumChanged.emit(self.lum[1], self.lum[0], self.lumMode)
             self.lumStopChange.emit(self.lum[1], self.lum[0], self.lumMode)
 
-    def mouseDoubleClickEvent(self, ev):
+    def mouseDoubleClickEvent(self, ev: QMouseEvent):
         # Left button change background color
         if ev.button() == Qt.LeftButton:
             self.lumMode = self.getLumMode()
@@ -765,7 +770,7 @@ class LumWidget(PaintWidget):
         elif ev.button() == Qt.RightButton:
             self.close()
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         self.drawBackground(painter, self.getLowLum())
         textColor = Qt.white if self.getCursorLum() < 64 else Qt.black
@@ -795,7 +800,8 @@ class LumWidget(PaintWidget):
 
 
 class ImageWidget(PaintWidget):
-    def __init__(self, width=0, height=0, zoomInRatio=0, zoomInArea=20, parent=None):
+    def __init__(self, width: int = 0, height: int = 0,
+                 zoomInRatio: int = 0, zoomInArea: int = 20, parent: Optional[QWidget] = None):
         """ImageWidget provide 3 method to draw a image
 
         drawFromFs  :   load a image from filesystem and show it
@@ -832,7 +838,7 @@ class ImageWidget(PaintWidget):
         self.setMinimumSize(width, height)
 
     @Slot(str)
-    def drawFromFs(self, filePath):
+    def drawFromFs(self, filePath: str) -> bool:
         """Load a image from filesystem, then display it
 
         :param filePath: Image file path
@@ -853,7 +859,7 @@ class ImageWidget(PaintWidget):
         return True
 
     @Slot(object, object)
-    def drawFromMem(self, data, imageFormat="bmp"):
+    def drawFromMem(self, data: bytes, imageFormat: str = "bmp") -> bool:
         """Load image form memory
 
         :param data: Image data
@@ -869,12 +875,14 @@ class ImageWidget(PaintWidget):
             return False
 
         # Clear loadImageFromFs data
+        # QImage fromData(const uchar * data, int size, const char * format = 0)
         self.image = QImage.fromData(data, imageFormat)
         self.update()
         return True
 
     @Slot(str)
-    def drawFromText(self, text, textColor=Qt.black, bgColor=Qt.lightGray, fontSize=40):
+    def drawFromText(self, text: str, textColor: Union[QColor, Qt.GlobalColor] = Qt.black,
+                     bgColor: Union[QColor, Qt.GlobalColor] = Qt.lightGray, fontSize: int = 40):
         """Draw a text message in the center of the widget
 
         :param text: Text context
@@ -910,7 +918,7 @@ class ImageWidget(PaintWidget):
         self.image = QImage()
         self.update()
 
-    def paintEvent(self, ev):
+    def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
 
         # Is image show it
@@ -935,7 +943,7 @@ class ImageWidget(PaintWidget):
 
             painter.drawPixmap(x, y, self.zoomInPattern)
 
-    def mouseMoveEvent(self, ev):
+    def mouseMoveEvent(self, ev: QMouseEvent):
         if not self.zoomInRatio:
             return
 
@@ -961,7 +969,7 @@ class ImageWidget(PaintWidget):
         self.zoomInFlag = True
         self.update()
 
-    def mouseReleaseEvent(self, ev):
+    def mouseReleaseEvent(self, ev: QMouseEvent):
         # Mouse release will clear zoom in flag
         self.zoomInFlag = False
         self.update()
@@ -973,7 +981,7 @@ class TableWidget(QTableWidget):
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
     COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
 
-    def __init__(self, max_column: int, hide_header: bool = False, parent: QWidget or None = None):
+    def __init__(self, max_column: int, hide_header: bool = False, parent: Optional[QWidget] = None):
         """Create a QTableWidget
 
         :param max_column: max column number
@@ -1017,12 +1025,12 @@ class TableWidget(QTableWidget):
 
         self.__scale_x, self.__scale_y = get_program_scale_factor()
         self.customContextMenuRequested.connect(self.__slotShowContentMenu)
-        self.setVerticalHeaderHeight(self.getVerticalHeaderHeight() * self.__scale_y)
+        self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
-    def tr(self, text):
+    def tr(self, text: str) -> str:
         return QApplication.translate("TableWidget", text, None, QApplication.UnicodeUTF8)
 
-    def __checkRow(self, row):
+    def __checkRow(self, row: int) -> bool:
         if not isinstance(row, int):
             print("TypeError:{}".format(type(row)))
             return False
@@ -1033,7 +1041,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def __checkColumn(self, column):
+    def __checkColumn(self, column: int) -> bool:
         if not isinstance(column, int):
             print("TypeError:{}".format(type(column)))
             return False
@@ -1044,16 +1052,16 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def __autoRowIndex(self, row_idx):
+    def __autoRowIndex(self, row_idx: int) -> int:
         row_count = self.rowCount()
         return row_idx if 0 <= row_idx < row_count else row_count + row_idx
 
-    def __autoColumnIndex(self, column_idx):
+    def __autoColumnIndex(self, column_idx: int) -> int:
         column_count = self.columnCount()
         return column_idx if 0 <= column_idx < column_count else column_count + column_idx
 
     @staticmethod
-    def __copyWidget(widget):
+    def __copyWidget(widget: QWidget) -> QWidget:
         temp = widget
         if not isinstance(widget, QWidget):
             return widget
@@ -1098,7 +1106,7 @@ class TableWidget(QTableWidget):
 
         return temp
 
-    def __slotShowContentMenu(self, pos):
+    def __slotShowContentMenu(self, pos: QPoint):
         for group in self.SUPPORT_ACTIONS:
             enabled = group & self.__contentMenuEnableMask
             for action in self.__contentMenu.actions():
@@ -1113,7 +1121,7 @@ class TableWidget(QTableWidget):
     def setAutoWidth(self):
         self.setColumnStretchFactor([1 / self.columnCount()] * self.columnCount())
 
-    def setAutoHeight(self, enable):
+    def setAutoHeight(self, enable: bool):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
@@ -1144,14 +1152,14 @@ class TableWidget(QTableWidget):
         for column in range(self.columnCount()):
             header.setResizeMode(column, QHeaderView.ResizeToContents)
 
-    def setColumnMaxWidth(self, column: int, max_width: int) -> None:
+    def setColumnMaxWidth(self, column: int, max_width: int):
         if not self.__checkColumn(column):
             return
 
         column = self.__autoColumnIndex(column)
         self.__columnMaxWidth[column] = max_width
 
-    def setColumnStretchFactor(self, factors, mode=QHeaderView.Fixed):
+    def setColumnStretchFactor(self, factors: Sequence[float], mode: QHeaderView.ResizeMode = QHeaderView.Fixed):
         if not isinstance(factors, (list, tuple)):
             return
 
@@ -1162,7 +1170,7 @@ class TableWidget(QTableWidget):
         self.__columnStretchFactor = factors
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def setItemBackground(self, row, column, background):
+    def setItemBackground(self, row: int, column: int, background: QBrush) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
             return False
 
@@ -1174,7 +1182,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def setItemForeground(self, row, column, foreground):
+    def setItemForeground(self, row: int, column: int, foreground: QBrush) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
             return False
 
@@ -1187,39 +1195,39 @@ class TableWidget(QTableWidget):
         return True
 
     @Slot(bool)
-    def hideHeaders(self, hide):
+    def hideHeaders(self, hide: bool):
         self.hideRowHeader(hide)
         self.hideColumnHeader(hide)
 
     @Slot(bool)
-    def hideRowHeader(self, hide):
+    def hideRowHeader(self, hide: bool):
         self.verticalHeader().setVisible(not hide)
 
     @Slot(bool)
-    def hideColumnHeader(self, hide):
+    def hideColumnHeader(self, hide: bool):
         self.horizontalHeader().setVisible(not hide)
 
-    def getVerticalHeaderHeight(self):
+    def getVerticalHeaderHeight(self) -> int:
         vertical_header = self.verticalHeader()
         return vertical_header.defaultSectionSize()
 
-    def setVerticalHeaderHeight(self, height):
+    def setVerticalHeaderHeight(self, height: int):
         vertical_header = self.verticalHeader()
         vertical_header.setResizeMode(QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
         self.setVerticalHeader(vertical_header)
 
-    def getHorizontalHeaderWidth(self):
+    def getHorizontalHeaderWidth(self) -> int:
         horizontal_header = self.horizontalHeader()
         return horizontal_header.defaultSectionSize()
 
-    def setHorizontalHeaderWidth(self, width):
+    def setHorizontalHeaderWidth(self, width: int):
         horizontal_header = self.horizontalHeader()
         horizontal_header.setResizeMode(QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
 
-    def disableScrollBar(self, horizontal, vertical):
+    def disableScrollBar(self, horizontal: bool, vertical: bool):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
 
@@ -1283,17 +1291,17 @@ class TableWidget(QTableWidget):
         self.setSelectionBehavior(QAbstractItemView.SelectColumns)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
 
-    def simulateSelectRow(self, row):
+    def simulateSelectRow(self, row: int):
         self.selectRow(row)
         self.setFocus(Qt.MouseFocusReason)
         self.scrollTo(self.model().index(row, 0))
 
-    def simulateSelectColumn(self, column):
+    def simulateSelectColumn(self, column: int):
         self.selectColumn(column)
         self.setFocus(Qt.MouseFocusReason)
         self.scrollTo(self.model().index(0, column))
 
-    def frozenItem(self, row, column, frozen):
+    def frozenItem(self, row: int, column: int, frozen: bool) -> bool:
         """Frozen or unfroze a item
 
         :param row: item row number
@@ -1318,34 +1326,17 @@ class TableWidget(QTableWidget):
         widget = self.cellWidget(row, column)
         if isinstance(widget, QWidget):
             widget.setDisabled(frozen)
-        # widget = self.__copyWidget(self.cellWidget(row, column))
-        # if isinstance(widget, QWidget):
-        #     widget.setDisabled(frozen)
-        #     if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-        #         widget.valueChanged.connect(self.__slotWidgetDataChanged)
-        #     elif isinstance(widget, QCheckBox):
-        #         widget.stateChanged.connect(self.__slotWidgetDataChanged)
-        #     elif isinstance(widget, QComboBox):
-        #         widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
-        #     elif isinstance(widget, QDateTimeEdit):
-        #         widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
-        #     elif isinstance(widget, QProgressBar):
-        #         widget.valueChanged.connect(self.__slotWidgetDataChanged)
-        #
-        #     self.cellWidget(row, column).setHidden(True)
-        #     self.removeCellWidget(row, column)
-        #     self.setCellWidget(row, column, widget)
 
         return True
 
-    def frozenTable(self, frozen):
+    def frozenTable(self, frozen: bool) -> bool:
         for row in range(self.rowCount()):
             if not self.frozenRow(row, frozen):
                 return False
 
         return True
 
-    def frozenRow(self, row, frozen):
+    def frozenRow(self, row: int, frozen: bool) -> bool:
         """Frozen or unfrozen a row item
 
         :param row: row number start from 0
@@ -1358,7 +1349,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def frozenColumn(self, column, frozen):
+    def frozenColumn(self, column: int, frozen: bool) -> bool:
         """Frozen or unfrozen a column item
 
         :param column: column number
@@ -1371,7 +1362,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def swapItem(self, src_row, src_column, dst_row, dst_column):
+    def swapItem(self, src_row: int, src_column: int, dst_row: int, dst_column: int):
         if not self.__checkRow(src_row) or not self.__checkRow(dst_row):
             print("Row number[{0:d}, {1:d}] out of range".format(src_row, dst_row))
             return False
@@ -1411,7 +1402,7 @@ class TableWidget(QTableWidget):
             if isinstance(src_item, QTableWidgetItem):
                 self.setItem(dst_row, dst_column, src_item)
 
-    def swapRow(self, src, dst):
+    def swapRow(self, src: int, dst: int):
         """Swap src and dst row data
 
         :param src: src row number
@@ -1426,7 +1417,7 @@ class TableWidget(QTableWidget):
         self.selectRow(dst)
         self.tableDataChanged.emit()
 
-    def swapColumn(self, src, dst):
+    def swapColumn(self, src: int, dst: int):
         """Swap src and dst column data
 
         :param src: source column number
@@ -1441,7 +1432,7 @@ class TableWidget(QTableWidget):
         self.selectColumn(dst)
         self.tableDataChanged.emit()
 
-    def addRow(self, data, property_=None):
+    def addRow(self, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
         """Add a row and set row property data
 
         :param data: row data should be a iterable object
@@ -1486,19 +1477,19 @@ class TableWidget(QTableWidget):
         # Select current item
         self.selectRow(row)
 
-    def setRowBackgroundColor(self, row, color):
+    def setRowBackgroundColor(self, row: int, color: QBrush):
         [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
 
-    def setRowForegroundColor(self, row, color):
+    def setRowForegroundColor(self, row: int, color: QBrush):
         [self.setItemForeground(row, column, color) for column in range(self.columnCount())]
 
-    def setColumnBackgroundColor(self, column, color):
+    def setColumnBackgroundColor(self, column: int, color: QBrush):
         [self.setItemBackground(row, column, color) for row in range(self.rowCount())]
 
-    def setColumnForegroundColor(self, column, color):
+    def setColumnForegroundColor(self, column: int, color: QBrush):
         [self.setItemForeground(row, column, color) for row in range(self.rowCount())]
 
-    def setRowHeader(self, data):
+    def setRowHeader(self, data: Sequence[str]):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
             return False
@@ -1516,7 +1507,7 @@ class TableWidget(QTableWidget):
 
         self.hideRowHeader(False)
 
-    def setColumnHeader(self, data):
+    def setColumnHeader(self, data: Sequence[str]):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
             return False
@@ -1534,7 +1525,7 @@ class TableWidget(QTableWidget):
 
         self.hideColumnHeader(False)
 
-    def setRowAlignment(self, row, alignment):
+    def setRowAlignment(self, row: int, alignment: Qt.AlignmentFlag) -> bool:
         if not isinstance(alignment, Qt.AlignmentFlag):
             print("TypeError:{}".format(type(alignment)))
             return False
@@ -1551,7 +1542,7 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def setColumnAlignment(self, column, alignment):
+    def setColumnAlignment(self, column: int, alignment: Qt.AlignmentFlag) -> bool:
         if not isinstance(alignment, Qt.AlignmentFlag):
             print("TypeError:{}".format(type(alignment)))
             return False
@@ -1568,14 +1559,14 @@ class TableWidget(QTableWidget):
 
         return True
 
-    def setTableAlignment(self, alignment):
+    def setTableAlignment(self, alignment: Qt.AlignmentFlag) -> bool:
         for row in range(self.rowCount()):
             if not self.setRowAlignment(row, alignment):
                 return False
 
         return True
 
-    def setItemData(self, row, column, data, property=None):
+    def setItemData(self, row: int, column: int, data: Any, property_: Optional[Any] = None):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
@@ -1584,8 +1575,8 @@ class TableWidget(QTableWidget):
             item = self.item(row, column)
             if isinstance(item, QTableWidgetItem):
                 item.setText("{}".format(data))
-                if property is not None:
-                    item.setData(Qt.UserRole, property)
+                if property_ is not None:
+                    item.setData(Qt.UserRole, property_)
             else:
                 widget = self.__copyWidget(self.cellWidget(row, column))
                 if isinstance(widget, (QSpinBox, QDoubleSpinBox)) and isinstance(data, (int, float)):
@@ -1630,15 +1621,15 @@ class TableWidget(QTableWidget):
             print("Set table item data error:{}".format(e))
             return False
 
-    def setItemProperty(self, row, column, property):
+    def setItemProperty(self, row: int, column: int, property_: Any):
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
 
         item = self.item(row, column)
         if isinstance(item, QTableWidgetItem):
-            item.setData(Qt.UserRole, property)
+            item.setData(Qt.UserRole, property_)
 
-    def setItemDataFilter(self, row, column, filters):
+    def setItemDataFilter(self, row: int, column: int, filters: TableDataFilter) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
@@ -1656,7 +1647,8 @@ class TableWidget(QTableWidget):
                 item = self.item(row, column)
                 item.setText(filters)
             # Number type QSpinbox(int, int) or QDoubleSpinbox(float, float) set spinbox range
-            elif len(filters) == 2 and type(filters[0]) is type(filters[1]) and isinstance(filters[0], (int, float)):
+            elif len(filters) == 2 and isinstance(filters[0], type(filters[1])) and \
+                    isinstance(filters[0], (int, float)):
                 spinbox = QSpinBox() if isinstance(filters[0], int) else QDoubleSpinBox()
                 spinbox.setRange(filters[0], filters[1])
                 value = self.getItemData(row, column)
@@ -1738,24 +1730,26 @@ class TableWidget(QTableWidget):
             print("Set table item filter error:{}".format(e))
             return False
 
-    def setRowData(self, row, data):
+    def setRowData(self, row: int, data: Sequence[Any]) -> bool:
         try:
             if len(data) != self.columnCount() or not 0 <= row < self.rowCount():
                 return False
 
             for column, item_data in enumerate(data):
                 self.setItemData(row, column, item_data)
+
+            return True
         except TypeError:
             return False
 
-    def setRowDataFilter(self, row, filters):
+    def setRowDataFilter(self, row: int, filters: TableDataFilter) -> bool:
         for column in range(self.columnCount()):
             if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
 
-    def setColumnData(self, column, data):
+    def setColumnData(self, column: int, data: Sequence[Any]):
         try:
             if len(data) != self.rowCount() or not 0 <= column < self.columnCount():
                 return False
@@ -1765,21 +1759,21 @@ class TableWidget(QTableWidget):
         except TypeError:
             return False
 
-    def setColumnDataFilter(self, column, filters):
+    def setColumnDataFilter(self, column: int, filters: TableDataFilter) -> bool:
         for row in range(self.rowCount()):
             if not self.setItemDataFilter(row, column, filters):
                 return False
 
         return True
 
-    def setTableDataFilter(self, filters):
+    def setTableDataFilter(self, filters: Dict[int, TableDataFilter]) -> bool:
         if not isinstance(filters, dict):
             return False
 
         self.__table_filters = filters
         return True
 
-    def setTableData(self, table_data):
+    def setTableData(self, table_data: Sequence[Sequence[Any]]) -> bool:
         try:
             for row, data in enumerate(table_data):
                 self.setRowData(row, data)
@@ -1788,7 +1782,7 @@ class TableWidget(QTableWidget):
             print("{!r} request a list or tuple not {!r}".format("table_data", table_data.__class__.__name__))
             return False
 
-    def getItemData(self, row, column):
+    def getItemData(self, row: int, column: int) -> Any:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
 
@@ -1813,33 +1807,32 @@ class TableWidget(QTableWidget):
         else:
             return ""
 
-    def getItemProperty(self, row, column):
+    def getItemProperty(self, row: int, column: int) -> Optional[Any]:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
 
         item = self.item(row, column)
         return item.data(Qt.UserRole) if isinstance(item, QTableWidgetItem) else None
 
-    def getRowData(self, row):
+    def getRowData(self, row: int) -> List[Any]:
         return [self.getItemData(row, column) for column in range(self.columnCount())]
 
-    def getRowProperty(self, row):
+    def getRowProperty(self, row: int) -> List[Any]:
         return [self.getItemProperty(row, column) for column in range(self.columnCount())]
 
-    def getColumnData(self, column):
+    def getColumnData(self, column: int) -> List[Any]:
         return [self.getItemData(row, column) for row in range(self.rowCount())]
 
-    def getColumnProperty(self, column):
+    def getColumnProperty(self, column: int) -> List[Any]:
         return [self.getItemProperty(row, column) for row in range(self.rowCount())]
 
-    def getTableData(self):
+    def getTableData(self) -> List[List[Any]]:
         return [self.getRowData(row) for row in range(self.rowCount())]
 
-    def getTableProperty(self):
+    def getTableProperty(self) -> List[List[Any]]:
         return [self.getRowProperty(row) for row in range(self.rowCount())]
 
-    def resizeEvent(self, ev):
-
+    def resizeEvent(self, ev: QResizeEvent):
         width = ev.size().width()
         height = ev.size().height()
 
@@ -1866,7 +1859,7 @@ class TableWidget(QTableWidget):
 class TreeWidget(QTreeWidget):
     PRIVATE_DATA_DEFAULT_COLUMN = 0
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super(TreeWidget, self).__init__(parent)
         self.__autoHeight = False
         self.__columnStretchFactor = list()
@@ -1881,7 +1874,7 @@ class TreeWidget(QTreeWidget):
         self.ui_expand_all.triggered.connect(self.expandAll)
         self.ui_collapse_all.triggered.connect(self.collapseAll)
 
-    def disableScrollBar(self, horizontal, vertical):
+    def disableScrollBar(self, horizontal: bool, vertical: bool):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff if vertical else Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff if horizontal else Qt.ScrollBarAsNeeded)
 
@@ -1889,7 +1882,7 @@ class TreeWidget(QTreeWidget):
         for i in range(self.topLevelItemCount()):
             self.takeTopLevelItem(0)
 
-    def findItemByNameAndData(self, name: str, column: int, private_data: Any) -> QTreeWidgetItem or None:
+    def findItemByNameAndData(self, name: str, column: int, private_data: Any) -> Optional[QTreeWidgetItem]:
         if not isinstance(name, str) or not isinstance(column, int) or not (0 <= column < self.columnCount()):
             return None
 
@@ -1899,7 +1892,9 @@ class TreeWidget(QTreeWidget):
 
         return None
 
-    def addSubTree(self, name: str, children: list or tuple, private_data: Any, auto_expand: bool = True):
+    def addSubTree(self, name: str,
+                   children: Sequence[Union[Sequence[str], str]],
+                   private_data: Any, auto_expand: bool = True) -> bool:
         if not isinstance(name, str):
             return False
 
@@ -1922,11 +1917,11 @@ class TreeWidget(QTreeWidget):
         self.setCurrentItem(root.child(root.childCount() - 1))
         return True
 
-    def setAutoHeight(self, enable):
+    def setAutoHeight(self, enable: bool):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def setColumnStretchFactor(self, factors):
+    def setColumnStretchFactor(self, factors: Sequence[float]):
         if not isinstance(factors, (list, tuple)):
             return
 
@@ -1936,7 +1931,7 @@ class TreeWidget(QTreeWidget):
         self.__columnStretchFactor = factors
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def resizeEvent(self, ev):
+    def resizeEvent(self, ev: QResizeEvent):
 
         width = ev.size().width()
         height = ev.size().height()
@@ -1956,12 +1951,13 @@ class TreeWidget(QTreeWidget):
             header.setResizeMode(column, QHeaderView.Fixed)
             header.resizeSection(column, width * factor)
 
-    def contextMenuEvent(self, ev):
+    def contextMenuEvent(self, ev: QContextMenuEvent):
         self.ui_context_menu.exec_(ev.globalPos())
 
 
 class ListWidget(QListWidget):
-    def __init__(self, unique=False, markColor=QColor(51, 153, 255), parent=None):
+    def __init__(self, unique: bool = False,
+                 markColor: QColor = QColor(51, 153, 255), parent: Optional[QWidget] = None):
         super(ListWidget, self).__init__(parent)
 
         self.__unique = unique
@@ -1970,7 +1966,7 @@ class ListWidget(QListWidget):
         else:
             self.__markColor = QColor(51, 153, 255)
 
-    def __setItemBackground(self, index, background):
+    def __setItemBackground(self, index: int, background: QBrush) -> bool:
         if not isinstance(index, int) or not isinstance(background, QBrush):
             return False
 
@@ -1981,7 +1977,7 @@ class ListWidget(QListWidget):
         item.setBackground(background)
         return True
 
-    def __setItemForeground(self, index, foreground):
+    def __setItemForeground(self, index: int, foreground: QBrush) -> bool:
         if not isinstance(index, int) or not isinstance(foreground, QBrush):
             return False
 
@@ -1993,7 +1989,7 @@ class ListWidget(QListWidget):
         return True
 
     @Slot(object)
-    def markItem(self, item, background=True):
+    def markItem(self, item: QListWidgetItem, background: bool = True) -> bool:
         """Mark item background or foreground with different color
 
         :param item: witch item to marked
@@ -2002,8 +1998,6 @@ class ListWidget(QListWidget):
         """
         if not isinstance(item, QListWidgetItem):
             return False
-
-        markItem = self.__setItemBackground if background else self.__setItemForeground
 
         # Get item row
         row = self.row(item)
@@ -2015,7 +2009,6 @@ class ListWidget(QListWidget):
 
         # Clear old mark
         for index in range(self.count()):
-
             if background and self.item(index).background() == brush:
                 self.__setItemBackground(index, QListWidgetItem("").background())
                 break
@@ -2023,11 +2016,12 @@ class ListWidget(QListWidget):
                 self.__setItemForeground(index, QListWidgetItem("").foreground())
                 break
 
-        markItem(row, brush)
+        # Set new mark
+        self.__setItemBackground(row, brush)if background else self.__setItemForeground(row, brush)
         self.setCurrentRow(row)
         return True
 
-    def getMarkedItem(self, background=True):
+    def getMarkedItem(self, background: bool = True) -> Optional[str]:
         """Get marked item text
 
         :param background: if set will return marked background item text else foreground item text
@@ -2045,7 +2039,7 @@ class ListWidget(QListWidget):
 
         return None
 
-    def addItem(self, name, data=None):
+    def addItem(self, name: str, data: Optional[Any] = None) -> bool:
         if not isinstance(name, str):
             print("TypeError: {}".format(type(name)))
             return False
@@ -2062,7 +2056,7 @@ class ListWidget(QListWidget):
         self.setCurrentItem(item)
         return True
 
-    def setItems(self, items):
+    def setItems(self, items: Sequence[Union[Tuple[str, Any], str]]) -> bool:
         if not isinstance(items, (list, tuple)):
             print("Items data type error:{}".format(type(items)))
             return False
@@ -2086,15 +2080,14 @@ class ListWidget(QListWidget):
             item = self.takeItem(0)
             self.removeItemWidget(item)
 
-    def getItems(self):
+    def getItems(self) -> List[str]:
         return [self.item(i).text() for i in range(self.count())]
 
-    def getItemsData(self):
+    def getItemsData(self) -> List[Any]:
         return [self.item(i).data(Qt.UserRole) for i in range(self.count())]
 
 
 class SerialPortSettingWidget(QWidget):
-
     PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None, QApplication.UnicodeUTF8)
     DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None, QApplication.UnicodeUTF8)
     STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None, QApplication.UnicodeUTF8)
@@ -2132,7 +2125,7 @@ class SerialPortSettingWidget(QWidget):
     ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
     DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
 
-    def __init__(self, settings=DEFAULTS, parent=None):
+    def __init__(self, settings: dict = DEFAULTS, parent: Optional[QWidget] = None):
         """Serial port configure dialog
 
         :param settings: serial port settings
@@ -2187,7 +2180,7 @@ class SerialPortSettingWidget(QWidget):
         self.setLayout(layout)
         self.__uiManager = ComponentManager(layout)
 
-    def getSetting(self):
+    def getSetting(self) -> Dict[str, Any]:
         settings = dict()
         for item in self.__uiManager.findKey("name"):
             if isinstance(item, QComboBox):
@@ -2206,7 +2199,7 @@ class BasicJsonSettingWidget(QWidget):
     settingChanged = Signal()
     settingChangedDetail = Signal(str, object)
 
-    def __init__(self, settings, parent=None):
+    def __init__(self, settings: DynamicObject, parent: Optional[QWidget] = None):
         super(BasicJsonSettingWidget, self).__init__(parent)
 
         if not isinstance(settings, DynamicObject):
@@ -2224,7 +2217,7 @@ class BasicJsonSettingWidget(QWidget):
         except (json.JSONDecodeError, DynamicObjectDecodeError):
             raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
-    def createLayout(self):
+    def createLayout(self) -> QGridLayout:
         layout = QGridLayout()
         _, h, v = tuple(self.layout.get_spaces())
         layout.setVerticalSpacing(v)
@@ -2232,10 +2225,10 @@ class BasicJsonSettingWidget(QWidget):
         layout.setContentsMargins(*tuple(self.layout.get_margins()))
         return layout
 
-    def getData(self):
+    def getData(self) -> Any:
         pass
 
-    def setData(self, data):
+    def setData(self, data: Any) -> Any:
         pass
 
     def resetDefaultData(self):
@@ -2249,7 +2242,7 @@ class BasicJsonSettingWidget(QWidget):
 
 
 class JsonSettingWidget(BasicJsonSettingWidget):
-    def __init__(self, settings, data=None, parent=None):
+    def __init__(self, settings: DynamicObject, data: Optional[dict] = None, parent: Optional[QWidget] = None):
         super(JsonSettingWidget, self).__init__(settings, parent)
 
         self.__groups = list()
@@ -2335,7 +2328,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         self.ui_manager.dataChanged.connect(self.slotSettingChanged)
         self.ui_manager.dataChangedDetail.connect(self.settingChangedDetail.emit)
 
-    def __initData(self, data):
+    def __initData(self, data: dict):
         self.setData(data)
 
     def __initSignalAndSlots(self):
@@ -2361,17 +2354,17 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 if isinstance(preview, QLineEdit):
                     preview.textChanged.connect(self.slotPreviewColor)
 
-    def tr(self, text):
+    def tr(self, text: str) -> str:
         return QApplication.translate("JsonSettingWidget", text, None, QApplication.UnicodeUTF8)
 
-    def getSettings(self):
+    def getSettings(self) -> DynamicObject:
         data = self.getData()
         settings = self.settings
         for k, v in data.items():
             settings[k]["data"] = v
         return self.settings_cls(**settings)
 
-    def getData(self):
+    def getData(self) -> dict:
         ext_list = list()
         data = self.ui_manager.getData("data")
         for k, v in data.items():
@@ -2384,7 +2377,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             data.pop(ext_key)
         return data
 
-    def setData(self, data):
+    def setData(self, data: dict):
         font_inputs = self.ui_manager.findValue("clicked", "font", QPushButton)
         file_inputs = self.ui_manager.findValue("clicked", "file", QPushButton)
         color_inputs = self.ui_manager.findValue("clicked", "color", QPushButton)
@@ -2510,7 +2503,10 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         self.ui_manager.setDisabled(disable)
 
     @staticmethod
-    def createInputWidget(setting, name=None, parent=None):
+    def createInputWidget(setting: UiInputSetting,
+                          name: Optional[str] = None,
+                          parent: Optional[QWidget] = None) -> \
+            Union[QWidget, Tuple[QHBoxLayout, QButtonGroup, Union[QLineEdit, QSpinBox, QDoubleSpinBox]], None]:
         if not isinstance(setting, UiInputSetting):
             return None
 
@@ -2713,12 +2709,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         return widget
 
     @staticmethod
-    def get_file_input_enable_key(name):
+    def get_file_input_enable_key(name: str) -> str:
         return "{}_enabled".format(name)
 
 
 class MultiJsonSettingsWidget(BasicJsonSettingWidget):
-    def __init__(self, settings, data, parent=None):
+    def __init__(self, settings: DynamicObject, data: Sequence[Sequence[Any]], parent: Optional[QWidget] = None):
         super(MultiJsonSettingsWidget, self).__init__(settings, parent)
 
         if not isinstance(data, (list, tuple)):
@@ -2773,7 +2769,16 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         layout.addWidget(self.ui_table)
         self.setLayout(layout)
 
-    def __initData(self, data):
+    def __initData(self, data: Sequence[Sequence[Any]]):
+        self.setData(data)
+
+    def __initStyleSheet(self):
+        self.ui_table.resizeColumnWidthFitContents()
+
+    def getData(self) -> List[List[Any]]:
+        return self.ui_table.getTableData()
+
+    def setData(self, data: Sequence[Sequence[Any]]):
         self.ui_table.setRowCount(0)
         # Add data to table
         for item in data:
@@ -2785,15 +2790,6 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
         # Move to first row
         self.ui_table.selectRow(0)
-
-    def __initStyleSheet(self):
-        self.ui_table.resizeColumnWidthFitContents()
-
-    def getData(self):
-        return self.ui_table.getTableData()
-
-    def setData(self, data):
-        self.__initData(data)
 
     def resetDefaultData(self):
         try:
@@ -2839,7 +2835,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
 
 class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
-    def __init__(self, settings, data, parent=None):
+    def __init__(self, settings: DynamicObject, data: dict, parent: Optional[QWidget] = None):
         super(MultiGroupJsonSettingsWidget, self).__init__(settings, parent)
 
         if not isinstance(data, dict):
@@ -2860,7 +2856,8 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
             for group in groups:
                 try:
                     group_settings = self.settings.get(group)
-                    group_settings = group_settings if isinstance(group_settings, UiLayout) else UiLayout(**group_settings)
+                    group_settings = group_settings if isinstance(group_settings, UiLayout) else \
+                        UiLayout(**group_settings)
                     if not group_settings.check_layout(self.settings):
                         continue
 
@@ -2893,7 +2890,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
 
         self.setLayout(widget_layout)
 
-    def __initData(self, data):
+    def __initData(self, data: dict):
         self.setData(data)
 
     def __initSignalAndSlots(self):
@@ -2901,15 +2898,15 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
             widget.settingChanged.connect(self.slotSettingChanged)
             widget.settingChangedDetail.connect(self.settingChangedDetail.emit)
 
-    def getData(self):
+    def getData(self) -> dict:
         data = dict()
         [data.update(widget.getData()) for widget in self.widget_list]
         return data
 
-    def setData(self, data):
+    def setData(self, data: dict):
         return set([widget.setData(data) for widget in self.widget_list]) == {True}
 
-    def getSettings(self):
+    def getSettings(self) -> DynamicObject:
         data = self.getData()
         settings = self.settings
         for k, v in data.items():
@@ -2922,7 +2919,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
     def slotSettingChanged(self):
         self.settingChanged.emit()
 
-    def getWidgetManager(self, name):
+    def getWidgetManager(self, name: str) -> Optional[ComponentManager]:
         for widget in self.widget_list:
             if widget.property("name") == name:
                 return widget.ui_manager
@@ -2941,7 +2938,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     GET_DATA_METHOD_NAME = "getData"
     RESET_DATA_METHOD_NAME = "resetDefaultData"
 
-    def __init__(self, settings, data, parent=None):
+    def __init__(self, settings: DynamicObject, data: dict, parent: Optional[QWidget] = None):
         super(MultiTabJsonSettingsWidget, self).__init__(parent)
 
         if not isinstance(settings, DynamicObject):
@@ -2999,7 +2996,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
             except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
                 print("{}".format(err))
 
-    def __initData(self, data):
+    def __initData(self, data: dict):
         self.setData(data)
 
     def __initSignalAndSlots(self):
@@ -3007,7 +3004,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
             widget.settingChanged.connect(self.slotSettingChanged)
             widget.settingChangedDetail.connect(self.settingChangedDetail.emit)
 
-    def insertCustomTabWidget(self, name, widget, position=None):
+    def insertCustomTabWidget(self, name: str, widget: QWidget, position: Optional[int] = None):
         if not isinstance(widget, QWidget):
             return False
 
@@ -3029,15 +3026,15 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         self.widget_list.append(widget)
         self.insertTab(position or self.count(), widget, name)
 
-    def getData(self):
+    def getData(self) -> dict:
         data = dict()
         [data.update(widget.getData()) for widget in self.widget_list]
         return data
 
-    def setData(self, data):
+    def setData(self, data: dict):
         return set([widget.setData(data) for widget in self.widget_list]) == {True}
 
-    def getSettings(self):
+    def getSettings(self) -> DynamicObject:
         data = self.getData()
         settings = self.settings
         for k, v in data.items():
@@ -3050,14 +3047,14 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     def slotSettingChanged(self):
         self.settingChanged.emit()
 
-    def getTabWidget(self, name: str) -> QWidget or None:
+    def getTabWidget(self, name: str) -> Optional[QWidget]:
         for widget in self.widget_list:
             if widget.property('name') == name:
                 return widget
 
         return None
 
-    def getGroupWidgetManager(self, name):
+    def getGroupWidgetManager(self, name: str) -> Optional[ComponentManager]:
         for widget in self.widget_list:
             manager = widget.getWidgetManager(name)
             if isinstance(manager, ComponentManager):
@@ -3076,7 +3073,7 @@ class LogMessageWidget(QTextEdit):
 
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
-                 transform_space: bool = False, parent: QWidget or None = None):
+                 transform_space: bool = False, parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
 
         self.setReadOnly(True)
@@ -3152,13 +3149,13 @@ class LogMessageWidget(QTextEdit):
         else:
             self._displayFilter &= ~self.DISPLAY_ERROR
 
-    def infoEnabled(self, target: int or None = None):
+    def infoEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_INFO
 
-    def debugEnabled(self, target: int or None = None):
+    def debugEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_DEBUG
 
-    def errorEnabled(self, target: int or None = None):
+    def errorEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_ERROR
 
     @Slot(object)
@@ -3264,5 +3261,5 @@ class LogMessageWidget(QTextEdit):
         if load:
             self.slotShowSelectLog()
 
-    def contextMenuEvent(self, ev):
+    def contextMenuEvent(self, ev: QContextMenuEvent):
         self.ui_context_menu.exec_(ev.globalPos())

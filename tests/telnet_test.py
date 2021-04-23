@@ -2,16 +2,15 @@
 import os
 import json
 import unittest
-from framework.protocol.rmi_shell import *
-from framework.core.datatype import DynamicObject
+from ..protocol.rmi_shell import *
+from ..core.datatype import DynamicObject
 
 
 class TelnetClientTest(unittest.TestCase):
     def setUp(self) -> None:
         env = os.environ.get("TELNET_ENV")
         env = DynamicObject(**json.loads(env[1:-1]))
-        self.client = TelnetClient(host=env.address, port=env.port,
-                                   user="root", password=env.password)
+        self.client = RMISTelnetClient(host=env.address, port=env.port, user="root", password=env.password)
 
     def testConnect(self):
         self.assertEqual(self.client.connected(), True)

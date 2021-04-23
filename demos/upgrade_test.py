@@ -26,6 +26,7 @@ def server_test(root=UpgradeServer.FILE_SERVER_ROOT):
     server = UpgradeServer(file_server_root=root)
     server.serve_forever()
 
+
 if __name__ == '__main__':
     # Client mode
     if len(sys.argv) == 4:

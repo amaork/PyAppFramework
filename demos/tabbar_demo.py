@@ -58,4 +58,3 @@ if __name__ == "__main__":
     widget = TabBarDemo()
     widget.show()
     sys.exit(app.exec_())
-

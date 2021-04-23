@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from typing import *
 from PySide.QtGui import *
 from PySide.QtCore import *
+from typing import List, Any, Dict, Optional, Union, Sequence
+
 from ..misc.settings import *
 from .checkbox import CheckBox
 from .widget import JsonSettingWidget
@@ -18,7 +19,7 @@ class TableView(QTableView):
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
     COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
 
-    def __init__(self, parent: QWidget or None = None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super(TableView, self).__init__(parent)
         self.__autoHeight = False
         self.__contentMenu = QMenu(self)
@@ -100,7 +101,7 @@ class TableView(QTableView):
 
         self.__contentMenu.addSeparator()
 
-    def item(self, row: int, column: int) -> QTableWidgetItem or None:
+    def item(self, row: int, column: int) -> Union[QTableWidgetItem, None]:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
 
@@ -208,7 +209,7 @@ class TableView(QTableView):
 
         return True
 
-    def setRowHeader(self, headers: List[str] or Tuple[str]) -> bool:
+    def setRowHeader(self, headers: Sequence[str]) -> bool:
         if not isinstance(headers, (list, tuple)) or not self.__checkModel():
             return False
 
@@ -217,7 +218,7 @@ class TableView(QTableView):
 
         return self.model().setVerticalHeaderLabels(headers)
 
-    def setColumnHeader(self, headers: List[str] or Tuple[str]) -> bool:
+    def setColumnHeader(self, headers: Sequence[str]) -> bool:
         if not isinstance(headers, (list, tuple)) or not self.__checkModel():
             return False
 
@@ -226,7 +227,7 @@ class TableView(QTableView):
 
         return self.model().setHorizontalHeaderLabels(headers)
 
-    def setColumnStretchFactor(self, factors: List[float] or Tuple[float]):
+    def setColumnStretchFactor(self, factors: Sequence[float]):
         if not isinstance(factors, (list, tuple)):
             return
 
@@ -236,7 +237,7 @@ class TableView(QTableView):
         self.__columnStretchFactor = factors
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def resizeEvent(self, ev):
+    def resizeEvent(self, ev: QResizeEvent):
         if not self.model():
             return
 
@@ -302,7 +303,7 @@ class TableView(QTableView):
 
         return [self.getItemData(row, column, role) for column in range(model.columnCount())]
 
-    def setRowData(self, row: int, data: List[Any] or Tuple[Any, ...], role: Qt.ItemIsEditable = Qt.EditRole):
+    def setRowData(self, row: int, data: Sequence[Any], role: Qt.ItemIsEditable = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -320,7 +321,7 @@ class TableView(QTableView):
 
         return [self.getItemData(row, column, role) for row in range(model.rowCount())]
 
-    def setColumnData(self, column: int, data: List[Any] or Tuple[Any, ...], role: Qt.ItemDataRole = Qt.EditRole):
+    def setColumnData(self, column: int, data: Sequence[Any], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
             return False
@@ -463,7 +464,7 @@ class TableView(QTableView):
 class TableViewDelegate(QItemDelegate):
     dataChanged = Signal(QModelIndex, object)
 
-    def __init__(self, parent: QWidget or None = None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super(TableViewDelegate, self).__init__(parent)
         self._columnDelegateSettings = dict()
 
@@ -480,7 +481,7 @@ class TableViewDelegate(QItemDelegate):
         column = index.column()
         return self.property(str(DynamicObject(row=row, column=column)))
 
-    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QStyleOptionViewItem):
+    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
         if not isinstance(index, QModelIndex) or self.isFrozen(index):
             return None
 
@@ -534,5 +535,5 @@ class TableViewDelegate(QItemDelegate):
             model.setData(index, data, Qt.EditRole)
             self.dataChanged.emit(index, data)
 
-    def updateEditorGeometry(self, editor, option, index):
+    def updateEditorGeometry(self, editor: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
         editor.setGeometry(option.rect)

@@ -40,9 +40,9 @@ class DemoWidget(QWidget):
         if buttonText == "RoundButton":
             button = RoundButton(200, text=buttonTextGroup)
         elif buttonText == "IconButton":
-            all = ""
+            all_ = ""
             for name in QImageReader.supportedImageFormats():
-                all += "*.{} ".format(name)
+                all_ += "*.{} ".format(name)
             files, _ = QFileDialog.getOpenFileNames(self,
                                                     "Select icon images",
                                                     ImagesPath,
@@ -60,7 +60,6 @@ class DemoWidget(QWidget):
         if self.buttonSelect.count() == 0:
             self.addButton.setDisabled(True)
             self.buttonSelect.setDisabled(True)
-
 
 
 if __name__ == '__main__':

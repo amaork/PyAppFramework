@@ -12,7 +12,7 @@ import concurrent.futures
 from threading import Thread
 from typing import List, Optional, Dict, Union
 from ..core.datatype import DynamicObject
-__all__ = ['get_system_nic', 'get_address_source_network',
+__all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
            'get_host_address', 'get_broadcast_address',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
@@ -52,6 +52,11 @@ def get_system_nic(ignore_loopback: bool = True) -> Dict[str, NicInfo]:
                 continue
 
     return interfaces
+
+
+def get_default_network(prefix: int = 24) -> str:
+    networks = [x.network for _, x in get_system_nic(ignore_loopback=True).items() if x.network_prefix == prefix]
+    return networks[0] if networks else ""
 
 
 def get_address_source_network(ip: str) -> Union[ipaddress.IPv4Network, None]:
@@ -146,13 +151,18 @@ def connect_device(address: str, port: int, timeout: float = 0.03) -> Union[str,
         return None
 
 
-def scan_lan_port(port: int, network: Union[ipaddress.IPv4Network, str],
+def scan_lan_port(port: int, network: Union[ipaddress.IPv4Network, str] = "",
                   timeout: float = 0.005, max_workers: Optional[int] = None) -> List[str]:
     try:
         network = ipaddress.ip_network(network)
     except ValueError:
-        print("scan_lan_port: invalid network: {}".format(network))
-        return list()
+        network = get_default_network(prefix=24)
+        if not network:
+            print("scan_lan_port: invalid network")
+            return list()
+        else:
+            print("scan_lan_port: found multiple nic use {}".format(network))
+            network = ipaddress.ip_network(network)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         result = [pool.submit(connect_device, *(str(x), port, timeout)) for x in network.hosts()]
@@ -160,12 +170,18 @@ def scan_lan_port(port: int, network: Union[ipaddress.IPv4Network, str],
     return [x.result() for x in result if x.result() is not None]
 
 
-def scan_lan_alive(network: Union[ipaddress.IPv4Network, str], timeout: int = 1, max_workers: int = 256) -> List[str]:
+def scan_lan_alive(network: Union[ipaddress.IPv4Network, str] = "",
+                   timeout: int = 1, max_workers: int = 256) -> List[str]:
     try:
         network = ipaddress.ip_network(network)
     except ValueError:
-        print("scan_lan_alive: invalid network: {}".format(network))
-        return list()
+        network = get_default_network(prefix=24)
+        if not network:
+            print("scan_lan_alive: invalid network")
+            return list()
+        else:
+            print("scan_lan_alive: found multiple nic use {}".format(network))
+            network = ipaddress.ip_network(network)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         result = [pool.submit(ping3.ping, **DynamicObject(dest_addr=str(x), timeout=timeout).dict)

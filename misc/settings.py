@@ -17,11 +17,13 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
-           'Font', 'Time', 'Color', 'Layout', 'LayoutSpace', 'LayoutMargins']
+           'Font', 'Time', 'Color', 'IndexColor', 'Layout', 'LayoutSpace', 'LayoutMargins']
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
+
 Color = Tuple[int, int, int]
+IndexColor = Tuple[int, int]
 
 Layout = Sequence[str]
 LayoutSpace = Tuple[int, int, int]
@@ -130,16 +132,16 @@ class UiInputSetting(DynamicObject):
 
         # Check check type
         if not isinstance(self.check, check_type):
-            raise TypeError("check type error, it require {!r}".format(data_type.__name__))
+            raise TypeError("check type error, it require {!r}".format(data_type))
 
         if isinstance(self.check, (list, tuple)) and not self.is_text_type():
             for item in self.check:
                 if not isinstance(item, data_type):
-                    raise TypeError("check type error, it require a tuple or list of {!r}".format(data_type.__name__))
+                    raise TypeError("check type error, it require a tuple or list of {!r}".format(data_type))
 
         # Check default value
         if not isinstance(self.data, data_type) or not isinstance(self.default, data_type):
-            raise TypeError("default must match type, it require {!r}".format(data_type.__name__))
+            raise TypeError("default must match type, it require {!r}".format(data_type))
 
     def get_data(self) -> Any:
         return self.data
@@ -380,7 +382,7 @@ class UiColorInput(UiInputSetting):
                                            check="", readonly=False, type="COLOR")
 
     @staticmethod
-    def get_color(color_setting: str) -> Color:
+    def get_color(color_setting: Union[str, Color]) -> Color:
         default_color = 255, 255, 255
         try:
             color_setting = color_setting[1:-1].split(", ")
@@ -391,7 +393,7 @@ class UiColorInput(UiInputSetting):
             return default_color
 
     @staticmethod
-    def get_color_stylesheet(color_setting: str, border: bool = False) -> str:
+    def get_color_stylesheet(color_setting: Union[str, Color], border: bool = False) -> str:
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
@@ -403,7 +405,7 @@ class UiColorInput(UiInputSetting):
             return ""
 
     @staticmethod
-    def get_bg_color_stylesheet(color_setting: str, border: bool = False) -> str:
+    def get_bg_color_stylesheet(color_setting: Union[str, Color], border: bool = False) -> str:
         try:
             color_setting = UiColorInput.get_color(color_setting)
             r = color_setting[0]
