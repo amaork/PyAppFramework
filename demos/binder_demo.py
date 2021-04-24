@@ -2,7 +2,7 @@
 import sys
 from ..gui.binder import SpinBoxBinder, ComboBoxBinder
 from PySide.QtCore import QTextCodec
-from PySide.QtGui import QWidget, QGridLayout, QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QApplication
+from PySide.QtGui import QWidget, QGridLayout, QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QApplication, QLineEdit
 
 
 class Demo(QWidget):
@@ -12,12 +12,18 @@ class Demo(QWidget):
         layout = QGridLayout()
         celsius = QDoubleSpinBox()
         fahrenheit = QDoubleSpinBox()
+
+        edit = QLineEdit()
+        edit.setReadOnly(True)
+
         temperature = QLabel()
+        temperature.setProperty('format', '{:.2f}')
         self.celsius_temperature = SpinBoxBinder(celsius)
         self.fahrenheit_temperature = SpinBoxBinder(fahrenheit)
-        self.celsius_temperature.bindLabel(temperature, lambda c: c * 9.0 / 5 + 32)
+        self.celsius_temperature.bindTextBox(temperature, lambda c: c * 9.0 / 5 + 32)
         self.celsius_temperature.bindSpinBox(fahrenheit, lambda c: c * 9.0 / 5 + 32)
         self.fahrenheit_temperature.bindSpinBox(celsius, lambda f: (f - 32) * 5.0 / 9)
+        self.celsius_temperature.bindTextBox(edit, lambda x: "Above 37.5" if x >= 37.5 else "Below 37.5")
 
         layout.addWidget(QLabel("SpinBoxBinder"), 0, 0)
         layout.addWidget(celsius, 0, 1)
@@ -25,6 +31,7 @@ class Demo(QWidget):
         layout.addWidget(fahrenheit, 0, 3)
         layout.addWidget(QLabel(self.tr("°F")), 0, 4)
         layout.addWidget(temperature, 0, 5)
+        layout.addWidget(edit, 0, 6)
 
         combobox1 = QComboBox()
         combobox2 = QComboBox()
@@ -32,16 +39,20 @@ class Demo(QWidget):
         combobox2.addItems(("Celsius", "Fahrenheit"))
         combobox_label1 = QLabel()
         combobox_label2 = QLabel()
+        combobox_edit = QLineEdit()
+        combobox_edit.setReadOnly(True)
         self.combobox = ComboBoxBinder(combobox1)
         self.combobox.bindComboBox(combobox2, True)
-        self.combobox.bindLabel(combobox_label1, (self.tr("°C"), self.tr("°F")))
-        self.combobox.bindLabel(combobox_label2, (self.tr("°F"), self.tr("°C")))
+        self.combobox.bindTextBox(combobox_label1, (self.tr("°C"), self.tr("°F")))
+        self.combobox.bindTextBox(combobox_label2, (self.tr("°F"), self.tr("°C")))
+        self.combobox.bindTextBox(combobox_edit, (self.tr("Fahrenheit(°F)"), self.tr("Celsius(°C)")))
 
         layout.addWidget(QLabel("ComboBoxBinder"), 1, 0)
         layout.addWidget(combobox1, 1, 1)
         layout.addWidget(combobox_label1, 1, 2)
         layout.addWidget(combobox2, 1, 3)
         layout.addWidget(combobox_label2, 1, 4)
+        layout.addWidget(combobox_edit, 1, 6)
 
         limit = QComboBox()
         limit.addItem("100 - 300, 10")

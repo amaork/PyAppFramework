@@ -605,16 +605,25 @@ class ComponentManager(QObject):
         :return:
         """
 
-        senderSpinBox = self.getByValue(key, sender)
-        receiverSpinBox = self.getByValue(key, receiver)
+        senderObject = self.getByValue(key, sender)
+        receiverObject = self.getByValue(key, receiver)
 
-        senderBinder = SpinBoxBinder(senderSpinBox)
-        if senderBinder.bindSpinBox(receiverSpinBox, factor):
-            self.__bindingList.append(senderBinder)
+        binder = SpinBoxBinder(senderObject)
+
+        if isinstance(receiverObject, (QSpinBox, QDoubleSpinBox)):
+            if binder.bindSpinBox(receiverObject, factor):
+                self.__bindingList.append(binder)
+            else:
+                return False
+        elif isinstance(receiverObject, (QLabel, QLineEdit)):
+            if binder.bindTextBox(receiverObject, factor):
+                self.__bindingList.append(binder)
+            else:
+                return False
         else:
             return False
 
-        receiverSpinBox.setEnabled(enable)
+        receiverObject.setEnabled(enable)
         return True
 
     def bindComboBox(self, key: str, sender: Any, receiver: Any, reverse: bool = False, enable: bool = False) -> bool:
@@ -654,7 +663,7 @@ class ComponentManager(QObject):
         comboBox = self.getByValue(key, sender, QComboBox)
 
         binder = ComboBoxBinder(comboBox)
-        if binder.bindLabel(label, texts):
+        if binder.bindTextBox(label, texts):
             self.__bindingList.append(binder)
         else:
             return False

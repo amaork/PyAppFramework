@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from PySide.QtCore import QObject
-from typing import Optional, Union, Callable, Sequence
-from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget
+from typing import Optional, Union, Callable, Sequence, Tuple
+from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget, QLineEdit
 
 
 __all__ = ['SpinBoxBinder', 'ComboBoxBinder']
-BinderFactor = Union[int, float, Callable[[Union[int, float]], Union[int, float, str]]]
+SpinBoxBinderFactor = Union[int, float, Callable[[Union[int, float]], Union[int, float, str]]]
 
 
 class SpinBoxBinder(QObject):
@@ -20,7 +20,8 @@ class SpinBoxBinder(QObject):
         self.__spinbox.valueChanged.connect(self.eventProcess)
 
     @staticmethod
-    def __remap(factor: BinderFactor, value: Union[int, float]) -> Union[int, float, str]:
+    def __remap(factor: SpinBoxBinderFactor, value: Union[int, float]) -> Union[int, float, str]:
+        """Remap spinbox value(Union[int, float]) to Union[int, float, str]"""
         if isinstance(factor, (int, float)):
             return value * factor
         elif hasattr(factor, "__call__"):
@@ -28,25 +29,28 @@ class SpinBoxBinder(QObject):
         else:
             return value
 
-    def bindLabel(self, obj: QLabel, factor: BinderFactor) -> bool:
-        if not isinstance(obj, QLabel):
-            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
+    @staticmethod
+    def __check(obj: QWidget, factor: SpinBoxBinderFactor, types: Tuple[QWidget.__class__, ...]) -> bool:
+        if not isinstance(obj, types):
+            print("Bind error, object type error:{!r}, require: {!r}".format(obj.__class__.__name__, types))
             return False
 
         if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error, require: {!r}".format(BinderFactor))
+            print("Bind error, factor type error, require: {!r}".format(SpinBoxBinderFactor))
+            return False
+
+        return True
+
+    def bindTextBox(self, obj: Union[QLabel, QLineEdit], factor: SpinBoxBinderFactor) -> bool:
+        if not self.__check(obj, factor, (QLabel, QLineEdit)):
             return False
 
         self.__binding.append((obj, factor))
+        self.eventProcess(self.__spinbox.value())
         return True
 
-    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], factor: BinderFactor) -> bool:
-        if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
-            return False
-
-        if not isinstance(factor, (int, float)) and not hasattr(factor, "__call__"):
-            print("Bind error, factor type error, require: {!r}".format(BinderFactor))
+    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], factor: SpinBoxBinderFactor) -> bool:
+        if not self.__check(obj, factor, (QSpinBox, QDoubleSpinBox)):
             return False
 
         # Set spinbox range and single step
@@ -61,6 +65,7 @@ class SpinBoxBinder(QObject):
 
         # Add object to binging list
         self.__binding.append((obj, factor))
+        self.eventProcess(self.__spinbox.value())
         return True
 
     def eventProcess(self, value: Union[int, float]):
@@ -71,10 +76,11 @@ class SpinBoxBinder(QObject):
             # QSpinBox or QDoubleSpinBox
             if isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
                 receiver.setValue(self.__remap(factor, value))
-
-            # QLabel
-            elif isinstance(receiver, QLabel):
-                receiver.setText("{0:.2f}".format(self.__remap(factor, value)))
+            # QLabel or QLineEdit
+            elif isinstance(receiver, (QLabel, QLineEdit)):
+                fmt = receiver.property('format')
+                fmt = fmt if isinstance(fmt, str) else "{}"
+                receiver.setText(fmt.format(self.__remap(factor, value)))
 
 
 class ComboBoxBinder(QObject):
@@ -87,29 +93,27 @@ class ComboBoxBinder(QObject):
         self.__binding = list()
         self.__combobox.currentIndexChanged.connect(self.eventProcess)
 
-    def bindLabel(self, obj: QLabel, text: Sequence[str]) -> bool:
-        if not self.__combobox:
+    def __check(self, obj: QWidget, factor: Sequence, types: Tuple[QWidget.__class__, ...]) -> bool:
+        if not isinstance(obj, types):
+            print("Bind error, object type error:{!r}, require: {!r}".format(obj.__class__.__name__, types))
             return False
 
-        if not isinstance(obj, QLabel):
-            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
-            return False
-
-        if not isinstance(text, (tuple, list)) and len(text) != self.__combobox.count():
+        if not isinstance(factor, (tuple, list)) and len(factor) != self.__combobox.count():
             print("Bind error, text type or count error")
+            return False
+
+        return True
+
+    def bindTextBox(self, obj: Union[QLabel, QLineEdit], text: Sequence[str]) -> bool:
+        if not self.__check(obj, text, (QLabel, QLineEdit)):
             return False
 
         self.__binding.append((obj, text))
         self.eventProcess(self.__combobox.currentIndex())
         return True
 
-    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], limit: Union[list, tuple]) -> bool:
-        if not isinstance(obj, (QSpinBox, QDoubleSpinBox)):
-            print("Bind error, object type error:{!r}".format(obj.__class__.__name__))
-            return False
-
-        if not isinstance(limit, (tuple, list)) and len(limit) != self.__combobox.count():
-            print("Bind error, text type or count error")
+    def bindSpinBox(self, obj: Union[QSpinBox, QDoubleSpinBox], limit: Sequence[Union[int, float]]) -> bool:
+        if not self.__check(obj, limit, (QSpinBox, QDoubleSpinBox)):
             return False
 
         self.__binding.append((obj, limit))
@@ -151,7 +155,7 @@ class ComboBoxBinder(QObject):
                 else:
                     receiver.setCurrentIndex(index)
             # QLabel
-            elif isinstance(receiver, QLabel) and isinstance(data[index], str):
+            elif isinstance(receiver, (QLabel, QLineEdit)) and isinstance(data[index], str):
                 receiver.setText(data[index])
             # QSpinBox
             elif isinstance(receiver, (QSpinBox, QDoubleSpinBox)):
