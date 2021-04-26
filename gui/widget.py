@@ -2904,7 +2904,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
         return data
 
     def setData(self, data: dict):
-        return set([widget.setData(data) for widget in self.widget_list]) == {True}
+        return all(widget.setData(data) for widget in self.widget_list)
 
     def getSettings(self) -> DynamicObject:
         data = self.getData()
@@ -3032,7 +3032,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         return data
 
     def setData(self, data: dict):
-        return set([widget.setData(data) for widget in self.widget_list]) == {True}
+        return all(widget.setData(data) for widget in self.widget_list)
 
     def getSettings(self) -> DynamicObject:
         data = self.getData()

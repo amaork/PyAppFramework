@@ -284,18 +284,22 @@ class UiFontInput(UiInputSetting):
                                           check="", readonly=False, type="FONT")
 
     @staticmethod
-    def get_font(font_setting: str) -> Font:
+    def get_font(font_setting: Union[str, Font]) -> Font:
         default_font = Font("宋体", 9, 50)
         try:
             font_setting = font_setting[1:-1].split(", ")
             return Font(font_setting[0][1:-1], str2number(font_setting[1]), str2number(font_setting[2]))
         except AttributeError:
-            return tuple(font_setting) if isinstance(font_setting, (list, tuple)) else default_font
+            if isinstance(font_setting, (list, tuple)) and len(font_setting) == 3 and \
+                    isinstance(font_setting[0], str) and all(isinstance(x, int) for x in font_setting[1:]):
+                return Font(*tuple(font_setting))
+            else:
+                return default_font
         except (TypeError, IndexError, ValueError):
             return default_font
 
     @staticmethod
-    def get_stylesheet(font_setting: str) -> str:
+    def get_stylesheet(font_setting: Union[str, Font]) -> str:
         try:
             font_name, point_size, _ = UiFontInput.get_font(font_setting)
             return 'font: {}pt "{}";'.format(point_size, font_name)
@@ -388,7 +392,11 @@ class UiColorInput(UiInputSetting):
             color_setting = color_setting[1:-1].split(", ")
             return str2number(color_setting[0]), str2number(color_setting[1]), str2number(color_setting[2])
         except AttributeError:
-            return color_setting if isinstance(color_setting, (list, tuple)) else default_color
+            if isinstance(color_setting, (list, tuple)) and len(color_setting) == 3 and \
+                    all(isinstance(x, int) for x in color_setting):
+                return Color(*tuple(color_setting))
+            else:
+                return default_color
         except (TypeError, IndexError, ValueError):
             return default_color
 
@@ -515,12 +523,11 @@ class UiLayout(DynamicObject):
 
     @staticmethod
     def is_grid_layout(layout: Layout, settings: dict) -> bool:
-        return set([isinstance(x, (list, tuple)) and UiLayout.is_vertical_layout(x, settings)
-                    for x in layout]) == {True}
+        return all(isinstance(x, (list, tuple)) and UiLayout.is_vertical_layout(x, settings) for x in layout)
 
     @staticmethod
     def is_vertical_layout(layout: Layout, settings: dict) -> bool:
-        return set([isinstance(x, str) and settings.get(x) is not None for x in layout]) == {True}
+        return all(isinstance(x, str) and settings.get(x) is not None for x in layout)
 
 
 T = TypeVar('T', bound='UiLogMessage')
