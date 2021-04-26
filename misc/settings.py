@@ -394,7 +394,7 @@ class UiColorInput(UiInputSetting):
         except AttributeError:
             if isinstance(color_setting, (list, tuple)) and len(color_setting) == 3 and \
                     all(isinstance(x, int) for x in color_setting):
-                return Color(*tuple(color_setting))
+                return color_setting
             else:
                 return default_color
         except (TypeError, IndexError, ValueError):
@@ -404,6 +404,7 @@ class UiColorInput(UiInputSetting):
     def get_color_stylesheet(color_setting: Union[str, Color], border: bool = False) -> str:
         try:
             color_setting = UiColorInput.get_color(color_setting)
+
             r = color_setting[0]
             g = color_setting[1]
             b = color_setting[2]
