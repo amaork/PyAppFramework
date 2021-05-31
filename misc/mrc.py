@@ -3,6 +3,7 @@ import os
 import wmi
 import hashlib
 import ipaddress
+import pythoncom
 import collections
 from typing import List
 
@@ -37,18 +38,26 @@ class MachineInfo(object):
     def __init__(self):
         """
         Get machine hardware info to generate unique fingerprint
+          try:
+            pythoncom.CoInitialize()
+            XXX: Get machine info
+        finally:
+            pythoncom.CoUninitialize()
         """
-        self._wmi = wmi.WMI()
 
-    def get_os_info(self) -> dict:
-        os = self._wmi.Win32_OperatingSystem()[0]
-        return dict(caption=os.Caption, version=os.Version,
-                    tz=os.CurrentTimeZone, language=os.MUILanguages[0],
-                    arch=os.OSArchitecture, sn=os.SerialNumber, system_device=os.SystemDevice)
+    @staticmethod
+    def get_os_info() -> dict:
+        w = wmi.WMI()
+        os_ = w.Win32_OperatingSystem()[0]
+        return dict(caption=os_.Caption, version=os_.Version,
+                    tz=os_.CurrentTimeZone, language=os_.MUILanguages[0],
+                    arch=os_.OSArchitecture, sn=os_.SerialNumber, system_device=os_.SystemDevice)
 
-    def get_cpu_info(self) -> List[dict]:
+    @staticmethod
+    def get_cpu_info() -> List[dict]:
         cpu = list()
-        for processor in self._wmi.Win32_Processor():
+        w = wmi.WMI()
+        for processor in w.Win32_Processor():
             cpu.append(
                 {
                     'name': processor.Name,
@@ -59,12 +68,14 @@ class MachineInfo(object):
 
         return cpu
 
-    def get_disk_info(self) -> List[dict]:
+    @staticmethod
+    def get_disk_info() -> List[dict]:
+        w = wmi.WMI()
         disk = list()
-        for dd in self._wmi.Win32_DiskDrive():
+        for dd in w.Win32_DiskDrive():
             disk.append(
                 {
-                    "sn": self._wmi.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip(),
+                    "sn": w.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip(),
                     "id": dd.deviceid,
                     "caption": dd.Caption,
                     "size": str(int(float(dd.Size) / 1024 / 1024 / 1024))
@@ -73,9 +84,11 @@ class MachineInfo(object):
 
         return disk
 
-    def get_network_info(self) -> List[dict]:
+    @staticmethod
+    def get_network_info() -> List[dict]:
+        w = wmi.WMI()
         network = list()
-        for nac in self._wmi.Win32_NetworkAdapterConfiguration():
+        for nac in w.Win32_NetworkAdapterConfiguration():
             if nac.MacAddress is None or nac.IPAddress is None:
                 continue
 
@@ -92,9 +105,11 @@ class MachineInfo(object):
 
         return network
 
-    def get_logic_disk_info(self) -> List[dict]:
+    @staticmethod
+    def get_logic_disk_info() -> List[dict]:
+        w = wmi.WMI()
         logic_disk = list()
-        for disk in self._wmi.Win32_LogicalDisk(DriveType=3):
+        for disk in w.Win32_LogicalDisk(DriveType=3):
             logic_disk.append(
                 {
                     'caption': disk.Caption,
@@ -110,33 +125,38 @@ class MachineInfo(object):
 
 
 class MachineCode(object):
-    ERROR_CODE = collections.namedtuple('ErrorCode', ['PASS', 'NONE', 'FAIL'])(*range(3))
-
     def __init__(self, rsa_public_key: str, register_file: str):
         self._mci = MachineInfo()
         self._register_file = register_file
         self._public_key = RSAPublicKeyHandle(rsa_public_key)
 
     def raw_fingerprint(self) -> bytes:
+        try:
+            pythoncom.CoInitialize()
+            return self._generate_fingerprint()
+        finally:
+            pythoncom.CoUninitialize()
+
+    def _generate_fingerprint(self) -> bytes:
+        """Your can implement your own version machine fingerprint"""
         cpu = DynamicObject(**self._mci.get_cpu_info()[0])
         disk = DynamicObject(**self._mci.get_disk_info()[0])
         network = DynamicObject(**self._mci.get_network_info()[0])
         machine_fingerprint = cpu.sn + str(cpu.core_num) + disk.sn + str(disk.size) + "".join(network.mac.split(":"))
         return hashlib.sha512(machine_fingerprint.encode()).digest()
 
-    def verify(self) -> ERROR_CODE:
+    def verify(self) -> bool:
         """
         1. if register file exit, load to memory
         2. call register to verify registration code is correct
-        :return: PASS/NONE/FAIL
         """
         if not os.path.isfile(self._register_file):
-            return self.ERROR_CODE.NONE
+            return False
 
         with open(self._register_file, 'rb') as fp:
             code = fp.read()
 
-        return self.ERROR_CODE.PASS if self.register(code) else self.ERROR_CODE.FAIL
+        return self.register(code)
 
     def register(self, code: bytes) -> bool:
         """
@@ -159,13 +179,12 @@ class MachineCode(object):
         """Using public key encrypt machine fingerprint"""
         return self._public_key.encrypt(self.raw_fingerprint())
 
-    @staticmethod
-    def get_error_desc(code: ERROR_CODE) -> str:
-        return {
-            MachineCode.ERROR_CODE.PASS: "Registered",
-            MachineCode.ERROR_CODE.NONE: "Not register",
-            MachineCode.ERROR_CODE.FAIL: "Verify Fail"
-        }.get(code, "Unknown")
+    def get_registration_code(self) -> bytes:
+        try:
+            with open(self._register_file, 'rb') as fp:
+                return fp.read()
+        except OSError:
+            return bytes()
 
 
 class RegistrationCode(object):

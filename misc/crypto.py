@@ -8,7 +8,16 @@ from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.Signature import PKCS1_v1_5 as PKCS1_signature
-__all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'DESCrypto']
+from ..core.datatype import DynamicObject
+__all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'DESCrypto', 'RSAKeyPair']
+
+
+class RSAKeyPair(DynamicObject):
+    _properties = {'public_key', 'private_key'}
+    _check = {
+        'public_key': lambda x: isinstance(x, str),
+        'private_key': lambda x: isinstance(x, str)
+    }
 
 
 class RSAKeyHandle(object):
@@ -49,13 +58,13 @@ class RSAKeyHandle(object):
         return block_size - reserve_size
 
     @staticmethod
-    def generate_key_pair(bits: int = 2048) -> dict:
+    def generate_key_pair(bits: int = 2048) -> RSAKeyPair:
         random_generator = Random.new().read
         rsa = RSA.generate(bits, random_generator)
 
         private_key = rsa.exportKey()
         public_key = rsa.publickey().exportKey()
-        return dict(public_key=public_key.decode(), private_key=private_key.decode())
+        return RSAKeyPair(public_key=public_key.decode(), private_key=private_key.decode())
 
 
 class RSAPublicKeyHandle(RSAKeyHandle):
