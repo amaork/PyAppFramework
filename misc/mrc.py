@@ -191,15 +191,18 @@ class RegistrationCode(object):
     def __init__(self, rsa_private_key: str):
         self.__private_key = RSAPrivateKeyHandle(rsa_private_key)
 
-    def get_registration_code(self, machine_code: bytes) -> bytes:
+    def get_raw_machine_code(self, machine_code: bytes) -> bytes:
         if not isinstance(machine_code, bytes):
             return bytes()
 
         if len(machine_code) != _RSA_MSG_LEN:
             return bytes()
 
+        return self.__private_key.decrypt(machine_code)
+
+    def get_registration_code(self, machine_code: bytes) -> bytes:
         # First decrypt get raw machine code
-        raw_mc = self.__private_key.decrypt(machine_code)
+        raw_mc = self.get_raw_machine_code(machine_code)
 
         if len(raw_mc) != _RAW_MC_LEN:
             return bytes()

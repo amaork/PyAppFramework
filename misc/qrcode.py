@@ -37,6 +37,10 @@ def qrcode_save_and_verify(encode_data: bytes, path: str, option: Optional[QRCod
 
 
 def qrcode_generate(encode_data: bytes, option: Optional[QRCodeOption] = None, fmt: str = 'png') -> bytes:
+    if not isinstance(encode_data, bytes):
+        print("'qrcode_generate', encode_data required bytes")
+        return bytes()
+
     option = option if isinstance(option, QRCodeOption) else QRCodeOption()
     qr = qrcode.QRCode(
         border=option.border,

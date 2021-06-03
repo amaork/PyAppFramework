@@ -562,6 +562,13 @@ class Demo(QMainWindow):
         self.navigationButton = QPushButton("Show navigation")
         self.navigationButton.clicked.connect(self.showWidget)
 
+        self.registrationWidget = SoftwareRegistrationMachineWidget()
+        self.registrationWidget.setHidden(True)
+        self.registrationLabel = QLabel()
+        self.registrationLabel.setFrameStyle(frameStyle)
+        self.registrationButton = QPushButton("Show Registration")
+        self.registrationButton.clicked.connect(self.showWidget)
+
         self.layout = QGridLayout()
         self.layout.addWidget(self.listButton, 0, 0)
         self.layout.addWidget(self.listLabel, 0, 1)
@@ -587,8 +594,12 @@ class Demo(QMainWindow):
         self.layout.addWidget(self.settingLabel, 10, 1)
         self.layout.addWidget(self.multiJsonSettingButton, 11, 0)
         self.layout.addWidget(self.multiJsonSettingLabel, 11, 1)
+
         self.layout.addWidget(self.navigationButton, 12, 0)
         self.layout.addWidget(self.navigationLabel, 12, 1)
+
+        self.layout.addWidget(self.registrationButton, 13, 0)
+        self.layout.addWidget(self.registrationLabel, 13, 1)
 
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(self.layout)
@@ -615,6 +626,8 @@ class Demo(QMainWindow):
             self.multiJsonSettingWidget.setHidden(False)
         elif self.sender() == self.navigationButton:
             self.navigationWidget.setHidden(False)
+        elif self.sender() == self.registrationButton:
+            self.registrationWidget.setHidden(False)
 
     def showImage(self):
         if self.sender() == self.imageFsButton:

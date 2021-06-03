@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 import pyDes
+import typing
 import base64
 import Crypto
 import binascii
 from Crypto import Random
 from Crypto.Hash import SHA
+from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.Signature import PKCS1_v1_5 as PKCS1_signature
 from ..core.datatype import DynamicObject
-__all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'DESCrypto', 'RSAKeyPair']
+__all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'RSAKeyPair', 'DESCrypto', 'AESCrypto']
 
 
 class RSAKeyPair(DynamicObject):
@@ -21,8 +23,16 @@ class RSAKeyPair(DynamicObject):
 
 
 class RSAKeyHandle(object):
+    KEYWORDS = ('',)
+
     def __init__(self, key: str):
         self._key = RSA.importKey(str(key))
+        if not self.check():
+            raise ValueError("Invalid format")
+
+    def check(self) -> bool:
+        raw_key_str = self._key.export_key().decode()
+        return all([kw in raw_key_str for kw in self.KEYWORDS])
 
     def encrypt(self, message: bytes) -> bytes:
         result = bytes()
@@ -68,6 +78,8 @@ class RSAKeyHandle(object):
 
 
 class RSAPublicKeyHandle(RSAKeyHandle):
+    KEYWORDS = ('BEGIN PUBLIC KEY', 'END PUBLIC KEY')
+
     def __init__(self, key: str):
         super(RSAPublicKeyHandle, self).__init__(key)
 
@@ -80,6 +92,8 @@ class RSAPublicKeyHandle(RSAKeyHandle):
 
 
 class RSAPrivateKeyHandle(RSAKeyHandle):
+    KEYWORDS = ('BEGIN RSA PRIVATE KEY', 'END RSA PRIVATE KEY')
+
     def __init__(self, key: str):
         super(RSAPrivateKeyHandle, self).__init__(key)
 
@@ -99,3 +113,53 @@ class DESCrypto(object):
 
     def decrypt(self, data: bytes) -> bytes:
         return self._des.decrypt(base64.b64decode(data))
+
+
+class AESCrypto(object):
+    BLOCK_SIZE = 16
+    AES_CBC, AES_ECB = 'CBC', 'ECB'
+
+    AES_MODE = {
+        AES_CBC: AES.MODE_CBC,
+        AES_ECB: AES.MODE_ECB
+    }
+
+    def __init__(self, key: str, mode: str = AES_ECB, vi: bytes = bytes(range(BLOCK_SIZE))):
+        if mode not in self.AES_MODE:
+            raise ValueError('Invalid mode: {!r} mode must be: {}'.format(mode, list(self.AES_MODE.keys())))
+
+        self.__vi = vi
+        self.__mode = mode
+        self.__key = self.pad(key).encode()
+
+    def cipher(self):
+        if self.__mode == self.AES_ECB:
+            return AES.new(self.__key, self.AES_MODE.get(self.__mode))
+        else:
+            return AES.new(self.__key, self.AES_MODE.get(self.__mode), self.__vi)
+
+    @staticmethod
+    def pad(data: str) -> str:
+        pl = (AESCrypto.BLOCK_SIZE - len(data) % AESCrypto.BLOCK_SIZE)
+        return data + chr(pl) * pl
+
+    @staticmethod
+    def unpad(data: str) -> str:
+        return data[:-ord(data[len(data) - 1])]
+
+    @staticmethod
+    def check(msg: str, data: typing.Any):
+        if not isinstance(data, bytes):
+            raise TypeError("{!r} data must be bytes".format(msg))
+
+        if not data:
+            raise ValueError('{!r} data is empty'.format(msg))
+
+    def encrypt(self, data: bytes) -> bytes:
+        self.check('encrypt', data)
+        data = base64.b64encode(data)
+        return self.cipher().encrypt(self.pad(data.decode()).encode())
+
+    def decrypt(self, data: bytes) -> bytes:
+        self.check('decrypt', data)
+        return base64.b64decode(self.unpad(self.cipher().decrypt(data).decode()).encode())
