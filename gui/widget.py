@@ -3295,6 +3295,9 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         self.__rc_code = bytes()
         super(SoftwareRegistrationMachineWidget, self).__init__(parent)
 
+    def tr(self, text: str) -> str:
+        return QApplication.translate("SoftwareRegistrationMachineWidget", text, None, QApplication.UnicodeUTF8)
+
     def _initUi(self):
         style = dict(background=(240, 240, 240), withBox=False)
         self.ui_load_mc_done = CheckBox(stylesheet=style)

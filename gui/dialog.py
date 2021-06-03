@@ -841,7 +841,8 @@ class SoftwareRegistrationDialog(QDialog):
         self.setWindowTitle(self.tr("Software Register"))
 
     def __initData(self):
-        self.ui_save_mc.setDisabled(True)
+        self.ui_save_mc.setHidden(True)
+        self.ui_load_rc.setHidden(True)
         self.ui_backup_rc.setHidden(True)
         self.ui_mc_image.drawFromText(self.tr("Generating please wait..."))
         self.ui_rc_image.drawFromText(self.tr("Please Load Registration Code"))
@@ -880,7 +881,7 @@ class SoftwareRegistrationDialog(QDialog):
             with open(path, 'wb') as fp:
                 fp.write(self.__mc_qr_image)
 
-            self.signalMsgBox.emit(MB_TYPE_INFO, "Machine code save success" + "\n{!r}".format(path))
+            self.signalMsgBox.emit(MB_TYPE_INFO, self.tr("Machine code save success") + "\n{!r}".format(path))
         except OSError as e:
             showMessageBox(self, MB_TYPE_ERR, self.tr("Save machine code error") + ": {}".format(e))
 
@@ -893,7 +894,7 @@ class SoftwareRegistrationDialog(QDialog):
         if not os.path.isfile(path):
             return
 
-        self.ui_rc_image.drawFromText("Verifying, please wait...")
+        self.ui_rc_image.drawFromText(self.tr("Verifying, please wait..."))
         th = threading.Thread(target=self.threadVerifyRegistrationCode, args=(path,))
         th.setDaemon(True)
         th.start()
@@ -908,31 +909,31 @@ class SoftwareRegistrationDialog(QDialog):
             with open(path, "wb") as fp:
                 fp.write(self.__rc_qr_image)
 
-            self.signalMsgBox.emit(MB_TYPE_INFO, "Software registration code backup success" + "\n{!r}".format(path))
+            self.signalMsgBox.emit(MB_TYPE_INFO,
+                                   self.tr("Software registration code backup success") + "\n{!r}".format(path))
         except OSError as e:
-            self.signalMsgBox.emit(MB_TYPE_ERR, "Software registration code backup failed" + ": {}".format(e))
+            self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Software registration code backup failed") + ": {}".format(e))
 
     def slotShowMachineCode(self, image: bytes):
         if not image or not self.ui_mc_image.drawFromMem(image, self.QR_CODE_FORMAT):
             return
 
         self.__mc_qr_image = image
-        self.ui_save_mc.setEnabled(True)
+        self.ui_save_mc.setVisible(True)
+        self.ui_load_rc.setVisible(True)
 
     def slotShowRegistrationCode(self, verify: bool):
-        try:
-            self.__registered.data = verify
+        self.__registered.data = verify
 
-            if not verify:
-                return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid software registration code"))
+        if not verify:
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid software registration code"))
 
-            self.__rc_qr_image = qrcode_generate(self.__machine.get_registration_code(), fmt=self.QR_CODE_FORMAT)
-            self.ui_rc_image.drawFromMem(self.__rc_qr_image, self.QR_CODE_FORMAT)
+        self.__rc_qr_image = qrcode_generate(self.__machine.get_registration_code(), fmt=self.QR_CODE_FORMAT)
+        self.ui_rc_image.drawFromMem(self.__rc_qr_image, self.QR_CODE_FORMAT)
 
-            self.ui_backup_rc.setVisible(True)
-            showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
-        finally:
-            self.ui_load_rc.setText("Software registered")
+        self.ui_backup_rc.setVisible(True)
+        self.ui_load_rc.setText(self.tr("Software registered"))
+        showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
 
     def threadGenerateMachineCode(self):
         try:
