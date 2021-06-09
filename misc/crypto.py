@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import pyDes
 import typing
 import base64
@@ -75,6 +76,26 @@ class RSAKeyHandle(object):
         private_key = rsa.exportKey()
         public_key = rsa.publickey().exportKey()
         return RSAKeyPair(public_key=public_key.decode(), private_key=private_key.decode())
+
+    @staticmethod
+    def generate_key_pair_and_save(path: str = "", binary: bool = False, bits: int = 2048) ->bool:
+        key = RSAKeyHandle.generate_key_pair(bits)
+        if not isinstance(key, RSAKeyPair):
+            return False
+
+        try:
+            mode = 'wb' if binary else 'w'
+            extension = '.bin' if binary else '.txt'
+            with open(os.path.join(path, 'private_key' + extension), mode) as fp:
+                fp.write(key.private_key.encode()) if binary else fp.write(key.private_key)
+
+            with open(os.path.join(path, 'public_key' + extension), mode) as fp:
+                fp.write(key.public_key.encode()) if binary else fp.write(key.public_key)
+
+            return True
+        except OSError as e:
+            print("'generate_key_pair_and_save' error: {}".format(e))
+            return False
 
 
 class RSAPublicKeyHandle(RSAKeyHandle):

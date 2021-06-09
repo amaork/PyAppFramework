@@ -33,7 +33,7 @@ from serial import Serial
 from PySide.QtGui import *
 from PySide.QtCore import *
 from datetime import datetime
-from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
+from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict, Callable
 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
@@ -3279,21 +3279,29 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
     QR_CODE_FORMAT = 'png'
     QR_CODE_FS_FMT = "PNG(*.png)"
     QR_CODE_WIDTH, QR_CODE_HEIGHT = 500, 500
+    RSA_PRIVATE_KEY_FMT = "RSA Private Key(*.txt *.bin)"
 
     signalMsgBox = Signal(str, str)
     signalMachineCodeDecoded = Signal(bytes)
     signalRegistrationCodeGenerated = Signal(bytes)
 
-    def __init__(self, rsa_private_key: str = "", parent: Optional[QWidget] = None):
+    def __init__(self, rsa_private_key: str = "",
+                 decrypt: Optional[Callable[[bytes], str]] = None, parent: Optional[QWidget] = None):
+
+        self.__decrypt = decrypt
+
         try:
-            self.__registration_machine = RegistrationCode(rsa_private_key)
+            self.__registration_machine = RegistrationCode(self.__getRawRSAPrivateKey(rsa_private_key.encode()))
             self.ui_load_key_done.setChecked(True)
-        except ValueError:
+        except (ValueError, AttributeError):
             self.__registration_machine = None
 
         self.__mc_code = bytes()
         self.__rc_code = bytes()
         super(SoftwareRegistrationMachineWidget, self).__init__(parent)
+
+    def __getRawRSAPrivateKey(self, key: bytes) -> str:
+        return self.__decrypt(key) if hasattr(self.__decrypt, '__call__') else key.decode()
 
     def tr(self, text: str) -> str:
         return QApplication.translate("SoftwareRegistrationMachineWidget", text, None, QApplication.UnicodeUTF8)
@@ -3306,7 +3314,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
 
         self.ui_load_mc = QPushButton(self.tr("Load Machine Code"))
         self.ui_save_rc = QPushButton(self.tr("Save Registration Code"))
-        self.ui_load_key = QPushButton(self.tr("Load RSA Private Key"))
+        self.ui_load_key = QPushButton(self.tr("Load Registration Machine RSA Signature Private Key"))
 
         self.ui_mc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
         self.ui_rc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
@@ -3349,7 +3357,8 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         self.ui_save_rc_done.setDisabled(True)
         self.ui_load_key_done.setDisabled(True)
 
-        msg = self.tr("1. First click 'Load RSA Private Key' load registration machine RSA private key."
+        msg = self.tr("1. First click 'Load Registration Machine RSA Signature Private Key' "
+                      "load registration machine RSA private key."
                       "2. Second click 'Load Machine Code' load software generated machine code."
                       "3. Finally click 'Save Registration Code' to save registration code.")
         code = qrcode_generate(msg.encode("utf-8"), fmt=self.QR_CODE_FORMAT)
@@ -3385,16 +3394,17 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
                 return
 
         from .dialog import showFileImportDialog
-        path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT, title=self.tr("Please select RSA private key"))
+        path = showFileImportDialog(self, fmt=self.RSA_PRIVATE_KEY_FMT, title=self.tr("Please select RSA private key"))
 
         if not os.path.isfile(path):
             return
 
         try:
-            self.__registration_machine = RegistrationCode(rsa_private_key=qrcode_decode(path).decode())
+            with open(path, 'rb') as fp:
+                self.__registration_machine = RegistrationCode(rsa_private_key=self.__getRawRSAPrivateKey(fp.read()))
             self.ui_load_key_done.setChecked(True)
             return showMessageBox(self, MB_TYPE_INFO, self.tr("RSA private key load succeed, please load machine code"))
-        except ValueError as e:
+        except (ValueError, OSError) as e:
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
 
     def slotSaveRegistrationCode(self):
