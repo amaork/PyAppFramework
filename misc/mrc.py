@@ -4,8 +4,7 @@ import wmi
 import hashlib
 import ipaddress
 import pythoncom
-import collections
-from typing import List
+from typing import List, Optional, Dict
 
 from ..misc.crypto import *
 from ..core.datatype import DynamicObject
@@ -125,10 +124,16 @@ class MachineInfo(object):
 
 
 class MachineCode(object):
-    def __init__(self, rsa_public_key: str, register_file: str):
+    CPU_KEY, DISK_KEY, NETWORK_KEY = ('cpu', 'disk', 'network')
+
+    def __init__(self, rsa_public_key: str, register_file: str, options: Optional[Dict[str, bool]] = None):
         self._mci = MachineInfo()
         self._register_file = register_file
         self._public_key = RSAPublicKeyHandle(rsa_public_key)
+        self._options = options if isinstance(options, dict) else dict(cpu=True, disk=True, network=True)
+
+        if set([self._options.get(x) for x in (self.CPU_KEY, self.DISK_KEY, self.NETWORK_KEY)]) == {False}:
+            raise ValueError("'options' required one of {!r} set")
 
     def raw_fingerprint(self) -> bytes:
         try:
@@ -139,10 +144,28 @@ class MachineCode(object):
 
     def _generate_fingerprint(self) -> bytes:
         """Your can implement your own version machine fingerprint"""
-        cpu = DynamicObject(**self._mci.get_cpu_info()[0])
-        disk = DynamicObject(**self._mci.get_disk_info()[0])
-        network = DynamicObject(**self._mci.get_network_info()[0])
-        machine_fingerprint = cpu.sn + str(cpu.core_num) + disk.sn + str(disk.size) + "".join(network.mac.split(":"))
+        if self._options.get(self.CPU_KEY):
+            cpu = DynamicObject(**self._mci.get_cpu_info()[0])
+            cpu_id = cpu.sn + str(cpu.core_num)
+        else:
+            cpu_id = ''
+
+        if self._options.get(self.DISK_KEY):
+            disk = DynamicObject(**self._mci.get_disk_info()[0])
+            disk_id = disk.sn + str(disk.size)
+        else:
+            disk_id = ''
+
+        try:
+            if self._options.get(self.NETWORK_KEY):
+                network = DynamicObject(**self._mci.get_network_info()[0])
+                network_id = "".join(network.mac.split(":"))
+            else:
+                network_id = ''
+        except IndexError:
+            network_id = ''
+
+        machine_fingerprint = cpu_id + disk_id + network_id
         return hashlib.sha512(machine_fingerprint.encode()).digest()
 
     def verify(self) -> bool:

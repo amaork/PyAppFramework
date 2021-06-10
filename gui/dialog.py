@@ -6,7 +6,7 @@ import hashlib
 import threading
 from PySide.QtGui import *
 from PySide.QtCore import *
-from typing import Optional, Union, Sequence, Callable
+from typing import Optional, Union, Sequence, Callable, Dict
 
 from .msgbox import *
 from .button import RectButton
@@ -802,12 +802,14 @@ class SoftwareRegistrationDialog(QDialog):
     signalMachineCodeGenerated = Signal(bytes)
     signalVerifyRegistrationCode = Signal(bool)
 
-    def __init__(self, rsa_public_key: str, register_file: str, parent: Optional[QWidget] = None):
+    def __init__(self, rsa_public_key: str, register_file: str,
+                 machine_code_opt: Optional[Dict[str, bool]] = None, parent: Optional[QWidget] = None):
         super(SoftwareRegistrationDialog, self).__init__(parent)
         self.__mc_qr_image = bytes()
         self.__rc_qr_image = bytes()
         self.__registered = ThreadLockAndDataWrap(False)
-        self.__machine = MachineCode(rsa_public_key=rsa_public_key, register_file=register_file)
+        self.__machine = MachineCode(rsa_public_key=rsa_public_key,
+                                     register_file=register_file, options=machine_code_opt)
 
         self.__initUi()
         self.__initData()
@@ -955,8 +957,12 @@ class SoftwareRegistrationDialog(QDialog):
             self.signalMsgBox.emit(MB_TYPE_WARN, self.tr("Please click 'Load Registration Code' register software"))
 
     @staticmethod
-    def isSoftwareRegistered(rsa_public_key: str, register_file: str, parent: Optional[QWidget]) -> bool:
-        dialog = SoftwareRegistrationDialog(rsa_public_key=rsa_public_key, register_file=register_file, parent=parent)
+    def isSoftwareRegistered(rsa_public_key: str, register_file: str,
+                             machine_code_opt: Optional[Dict[str, bool]] = None,
+                             parent: Optional[QWidget] = None) -> bool:
+        dialog = SoftwareRegistrationDialog(rsa_public_key=rsa_public_key,
+                                            register_file=register_file,
+                                            machine_code_opt=machine_code_opt, parent=parent)
         dialog.exec_()
         return dialog.isRegistered()
 
