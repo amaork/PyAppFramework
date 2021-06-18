@@ -163,14 +163,21 @@ class RMIShellClient(object):
         if not self.is_file_exist(path):
             return ""
 
-        return self.exec("md5sum {} | awk '{{print $1}}'".format(path)).strip()
+        for x in self.exec("md5sum {}".format(path), timeout=30).split():
+            try:
+                md5 = bytes.fromhex(x)
+                return md5.hex()
+            except ValueError:
+                continue
+
+        return ""
 
     def get_file_size(self, path: str) -> int:
         if not self.is_file_exist(path):
             return -1
 
         try:
-            return int(self.exec("ls -l {} | awk '{{print $5}}'".format(path)).strip())
+            return int(self.exec("ls -l {}".format(path)).strip().split()[4])
         except (ValueError, AttributeError):
             return -1
 
@@ -194,7 +201,7 @@ class RMIShellClient(object):
 
     def tftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
                          network: Optional[ipaddress.IPv4Network] = None, random_port: bool = True,
-                         verbose: bool = False, verify_by_md5: bool = False, timeout: int = 60) -> bool:
+                         verbose: bool = False, verify_by_md5: bool = True, timeout: int = 60) -> bool:
         """
         Uoload a local_file from local to remote
         :param local_file: file to upload
@@ -242,6 +249,7 @@ class RMIShellClient(object):
             print(ret)
 
         # Stop ftp server
+        tftp_listen_thread.join(30)
         tftp_server.stop(True)
         self.exec("sync")
 
