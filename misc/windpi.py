@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-try:
-    import win32gui
-    import win32print
-except ImportError:
-    pass
+import platform
 from typing import NamedTuple
 __all__ = ['get_win_dpi', 'get_program_scale_factor', 'DPI', 'ScaleFactor']
 
@@ -26,12 +22,18 @@ def get_win_dpi() -> DPI:
     para_x = 88  # magic number of windows API for x axis
     para_y = 90  # magic number of windows API for y axis
 
-    try:
-        hdc = win32gui.GetDC(0)
-        x_dpi = win32print.GetDeviceCaps(hdc, para_x)
-        y_dpi = win32print.GetDeviceCaps(hdc, para_y)
-        return DPI(x_dpi, y_dpi)
-    except (NameError, AttributeError):
+    if platform.system().lower() == "windows":
+        try:
+            import win32gui
+            import win32print
+
+            hdc = win32gui.GetDC(0)
+            x_dpi = win32print.GetDeviceCaps(hdc, para_x)
+            y_dpi = win32print.GetDeviceCaps(hdc, para_y)
+            return DPI(x_dpi, y_dpi)
+        except (NameError, AttributeError):
+            return DPI(96, 96)
+    else:
         return DPI(96, 96)
 
 

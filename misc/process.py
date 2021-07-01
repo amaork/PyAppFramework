@@ -184,8 +184,11 @@ class SubprocessWithTimeoutRead(object):
                 break
 
 
-def subprocess_startup_info_without_console() -> Type[subprocess.STARTUPINFO]:
-    startup_info = subprocess.STARTUPINFO
-    startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-    startup_info.wShowWindow = subprocess.SW_HIDE
-    return startup_info
+def subprocess_startup_info_without_console():
+    if platform.system().lower() == 'windows':
+        startup_info = subprocess.STARTUPINFO
+        startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        startup_info.wShowWindow = subprocess.SW_HIDE
+        return startup_info
+    else:
+        return None

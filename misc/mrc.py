@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
-import wmi
+import socket
+import psutil
 import hashlib
+import platform
 import ipaddress
-import pythoncom
+import subprocess
 from typing import List, Optional, Dict
 
 from ..misc.crypto import *
-from ..core.datatype import DynamicObject
+from ..core.datatype import DynamicObject, str2number
 __all__ = ['MachineInfo', 'MachineCode', 'RegistrationCode']
 
 _RAW_MC_LEN = 64
@@ -46,81 +48,147 @@ class MachineInfo(object):
 
     @staticmethod
     def get_os_info() -> dict:
-        w = wmi.WMI()
-        os_ = w.Win32_OperatingSystem()[0]
-        return dict(caption=os_.Caption, version=os_.Version,
-                    tz=os_.CurrentTimeZone, language=os_.MUILanguages[0],
-                    arch=os_.OSArchitecture, sn=os_.SerialNumber, system_device=os_.SystemDevice)
+        if platform.system().lower() == "windows":
+            import wmi
+
+            w = wmi.WMI()
+            os_ = w.Win32_OperatingSystem()[0]
+            return dict(caption=os_.Caption, version=os_.Version,
+                        tz=os_.CurrentTimeZone, language=os_.MUILanguages[0],
+                        arch=os_.OSArchitecture, sn=os_.SerialNumber, system_device=os_.SystemDevice)
+        else:
+            os_ = os.uname()
+            return dict(caption="{}/{}".format(os_[0], os_[1]), version=os_[3], arch=os_[4])
 
     @staticmethod
     def get_cpu_info() -> List[dict]:
-        cpu = list()
-        w = wmi.WMI()
-        for processor in w.Win32_Processor():
-            cpu.append(
-                {
-                    'name': processor.Name,
-                    'sn': processor.ProcessorId,
-                    'core_num': processor.NumberOfCores
-                }
-            )
+        if platform.system().lower() == "windows":
+            import wmi
 
-        return cpu
+            cpu = list()
+            w = wmi.WMI()
+            for processor in w.Win32_Processor():
+                cpu.append(
+                    {
+                        'name': processor.Name,
+                        'sn': processor.ProcessorId,
+                        'core_num': processor.NumberOfCores
+                    }
+                )
+
+            return cpu
+        else:
+            sn = ''
+            name = ''
+            core_num = 1
+            data = open('/proc/cpuinfo').read()
+            for line in data.split('\n'):
+                if 'model name' in line:
+                    name = line.split(':')[-1].strip()
+
+                if 'cpu cores' in line:
+                    core_num = str2number(line.split(':')[-1].strip())
+
+                if 'Serial' in line:
+                    sn = line.split(':')[-1].strip()
+
+            return [dict(name=name, sn=sn, core_num=core_num)]
 
     @staticmethod
     def get_disk_info() -> List[dict]:
-        w = wmi.WMI()
-        disk = list()
-        for dd in w.Win32_DiskDrive():
-            disk.append(
-                {
-                    "sn": w.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip(),
-                    "id": dd.deviceid,
-                    "caption": dd.Caption,
-                    "size": str(int(float(dd.Size) / 1024 / 1024 / 1024))
-                }
-            )
+        if platform.system().lower() == "windows":
+            import wmi
+            w = wmi.WMI()
+            disk = list()
+            for dd in w.Win32_DiskDrive():
+                disk.append(
+                    {
+                        "sn": w.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip(),
+                        "id": dd.deviceid,
+                        "caption": dd.Caption,
+                        "size": str(int(float(dd.Size) / 1024 / 1024 / 1024))
+                    }
+                )
 
-        return disk
+            return disk
+        else:
+            disk = list()
+            header = ['filesystem', 'size', 'used', 'available', 'percentage', 'mounted_on']
+            si = subprocess.Popen('df -h', stdout=subprocess.PIPE, shell=True)
+            result = si.communicate()[0].decode().split('\n')
+
+            for item in result[1:]:
+                item.strip()
+                data = [x.strip() for x in item.split(" ") if len(x)]
+                disk.append(dict(zip(header, data)))
+
+            return disk
 
     @staticmethod
     def get_network_info() -> List[dict]:
-        w = wmi.WMI()
-        network = list()
-        for nac in w.Win32_NetworkAdapterConfiguration():
-            if nac.MacAddress is None or nac.IPAddress is None:
-                continue
+        if platform.system().lower() == "windows":
+            import wmi
+            w = wmi.WMI()
+            network = list()
+            for nac in w.Win32_NetworkAdapterConfiguration():
+                if nac.MacAddress is None or nac.IPAddress is None:
+                    continue
 
-            if ipaddress.ip_address(nac.IPAddress[0]).is_loopback:
-                continue
+                if ipaddress.ip_address(nac.IPAddress[0]).is_loopback:
+                    continue
 
-            network.append(
-                {
-                    'desc': nac.Description,
-                    'mac': nac.MACAddress,
-                    'ip': nac.IPAddress
-                }
-            )
+                network.append(
+                    {
+                        'desc': nac.Description,
+                        'mac': nac.MACAddress,
+                        'ip': nac.IPAddress
+                    }
+                )
 
-        return network
+            return network
+        else:
+            network = list()
+            for name, data in psutil.net_if_addrs().items():
+                ip = ""
+                mac = ""
+                for item in data:
+                    if item.family == psutil.AF_LINK:
+                        mac = item.address
+
+                    if item.family == socket.AF_INET:
+                        ip = item.address
+
+                if not mac or not ip:
+                    continue
+
+                if ipaddress.ip_address(ip).is_loopback:
+                    continue
+
+                network.append(dict(desc=name, ip=ip, mac=mac))
+
+            return network
 
     @staticmethod
     def get_logic_disk_info() -> List[dict]:
-        w = wmi.WMI()
-        logic_disk = list()
-        for disk in w.Win32_LogicalDisk(DriveType=3):
-            logic_disk.append(
-                {
-                    'caption': disk.Caption,
-                    'filesystem': disk.FileSystem,
-                    'free': disk.FreeSpace,
-                    'size': disk.Size,
-                    'name': disk.VolumeName,
-                    'sn': disk.VolumeSerialNumber
-                }
-            )
+        if platform.system().lower() == "windows":
+            import wmi
+            w = wmi.WMI()
+            logic_disk = list()
+            for disk in w.Win32_LogicalDisk(DriveType=3):
+                logic_disk.append(
+                    {
+                        'caption': disk.Caption,
+                        'filesystem': disk.FileSystem,
+                        'free': disk.FreeSpace,
+                        'size': disk.Size,
+                        'name': disk.VolumeName,
+                        'sn': disk.VolumeSerialNumber
+                    }
+                )
 
-        return logic_disk
+            return logic_disk
+        else:
+            return MachineInfo.get_disk_info()
 
 
 class MachineCode(object):
@@ -136,11 +204,16 @@ class MachineCode(object):
             raise ValueError("'options' required one of {!r} set")
 
     def raw_fingerprint(self) -> bytes:
-        try:
-            pythoncom.CoInitialize()
+        if platform.system().lower() == "windows":
+            import pythoncom
+
+            try:
+                pythoncom.CoInitialize()
+                return self._generate_fingerprint()
+            finally:
+                pythoncom.CoUninitialize()
+        else:
             return self._generate_fingerprint()
-        finally:
-            pythoncom.CoUninitialize()
 
     def _generate_fingerprint(self) -> bytes:
         """Your can implement your own version machine fingerprint"""
