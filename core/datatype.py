@@ -89,6 +89,14 @@ class BasicDataType(ctypes.Structure):
     def __repr__(self):
         return self.cdata().hex()
 
+    @property
+    def raw(self) -> bytes:
+        return self.cdata()
+
+    @raw.setter
+    def raw(self, raw: bytes):
+        self.set_cdata(raw)
+
     def cdata(self) -> bytes:
         """Get C-style data"""
         return ctypes.string_at(ctypes.addressof(self), ctypes.sizeof(self))
