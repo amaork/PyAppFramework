@@ -190,7 +190,7 @@ def scan_lan_alive(network: Union[ipaddress.IPv4Network, str] = "",
     return [str(x) for x, r in zip(network.hosts(), result) if r.result() is not None]
 
 
-def create_socket_and_connect(address: str, port: int, timeout: int,
+def create_socket_and_connect(address: str, port: int, timeout: float,
                               recv_buf_size: int = 32 * 1024, retry: int = 3, no_delay: bool = True) -> socket.socket:
     times = 0
     while times < retry:

@@ -3,13 +3,15 @@ import io
 import os
 import ctypes
 import struct
-from typing import Tuple, Callable, Optional
-from PIL import Image, GifImagePlugin
+from typing import Tuple, Callable, Optional, Union
+from PIL import Image, GifImagePlugin, ImageDraw, ImageFont
 from .datatype import BasicTypeLE
-__all__ = ['GifExtract', 'BitmapFileHeader', 'BitmapInfoHeader',
+from ..misc.settings import Color
+__all__ = ['GifExtract', 'BitmapFileHeader', 'BitmapInfoHeader', 'ScrollingTextGifMaker',
            'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555']
 
 Pixel = Tuple[int, int, int]
+ImageColor = Union[str, int, Color]
 BmpProcess = Callable[[Image.Image], bytes]
 PixelProcess = Callable[[Pixel], int]
 
@@ -120,9 +122,13 @@ class GifExtract(object):
         if not isinstance(self.gif, GifImagePlugin.GifImageFile):
             raise TypeError('It not gif image: {}'.format(self.gif.format))
 
-        self._loop = self.gif.info['loop']
-        self._frame_count = self.gif.n_frames
-        self._duration = self.gif.info['duration']
+        try:
+            self._loop = self.gif.info['loop']
+            self._frame_count = self.gif.n_frames
+            self._duration = self.gif.info['duration']
+        except KeyError:
+            raise TypeError("It's not animation gif")
+
         print("{}: {}, {}, frame count: {}, duration: {}, loop: {}".format(
             gif, self.gif.format, self.gif.size, self.gif.n_frames, self._duration, self._loop
         ))
@@ -184,3 +190,95 @@ class GifExtract(object):
         except EOFError as e:
             print("Extract gif frame failed: {}".format(e))
             return None
+
+
+class ScrollingTextGifMaker(object):
+    def __init__(self, size: Tuple[int, int], margin: int, background: ImageColor = 'black'):
+        self.margin = margin
+        self.background = background
+        self.im = Image.new('RGB', size, color=background)
+
+    def calcFontSize(self, text: str, font: str) -> int:
+        size = 10
+        draw = ImageDraw.Draw(self.im)
+        canvas_width, canvas_height = self.im.size
+
+        while True:
+            font_obj = ImageFont.truetype(font, size, encoding='unic')
+            text_width, text_height = draw.textsize(text, font=font_obj)
+            if text_width + self.margin >= canvas_width or text_height + self.margin >= canvas_height:
+                return size
+            else:
+                size += 1
+
+    def drawText(self, text: str, path: str,
+                 bg: ImageColor = 'black', fg: ImageColor = 'white', font: str = 'simsun.ttc', size: int = 0):
+        size = size or self.calcFontSize(text, font)
+        im = Image.new('RGB', self.im.size, color=bg)
+        font = ImageFont.truetype(font, size, encoding='unic')
+
+        draw = ImageDraw.Draw(im)
+        canvas_width, canvas_height = im.size
+        text_width, text_height = draw.textsize(text, font=font)
+
+        draw.text(((canvas_width - text_width) // 2, (canvas_height - text_height) // 2), text, fg, font)
+        im.save(path)
+
+    def drawAnimationFrame(self, start: Tuple[int, int],
+                           text: str, font: ImageFont.FreeTypeFont,
+                           bg: ImageColor = 'black', fg: ImageColor = 'white') -> Image.Image:
+        im = Image.new('RGB', self.im.size, color=bg)
+        draw = ImageDraw.Draw(im)
+        draw.text(start, text, fg, font)
+
+        return im
+
+    def createScrollTextGifAnimation(self, text: str, path: str,
+                                     char_count_per_frame: int, move_pixel_per_frame: int,
+                                     scroll_to_the_end: bool = True, duration: int = 200,
+                                     wait_frame_count: int = 5, blank_frame_count: int = 0,
+                                     font: str = 'simsun.ttc', bg: ImageColor = 'black', fg: ImageColor = 'white'):
+        """
+        Create gif animation from #text specified text and save it to #path specified path
+        :param text: text to stroll display
+        :param path: gif file save path
+        :param char_count_per_frame: how many chars will display on each frame(screen)
+        :param move_pixel_per_frame: how many pixels will moved on each frame
+        :param scroll_to_the_end: if set this, it will display to the end, then restart display
+        :param duration: gif duration
+        :param wait_frame_count: how many frames it will wait at then end
+        :param blank_frame_count: how many blank frames it will display at the end
+        :param font: display text
+        :param bg: background color
+        :param fg: foreground color(the text)
+        :return:
+        """
+        images = list()
+        draw = ImageDraw.Draw(self.im)
+        canvas_width, canvas_height = self.im.size
+        font = ImageFont.truetype(font, self.calcFontSize(text[: char_count_per_frame], font=font), encoding='unic')
+
+        single_char_width, single_char_height = draw.textsize(text[0], font=font)
+        v_start = (canvas_height - single_char_height) // 2
+        current_render = 0
+
+        while text[current_render:]:
+            if not scroll_to_the_end and len(text[current_render:]) <= char_count_per_frame:
+                break
+
+            # Dynamically handle per text
+            frame_count_per_char = draw.textsize(text[current_render], font=font)[0] // move_pixel_per_frame
+
+            for i in range(frame_count_per_char):
+                h_start = -move_pixel_per_frame * i
+                images.append(self.drawAnimationFrame((h_start, v_start), text[current_render:], font, bg, fg))
+
+            current_render += 1
+
+        for _ in range(blank_frame_count):
+            images.append(Image.new('RGB', self.im.size, color=bg))
+
+        for _ in range(wait_frame_count):
+            images.append(self.drawAnimationFrame((self.margin, v_start), text, font, bg, fg))
+
+        images[0].save(path, save_all=True,  append_images=images[1:], optimize=False, duration=duration, loop=0)
