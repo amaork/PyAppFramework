@@ -8,7 +8,7 @@ from PIL import Image, GifImagePlugin, ImageDraw, ImageFont
 from .datatype import BasicTypeLE
 from ..misc.settings import Color
 __all__ = ['GifExtract', 'BitmapFileHeader', 'BitmapInfoHeader', 'ScrollingTextGifMaker',
-           'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555']
+           'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555', 'ImageColor']
 
 Pixel = Tuple[int, int, int]
 ImageColor = Union[str, int, Color]
@@ -211,8 +211,8 @@ class ScrollingTextGifMaker(object):
             else:
                 size += 1
 
-    def drawText(self, text: str, path: str,
-                 bg: ImageColor = 'black', fg: ImageColor = 'white', font: str = 'simsun.ttc', size: int = 0):
+    def drawStaticText(self, text: str, path: str,
+                       bg: ImageColor = 'black', fg: ImageColor = 'white', font: str = 'simsun.ttc', size: int = 0):
         size = size or self.calcFontSize(text, font)
         im = Image.new('RGB', self.im.size, color=bg)
         font = ImageFont.truetype(font, size, encoding='unic')
