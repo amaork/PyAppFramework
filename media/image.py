@@ -3,10 +3,12 @@ import io
 import os
 import ctypes
 import struct
+import time
 from typing import Tuple, Callable, Optional, Union
 from PIL import Image, GifImagePlugin, ImageDraw, ImageFont
-from .datatype import BasicTypeLE
+
 from ..misc.settings import Color
+from ..core.datatype import BasicTypeLE
 __all__ = ['GifExtract', 'BitmapFileHeader', 'BitmapInfoHeader', 'ScrollingTextGifMaker',
            'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555', 'ImageColor']
 
@@ -70,12 +72,12 @@ class BitmapInfoHeader(BasicTypeLE):
 
 def pixel_888_to_555(pixel: Pixel) -> int:
     b, g, r = [(x & 0xff) >> 3 for x in pixel]
-    return (r << 10) | (g << 5) | b
+    return (b << 10) | (g << 5) | r
 
 
 def pixel_888_to_565(pixel: Pixel) -> int:
     b, g, r = [x & 0xff for x in pixel]
-    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+    return ((b >> 3) << 11) | ((g >> 2) << 5) | (r >> 3)
 
 
 def bmp_to_24bpp(im: Image.Image) -> bytes:
@@ -100,7 +102,7 @@ def bmp_to_16bpp(im: Image.Image,
     info_header = BitmapInfoHeader(width=width, height=height, bpp=16)
 
     v_list = range(height)
-    v_list = v_list.__reversed__() if reverse else v_list
+    v_list = v_list if reverse else v_list.__reversed__()
 
     for v in v_list:
         for h in range(width):
@@ -114,28 +116,28 @@ def bmp_to_16bpp(im: Image.Image,
 
 class GifExtract(object):
     def __init__(self, gif: str):
-        self.path = gif
-        self.gif = Image.open(gif)
-        if not isinstance(self.gif, Image.Image):
+        self._path = gif
+        self._gif = Image.open(gif)
+        if not isinstance(self._gif, Image.Image):
             raise TypeError("Open {} error".format(gif))
 
-        if not isinstance(self.gif, GifImagePlugin.GifImageFile):
-            raise TypeError('It not gif image: {}'.format(self.gif.format))
+        if not isinstance(self._gif, GifImagePlugin.GifImageFile):
+            raise TypeError('It not gif image: {}'.format(self._gif.format))
 
         try:
-            self._loop = self.gif.info['loop']
-            self._frame_count = self.gif.n_frames
-            self._duration = self.gif.info['duration']
+            self._loop = self._gif.info['loop']
+            self._frame_count = self._gif.n_frames
+            self._duration = self._gif.info['duration']
         except KeyError:
             raise TypeError("It's not animation gif")
 
         print("{}: {}, {}, frame count: {}, duration: {}, loop: {}".format(
-            gif, self.gif.format, self.gif.size, self.gif.n_frames, self._duration, self._loop
+            gif, self._gif.format, self._gif.size, self._gif.n_frames, self._duration, self._loop
         ))
 
     def __repr__(self):
         return "{}: {}, {}, frame count: {}, duration: {}, loop: {}".format(
-            self.path, self.gif.format, self.gif.size, self.frame_count, self.duration, self.loop
+            self._path, self._gif.format, self._gif.size, self.frame_count, self.duration, self.loop
         )
 
     @property
@@ -143,8 +145,12 @@ class GifExtract(object):
         return self._loop
 
     @property
+    def path(self) -> str:
+        return self._path
+
+    @property
     def size(self) -> Tuple[int, int]:
-        return self.gif.size
+        return self._gif.size
 
     @property
     def duration(self) -> int:
@@ -178,16 +184,16 @@ class GifExtract(object):
 
     def extract(self, frame: int, fmt: str = 'bmp', process: Optional[BmpProcess] = None) -> Optional[bytes]:
         try:
-            self.gif.seek(frame)
+            self._gif.seek(frame)
 
             if callable(process):
-                return process(self.gif.copy())
+                return process(self._gif.copy())
             else:
                 output = io.BytesIO()
-                self.gif.seek(frame)
-                self.gif.save(output, fmt)
+                self._gif.seek(frame)
+                self._gif.save(output, fmt)
                 return output.getvalue()
-        except EOFError as e:
+        except (EOFError, AttributeError, OSError) as e:
             print("Extract gif frame failed: {}".format(e))
             return None
 
@@ -197,6 +203,15 @@ class ScrollingTextGifMaker(object):
         self.margin = margin
         self.background = background
         self.im = Image.new('RGB', size, color=background)
+
+    def isEnding(self, im: Image.Image) -> bool:
+        width, height = im.size
+        bg = im.getpixel((0, 0))
+        for x in range(self.margin):
+            if not all([im.getpixel((width - x - 1, y)) == bg for y in range(height)]):
+                return False
+
+        return True
 
     def calcFontSize(self, text: str, font: str) -> int:
         size = 10
@@ -235,8 +250,7 @@ class ScrollingTextGifMaker(object):
 
     def createScrollTextGifAnimation(self, text: str, path: str,
                                      char_count_per_frame: int, move_pixel_per_frame: int,
-                                     scroll_to_the_end: bool = True, duration: int = 200,
-                                     wait_frame_count: int = 5, blank_frame_count: int = 0,
+                                     duration: int = 200, wait_frame_count: int = 0, blank_frame_count: int = 0,
                                      font: str = 'simsun.ttc', bg: ImageColor = 'black', fg: ImageColor = 'white'):
         """
         Create gif animation from #text specified text and save it to #path specified path
@@ -244,7 +258,6 @@ class ScrollingTextGifMaker(object):
         :param path: gif file save path
         :param char_count_per_frame: how many chars will display on each frame(screen)
         :param move_pixel_per_frame: how many pixels will moved on each frame
-        :param scroll_to_the_end: if set this, it will display to the end, then restart display
         :param duration: gif duration
         :param wait_frame_count: how many frames it will wait at then end
         :param blank_frame_count: how many blank frames it will display at the end
@@ -256,22 +269,25 @@ class ScrollingTextGifMaker(object):
         images = list()
         draw = ImageDraw.Draw(self.im)
         canvas_width, canvas_height = self.im.size
-        font = ImageFont.truetype(font, self.calcFontSize(text[: char_count_per_frame], font=font), encoding='unic')
+        font = ImageFont.truetype(font, self.calcFontSize("汉" * char_count_per_frame, font=font), encoding='unic')
 
-        single_char_width, single_char_height = draw.textsize(text[0], font=font)
+        single_char_width, single_char_height = draw.textsize("汉", font=font)
         v_start = (canvas_height - single_char_height) // 2
         current_render = 0
 
         while text[current_render:]:
-            if not scroll_to_the_end and len(text[current_render:]) <= char_count_per_frame:
-                break
-
             # Dynamically handle per text
             frame_count_per_char = draw.textsize(text[current_render], font=font)[0] // move_pixel_per_frame
 
             for i in range(frame_count_per_char):
                 h_start = -move_pixel_per_frame * i
                 images.append(self.drawAnimationFrame((h_start, v_start), text[current_render:], font, bg, fg))
+
+                if self.isEnding(images[-1]):
+                    break
+
+            if self.isEnding(images[-1]):
+                break
 
             current_render += 1
 
