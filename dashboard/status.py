@@ -65,6 +65,12 @@ class DashboardStatusIcon(QWidget):
     def name(self) -> str:
         return self._name[:]
 
+    @name.setter
+    def name(self, name: str):
+        if isinstance(name, str):
+            self._name = name
+            self.update()
+
     @property
     def font(self) -> QFont:
         return self._font

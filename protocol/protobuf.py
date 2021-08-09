@@ -14,12 +14,18 @@ from typing import Callable, List, Optional, Union, Tuple
 from .crc16 import crc16
 from .serialport import SerialPort
 from ..misc.settings import UiLogMessage
+from ..core.threading import ThreadLockAndDataWrap
 from ..network.utility import create_socket_and_connect
-__all__ = ['ProtoBufSdkCallback',
-           'TransmitException', 'TransmitTimeout',
-           'TCPTransmit', 'UARTTransmit', 'ProtoBufSdk']
+__all__ = ['TransmitException', 'TransmitTimeout',
+           'TCPTransmit', 'UARTTransmit',
+           'ProtoBufSdk', 'ProtoBufSdkCallback',
+           'ProtoBufHandle', 'ProtoBufHandleCallback']
 
+# callback(request message, response raw bytes)
 ProtoBufSdkCallback = Callable[[message.Message, bytes], None]
+
+# callback(request raw bytes) ->  response message
+ProtoBufHandleCallback = Callable[[bytes], Optional[message.Message]]
 
 
 class TransmitException(Exception):
@@ -198,7 +204,7 @@ class ProtoBufSdk(object):
         self._th.join(1)
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return self._transmit.connected
 
     def _timeoutCallback(self):
@@ -287,3 +293,86 @@ class ProtoBufSdk(object):
 
                     if retry >= 3:
                         self._timeoutCallback()
+
+
+class ProtoBufHandle(object):
+    VERBOSE = ThreadLockAndDataWrap(False)
+
+    def __init__(self,
+                 transmit: Transmit,
+                 max_msg_length: int,
+                 handle_callback: ProtoBufHandleCallback,
+                 logging_callback: Optional[Callable[[UiLogMessage], None]] = None):
+        if not isinstance(transmit, Transmit):
+            raise TypeError('{!r} required {!r}'.format('transmit', Transmit.__name__))
+
+        if not callable(handle_callback):
+            raise TypeError('{!r} required {!r}'.format('handle_callback', 'callable object'))
+
+        self._transmit = transmit
+        self._callback = handle_callback
+        self._max_msg_length = max_msg_length
+        self._logging_callback = logging_callback
+        self._th = Thread(target=self.threadCommunicationHandle)
+        self._th.setDaemon(True)
+        self._th.start()
+
+    def __del__(self):
+        self._transmit.disconnect()
+
+    def _loggingCallback(self, msg: UiLogMessage):
+        if callable(self._logging_callback):
+            self._logging_callback(msg)
+
+    def _infoLogging(self, text: str):
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+
+    def _debugLogging(self, text: str):
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+
+    def _errorLogging(self, text: str):
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+
+    @property
+    def connected(self) -> bool:
+        return self._transmit.connected
+
+    def disconnect(self):
+        self._transmit.disconnect()
+
+    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+        return self._transmit.connect(address=address, timeout=timeout)
+
+    def threadCommunicationHandle(self):
+        while True:
+            if not self.connected:
+                time.sleep(0.01)
+                continue
+
+            try:
+                request = self._transmit.rx(self._max_msg_length)
+                if not request:
+                    continue
+
+                if self.VERBOSE:
+                    print("========", request.hex(), time.perf_counter())
+
+                response = self._callback(request)
+                if not isinstance(response, message.Message):
+                    continue
+
+                if self.VERBOSE:
+                    print(response)
+
+                if not self._transmit.tx(response.SerializeToString()):
+                    raise TransmitException("send response error")
+            except AttributeError:
+                break
+            except message.DecodeError as e:
+                self._errorLogging("Decode msg error: {}".format(e))
+                continue
+            except TransmitException as e:
+                self._errorLogging("Comm error: {}".format(e))
+                continue
+            except TransmitTimeout:
+                continue
