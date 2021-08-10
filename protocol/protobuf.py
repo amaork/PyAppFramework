@@ -177,9 +177,6 @@ class UARTTransmit(Transmit):
 
 
 class ProtoBufSdk(object):
-    INFO_LOGGING_COLOR = '#FFFFFF'
-    DEBUG_LOGGING_COLOR = '#BF00BF'
-    ERROR_LOGGING_COLOR = '#FF0000'
     PRIORITY = collections.namedtuple('PRIORITY', ['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW'])(*range(4))
 
     def __init__(self,
@@ -216,13 +213,13 @@ class ProtoBufSdk(object):
             self._logging_callback(msg)
 
     def _infoLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO, color=self.INFO_LOGGING_COLOR))
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
 
     def _debugLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO, color=self.DEBUG_LOGGING_COLOR))
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
 
     def _errorLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO, color=self.ERROR_LOGGING_COLOR))
+        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
 
     def disconnect(self):
         self._transmit.disconnect()

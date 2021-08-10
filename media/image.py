@@ -3,7 +3,6 @@ import io
 import os
 import ctypes
 import struct
-import time
 from typing import Tuple, Callable, Optional, Union
 from PIL import Image, GifImagePlugin, ImageDraw, ImageFont
 
@@ -204,10 +203,10 @@ class ScrollingTextGifMaker(object):
         self.background = background
         self.im = Image.new('RGB', size, color=background)
 
-    def isEnding(self, im: Image.Image) -> bool:
+    def isEnding(self, im: Image.Image, space_width: int) -> bool:
         width, height = im.size
         bg = im.getpixel((0, 0))
-        for x in range(self.margin):
+        for x in range(self.margin + space_width):
             if not all([im.getpixel((width - x - 1, y)) == bg for y in range(height)]):
                 return False
 
@@ -273,6 +272,7 @@ class ScrollingTextGifMaker(object):
 
         single_char_width, single_char_height = draw.textsize("汉", font=font)
         v_start = (canvas_height - single_char_height) // 2
+        space_char_width = draw.textsize(" ", font=font)[0]
         current_render = 0
 
         while text[current_render:]:
@@ -283,10 +283,10 @@ class ScrollingTextGifMaker(object):
                 h_start = -move_pixel_per_frame * i
                 images.append(self.drawAnimationFrame((h_start, v_start), text[current_render:], font, bg, fg))
 
-                if self.isEnding(images[-1]):
+                if self.isEnding(images[-1], space_char_width):
                     break
 
-            if self.isEnding(images[-1]):
+            if self.isEnding(images[-1], space_char_width):
                 break
 
             current_render += 1
