@@ -162,7 +162,7 @@ class UARTTransmit(Transmit):
         try:
             self._timeout = timeout or self.DEFAULT_TIMEOUT
             self.__serial = SerialPort(port=address[0], baudrate=address[1],
-                                       timeout=timeout, ending_check=self.__ending_check)
+                                       timeout=self._timeout, ending_check=self.__ending_check)
             self.__serial.flush()
             self._connected = True
             return self.connected

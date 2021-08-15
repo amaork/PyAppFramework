@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import requests
 import ipaddress
-import fake_useragent
 from typing import Optional
 from pyquery import PyQuery
 import requests_toolbelt.adapters
@@ -35,8 +34,10 @@ class HttpRequest(object):
         except ValueError:
             pass
 
-        self._fake_ua = fake_useragent.UserAgent()
-        self._section.headers = {'User-Agent': self._fake_ua.chrome}
+        self._section.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/65.0.3325.181 Safari/537.36'
+        }
 
     @property
     def timeout(self) -> float:
