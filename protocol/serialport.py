@@ -339,6 +339,9 @@ class SerialPort(object):
         :param timeout: serial port timeout
         :param ending_check: dynamic check if receive is ending or not
         """
+        self.__timeout = timeout
+        self.__ending_check = ending_check
+
         try:
             # xxx.xxx.xxx.xxx/ttyXXX
             if ip4_check(port.split("/")[0]):
@@ -347,8 +350,6 @@ class SerialPort(object):
                 port = (address, remote_port)
                 raise AttributeError
 
-            self.__timeout = timeout
-            self.__ending_check = ending_check
             self.__port = serial.Serial(port=port, baudrate=baudrate,
                                         bytesize=bytesize, parity=parity, stopbits=stopbits,
                                         timeout=0.01 if hasattr(ending_check, "__call__") else timeout)

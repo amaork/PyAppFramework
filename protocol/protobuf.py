@@ -277,8 +277,6 @@ class ProtoBufSdk(object):
                         callback(request, res_data)
 
                     break
-                except AttributeError:
-                    break
                 except message.DecodeError as e:
                     self._errorLogging("Decode msg error: {}".format(e))
                 except TransmitException as e:
