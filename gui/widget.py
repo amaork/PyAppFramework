@@ -28,6 +28,7 @@ import json
 import logging
 import os.path
 import threading
+import collections
 
 from serial import Serial
 from PySide.QtGui import *
@@ -989,9 +990,10 @@ class TableWidget(QTableWidget):
     tableDataChanged = Signal()
     ALL_ACTION = 0x7
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
-    COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
+    ACTION = collections.namedtuple('Action', ['COMM', 'MOVE', 'FROZEN', 'CUSTOM'])(*SUPPORT_ACTIONS)
 
-    def __init__(self, max_column: int, hide_header: bool = False, parent: Optional[QWidget] = None):
+    def __init__(self, max_column: int, hide_header: bool = False,
+                 disable_custom_content_menu: bool = False, parent: Optional[QWidget] = None):
         """Create a QTableWidget
 
         :param max_column: max column number
@@ -1014,11 +1016,11 @@ class TableWidget(QTableWidget):
         self.__contentMenuEnableMask = 0x0
 
         for group, actions in {
-            self.COMM_ACTION: [
+            self.ACTION.COMM: [
                 (QAction(self.tr("Clear All"), self), lambda: self.setRowCount(0)),
             ],
 
-            self.MOVE_ACTION: [
+            self.ACTION.MOVE: [
                 (QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
                 (QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
 
@@ -1034,7 +1036,8 @@ class TableWidget(QTableWidget):
             self.__contentMenu.addSeparator()
 
         self.__scale_x, self.__scale_y = get_program_scale_factor()
-        self.customContextMenuRequested.connect(self.__slotShowContentMenu)
+        if not disable_custom_content_menu:
+            self.customContextMenuRequested.connect(self.__slotShowContentMenu)
         self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
     def tr(self, text: str) -> str:
@@ -1152,7 +1155,7 @@ class TableWidget(QTableWidget):
             if not isinstance(action, QAction):
                 continue
 
-            action.setProperty("group", self.CUSTOM_ACTION)
+            action.setProperty("group", self.ACTION.CUSTOM)
             self.__contentMenu.addAction(action)
 
         self.__contentMenu.addSeparator()
