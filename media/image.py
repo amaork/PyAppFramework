@@ -87,8 +87,8 @@ def bmp_to_24bpp(im: Image.Image) -> bytes:
 
 
 def bmp_to_16bpp(im: Image.Image,
-                 reverse: bool = True, with_header: bool = False,
-                 pixel_process: PixelProcess = pixel_888_to_555) -> bytes:
+                 reverse: bool = True, mirror: bool = False,
+                 with_header: bool = False, pixel_process: PixelProcess = pixel_888_to_555) -> bytes:
     if not callable(pixel_process):
         raise TypeError("'pixel_process' must be callable")
 
@@ -100,11 +100,17 @@ def bmp_to_16bpp(im: Image.Image,
     file_header = BitmapFileHeader()
     info_header = BitmapInfoHeader(width=width, height=height, bpp=16)
 
-    v_list = range(height)
-    v_list = v_list if reverse else v_list.__reversed__()
+    h_list = list(range(width))
+    v_list = list(range(height))
+
+    if mirror:
+        h_list.reverse()
+
+    if not reverse:
+        v_list.reverse()
 
     for v in v_list:
-        for h in range(width):
+        for h in h_list:
             # Already handle the width can't divisible by 4 issue
             offset = (height - v - 1) * width * 3 + h * 3
             bpp16.append(pixel_process(original[offset: offset + 3]))
