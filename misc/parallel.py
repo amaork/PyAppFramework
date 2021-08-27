@@ -22,6 +22,10 @@ class ParallelOperate(object):
     def _operate(self, *args, **kwargs):
         pass
 
+    @abc.abstractmethod
+    def _format_log(self, msg: str):
+        return "{} {}".format(time.strftime(self.LOG_TIME_FORMAT), msg)
+
     def run(self, *args, **kwargs):
         try:
             result = self._operate(*args, **kwargs)
@@ -52,19 +56,13 @@ class ParallelOperate(object):
             self._logging(msg)
 
     def infoLogging(self, content: str):
-        self.logging(UiLogMessage.genDefaultInfoMessage(
-            "{} {}".format(time.strftime(self.LOG_TIME_FORMAT), content)
-        ))
+        self.logging(UiLogMessage.genDefaultInfoMessage(self._format_log(content)))
 
     def debugLogging(self, content: str):
-        self.logging(UiLogMessage.genDefaultDebugMessage(
-            "{} {}".format(time.strftime(self.LOG_TIME_FORMAT), content)
-        ))
+        self.logging(UiLogMessage.genDefaultDebugMessage(self._format_log(content)))
 
     def errorLogging(self, content: str):
-        self.logging(UiLogMessage.genDefaultErrorMessage(
-            "{} {}".format(time.strftime(self.LOG_TIME_FORMAT), content)
-        ))
+        self.logging(UiLogMessage.genDefaultErrorMessage(self._format_log(content)))
 
 
 class ConcurrentLauncher(object):

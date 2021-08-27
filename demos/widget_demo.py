@@ -427,7 +427,6 @@ class MultiJsonSettingsWidgetTest(QWidget):
         super(MultiJsonSettingsWidgetTest, self).__init__(parent)
 
         data = [
-
             (False, "123", 10, 4.5, "A", "ABCDEF_1", "", ""),
             (True, "1234", 20, 5.5, "A", "ABCDEF_12", "", ""),
             (False, "12345", 30, 6.5, "B", "ABCDEF_123", "", ""),

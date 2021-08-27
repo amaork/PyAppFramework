@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import platform
-from typing import NamedTuple
-__all__ = ['get_win_dpi', 'get_program_scale_factor', 'DPI', 'ScaleFactor']
+from typing import NamedTuple, Tuple
+__all__ = ['get_win_dpi', 'get_program_scale_factor', 'scale_x', 'scale_y', 'scale_size', 'DPI', 'ScaleFactor']
 
+Size = Tuple[int, int]
 DPI = NamedTuple('DPI', [('x', int), ('y', int)])
 ScaleFactor = NamedTuple('ScaleFactor', [('x', float), ('y', float)])
 
@@ -57,6 +58,22 @@ def get_program_scale_factor() -> ScaleFactor:
     current_dpi_y = float(current_dpi_y)
 
     return ScaleFactor(current_dpi_x / default_dpi_x, current_dpi_y / default_dpi_y)
+
+
+def scale_x(width: int) -> int:
+    factor = get_program_scale_factor()
+    return int(factor.x * width)
+
+
+def scale_y(height: int) -> int:
+    factor = get_program_scale_factor()
+    return int(factor.y * height)
+
+
+def scale_size(size: Size) -> Size:
+    factor = get_program_scale_factor()
+    width, height = size
+    return int(factor.x * width), int(factor.y * height)
 
 
 if __name__ == '__main__':

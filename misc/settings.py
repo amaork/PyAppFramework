@@ -113,7 +113,8 @@ class UiInputSetting(DynamicObject):
     SELECT_TYPE_CHECK_DEMO = ("A", "B", "C")
 
     # Regular expression, max length
-    TEXT_TYPE_CHECK_DEMO = ("^(\d+)\.(\d+)\.(\d+)\.(\d+)$", 16)
+    TEXT_TYPE_CHECK_DEMO = ("^(\d+)\.(\d+)\.(\d+)\.(\d+)$", 16, False)
+    PASSWORD_TYPE_CHECK_DEMO = ("[\s\S]*", 16, True)
 
     def __init__(self, **kwargs):
         kwargs.setdefault('readonly', False)
@@ -207,6 +208,8 @@ class UiInputSetting(DynamicObject):
                                       check=UiInputSetting.INT_TYPE_CHECK_DEMO, default=50, readonly=True)
         text_input = UiInputSetting(name="文本", type="TEXT", data="192.168.1.1",
                                     check=UiInputSetting.TEXT_TYPE_CHECK_DEMO, default="192.168.1.11")
+        password_input = UiInputSetting(name="密码", type="TEXT", data="HIDDEN PASSWORD",
+                                        check=UiInputSetting.PASSWORD_TYPE_CHECK_DEMO, default="")
         bool_input = UiInputSetting(name="布尔", type="BOOL", data=False,
                                     check=UiInputSetting.BOOL_TYPE_CHECK_DEMO, default=True)
         float_input = UiInputSetting(name="浮点", type="FLOAT", data=5.0,
@@ -240,7 +243,7 @@ class UiInputSetting(DynamicObject):
             layout = UiLayout(name="Json Demo 设置 （VBox）",
                               layout=["int", "float",
                                       "ts_int", "ts_float",
-                                      "bool", "text", "select", 'sbs_select',
+                                      "bool", "text", "password", "select", 'sbs_select',
                                       "file", "folder", "serial", "font", "color", "network", "address"])
         return DynamicObject(int=int_input.dict, ts_int=ts_int_input.dict,
                              float=float_input.dict, ts_float=ts_float_input.dict,
@@ -248,7 +251,8 @@ class UiInputSetting(DynamicObject):
                              font=font_input.dict, color=color_input.dict,
                              folder=folder_input.dict,
                              network=network_input.dict, address=address_input.dict,
-                             text=text_input.dict, file=file_input.dict, serial=serial_input.dict,
+                             text=text_input.dict, password=password_input.dict,
+                             file=file_input.dict, serial=serial_input.dict,
                              select=select_input.dict, sbs_select=sbs_select_input.dict,
                              layout=layout.dict)
 
@@ -310,9 +314,10 @@ class UiFontInput(UiInputSetting):
 class UiTextInput(UiInputSetting):
     CHECK = collections.namedtuple('UiTextInputCheck', ['REGEXP', 'LENGTH'])(*range(2))
 
-    def __init__(self, name: str, length: int, default: str = "", re_: str = "[\s\S]*", readonly: bool = False):
+    def __init__(self, name: str, length: int, default: str = "",
+                 password: bool = False, re_: str = "[\s\S]*", readonly: bool = False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
-                                          check=(re_, length), readonly=readonly, type="TEXT")
+                                          check=(re_, length, password), readonly=readonly, type="TEXT")
 
 
 class UiTimeInput(UiTextInput):
@@ -475,11 +480,13 @@ class UiCheckBoxInput(UiInputSetting):
 
 
 class UiLayout(DynamicObject):
-    _properties = {'name', 'layout', 'margins', 'spaces', 'title'}
+    _properties = {'name', 'layout', 'margins', 'spaces', 'stretch', 'min_size', 'title'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "")
         kwargs.setdefault("title", False)
+        kwargs.setdefault('stretch', (0, 0))
+        kwargs.setdefault('min_size', (0, 0))
         kwargs.setdefault("spaces", (6, 6, 6))
         kwargs.setdefault("margins", (9, 9, 9, 9))
         super(UiLayout, self).__init__(**kwargs)
@@ -501,6 +508,12 @@ class UiLayout(DynamicObject):
 
     def get_margins(self) -> LayoutMargins:
         return tuple(self.margins)
+
+    def get_min_size(self) -> Tuple[int, int]:
+        return tuple(self.min_size)
+
+    def get_stretch(self) -> Tuple[int, int]:
+        return tuple(self.stretch)
 
     def force_display_title(self):
         return self.title

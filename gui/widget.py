@@ -2236,6 +2236,9 @@ class BasicJsonSettingWidget(QWidget):
         layout.setVerticalSpacing(v)
         layout.setHorizontalSpacing(h)
         layout.setContentsMargins(*tuple(self.layout.get_margins()))
+        if any(self.layout.get_stretch()):
+            for column, stretch in enumerate(self.layout.get_stretch()):
+                layout.setColumnStretch(column, stretch)
         return layout
 
     def getData(self) -> Any:
@@ -2337,6 +2340,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
             row += 1
         self.setLayout(layout)
+        if all(self.layout.get_min_size()):
+            self.setMinimumSize(QSize(*self.layout.get_min_size()))
         self.ui_manager = ComponentManager(layout)
         self.ui_manager.dataChanged.connect(self.slotSettingChanged)
         self.ui_manager.dataChangedDetail.connect(self.settingChangedDetail.emit)
@@ -2546,6 +2551,11 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget = QLineEdit(parent)
                 widget.setText(setting.get_data())
                 widget.setPlaceholderText(setting.get_default())
+
+                # If password set set echo mode
+                if len(setting.get_check()) == 3 and setting.get_check()[-1]:
+                    widget.setEchoMode(QLineEdit.Password)
+
                 # Set regular expression and max length
                 widget.setProperty("filter", setting.check[UiTextInput.CHECK.REGEXP])
                 widget.setValidator(QRegExpValidator(QRegExp(setting.check[UiTextInput.CHECK.REGEXP])))
