@@ -8,15 +8,16 @@ import struct
 import socket
 import platform
 import ipaddress
+import collections
 import concurrent.futures
 from threading import Thread
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict, Union, Tuple
 from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
            'get_host_address', 'get_broadcast_address',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
-           'create_socket_and_connect',
+           'create_socket_and_connect', 'wait_device_reboot',
            'SocketSingleInstanceLock', 'NicInfo']
 
 
@@ -149,6 +150,32 @@ def connect_device(address: str, port: int, timeout: float = 0.03) -> Union[str,
         return address
     except (socket.timeout, ConnectionError, ConnectionRefusedError, ConnectionResetError, OSError):
         return None
+
+
+def wait_device_reboot(address: str, shutdown_wait: int = 30, reboot_wait: int = 180) -> Tuple[bool, bool]:
+    # First wait shutdown
+    reboot = False
+    shutdown = False
+    reboot_result = collections.namedtuple('reboot_result', ['shutdown', 'reboot'])
+
+    # Wait shutdown
+    t0 = time.perf_counter()
+    while time.perf_counter() - t0 < shutdown_wait:
+        if ping3.ping(dest_addr=address, timeout=1) is None:
+            shutdown = True
+            break
+
+    if not shutdown:
+        return reboot_result(shutdown, reboot)
+
+    # Wait reboot
+    t0 = time.perf_counter()
+    while time.perf_counter() - t0 < reboot_wait:
+        if ping3.ping(dest_addr=address, timeout=1) is not None:
+            reboot = True
+            break
+
+    return reboot_result(shutdown, reboot)
 
 
 def scan_lan_port(port: int, network: Union[ipaddress.IPv4Network, str] = "",

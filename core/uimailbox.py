@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from threading import Timer
 from typing import Callable, Optional, Union
-from PySide.QtCore import Qt, Signal, Slot, QObject
+from PySide.QtCore import Qt, Signal, Slot, QObject, QTimer
 from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
 
 from .threading import ThreadConditionWrap
@@ -155,6 +155,7 @@ class QuestionBoxMail(BaseUiMail):
 
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
+    timingCallback = Signal(object, object)
 
     def __init__(self, parent: QWidget):
         """UI mail box using send and receive ui display message in thread
@@ -234,9 +235,8 @@ class UiMailBox(QObject):
         # Callback function
         elif isinstance(mail, CallbackFuncMail):
             if mail.timeout:
-                timer = Timer(mail.timeout, mail.callback, mail.args, mail.kwargs)
-                timer.setDaemon(True)
-                timer.start()
+                # Using QTimer improve security
+                QTimer.singleShot(mail.timeout * 1000, lambda: mail.callback(*mail.args, **mail.kwargs))
             else:
                 # Timeout is zero call it immediately
                 mail.callback(*mail.args, **mail.kwargs)
