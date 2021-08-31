@@ -5,7 +5,7 @@ import json
 import codecs
 import logging
 import collections
-from string import Template
+from string import Template, hexdigits
 from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple
 
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
@@ -389,6 +389,18 @@ class UiColorInput(UiInputSetting):
         color = r, g, b
         super(UiColorInput, self).__init__(name=name, data="{}".format(color), default="{}".format(color),
                                            check="", readonly=False, type="COLOR")
+
+    @staticmethod
+    def html2rgb(html_color: str) -> Color:
+        if len(html_color) != 7 or html_color[0] != '#' or any([x.upper() not in hexdigits for x in html_color[1:]]):
+            return 0, 0, 0
+
+        a, b = html_color[1::2], html_color[2::2]
+        return tuple([int(a + b, 16) for a, b in zip(html_color[1::2], html_color[2::2])])
+
+    @staticmethod
+    def rgb2html(rgb_color: Color) -> str:
+        return "#{:2X}{:2X}{:2X}".format(*rgb_color)
 
     @staticmethod
     def get_color(color_setting: Union[str, Color]) -> Color:

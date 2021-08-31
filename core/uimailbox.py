@@ -155,7 +155,6 @@ class QuestionBoxMail(BaseUiMail):
 
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
-    timingCallback = Signal(object, object)
 
     def __init__(self, parent: QWidget):
         """UI mail box using send and receive ui display message in thread
