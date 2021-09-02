@@ -4,17 +4,14 @@ import queue
 import socket
 import serial
 import struct
-import logging
-import collections
 from threading import Thread
 import google.protobuf.message as message
-from typing import Callable, List, Optional, Union, Tuple
+from typing import Callable, List, Optional, Tuple
 
 
 from .crc16 import crc16
 from .serialport import SerialPort
 from ..misc.settings import UiLogMessage
-from ..core.threading import ThreadLockAndDataWrap
 from ..network.utility import create_socket_and_connect
 __all__ = ['TransmitException', 'TransmitTimeout',
            'TCPTransmit', 'UARTTransmit',
@@ -101,6 +98,12 @@ class TCPTransmit(Transmit):
             pass
 
     def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
+        """
+        Connect tcp server
+        :param address: (host, port)
+        :param timeout: socket timeout in seconds
+        :return:
+        """
         try:
             self._address = address
             self._timeout = timeout or self.DEFAULT_TIMEOUT
@@ -159,6 +162,12 @@ class UARTTransmit(Transmit):
             pass
 
     def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+        """
+        Open serial port
+        :param address: (port name, baudrate)
+        :param timeout: serial timeout in seconds
+        :return:
+        """
         try:
             self._timeout = timeout or self.DEFAULT_TIMEOUT
             self.__serial = SerialPort(port=address[0], baudrate=address[1],
@@ -177,66 +186,88 @@ class UARTTransmit(Transmit):
 
 
 class ProtoBufSdk(object):
-    PRIORITY = collections.namedtuple('PRIORITY', ['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW'])(*range(4))
-
     def __init__(self,
                  transmit: Transmit,
                  max_msg_length: int,
                  timeout_callback: Callable,
                  logging_callback: Optional[Callable[[UiLogMessage], None]] = None):
+        """
+        Init a protocol buffers sdk
+        :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
+        :param max_msg_length: protocol buffers maximum message length
+        :param timeout_callback: when transmit timeout will call this callback
+        :param logging_callback: communicate logging callback
+        """
         if not isinstance(transmit, Transmit):
             raise TypeError('{!r} required {!r}'.format('transmit', Transmit.__name__))
 
         self._transmit = transmit
         self._max_msg_length = max_msg_length
         self._comm_queue = queue.PriorityQueue()
+
         self._logging_callback = logging_callback
         self._timeout_callback = timeout_callback
-        self._th = Thread(target=self.threadCommunicationHandle)
-        self._th.setDaemon(True)
-        self._th.start()
+        Thread(target=self.threadCommunicationHandle, daemon=True).start()
 
     def __del__(self):
         self._transmit.disconnect()
-        self._th.join(1)
+
+    @property
+    def name(self) -> str:
+        return type(self).__name__
 
     @property
     def connected(self) -> bool:
         return self._transmit.connected
 
-    def _timeoutCallback(self):
-        if callable(self._timeout_callback):
-            self._timeout_callback()
-
     def _loggingCallback(self, msg: UiLogMessage):
         if callable(self._logging_callback):
             self._logging_callback(msg)
 
-    def _infoLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _infoLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultInfoMessage(msg))
 
-    def _debugLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _debugLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultDebugMessage(msg))
 
-    def _errorLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _errorLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultErrorMessage(msg))
 
     def disconnect(self):
         self._transmit.disconnect()
 
     def connect(self, address: Tuple[str, int], timeout: float) -> bool:
-        return self._transmit.connect(address=address, timeout=timeout)
+        """
+        Init transmit
+        :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baudrate)
+        :param timeout: transmit communicate timeout is seconds
+        :return: success return true, failed return false
+        """
+        result = self._transmit.connect(address=address, timeout=timeout)
+        msg = "{!r} connect {}({})".format(self.name, "success" if result else "failed", address)
+        self._infoLogging(msg) if result else self._errorLogging(msg)
+        return result
 
-    def sendRequestToQueue(self, msg: message.Message,
+    def sendRequestToQueue(self,
+                           msg: message.Message,
                            callback: Optional[ProtoBufSdkCallback] = None,
-                           priority: Union[int, float] = PRIORITY.LOW, periodic: bool = True):
+                           priority: Optional[int] = None, periodic: bool = True):
+        """
+        Send request to queue
+        :param msg: request message
+        :param callback: after receive response will call this callback
+        :param priority: message priority if set as None using it as normal queue
+        :param periodic: it this message is periodic request(do not need retry if send failed)
+        :return:
+        """
         try:
             if not self.connected or not isinstance(msg, message.Message):
                 return
 
+            priority = time.perf_counter() if priority is None else priority
             self._comm_queue.put((priority, (msg, callback, periodic)))
         except (queue.Full, TypeError) as e:
-            print("sendRequestToQueue error: {}".format(e))
+            self._errorLogging("{!r} sendRequestToQueue error: {}({})".format(self.name, e, msg))
 
     def threadCommunicationHandle(self):
         while True:
@@ -287,30 +318,37 @@ class ProtoBufSdk(object):
                     time.sleep(retry * 0.3)
 
                     if retry >= 3:
-                        self._timeoutCallback()
+                        if callable(self._timeout_callback):
+                            self._infoLogging("{!r}: Timeout".format(self.name))
+                            self._timeout_callback()
 
 
 class ProtoBufHandle(object):
-    VERBOSE = ThreadLockAndDataWrap(False)
-
     def __init__(self,
                  transmit: Transmit,
                  max_msg_length: int,
                  handle_callback: ProtoBufHandleCallback,
-                 logging_callback: Optional[Callable[[UiLogMessage], None]] = None):
+                 logging_callback: Optional[Callable[[UiLogMessage], None]] = None, verbose: bool = False):
+        """
+        Init a protocol buffers handle for protocol buffer comm simulator
+        :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
+        :param max_msg_length: protocol buffers maximum message length
+        :param handle_callback: when received an request will callback this
+        :param logging_callback: communicate logging callback
+        :param verbose: show communicate verbose detail
+        """
         if not isinstance(transmit, Transmit):
             raise TypeError('{!r} required {!r}'.format('transmit', Transmit.__name__))
 
         if not callable(handle_callback):
             raise TypeError('{!r} required {!r}'.format('handle_callback', 'callable object'))
 
+        self._verbose = verbose
         self._transmit = transmit
         self._callback = handle_callback
         self._max_msg_length = max_msg_length
         self._logging_callback = logging_callback
-        self._th = Thread(target=self.threadCommunicationHandle)
-        self._th.setDaemon(True)
-        self._th.start()
+        Thread(target=self.threadCommunicationHandle, daemon=True).start()
 
     def __del__(self):
         self._transmit.disconnect()
@@ -319,14 +357,18 @@ class ProtoBufHandle(object):
         if callable(self._logging_callback):
             self._logging_callback(msg)
 
-    def _infoLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _infoLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultInfoMessage(msg))
 
-    def _debugLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _debugLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultDebugMessage(msg))
 
-    def _errorLogging(self, text: str):
-        self._loggingCallback(UiLogMessage(content=text, level=logging.INFO))
+    def _errorLogging(self, msg: str):
+        self._loggingCallback(UiLogMessage.genDefaultErrorMessage(msg))
+
+    @property
+    def name(self) -> str:
+        return type(self).__name__
 
     @property
     def connected(self) -> bool:
@@ -336,7 +378,16 @@ class ProtoBufHandle(object):
         self._transmit.disconnect()
 
     def connect(self, address: Tuple[str, int], timeout: float) -> bool:
-        return self._transmit.connect(address=address, timeout=timeout)
+        """
+        Init transmit
+        :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baudrate)
+        :param timeout: transmit communicate timeout is seconds
+        :return: success return true, failed return false
+        """
+        result = self._transmit.connect(address=address, timeout=timeout)
+        msg = "{!r} connect {}({})".format(self.name, "success" if result else "failed", address)
+        self._infoLogging(msg) if result else self._errorLogging(msg)
+        return result
 
     def threadCommunicationHandle(self):
         while True:
@@ -345,22 +396,26 @@ class ProtoBufHandle(object):
                 continue
 
             try:
+                # Receive request
                 request = self._transmit.rx(self._max_msg_length)
                 if not request:
                     continue
 
-                if self.VERBOSE:
-                    print("========", request.hex(), time.perf_counter())
+                if self._verbose:
+                    print("<<< {:.2f}: [{}] {}".format(time.perf_counter(), len(request), request.hex()))
 
+                # Call callback get response
                 response = self._callback(request)
                 if not isinstance(response, message.Message):
                     continue
 
-                if self.VERBOSE:
-                    print(response)
+                response = response.SerializeToString()
 
-                if not self._transmit.tx(response.SerializeToString()):
+                if not self._transmit.tx(response):
                     raise TransmitException("send response error")
+
+                if self._verbose:
+                    print(">>> {:.2f}: [{}] {}".format(time.perf_counter(), len(response), response.hex()))
             except AttributeError:
                 break
             except message.DecodeError as e:

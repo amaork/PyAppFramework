@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import glob
 import platform
+
+import websocket
 from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports
@@ -90,7 +92,7 @@ class SerialPortSelector(QComboBox):
             for raspberry in scan_server(timeout):
                 for port in Query(raspberry).get_serial_list():
                     self.addItem("{}/{}".format(raspberry, port.split("/")[-1]), (raspberry, port))
-        except (RaspiSocketError, IndexError, ValueError, OSError):
+        except (RaspiSocketError, TypeError, IndexError, ValueError, OSError, websocket.WebSocketTimeoutException):
             pass
 
     def slotPortSelected(self, idx: int) -> bool:

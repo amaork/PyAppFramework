@@ -25,6 +25,7 @@ MultiTabJsonSettingsWidget
 """
 import re
 import json
+import html
 import logging
 import os.path
 import threading
@@ -3096,14 +3097,13 @@ class LogMessageWidget(QTextEdit):
 
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
-                 transform_space: bool = False, parent: Optional[QWidget] = None):
+                 parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
 
         self.setReadOnly(True)
         self._logFilename = filename
         self._startTime = datetime.now()
         self._displayFilter = self.DISPLAY_ALL
-        self._transformSpace = transform_space
         self.textChanged.connect(self.slotAutoScroll)
 
         # Get logger and set level and propagate
@@ -3191,7 +3191,7 @@ class LogMessageWidget(QTextEdit):
             self.append("<font color='{}' size={}>{}: {}</font>".format(
                 message.color, message.font_size,
                 logging.getLevelName(message.level),
-                message.content.replace(" ", "&nbsp;") if self._transformSpace else message.content)
+                html.escape(message.content))
             )
 
         # Write to log file if write_to_log set
