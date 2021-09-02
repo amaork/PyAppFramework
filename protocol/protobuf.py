@@ -220,6 +220,10 @@ class ProtoBufSdk(object):
     def connected(self) -> bool:
         return self._transmit.connected
 
+    @property
+    def isCommIdle(self, remain: int = 1) -> bool:
+        return self._comm_queue.qsize() <= remain
+
     def _loggingCallback(self, msg: UiLogMessage):
         if callable(self._logging_callback):
             self._logging_callback(msg)
@@ -272,7 +276,7 @@ class ProtoBufSdk(object):
     def threadCommunicationHandle(self):
         while True:
             if not self.connected:
-                time.sleep(0.1)
+                time.sleep(0.05)
                 continue
 
             try:

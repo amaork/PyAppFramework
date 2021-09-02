@@ -44,7 +44,12 @@ class SwTimer(object):
         if not callable(self._cb_callback):
             return
 
-        self._cb_callback(*self._cb_args, **self._cb_kwargs)
+        if self._cb_args:
+            self._cb_callback(*(self, *self._cb_args))
+        elif self._cb_kwargs:
+            self._cb_callback(timer=self, **self._cb_kwargs)
+        else:
+            self._cb_callback(self)
 
     @property
     def cnt(self) -> int:

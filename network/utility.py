@@ -148,7 +148,7 @@ def connect_device(address: str, port: int, timeout: float = 0.03) -> Union[str,
         s.connect((address, port))
         s.close()
         return address
-    except (socket.timeout, ConnectionError, ConnectionRefusedError, ConnectionResetError, OSError):
+    except (socket.timeout, ConnectionError, TimeoutError):
         return None
 
 

@@ -310,7 +310,7 @@ class RMISTelnetClient(RMIShellClient):
                 raise RMIShellClientException("Wait shell prompt[{}] failed".format(self._shell_prompt))
 
             return client
-        except (EOFError, ConnectionError, ConnectionRefusedError, TimeoutError, socket.timeout, OSError) as error:
+        except (EOFError, OSError) as error:
             raise RMIShellClientException("Login error: {}".format(error))
 
     def exec(self, command: str, params: Optional[List[str]] = None,
