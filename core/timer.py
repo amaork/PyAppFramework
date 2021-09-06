@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
 import threading
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from .threading import ThreadLockAndDataWrap
 __all__ = ['SwTimer']
 
 
 class SwTimer(object):
-    def __init__(self, base: float = 1.0, callback: Optional[Callable] = None,
+    def __init__(self, base: float = 1.0,
+                 private: Any = None,
+                 callback: Optional[Callable] = None,
                  cb_args: Optional[tuple] = None, cb_kwargs: Optional[dict] = None, auto_start: bool = False):
         """
-
-        :param base:
-        :param callback:
-        :param cb_args:
-        :param cb_kwargs:
-        :param auto_start:
+        Software timer base on thread
+        :param base: timer base interval unit second
+        :param callback: timer callback
+        :param cb_args: timer callback args (Notice: callback first arg always be the SwTimer itself)
+        :param cb_kwargs: timer callback kwargs (Notice: callback kwargs always has a key named timer(SwTimer itself))
+        :param auto_start: auto start the timer
         """
         self._base = base
+        self._private = private
         self._cb_callback = callback
         self._cb_args = cb_args or ()
         self._cb_kwargs = cb_kwargs or dict()
@@ -31,7 +34,7 @@ class SwTimer(object):
         self._th.start()
 
     def __del__(self):
-        self.kill()
+        self.stop()
 
     def __timer_thread(self):
         while not self._stop:
@@ -55,11 +58,18 @@ class SwTimer(object):
     def cnt(self) -> int:
         return self._timer_cnt.data
 
-    def kill(self):
+    @property
+    def private(self) -> Any:
+        return self._private
+
+    @private.setter
+    def private(self, data: Any):
+        self._private = data
+
+    def stop(self):
         self._event.set()
         self._stop.data = True
         self._is_running.data = False
-        self._th.join()
 
     def pause(self):
         self._is_running.data = False
@@ -78,3 +88,21 @@ class SwTimer(object):
 
     def is_timeout(self, time: float) -> bool:
         return self.time_elapsed() >= time
+
+    @staticmethod
+    def singleShot(timeout: float,
+                   callback: Optional[Callable] = None,
+                   cb_args: Optional[tuple] = None, cb_kwargs: Optional[dict] = None):
+        """
+        Create a single shot SwTimer
+        :param timeout: timer timeout in second
+        :param callback: timer timeout callback
+        :param cb_args: timer callback args
+        :param cb_kwargs: timer callback kwargs
+        :return:
+        """
+        def callback_wrapper(timer: SwTimer, *args, **kwargs):
+            timer.stop()
+            callback(*args, **kwargs)
+
+        SwTimer(base=timeout, callback=callback_wrapper, cb_args=cb_args, cb_kwargs=cb_kwargs, auto_start=True)
