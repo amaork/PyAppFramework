@@ -22,16 +22,33 @@ class SoundPlay(object):
         pygame.mixer.quit()
 
     @property
-    def volume(self) -> float:
-        return self.__music_volume if not self.is_playing else pygame.mixer.music.get_volume()
-
-    @property
     def is_paused(self) -> bool:
         return self.__paused
 
     @property
     def is_playing(self) -> bool:
         return pygame.mixer.music.get_busy() and not self.is_paused
+
+    @property
+    def music_volume(self) -> float:
+        return self.__music_volume if not self.is_playing else pygame.mixer.music.get_volume()
+
+    @property
+    def effect_volume(self) -> float:
+        return self.__effect.get_volume() if isinstance(self.__effect, pygame.mixer.Sound) else self.__effect_volume
+
+    @music_volume.setter
+    def music_volume(self, volume: float):
+        pygame.mixer.music.set_volume(volume)
+        self.__music_volume = pygame.mixer.music.get_volume()
+
+    @effect_volume.setter
+    def effect_volume(self, volume: float):
+        if isinstance(self.__effect, pygame.mixer.Sound):
+            self.__effect.set_volume(volume)
+            self.__effect_volume = self.__effect.get_volume()
+        else:
+            self.__effect_volume = volume
 
     def stop(self):
         if self.is_playing:
@@ -50,19 +67,19 @@ class SoundPlay(object):
 
     def increase_music_volume(self, step: float = 0.1) -> float:
         if not self.is_playing:
-            return self.volume
+            return self.music_volume
 
         volume = pygame.mixer.music.get_volume() + step
         pygame.mixer.music.set_volume(1.0 if volume > 1.0 else volume)
-        return self.volume
+        return self.music_volume
 
     def decrease_music_volume(self, step: int = 0.1):
         if not self.is_playing:
-            return self.volume
+            return self.music_volume
 
         volume = pygame.mixer.music.get_volume() - step
         pygame.mixer.music.set_volume(0.0 if volume < 0.0 else volume)
-        return self.volume
+        return self.music_volume
 
     @staticmethod
     def volume_auto_control(volume_control: Callable[[float], float],
