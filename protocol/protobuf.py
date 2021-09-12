@@ -189,7 +189,7 @@ class ProtoBufSdk(object):
     def __init__(self,
                  transmit: Transmit,
                  max_msg_length: int,
-                 timeout_callback: Callable,
+                 timeout_callback: Callable[[bool], None],
                  logging_callback: Optional[Callable[[UiLogMessage], None]] = None):
         """
         Init a protocol buffers sdk
@@ -205,6 +205,7 @@ class ProtoBufSdk(object):
         self._max_msg_length = max_msg_length
         self._comm_queue = queue.PriorityQueue()
 
+        self._timeout = False
         self._logging_callback = logging_callback
         self._timeout_callback = timeout_callback
         Thread(target=self.threadCommunicationHandle, daemon=True).start()
@@ -311,6 +312,11 @@ class ProtoBufSdk(object):
                     if callable(callback):
                         callback(request, res_data)
 
+                    # Clear timeout flag
+                    if self._timeout:
+                        self._timeout = False
+                        self._timeout_callback(self._timeout)
+
                     break
                 except message.DecodeError as e:
                     self._errorLogging("Decode msg error: {}".format(e))
@@ -322,9 +328,11 @@ class ProtoBufSdk(object):
                     time.sleep(retry * 0.3)
 
                     if retry >= 3:
+                        # Set timeout flag
                         if callable(self._timeout_callback):
                             self._infoLogging("{!r}: Timeout".format(self.name))
-                            self._timeout_callback()
+                            self._timeout = True
+                            self._timeout_callback(self._timeout)
 
 
 class ProtoBufHandle(object):

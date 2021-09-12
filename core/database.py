@@ -26,11 +26,19 @@ class SQLiteDatabase(object):
     TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
     TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
-    def __init__(self, db_path: str, timeout: int = 20, check_same_thread: bool = True):
-        if not os.path.isfile(db_path):
-            raise IOError("{} do not exist".format(db_path))
+    def __init__(self, db_path: str,
+                 timeout: int = 20,
+                 check_same_thread: bool = True,
+                 conn: Optional[sqlite3.Connection] = None):
 
-        self._conn = sqlite3.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
+        if isinstance(conn, sqlite3.Connection):
+            self._conn = conn
+        else:
+            if not os.path.isfile(db_path):
+                raise IOError("{} do not exist".format(db_path))
+
+            self._conn = sqlite3.connect(db_path, timeout=timeout, check_same_thread=check_same_thread)
+
         self._cursor = self._conn.cursor()
 
     @property
