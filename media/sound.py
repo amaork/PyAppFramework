@@ -4,6 +4,7 @@ import time
 import pygame
 import threading
 from typing import *
+from ..core.timer import SwTimer
 __all__ = ['SoundPlay']
 
 
@@ -14,12 +15,20 @@ class SoundPlay(object):
         self.__paused = False
         self.__music_volume = music_volume
         self.__effect_volume = effect_volume
+        self.__stop_music_callback = None
+        self.__timer = SwTimer(base=1.0, callback=self.__callback)
 
         pygame.mixer.init()
         pygame.mixer.music.set_volume(music_volume)
 
     def __del__(self):
         pygame.mixer.quit()
+
+    def __callback(self, timer: SwTimer):
+        if not self.is_playing:
+            timer.pause()
+            if callable(self.__stop_music_callback):
+                self.__stop_music_callback(timer.time_elapsed())
 
     @property
     def is_paused(self) -> bool:
@@ -110,21 +119,33 @@ class SoundPlay(object):
             print("Play music error: {}".format(e))
             return False
 
-    def play_music(self, name: str, start: int = 0, times: int = -1, volume: Optional[float] = None) -> bool:
+    def play_music(self, name: str,
+                   start: int = 0, times: int = -1, volume: Optional[float] = None,
+                   stop_callback: Optional[Callable[[str, int, float], None]] = None) -> float:
         if name not in os.listdir(self.__lib):
             print("Background music {!r} not exist".format(name))
-            return False
+            return 0.0
+
+        path = os.path.join(self.__lib, name)
 
         try:
-            pygame.mixer.music.load(os.path.join(self.__lib, name))
+            pygame.mixer.music.load(path)
+            sound = pygame.mixer.Sound(path)
             if isinstance(volume, float) and 0.1 <= volume <= 1.0 and pygame.mixer.music.get_volume() != volume:
                 pygame.mixer.music.set_volume(volume)
             pygame.mixer.music.play(times, start)
 
-            return True
+            if times != -1 and callable(stop_callback):
+                self.__stop_music_callback = lambda play_time: stop_callback(name, start, play_time)
+                self.__timer.reset()
+                self.__timer.resume()
+            else:
+                self.__timer.pause()
+
+            return sound.get_length()
         except pygame.error as e:
             print("Play music error: {}".format(e))
-            return False
+            return 0.0
 
     def auto_increase_volume(self, step: float = 0.1, maximum: float = 1.0, interval: int = 5):
         args = (self.increase_music_volume, lambda x: x >= maximum, step, interval)

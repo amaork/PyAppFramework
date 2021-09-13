@@ -6,10 +6,11 @@ import struct
 from typing import Tuple, Callable, Optional, Union
 from PIL import Image, GifImagePlugin, ImageDraw, ImageFont
 
-from ..misc.settings import Color
-from ..core.datatype import BasicTypeLE
-__all__ = ['GifExtract', 'BitmapFileHeader', 'BitmapInfoHeader', 'ScrollingTextGifMaker',
-           'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555', 'ImageColor']
+from ..core.datatype import BasicTypeLE, DynamicObject
+from ..misc.settings import Color, JsonSettings, UiColorInput
+__all__ = ['BitmapFileHeader', 'BitmapInfoHeader',
+           'Gif', 'GifExtract', 'ScrollingTextGifMaker', 'GifMakerOption',
+           'bmp_to_24bpp', 'bmp_to_16bpp', 'pixel_888_to_565', 'pixel_888_to_555', 'ImageColor', 'Pixel']
 
 Pixel = Tuple[int, int, int]
 ImageColor = Union[str, int, Color]
@@ -119,6 +120,20 @@ def bmp_to_16bpp(im: Image.Image,
     return header + struct.pack("<{}H".format(width * height), *tuple(bpp16))
 
 
+class Gif(JsonSettings):
+    _properties = {'loop', 'path', 'size', 'duration', 'frame_count', 'frame_data', 'frame_size'}
+
+    @classmethod
+    def default(cls) -> DynamicObject:
+        return Gif(loop=0, path='', size=(0, 0), duration=0, frame_count=0, frame_size=0, frame_data=bytes())
+
+    def get_frame(self, frame: int) -> bytes:
+        if not 0 <= frame < self.frame_count:
+            return bytes()
+
+        return self.frame_data[frame * self.frame_size: (frame + 1) * self.frame_size]
+
+
 class GifExtract(object):
     def __init__(self, gif: str):
         self._path = gif
@@ -165,6 +180,11 @@ class GifExtract(object):
     def frame_count(self) -> int:
         return self._frame_count
 
+    def get_gif(self, process: Optional[BmpProcess] = None) -> Gif:
+        frame_data = self.extract_all_as_bin(process)
+        return Gif(loop=self.loop, path=self.path, size=self.size, duration=self.duration,
+                   frame_count=self.frame_count, frame_data=frame_data, frame_size=len(frame_data) // self.frame_count)
+
     def extract_all(self, output_dir: str, process: Optional[BmpProcess] = None) -> bool:
         try:
             if not os.path.isdir(output_dir):
@@ -201,6 +221,32 @@ class GifExtract(object):
         except (EOFError, AttributeError, OSError) as e:
             print("Extract gif frame failed: {}".format(e))
             return None
+
+
+class GifMakerOption(JsonSettings):
+    _properties = {'bg', 'fg', 'duration',
+                   'char_count_per_frame', 'move_pixel_per_frame', 'wait_frame_count', 'blank_frame_count'}
+
+    def __init__(self, **kwargs):
+        bg = kwargs.get('bg')
+        fg = kwargs.get('fg')
+
+        if isinstance(bg, str) and bg[0] == '#':
+            kwargs['bg'] = UiColorInput.html2rgb(bg)
+
+        if isinstance(fg, str) and fg[0] == '#':
+            kwargs['fg'] = UiColorInput.html2rgb(fg)
+
+        super(JsonSettings, self).__init__(**kwargs)
+
+    @classmethod
+    def default(cls) -> DynamicObject:
+        return GifMakerOption(bg='black',
+                              fg='white',
+                              duration=100,
+                              char_count_per_frame=6,
+                              move_pixel_per_frame=5,
+                              wait_frame_count=0, blank_frame_count=0)
 
 
 class ScrollingTextGifMaker(object):

@@ -256,7 +256,7 @@ class ProtoBufSdk(object):
     def sendRequestToQueue(self,
                            msg: message.Message,
                            callback: Optional[ProtoBufSdkCallback] = None,
-                           priority: Optional[int] = None, periodic: bool = True):
+                           priority: Optional[int] = None, periodic: bool = True) -> bool:
         """
         Send request to queue
         :param msg: request message
@@ -267,12 +267,14 @@ class ProtoBufSdk(object):
         """
         try:
             if not self.connected or not isinstance(msg, message.Message):
-                return
+                return False
 
             priority = time.perf_counter() if priority is None else priority
             self._comm_queue.put((priority, (msg, callback, periodic)))
+            return True
         except (queue.Full, TypeError) as e:
             self._errorLogging("{!r} sendRequestToQueue error: {}({})".format(self.name, e, msg))
+            return False
 
     def threadCommunicationHandle(self):
         while True:

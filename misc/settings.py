@@ -400,7 +400,7 @@ class UiColorInput(UiInputSetting):
 
     @staticmethod
     def rgb2html(rgb_color: Color) -> str:
-        return "#{:2X}{:2X}{:2X}".format(*rgb_color)
+        return "#{:02X}{:02X}{:02X}".format(*rgb_color)
 
     @staticmethod
     def get_color(color_setting: Union[str, Color]) -> Color:
