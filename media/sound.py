@@ -121,16 +121,13 @@ class SoundPlay(object):
 
     def play_music(self, name: str,
                    start: int = 0, times: int = -1, volume: Optional[float] = None,
-                   stop_callback: Optional[Callable[[str, int, float], None]] = None) -> float:
+                   stop_callback: Optional[Callable[[str, int, float], None]] = None) -> bool:
         if name not in os.listdir(self.__lib):
             print("Background music {!r} not exist".format(name))
-            return 0.0
-
-        path = os.path.join(self.__lib, name)
+            return False
 
         try:
-            pygame.mixer.music.load(path)
-            sound = pygame.mixer.Sound(path)
+            pygame.mixer.music.load(os.path.join(self.__lib, name))
             if isinstance(volume, float) and 0.1 <= volume <= 1.0 and pygame.mixer.music.get_volume() != volume:
                 pygame.mixer.music.set_volume(volume)
             pygame.mixer.music.play(times, start)
@@ -142,10 +139,10 @@ class SoundPlay(object):
             else:
                 self.__timer.pause()
 
-            return sound.get_length()
+            return True
         except pygame.error as e:
             print("Play music error: {}".format(e))
-            return 0.0
+            return False
 
     def auto_increase_volume(self, step: float = 0.1, maximum: float = 1.0, interval: int = 5):
         args = (self.increase_music_volume, lambda x: x >= maximum, step, interval)

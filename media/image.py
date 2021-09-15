@@ -151,10 +151,6 @@ class GifExtract(object):
         except KeyError:
             raise TypeError("It's not animation gif")
 
-        print("{}: {}, {}, frame count: {}, duration: {}, loop: {}".format(
-            gif, self._gif.format, self._gif.size, self._gif.n_frames, self._duration, self._loop
-        ))
-
     def __repr__(self):
         return "{}: {}, {}, frame count: {}, duration: {}, loop: {}".format(
             self._path, self._gif.format, self._gif.size, self.frame_count, self.duration, self.loop
@@ -277,8 +273,10 @@ class ScrollingTextGifMaker(object):
             else:
                 size += 1
 
-    def drawStaticText(self, text: str, path: str,
-                       bg: ImageColor = 'black', fg: ImageColor = 'white', font: str = 'simsun.ttc', size: int = 0):
+    def drawStaticText(self,
+                       text: str,
+                       bg: ImageColor = 'black', fg: ImageColor = 'white',
+                       font: str = 'simsun.ttc', size: int = 0, path: str = '') -> Image:
         size = size or self.calcFontSize(text, font)
         im = Image.new('RGB', self.im.size, color=bg)
         font = ImageFont.truetype(font, size, encoding='unic')
@@ -288,7 +286,11 @@ class ScrollingTextGifMaker(object):
         text_width, text_height = draw.textsize(text, font=font)
 
         draw.text(((canvas_width - text_width) // 2, (canvas_height - text_height) // 2), text, fg, font)
-        im.save(path)
+
+        if path:
+            im.save(path)
+
+        return im
 
     def drawAnimationFrame(self, start: Tuple[int, int],
                            text: str, font: ImageFont.FreeTypeFont,

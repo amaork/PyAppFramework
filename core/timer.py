@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import time
 import threading
 from typing import Optional, Callable, Any
 from .threading import ThreadLockAndDataWrap
@@ -27,6 +28,7 @@ class SwTimer(object):
         self._event = threading.Event()
         self._stop = ThreadLockAndDataWrap(False)
         self._timer_cnt = ThreadLockAndDataWrap(0)
+        self._start_timestamp = time.perf_counter()
         self._is_running = ThreadLockAndDataWrap(auto_start)
 
         self._th = threading.Thread(target=self.__timer_thread, name="Software timer")
@@ -80,14 +82,17 @@ class SwTimer(object):
     def resume(self):
         self._is_running.data = True
 
+    def wait(self, timeout: float):
+        self._event.wait(timeout)
+
     def is_running(self) -> bool:
         return not self._stop and self._is_running.data
 
     def time_elapsed(self) -> float:
-        return self._timer_cnt.data * self._base
+        return time.perf_counter() - self._start_timestamp if self.is_running() else 0.0
 
-    def is_timeout(self, time: float) -> bool:
-        return self.time_elapsed() >= time
+    def is_timeout(self, time_in_s: float) -> bool:
+        return self.time_elapsed() >= time_in_s
 
     @staticmethod
     def singleShot(timeout: float,
