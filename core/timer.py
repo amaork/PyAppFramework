@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import time
+import inspect
 import threading
+import collections
 from typing import Optional, Callable, Any
-from .threading import ThreadLockAndDataWrap
-__all__ = ['SwTimer']
+
+from .datatype import DynamicObject
+from .threading import ThreadLockAndDataWrap, ThreadConditionWrap
+__all__ = ['SwTimer', 'Tasklet', 'Task']
 
 
 class SwTimer(object):
@@ -111,3 +115,145 @@ class SwTimer(object):
             callback(*args, **kwargs)
 
         SwTimer(base=timeout, callback=callback_wrapper, cb_args=cb_args, cb_kwargs=cb_kwargs, auto_start=True)
+
+
+class Task(DynamicObject):
+    TASK_KEYWORD = 'task'
+    TASKLET_KEYWORD = 'tasklet'
+    TID = collections.namedtuple('TID', ['id', 'result'])
+
+    _properties = {'func', 'args',
+                   'timeout', 'timeout_reload', 'periodic',
+                   'result', 'tasklet', 'latest_run', 'running_cnt'}
+
+    _check = {
+        'func': lambda x: callable(x),
+        'args': lambda x: isinstance(x, tuple),
+        'periodic': lambda x: isinstance(x, bool),
+        'timeout': lambda x: isinstance(x, (int, float)),
+        'result': lambda x: isinstance(x, ThreadConditionWrap)
+    }
+
+    def run(self):
+        """Run task and set result"""
+        kwargs = dict()
+        user_params = self.__get_user_param(self.func)
+        parameters = inspect.signature(self.func).parameters
+
+        if self.TASK_KEYWORD in parameters:
+            kwargs[self.TASK_KEYWORD] = self
+
+        if self.TASKLET_KEYWORD in parameters:
+            kwargs[self.TASKLET_KEYWORD] = self.tasklet
+
+        kwargs.update(dict(zip(user_params, self.args)))
+
+        self.result.reset()
+        self.result.finished(self.func(**kwargs))
+        self.update(dict(latest_run=time.perf_counter(), running_cnt=self.running_cnt + 1))
+        if self.periodic:
+            self.reload()
+
+    def reload(self):
+        self.update(dict(timeout=self.timeout_reload))
+
+    def delete(self):
+        if self.is_running():
+            self.tasklet.del_task(self.id())
+
+    def reschedule(self):
+        if self.is_running():
+            self.tasklet.create_task(self)
+        else:
+            print("Error: {} is not running, please schedule it first".format(self))
+
+    def id(self) -> str:
+        return str(self)
+
+    def is_running(self):
+        return isinstance(self.tasklet, Tasklet)
+
+    def __eq__(self, other):
+        return self.id() == other.id()
+
+    def __str__(self):
+        return f'{self.func.__name__}: timeout {self.timeout_reload}, periodic {self.periodic}'
+
+    def __repr__(self):
+        d = self.dict
+        d.pop('func')
+        d.pop('result')
+        d.pop('tasklet')
+        return f'{self.func.__name__}: {d}'
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('args', ())
+        kwargs.setdefault('tasklet', '')
+        kwargs.setdefault('periodic', False)
+        kwargs.setdefault('latest_run', 0.0)
+        kwargs.setdefault('running_cnt', 0)
+        kwargs.setdefault('result', ThreadConditionWrap())
+        kwargs.setdefault('timeout', float(kwargs.get('timeout')))
+        kwargs.setdefault('timeout_reload', float(kwargs.get('timeout')))
+        self.__check_parameters(kwargs.get('func'), kwargs.get('args'))
+        super(Task, self).__init__(**kwargs)
+
+    def __get_user_param(self, func):
+        return [x for x in inspect.signature(func).parameters if x not in (self.TASK_KEYWORD, self.TASKLET_KEYWORD)]
+
+    def __check_parameters(self, func, args):
+        params = self.__get_user_param(func)
+        if len(args) < len(params):
+            missing = tuple(params[len(args):])
+            message = ",".join([f'{x!r}' for x in missing])
+            raise TypeError(f'{func.__name__} missing {len(missing)} required positional arguments: {message}')
+        elif len(args) > len(params):
+            raise TypeError(f'{func.__name__} takes {len(params)} positional arguments but {len(args)} were given')
+
+
+class Tasklet(SwTimer):
+    def __init__(self, schedule_interval: float = 1.0):
+        self.__tasks = dict()
+        self.__schedule_interval = schedule_interval
+        super(Tasklet, self).__init__(base=schedule_interval, callback=self.__schedule, auto_start=True)
+
+    def __del__(self):
+        print("Tasklet exit")
+
+    def __repr__(self):
+        return ", ".join([repr(x) for x in self.__tasks.values()])
+
+    def __schedule(self, _timer: SwTimer):
+        for task in self.__tasks.values():
+            task.timeout -= self.__schedule_interval
+
+        timeout_task = [x for x in self.__tasks.values() if x.timeout <= 0]
+        for task in timeout_task:
+            task.run()
+            if task.timeout <= 0:
+                task.reload()
+                temp = self.__tasks.pop(task.id())
+                temp.tasklet = None
+
+    def is_idle(self) -> bool:
+        return len(self.__tasks) == 0
+
+    def del_task(self, tid: str):
+        if tid in self.__tasks:
+            task = self.__tasks.pop(tid)
+            task.tasklet = None
+
+    def create_task(self, task: Task) -> Task.TID:
+        """Insert task to tasklet, same task will reload"""
+        tid = task.id()
+        if tid in self.__tasks:
+            old = self.__tasks.get(tid)
+            if id(old) == id(task):
+                task.reload()
+
+        task.tasklet = self
+        self.__tasks[tid] = task
+        return Task.TID(tid, task.result)
+
+    def is_task_in_schedule(self, tid: str) -> bool:
+        return tid in self.__tasks
