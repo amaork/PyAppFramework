@@ -265,13 +265,15 @@ class ScrollingTextGifMaker(object):
         draw = ImageDraw.Draw(self.im)
         canvas_width, canvas_height = self.im.size
 
-        while True:
+        while text:
             font_obj = ImageFont.truetype(font, size, encoding='unic')
             text_width, text_height = draw.textsize(text, font=font_obj)
             if text_width + self.margin >= canvas_width or text_height + self.margin >= canvas_height:
                 return size
             else:
                 size += 1
+
+        return 0
 
     def drawStaticText(self,
                        text: str,
