@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
-import time
-from typing import Any
+from typing import Any, Optional
 __all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap']
 
 
@@ -11,20 +10,15 @@ class ThreadConditionWrap(object):
         self.__finished = False
         self.__condition = threading.Condition()
 
-    def wait(self, timeout: float = -1) -> Any:
-        self.__finished = False
-        t0 = time.perf_counter()
+    def wait(self, timeout: Optional[float] = None) -> Any:
         with self.__condition:
             while not self.__finished:
-                self.__condition.wait(0.1)
-                if time.perf_counter() - t0 >= timeout:
+                if not self.__condition.wait(timeout):
                     return None
 
-        return self.__result
-
-    def reset(self):
-        self.__result = None
+        # Get result will clear the finished flag
         self.__finished = False
+        return self.__result
 
     def finished(self, result: Any):
         with self.__condition:

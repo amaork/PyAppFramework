@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import queue
 import inspect
 import threading
 import collections
@@ -97,17 +98,18 @@ class SwTimer(object):
 
 
 class TaskRuntime(DynamicObject):
-    _properties = {'timeout', 'latest', 'cnt', 'tasklet'}
+    _properties = {'timeout', 'latest', 'cnt', 'cost', 'tasklet'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault('cnt', 0)
+        kwargs.setdefault('cost', 0.0)
         kwargs.setdefault('tasklet', '')
         kwargs.setdefault('latest', 0.0)
         kwargs.setdefault('timeout', 0.0)
         super(TaskRuntime, self).__init__(**kwargs)
 
     def __repr__(self):
-        return '{}'.format({k: v for k, v in self.dict.items() if k != 'tasklet'})
+        return '{}'.format({k: format(v, '.2f') if k != 'cnt' else v for k, v in self.dict.items() if k != 'tasklet'})
 
 
 class Task(DynamicObject):
@@ -135,6 +137,7 @@ class Task(DynamicObject):
         result = ThreadConditionWrap() if not isinstance(result, ThreadConditionWrap) else result
         kwargs = dict(func=func, args=args, timeout=float(timeout), periodic=periodic, result=result, runtime=runtime)
         super(Task, self).__init__(**kwargs)
+        self.__lock = threading.Lock()
         self.__id_ignore_args = True if id_ignore_args else False
 
     def __eq__(self, other):
@@ -145,7 +148,7 @@ class Task(DynamicObject):
         return f"{self.func.__name__}{inspect.signature(self.func)}{args}{self.timeout}{self.periodic}"
 
     def __repr__(self):
-        dict_ = {k: v for k, v in self.dict.items() if k not in ('result', '_Task__id_ignore_args')}
+        dict_ = {k: v for k, v in self.dict.items() if k not in ('result', '_Task__id_ignore_args', '_Task__lock')}
         dict_.update(func=self.func.__name__)
         return f'{dict_}'
 
@@ -154,22 +157,30 @@ class Task(DynamicObject):
 
     def run(self):
         """Run task and set result"""
-        auto_args = {self.TASK_KEYWORD: self, self.TASKLET_KEYWORD: self.runtime.tasklet}
+        with self.__lock:
+            auto_args = {self.TASK_KEYWORD: self, self.TASKLET_KEYWORD: self.runtime.tasklet}
 
-        self.result.reset()
-        self.result.finished(self.func(**util_auto_kwargs(self.func, self.args, auto_args)))
-        self.runtime.update(dict(cnt=self.runtime.cnt + 1, latest=time.perf_counter()))
+            start_ts = time.perf_counter()
+            self.result.finished(self.func(**util_auto_kwargs(self.func, self.args, auto_args)))
+            end_ts = time.perf_counter()
 
-        if self.periodic:
-            self.reload()
+            self.runtime.update(dict(cnt=self.runtime.cnt + 1, latest=end_ts, cost=end_ts - start_ts))
 
-    def clear(self):
+            # Periodic task auto reload timeout
+            if self.periodic:
+                self.reload()
+
+            # Single shot task if not calling `reschedule` will automatically delete
+            if self.is_timeout():
+                self.delete()
+
+    def detach(self):
         """"""
         self.reload()
         self.runtime.tasklet = None
 
-    def bind(self, tasklet):
-        """Bind task to tasklet
+    def attach(self, tasklet):
+        """Attach task to tasklet
 
         :param tasklet:
         :return:
@@ -178,26 +189,37 @@ class Task(DynamicObject):
         self.runtime.update(dict(timeout=self.timeout, cnt=0))
 
     def tick(self):
-        if self.is_running():
+        if self.is_attached():
             self.runtime.timeout -= self.runtime.tasklet.tick
 
     def reload(self):
         self.runtime.update(dict(timeout=self.timeout))
 
     def delete(self):
-        if self.is_running():
+        if self.is_attached():
             self.runtime.tasklet.del_task(self.id())
 
     def reschedule(self):
-        if self.is_running():
-            self.runtime.tasklet.create_task(self)
+        if self.is_attached():
+            self.runtime.tasklet.add_task(self)
         else:
-            print("Error: {} is not running, please schedule it first".format(self))
+            print("Error: {} is not attached, please add task to tasklet first".format(self))
+
+    def is_delayed(self):
+        """Return true if a task latest running time is out of tasklet schedule time (only works for periodic task)"""
+        if self.periodic and self.is_attached():
+            return self.runtime.cost > self.runtime.tasklet.tick
+
+        return False
 
     def is_timeout(self):
-        return self.runtime.timeout <= 0
+        """Return true is a time is timeout, timeout means it's need to be scheduled"""
+        return self.runtime.timeout <= 0.0
 
     def is_running(self):
+        return self.__lock.locked()
+
+    def is_attached(self):
         return isinstance(self.runtime.tasklet, Tasklet)
 
     def running_times(self):
@@ -205,7 +227,10 @@ class Task(DynamicObject):
 
 
 class Tasklet(SwTimer):
-    def __init__(self, schedule_interval: float = 1.0, name: str = '', debug: bool = False):
+    def __init__(self,
+                 schedule_interval: float = 1.0,
+                 max_workers: Optional[int] = None,
+                 name: str = '', dump: Optional[Callable[[str], None]] = None):
         """Tasklet is sample Round-Robin schedule is base on SwTimer(a threading)
         Add a Task to tasklet, when task timeout will schedule it once,
         if a Task is running, it could be delete or reschedule.
@@ -213,64 +238,108 @@ class Tasklet(SwTimer):
         A task has an unique id(function name, timeout and periodic params)
         at the sametime only one task instance could running in tasklet.
 
-        Add same task to tasklet will cause previous task rescheduled
+        Add same task to tasklet will cause previous task rescheduled.
+
+        If max_workers is set, scheduler will automatically check each periodic task last running cost time,
+        if a task last running cost time is to too long(be delayed) it will put the task to a thread pool worker
 
         :param schedule_interval: basic schedule interval unit is second
-        :param name: Tasklet name just for debug and trance
-        :param debug: Debug tasklet
+        :param max_workers: max worker thread, default only one thread
+        :param name: Tasklet name just for debug and track
+        :param dump: Tasklet dump output function
         """
         self.__tasks = dict()
-        self.__debug = True if debug else False
+        self.__dump_callback = dump
+        self.__queue = queue.Queue()
         self.__name = str(name) or str(id(self))
         self.__schedule_interval = schedule_interval
+        self.__max_workers = min(max_workers, 4) if isinstance(max_workers, int) else 0
         super(Tasklet, self).__init__(base=schedule_interval, callback=self.__schedule, auto_start=True)
 
+        for i in range(self.__max_workers):
+            threading.Thread(target=self.__worker, daemon=True, name=f'Tasklet worker {i}').start()
+
     def __repr__(self):
+        now = "{:.4f}".format(time.perf_counter())
         tasks = sorted(self.__tasks.values(), key=lambda x: x.timeout)
-        return f'{type(self).__name__} ({self.__name}) [\n' + '\n'.join([repr(x) for x in tasks]) + '\n]'
+        return f'{type(self).__name__}, {self.__name}, {self.is_idle()}, {now} ' \
+               f'[\n\t' + '\n\t'.join([repr(x) for x in tasks]) + '\n]'
+
+    def __dump(self):
+        if callable(self.__dump_callback):
+            return self.__dump_callback(repr(self))
+
+    def __worker(self):
+        while True:
+            task = self.__queue.get()
+            if task is None:
+                break
+
+            task.run()
 
     def __schedule(self):
         for task in self.__tasks.values():
             task.tick()
 
-        timeout_task = [x for x in self.__tasks.values() if x.is_timeout()]
-        for task in timeout_task:
-            # Execute task, periodic task will auto reload timeout timer
-            task.run()
-            if task.is_timeout():
-                self.del_task(task.id())
+        # Find out timeout task, if task is delayed and has enabled workers put to worker thread
+        for task in [x for x in self.__tasks.values() if x.is_timeout()]:
+            if task.is_delayed() and self.__max_workers:
+                if not task.is_running():
+                    self.__queue.put(task)
+            else:
+                if not task.is_running():
+                    task.run()
 
     @property
     def tick(self) -> float:
         return self._base
 
-    def is_idle(self) -> bool:
-        """Tasklet is idle no task in tasklet"""
-        return len(self.__tasks) == 0
+    def destroy(self):
+        # Detach all task in tasklet
+        for task in self.__tasks.values():
+            task.detach()
+
+        # Destroy all worker thread
+        for _ in range(self.__max_workers):
+            self.__queue.put(None)
+
+        self.__tasks.clear()
+
+        # Stop timer
+        self.stop()
+
+    def is_idle(self):
+        """Check if tasklet is idle(no task in tasklet)"""
+        idle = len(self.__tasks) == 0, self.__queue.qsize() == 0
+        return collections.namedtuple('TaskletIdle', ['tasklet', 'worker'])(*idle)
 
     def del_task(self, tid: str):
         """Delete a task from tasklet"""
         if tid in self.__tasks:
             task = self.__tasks.pop(tid)
-            task.clear()
-            if self.__debug:
-                print(repr(self))
+            task.detach()
+            self.__dump()
 
-    def create_task(self, task: Task) -> Task.TID:
-        """Insert task to tasklet, same task will reload"""
+    def add_task(self, task: Task, immediate: bool = False) -> Task.TID:
+        """Insert task to tasklet, same id task will detach old task, add new task"""
         tid = task.id()
-        if tid in self.__tasks:
-            old = self.__tasks.get(tid)
-            if id(old) == id(task):
-                task.reload()
 
-        task.bind(self)
+        try:
+            self.__tasks.get(tid).detach()
+        except AttributeError:
+            pass
+
+        task.attach(self)
         self.__tasks[tid] = task
         result = Task.TID(tid, task.result)
 
-        if self.__debug:
-            print(repr(self))
+        # If immediate set will run immediately
+        if (immediate or task.is_timeout()) and self.__max_workers:
+            self.__queue.put(task)
+            if not task.periodic:
+                self.del_task(task.id())
 
+        self.__dump()
         return result
 
     def is_task_in_schedule(self, tid: str) -> bool:

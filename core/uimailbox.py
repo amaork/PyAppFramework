@@ -143,7 +143,6 @@ class QuestionBoxMail(BaseUiMail):
 
         self._title = title
         self._condition = condition
-        self._condition.reset()
 
     @property
     def title(self) -> str:
