@@ -236,27 +236,14 @@ class SQLiteDatabase(object):
 
             # Get column names and types
             column_names = self.getColumnList(name)
-            column_types = self.getColumnType(name)
             if len(column_names) != len(record):
                 raise ValueError("recode length dis-matched")
 
-            # Pre-process record
-            recode_data = list()
-            blob_records = list()
-            for column, data, type_ in zip(column_names, record, column_types):
-                if type_ == self.TYPE_TEXT:
-                    recode_data.append('"{}"'.format(data))
-                elif type_ == self.TYPE_BLOB:
-                    recode_data.append("?")
-                    blob_records.append(data)
-                else:
-                    recode_data.append("{}".format(data))
-
-            recode_data = ", ".join(recode_data)
+            # Pre-process placeholder
+            placeholder = ", ".join(['?'] * len(record))
 
             # Insert to sqlite and save
-            # print("INSERT INTO {} VALUES({})".format(name, recode_data))
-            self._cursor.execute("INSERT INTO {} VALUES({})".format(name, recode_data), blob_records)
+            self._cursor.execute("INSERT INTO {} VALUES({})".format(name, placeholder), record)
             self._conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
@@ -280,7 +267,6 @@ class SQLiteDatabase(object):
 
             # Get column name list and types
             column_names = self.getColumnList(name)
-            column_types = self.getColumnType(name)
 
             # Check data length
             if isinstance(record, (list, tuple)) and len(column_names) != len(record):
@@ -292,25 +278,14 @@ class SQLiteDatabase(object):
 
             # Update all data by sequence
             if isinstance(record, (list, tuple)):
-                for column, data, type_ in zip(column_names, record, column_types):
-                    if type_ == self.TYPE_TEXT:
-                        recode_data.append('{} = "{}"'.format(column, data))
-                    elif type_ == self.TYPE_BLOB:
-                        blob_records.append(data)
-                        recode_data.append("{} = ?".format(column, data))
-                    else:
-                        recode_data.append("{} = {}".format(column, data))
+                for column, data in zip(column_names, record):
+                    blob_records.append(data)
+                    recode_data.append("{} = ?".format(column, data))
             # Update particular data by column name
             else:
                 for column_name, data in list(record.items()):
-                    type_ = column_types[column_names.index(column_name)]
-                    if type_ == self.TYPE_TEXT:
-                        recode_data.append('{} = "{}"'.format(column_name, data))
-                    elif type_ == self.TYPE_BLOB:
-                        blob_records.append(data)
-                        recode_data.append("{} = ?".format(column_name, data))
-                    else:
-                        recode_data.append("{} = {}".format(column_name, data))
+                    blob_records.append(data)
+                    recode_data.append("{} = ?".format(column_name, data))
 
             recode_data = ", ".join(recode_data)
 
