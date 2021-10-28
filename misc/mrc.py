@@ -101,9 +101,14 @@ class MachineInfo(object):
             w = wmi.WMI()
             disk = list()
             for dd in w.Win32_DiskDrive():
+                try:
+                    sn = w.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip()
+                except AttributeError:
+                    sn = ""
+
                 disk.append(
                     {
-                        "sn": w.Win32_PhysicalMedia()[0].SerialNumber.lstrip().rstrip(),
+                        "sn": sn,
                         "id": dd.deviceid,
                         "caption": dd.Caption,
                         "size": str(int(float(dd.Size) / 1024 / 1024 / 1024))
