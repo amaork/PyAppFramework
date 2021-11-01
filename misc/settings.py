@@ -6,14 +6,14 @@ import codecs
 import logging
 import collections
 from string import Template, hexdigits
-from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple
+from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple, Callable
 
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiLogMessage',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
-           'UiFileInput', 'UiFolderInput',
+           'UiFileInput', 'UiFolderInput', 'UiPushButtonInput',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
@@ -56,7 +56,7 @@ class JsonSettings(DynamicObject):
                 return cls.default()
 
             with codecs.open(path, "r", "utf-8") as fp:
-                dict_ = json.load(fp)
+                dict_ = json.load(fp, object_pairs_hook=collections.OrderedDict)
 
             return cls(**dict_) if dict_ else cls.default()
         except (JsonSettingsDecodeError, DynamicObjectDecodeError) as err:
@@ -99,6 +99,7 @@ class UiInputSetting(DynamicObject):
         "SERIAL": (str, str),
         "NETWORK": (str, str),
         "ADDRESS": (str, str),
+        "BUTTON": (object, object),
         "SELECT": ((str, int), (list, tuple)),
         "SBS_SELECT": ((str, int), (list, tuple)),
     }
@@ -489,6 +490,12 @@ class UiCheckBoxInput(UiInputSetting):
     def __init__(self, name: str, default: bool = False, readonly: bool = False, label_left: bool = False):
         super(UiCheckBoxInput, self).__init__(name=name, data=default, default=default, label_left=label_left,
                                               check=(True, False), readonly=readonly, type="BOOL")
+
+
+class UiPushButtonInput(UiInputSetting):
+    def __init__(self, name: str, slot: Callable, data: Any = ''):
+        super(UiPushButtonInput, self).__init__(name=name, data=data,
+                                                default=slot, check=slot, readonly=False, type="BUTTON")
 
 
 class UiLayout(DynamicObject):

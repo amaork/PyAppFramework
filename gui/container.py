@@ -210,6 +210,7 @@ class ComboBoxGroup(QObject):
 class ComponentManager(QObject):
     dataChanged = Signal()
     dataChangedDetail = Signal(str, object)
+    QPushButtonPrivateDataKey = 'private'
 
     def __init__(self, layout: QLayout, parent: Optional[QWidget] = None):
         super(ComponentManager, self).__init__(parent)
@@ -294,6 +295,8 @@ class ComponentManager(QObject):
             return component.value()
         elif isinstance(component, QLCDNumber):
             return component.value()
+        elif isinstance(component, QPushButton):
+            return component.property(ComponentManager.QPushButtonPrivateDataKey)
         else:
             return ""
 
@@ -335,6 +338,8 @@ class ComponentManager(QObject):
             component.setValue(str2number(data))
         elif isinstance(component, QLCDNumber):
             component.display(str2float(data))
+        elif isinstance(component, QPushButton):
+            component.setProperty(ComponentManager.QPushButtonPrivateDataKey, data)
 
     @staticmethod
     def findParentLayout(obj: QWidget, top: QLayout) -> Union[QLayout, None]:

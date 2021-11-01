@@ -280,6 +280,10 @@ class TableView(QTableView):
 
         return self.setCurrentIndex(model.index(row, 0, QModelIndex()))
 
+    def setRowCount(self, count: int):
+        if isinstance(self.model(), QAbstractItemModel):
+            self.model().setRowCount(count)
+
     def getTableData(self, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
         if not isinstance(model, QAbstractItemModel):
@@ -338,7 +342,6 @@ class TableView(QTableView):
             return ""
 
         widget = self.indexWidget(self.model().index(row, column))
-
         if isinstance(widget, QWidget):
             return ComponentManager.getComponentData(widget)
         else:
@@ -424,17 +427,21 @@ class TableView(QTableView):
         self.selectColumn(dst)
         self.tableDataChanged.emit()
 
-    def rowMoveUp(self):
+    def rowMoveUp(self) -> bool:
         row = self.getCurrentRow()
         if row == 0:
-            return
-        self.swapRow(row, row - 1)
+            return False
 
-    def rowMoveDown(self):
+        self.swapRow(row, row - 1)
+        return True
+
+    def rowMoveDown(self) -> bool:
         row = self.getCurrentRow()
         if row == self.rowCount() - 1:
-            return
+            return False
+
         self.swapRow(row, row + 1)
+        return True
 
     def rowMoveTop(self):
         while self.getCurrentRow() != 0:
@@ -448,17 +455,57 @@ class TableView(QTableView):
 
         self.setCurrentRow(self.rowCount() - 1)
 
-    def columnMoveLeft(self):
+    def columnMoveLeft(self) -> bool:
         column = self.getCurrentColumn()
         if column == 0:
-            return
-        self.swapColumn(column, column - 1)
+            return False
 
-    def columnMoveRight(self):
+        self.swapColumn(column, column - 1)
+        return True
+
+    def columnMoveRight(self) -> bool:
         column = self.getCurrentColumn()
         if column == self.columnCount() - 1:
-            return
+            return False
+
         self.swapColumn(column, column + 1)
+        return True
+
+    def setItemBackground(self, row: int, column: int, background: QBrush) -> bool:
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
+            return False
+
+        try:
+            item = self.item(row, column)
+            item.setBackground(background)
+        except AttributeError:
+            return False
+
+        return True
+
+    def setItemForeground(self, row: int, column: int, foreground: QBrush) -> bool:
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
+            return False
+
+        try:
+            item = self.item(row, column)
+            item.setForeground(foreground)
+        except AttributeError:
+            return False
+
+        return True
+
+    def setRowBackgroundColor(self, row: int, color: QBrush):
+        [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
+
+    def setRowForegroundColor(self, row: int, color: QBrush):
+        [self.setItemForeground(row, column, color) for column in range(self.columnCount())]
+
+    def setColumnBackgroundColor(self, column: int, color: QBrush):
+        [self.setItemBackground(row, column, color) for row in range(self.rowCount())]
+
+    def setColumnForegroundColor(self, column: int, color: QBrush):
+        [self.setItemForeground(row, column, color) for row in range(self.rowCount())]
 
 
 class TableViewDelegate(QItemDelegate):
@@ -490,11 +537,17 @@ class TableViewDelegate(QItemDelegate):
             return None
 
         if isinstance(settings, UiCheckBoxInput):
-            checkbox = CheckBox(parent=parent)
+            checkbox = CheckBox(stylesheet=DynamicObject(fillColor=(0, 0, 0), sizeFactor=1.7).dict, parent=parent)
             checkbox.stateChanged.connect(lambda x: self.commitData.emit(checkbox))
             return checkbox
+        elif isinstance(settings, UiPushButtonInput):
+            button = QPushButton(settings.get_name(), parent=parent)
+            button.setProperty('private', index.data())
+            button.clicked.connect(settings.get_default())
+            return button
         else:
             widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
+            widget.setFocus()
 
             if isinstance(widget, QSpinBox):
                 widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
