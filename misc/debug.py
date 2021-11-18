@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import reprlib
 import functools
 __all__ = ['track_time']
 
@@ -20,7 +21,7 @@ def track_time(func):
             arg_lst.append(', '.join(['{} = {}'.format(k, v) for k, v in sorted(kwargs.items())]))
 
         arg_str = ', '.join(arg_lst)
-        print('[{} {:.08f}s] {}({}) -> {}'.format(track_time.__name__, elapsed, name, arg_str, result))
+        print('[{} {:.08f}s] {}({}) -> {}'.format(track_time.__name__, elapsed, name, arg_str, reprlib.repr(result)))
         return result
 
     return wrapper_debug_time
