@@ -1,201 +1,40 @@
 # -*- coding: utf-8 -*-
 import time
 import queue
-import socket
-import serial
-import struct
 from threading import Thread
 import google.protobuf.message as message
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 
-from .crc16 import crc16
-from .serialport import SerialPort
-from ..misc.settings import UiLogMessage
-from ..network.utility import create_socket_and_connect
-__all__ = ['TransmitException', 'TransmitTimeout',
-           'TCPTransmit', 'UARTTransmit',
-           'ProtoBufSdk', 'ProtoBufSdkCallback',
+from ..misc.settings import LoggingMsgCallback, UiLogMessage
+from .transmit import Transmit, TransmitTimeout, TransmitException
+__all__ = ['ProtoBufSdk', 'ProtoBufSdkRequestCallback',
+           'ProtoBufSdkTimeoutCallback', 'ProtoBufSdkExceptionCallback', 'LoggingMsgCallback',
            'ProtoBufHandle', 'ProtoBufHandleCallback']
 
 # callback(request message, response raw bytes)
-ProtoBufSdkCallback = Callable[[message.Message, bytes], None]
+ProtoBufSdkRequestCallback = Callable[[message.Message, bytes], None]
+
+ProtoBufSdkTimeoutCallback = Callable[[bool], None]
+ProtoBufSdkExceptionCallback = Callable[[Exception], None]
 
 # callback(request raw bytes) ->  response message
 ProtoBufHandleCallback = Callable[[bytes], Optional[message.Message]]
-
-
-class TransmitException(Exception):
-    pass
-
-
-class TransmitTimeout(Exception):
-    pass
-
-
-class Transmit(object):
-    DEFAULT_TIMEOUT = 0.1
-
-    def __init__(self):
-        self._timeout = 0.0
-        self._address = ('', 0)
-        self._connected = False
-
-    def __del__(self):
-        self.disconnect()
-        self._connected = False
-
-    def tx(self, data: bytes) -> bool:
-        pass
-
-    def rx(self, size: int, timeout: float = 0) -> bytes:
-        pass
-
-    def disconnect(self):
-        pass
-
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
-        pass
-
-    @property
-    def timeout(self) -> float:
-        return self._timeout
-
-    @property
-    def connected(self) -> bool:
-        return self._connected
-
-
-class TCPTransmit(Transmit):
-    DEFAULT_TIMEOUT = 0.1
-
-    def __init__(self):
-        super(TCPTransmit, self).__init__()
-        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    def tx(self, data: bytes) -> bool:
-        try:
-            return self.__socket.send(data) == len(data)
-        except socket.timeout as err:
-            raise TransmitTimeout(err)
-        except socket.error as err:
-            raise TransmitException(err)
-
-    def rx(self, size: int, timeout: float = 0) -> bytes:
-        try:
-            timeout = timeout or self.timeout
-            self.__socket.settimeout(timeout)
-            return self.__socket.recv(size)
-        except socket.timeout as err:
-            raise TransmitTimeout(err)
-        except socket.error as err:
-            raise TransmitException(err)
-
-    def disconnect(self):
-        try:
-            self.__socket.close()
-        except AttributeError:
-            pass
-
-    def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
-        """
-        Connect tcp server
-        :param address: (host, port)
-        :param timeout: socket timeout in seconds
-        :return:
-        """
-        try:
-            self._address = address
-            self._timeout = timeout or self.DEFAULT_TIMEOUT
-            self.__socket = create_socket_and_connect(address[0], address[1], timeout)
-            self._connected = True
-            return self.connected
-        except RuntimeError as err:
-            raise TransmitException(err)
-
-
-class UARTTransmit(Transmit):
-    VERBOSE = False
-    RESPONSE_MIN_LEN = 4
-    DEFAULT_TIMEOUT = 0.1
-
-    def __init__(self, ending_check: Optional[Callable[[bytes], bool]] = None):
-        super(UARTTransmit, self).__init__()
-        self.__serial = None
-        self.__ending_check = ending_check
-
-    def tx(self, data: bytes) -> bool:
-        try:
-            data += struct.pack("<H", crc16(data))
-            if self.VERBOSE:
-                print('tx: {0:03d} {1}'.format(len(data), self.hex_convert(data)))
-            return self.__serial.write(data) == len(data)
-        except serial.SerialException as err:
-            raise TransmitException(err)
-
-    def rx(self, size: int, timeout: float = 0) -> bytes:
-        try:
-            data = self.__serial.read(size)
-            if self.VERBOSE:
-                print('rx: {0:03d} {1}'.format(len(data), self.hex_convert(data)))
-
-            # Check received data length
-            if len(data) < self.RESPONSE_MIN_LEN:
-                raise TransmitTimeout("Too short:{}".format(len(data)))
-
-            # Check data checksum
-            if crc16(data):
-                raise TransmitException("Crc16 verify failed")
-
-            # Return payload
-            return data[0:-2]
-        except serial.SerialTimeoutException as err:
-            raise TransmitTimeout(err)
-        except serial.SerialException as err:
-            raise TransmitException(err)
-
-    def disconnect(self):
-        try:
-            self.__serial.flush()
-            self.__serial.close()
-        except AttributeError:
-            pass
-
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
-        """
-        Open serial port
-        :param address: (port name, baudrate)
-        :param timeout: serial timeout in seconds
-        :return:
-        """
-        try:
-            self._timeout = timeout or self.DEFAULT_TIMEOUT
-            self.__serial = SerialPort(port=address[0], baudrate=address[1],
-                                       timeout=self._timeout, ending_check=self.__ending_check)
-            self.__serial.flush()
-            self._connected = True
-            return self.connected
-        except serial.SerialException as err:
-            raise TransmitException(err)
-
-    @staticmethod
-    def hex_convert(data: bytes) -> List[str] or bytes:
-        if not isinstance(data, bytes):
-            return data
-        return ["{}".format(data.hex()[x: x + 2]) for x in range(0, len(data.hex()), 2)]
 
 
 class ProtoBufSdk(object):
     def __init__(self,
                  transmit: Transmit,
                  max_msg_length: int,
-                 timeout_callback: Callable[[bool], None],
-                 logging_callback: Optional[Callable[[UiLogMessage], None]] = None):
+                 timeout_callback: ProtoBufSdkTimeoutCallback,
+                 exception_callback: ProtoBufSdkExceptionCallback,
+                 logging_callback: Optional[LoggingMsgCallback] = None):
         """
         Init a protocol buffers sdk
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
         :param max_msg_length: protocol buffers maximum message length
         :param timeout_callback: when transmit timeout will call this callback
+        :param exception_callback: when transmit exception will call this callback
         :param logging_callback: communicate logging callback
         """
         if not isinstance(transmit, Transmit):
@@ -208,6 +47,7 @@ class ProtoBufSdk(object):
         self._timeout = False
         self._logging_callback = logging_callback
         self._timeout_callback = timeout_callback
+        self._exception_callback = exception_callback
         Thread(target=self.threadCommunicationHandle, daemon=True).start()
 
     def __del__(self):
@@ -255,7 +95,7 @@ class ProtoBufSdk(object):
 
     def sendRequestToQueue(self,
                            msg: message.Message,
-                           callback: Optional[ProtoBufSdkCallback] = None,
+                           callback: Optional[ProtoBufSdkRequestCallback] = None,
                            priority: Optional[int] = None, periodic: bool = True) -> bool:
         """
         Send request to queue
@@ -324,6 +164,7 @@ class ProtoBufSdk(object):
                     self._errorLogging("Decode msg error: {}".format(e))
                 except TransmitException as e:
                     self._errorLogging("Comm error: {}".format(e))
+                    self._exception_callback(e)
                     break
                 except TransmitTimeout:
                     retry += 1
@@ -342,7 +183,7 @@ class ProtoBufHandle(object):
                  transmit: Transmit,
                  max_msg_length: int,
                  handle_callback: ProtoBufHandleCallback,
-                 logging_callback: Optional[Callable[[UiLogMessage], None]] = None, verbose: bool = False):
+                 logging_callback: Optional[LoggingMsgCallback] = None, verbose: bool = False):
         """
         Init a protocol buffers handle for protocol buffer comm simulator
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
@@ -437,6 +278,7 @@ class ProtoBufHandle(object):
                 continue
             except TransmitException as e:
                 self._errorLogging("Comm error: {}".format(e))
+                self._transmit.disconnect()
                 continue
             except TransmitTimeout:
                 continue

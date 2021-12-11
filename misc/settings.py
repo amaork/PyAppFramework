@@ -10,7 +10,7 @@ from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTu
 
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
-           'UiLogMessage',
+           'UiLogMessage', 'LoggingMsgCallback',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
            'UiFileInput', 'UiFolderInput', 'UiPushButtonInput',
@@ -596,3 +596,6 @@ class UiLogMessage(DynamicObject):
     @staticmethod
     def genDefaultErrorMessage(content) -> T:
         return UiLogMessage(content=content, level=logging.ERROR, color="#FF0000")
+
+
+LoggingMsgCallback = Callable[[UiLogMessage], None]

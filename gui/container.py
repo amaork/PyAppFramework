@@ -549,7 +549,7 @@ class ComponentManager(QObject):
         lst = list()
         for component in self.findKey(key, componentType):
             value = component.property(key)
-            if isinstance(value, str) and searchValue in value:
+            if isinstance(value, str) and searchValue in value or value == searchValue:
                 lst.append(component)
 
         return lst

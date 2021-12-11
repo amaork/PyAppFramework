@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-from threading import Timer
 from typing import Callable, Optional, Union
 from PySide.QtCore import Qt, Signal, Slot, QObject, QTimer
 from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
 
+from .timer import Task, Tasklet
 from .threading import ThreadConditionWrap
+
+from ..gui.dialog import ProgressDialog
 from ..gui.msgbox import MB_TYPES, showMessageBox, showQuestionBox
 
-__all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail', 'WindowsTitleMail', 'CallbackFuncMail']
+__all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail',
+           'WindowsTitleMail', 'CallbackFuncMail', 'ProgressBarMail']
 
 
 class BaseUiMail(object):
@@ -152,6 +155,36 @@ class QuestionBoxMail(BaseUiMail):
         self._condition.finished(True if result else False)
 
 
+class ProgressBarMail(BaseUiMail):
+    def __init__(self, progress: int, content: str = '',
+                 closeable: bool = False, increase: int = 0, interval: float = 0.0):
+        super(ProgressBarMail, self).__init__(content)
+        self._increase = increase
+        self._interval = interval
+
+        self._progress = progress
+        self._closeable = closeable
+
+    @property
+    def progress(self) -> int:
+        return self._progress
+
+    @property
+    def closeable(self) -> bool:
+        return self._closeable
+
+    @property
+    def increase(self) -> int:
+        return self._increase
+
+    @property
+    def interval(self) -> float:
+        return self._interval
+
+    def autoIncreaseEnabled(self) -> bool:
+        return self._increase > 0 and self.interval > 0.0
+
+
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
 
@@ -165,7 +198,15 @@ class UiMailBox(QObject):
             raise RuntimeError("UiMailBox needs a QWidget as parent")
 
         self.__parent = parent
+        self.__progress = ProgressDialog(parent)
+
+        self.__pai_tid = ''
+        self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
+
         self.hasNewMail.connect(self.mailProcess)
+
+    def taskProgressAutoIncrease(self, mail: ProgressBarMail):
+        self.send(ProgressBarMail(self.__progress.value() + mail.increase, mail.content, mail.closeable))
 
     def send(self, mail: BaseUiMail) -> bool:
         """ Send a mail
@@ -225,6 +266,21 @@ class UiMailBox(QObject):
         # Show a question box
         elif isinstance(mail, QuestionBoxMail):
             mail.syncClickResult(showQuestionBox(self.__parent, content=mail.content, title=mail.title))
+
+        elif isinstance(mail, ProgressBarMail):
+            if mail.progress:
+                self.__progress.setLabelText(mail.content)
+                self.__progress.setProgress(mail.progress)
+                self.__progress.setCloseable(mail.closeable)
+
+                if mail.autoIncreaseEnabled():
+                    self.__pai_tid, _ = self.__tasklet.add_task(
+                        Task(func=self.taskProgressAutoIncrease, timeout=mail.interval, periodic=True, args=(mail,))
+                    )
+            else:
+                self.__tasklet.del_task(self.__pai_tid)
+                self.__progress.slotHidden()
+                self.__progress.setCloseable(True)
 
         # Appended a message on windows title
         elif isinstance(mail, WindowsTitleMail):

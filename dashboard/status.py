@@ -18,7 +18,8 @@ class DashboardStatusIcon(QWidget):
     doubleClicked = Signal(object)
 
     def __init__(self, parent: QWidget, name: str, status: Sequence[str],
-                 tips: str = "", size: Optional[QSize] = None, differ_font_size: bool = False):
+                 tips: str = "", size: Optional[QSize] = None, differ_font_size: bool = False,
+                 max_double_click_interval: int = 300):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
@@ -44,9 +45,16 @@ class DashboardStatusIcon(QWidget):
         if isinstance(size, QSize):
             self.setMinimumSize(self.__scaleSize(size))
         self.setToolTip(tips)
+        self._timer = QTimer()
+        self._timer.setInterval(max_double_click_interval)
+        self._timer.timeout.connect(self.slotSingleClicked)
 
     def __repr__(self):
         return "{}: {}".format(self.name, self.status())
+
+    def slotSingleClicked(self):
+        self._timer.stop()
+        self.clicked.emit(self._display)
 
     def __scaleSize(self, size: QSize) -> QSize:
         return QSize(self._scale_x * size.width(), self._scale_y * size.height()) if isinstance(size, QSize) else size
@@ -162,9 +170,10 @@ class DashboardStatusIcon(QWidget):
         self.update()
 
     def mousePressEvent(self, ev: QMouseEvent):
-        self.clicked.emit(self._display)
+        self._timer.start()
 
     def mouseDoubleClickEvent(self, ev: QMouseEvent):
+        self._timer.stop()
         self.doubleClicked.emit(self._display)
 
     def paintEvent(self, ev: QPaintEvent):
