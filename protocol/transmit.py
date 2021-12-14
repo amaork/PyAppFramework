@@ -192,11 +192,16 @@ class TCPClientTransmit(Transmit):
 class TCPServerTransmit(Transmit):
     def __init__(self):
         super(TCPServerTransmit, self).__init__()
+        self._client_address = ('', -1)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    @property
+    def client(self) -> Tuple[str, int]:
+        return self._client_address
 
     def handle(self, listen_socket: socket.socket):
         while True:
-            self._socket, peer_address = listen_socket.accept()
+            self._socket, self._client_address = listen_socket.accept()
 
             # Set keepalive to detect client lost connection
             set_keepalive(self._socket, after_idle_sec=1, interval_sec=1, max_fails=3)

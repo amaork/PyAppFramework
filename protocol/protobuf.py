@@ -1,41 +1,48 @@
 # -*- coding: utf-8 -*-
 import time
 import queue
+import collections
 from threading import Thread
 import google.protobuf.message as message
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Any
 
 
-from ..misc.settings import LoggingMsgCallback, UiLogMessage
+from ..misc.settings import UiLogMessage
+from ..core.timer import Task, Tasklet
+from ..core.datatype import DynamicObject
 from .transmit import Transmit, TransmitTimeout, TransmitException
-__all__ = ['ProtoBufSdk', 'ProtoBufSdkRequestCallback',
-           'ProtoBufSdkTimeoutCallback', 'ProtoBufSdkExceptionCallback', 'LoggingMsgCallback',
+__all__ = ['CommunicationEvent',
+           'ProtoBufSdk', 'ProtoBufSdkRequestCallback',
            'ProtoBufHandle', 'ProtoBufHandleCallback']
 
 # callback(request message, response raw bytes)
 ProtoBufSdkRequestCallback = Callable[[message.Message, bytes], None]
 
-ProtoBufSdkTimeoutCallback = Callable[[bool], None]
-ProtoBufSdkExceptionCallback = Callable[[Exception], None]
-
 # callback(request raw bytes) ->  response message
 ProtoBufHandleCallback = Callable[[bytes], Optional[message.Message]]
 
 
+class CommunicationEvent(DynamicObject):
+    _properties = {'type', 'data'}
+    Type = collections.namedtuple('Type', ['Timeout', 'Restore', 'Exception', 'Logging', 'Connected', 'Disconnect'])(*(
+        'timeout', 'restore', 'exception', 'logging', 'connect', 'disconnect'
+    ))
+
+    def __init__(self, type_: Type, data: Any = ''):
+        kwargs = dict(type=type_, data=data)
+        super(CommunicationEvent, self).__init__(**kwargs)
+
+    def isEvent(self, type_: Type) -> bool:
+        return self.type == type_
+
+
 class ProtoBufSdk(object):
-    def __init__(self,
-                 transmit: Transmit,
-                 max_msg_length: int,
-                 timeout_callback: ProtoBufSdkTimeoutCallback,
-                 exception_callback: ProtoBufSdkExceptionCallback,
-                 logging_callback: Optional[LoggingMsgCallback] = None):
+    def __init__(self, transmit: Transmit, max_msg_length: int, event_callback: Callable[[CommunicationEvent], None]):
         """
         Init a protocol buffers sdk
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
         :param max_msg_length: protocol buffers maximum message length
-        :param timeout_callback: when transmit timeout will call this callback
-        :param exception_callback: when transmit exception will call this callback
-        :param logging_callback: communicate logging callback
+        :param event_callback: when sdk has event will callback this
         """
         if not isinstance(transmit, Transmit):
             raise TypeError('{!r} required {!r}'.format('transmit', Transmit.__name__))
@@ -45,9 +52,8 @@ class ProtoBufSdk(object):
         self._comm_queue = queue.PriorityQueue()
 
         self._timeout = False
-        self._logging_callback = logging_callback
-        self._timeout_callback = timeout_callback
-        self._exception_callback = exception_callback
+        self._exception = False
+        self._event_callback = event_callback
         Thread(target=self.threadCommunicationHandle, daemon=True).start()
 
     def __del__(self):
@@ -66,8 +72,7 @@ class ProtoBufSdk(object):
         return self._comm_queue.qsize() <= remain
 
     def _loggingCallback(self, msg: UiLogMessage):
-        if callable(self._logging_callback):
-            self._logging_callback(msg)
+        self._event_callback(CommunicationEvent(CommunicationEvent.Type.Logging, msg))
 
     def _infoLogging(self, msg: str):
         self._loggingCallback(UiLogMessage.genDefaultInfoMessage(msg))
@@ -122,6 +127,8 @@ class ProtoBufSdk(object):
                 time.sleep(0.05)
                 continue
 
+            self._exception = False
+
             try:
                 _, msg = self._comm_queue.get()
             except (queue.Empty, TypeError):
@@ -154,17 +161,19 @@ class ProtoBufSdk(object):
                     if callable(callback):
                         callback(request, res_data)
 
-                    # Clear timeout flag
+                    # Clear timeout flag, and make sure timeout callback only invoke once
                     if self._timeout:
                         self._timeout = False
-                        self._timeout_callback(self._timeout)
+                        self._event_callback(CommunicationEvent(CommunicationEvent.Type.Restore))
 
                     break
                 except message.DecodeError as e:
                     self._errorLogging("Decode msg error: {}".format(e))
                 except TransmitException as e:
                     self._errorLogging("Comm error: {}".format(e))
-                    self._exception_callback(e)
+                    if not self._exception:
+                        self._exception = True
+                        self._event_callback(CommunicationEvent(CommunicationEvent.Type.Exception, e))
                     break
                 except TransmitTimeout:
                     retry += 1
@@ -172,10 +181,12 @@ class ProtoBufSdk(object):
 
                     if retry >= 3:
                         # Set timeout flag
-                        if callable(self._timeout_callback):
-                            self._infoLogging("{!r}: Timeout".format(self.name))
+                        self._infoLogging("{!r}: Timeout".format(self.name))
+
+                        # Make sure timeout callback only invoke once
+                        if not self._timeout:
                             self._timeout = True
-                            self._timeout_callback(self._timeout)
+                            self._event_callback(CommunicationEvent(CommunicationEvent.Type.Timeout))
 
 
 class ProtoBufHandle(object):
@@ -183,13 +194,13 @@ class ProtoBufHandle(object):
                  transmit: Transmit,
                  max_msg_length: int,
                  handle_callback: ProtoBufHandleCallback,
-                 logging_callback: Optional[LoggingMsgCallback] = None, verbose: bool = False):
+                 event_callback: Callable[[CommunicationEvent], None], verbose: bool = False):
         """
         Init a protocol buffers handle for protocol buffer comm simulator
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
         :param max_msg_length: protocol buffers maximum message length
         :param handle_callback: when received an request will callback this
-        :param logging_callback: communicate logging callback
+        :param event_callback: communicate event callback
         :param verbose: show communicate verbose detail
         """
         if not isinstance(transmit, Transmit):
@@ -202,15 +213,16 @@ class ProtoBufHandle(object):
         self._transmit = transmit
         self._callback = handle_callback
         self._max_msg_length = max_msg_length
-        self._logging_callback = logging_callback
-        Thread(target=self.threadCommunicationHandle, daemon=True).start()
+        self._event_callback = event_callback
+        self._tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
+        self._tasklet.add_task(Task(func=self.taskDetectConnection, timeout=0.1), immediate=True)
+        Thread(target=self.threadCommunicationHandle, name='threadCommunicationHandle', daemon=True).start()
 
     def __del__(self):
         self._transmit.disconnect()
 
     def _loggingCallback(self, msg: UiLogMessage):
-        if callable(self._logging_callback):
-            self._logging_callback(msg)
+        self._event_callback(CommunicationEvent(CommunicationEvent.Type.Logging, msg))
 
     def _infoLogging(self, msg: str):
         self._loggingCallback(UiLogMessage.genDefaultInfoMessage(msg))
@@ -244,6 +256,12 @@ class ProtoBufHandle(object):
         self._infoLogging(msg) if result else self._errorLogging(msg)
         return result
 
+    def taskDetectConnection(self, task: Task):
+        if not self._transmit.connected:
+            task.reschedule()
+        else:
+            self._event_callback(CommunicationEvent(CommunicationEvent.Type.Connected))
+
     def threadCommunicationHandle(self):
         while True:
             if not self.connected:
@@ -272,11 +290,14 @@ class ProtoBufHandle(object):
                 if self._verbose:
                     print(">>> {:.2f}: [{}] {}".format(time.perf_counter(), len(response), response.hex()))
             except AttributeError:
+                self._event_callback(CommunicationEvent(CommunicationEvent.Type.Exception, AttributeError))
                 break
             except message.DecodeError as e:
                 self._errorLogging("Decode msg error: {}".format(e))
                 continue
             except TransmitException as e:
+                self._event_callback(CommunicationEvent(CommunicationEvent.Type.Disconnect, e))
+                self._tasklet.add_task(Task(func=self.taskDetectConnection, timeout=0.1))
                 self._errorLogging("Comm error: {}".format(e))
                 self._transmit.disconnect()
                 continue

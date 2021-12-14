@@ -538,7 +538,7 @@ class ComponentManager(QObject):
 
         return lst
 
-    def findValue(self, key: str, searchValue: str, componentType: Optional[QWidget.__class__] = None) -> List[QWidget]:
+    def findValue(self, key: str, searchValue: Any, componentType: Optional[QWidget.__class__] = None) -> List[QWidget]:
         """Find component with componentType specified types and property key hast value
 
         :param key: property key
