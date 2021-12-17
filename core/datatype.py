@@ -2,6 +2,7 @@
 import math
 import json
 import ctypes
+import collections
 from typing import Tuple, List, Union
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml',
@@ -157,6 +158,7 @@ class DynamicObjectDecodeError(DynamicObjectError):
 class DynamicObject(object):
     _check = dict()
     _properties = set()
+    _json_dump_sequence = ()
 
     def __init__(self, **kwargs):
         try:
@@ -196,9 +198,25 @@ class DynamicObject(object):
     def dict(self) -> dict:
         return self.__dict__.copy()
 
+    @property
+    def json(self) -> dict:
+        if not self._json_dump_sequence:
+            self._json_dump_sequence = sorted(self._properties)
+
+        def sort_key(x):
+            return self._json_dump_sequence.index(x[0]) if x[0] in self._json_dump_sequence else 0
+
+        return collections.OrderedDict(
+            {k: v for k, v in sorted(self.dict.items(), key=sort_key) if k in self._json_dump_sequence}
+        )
+
     @classmethod
     def properties(cls) -> List[str]:
         return list(cls._properties)
+
+    @classmethod
+    def json_dump_sequence(cls) -> Tuple[str, ...]:
+        return tuple(cls._json_dump_sequence)
 
     def xml(self, tag: str) -> XmlElementTree.Element:
         element = XmlElementTree.Element(tag)

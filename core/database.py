@@ -6,7 +6,7 @@ import shutil
 import sqlite3
 import hashlib
 from .datatype import DynamicObject, str2float, str2number
-from typing import Any, Optional, Union, List, Tuple, Sequence, Dict
+from typing import Any, Optional, Union, List, Tuple, Sequence, Dict, Callable
 from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
 
 try:
@@ -15,7 +15,7 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'SQLiteUIElementScheme']
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'SQLiteUIElementScheme', 'SQLiteUITableScheme']
 
 
 class SQLiteDatabaseError(Exception):
@@ -525,8 +525,9 @@ class SQLiteUserPasswordDatabase(object):
 
 
 class SQLiteGeneralSettingsItem(DynamicObject):
-    SEQUENCE = ('id', 'name', 'data', 'min', 'max', 'precision', 'desc')
     _properties = {'id', 'name', 'data', 'min', 'max', 'precision', 'desc'}
+    _json_dump_sequence = ('id', 'name', 'data', 'min', 'max', 'precision', 'desc')
+    InitNameWithDash = ('id', 'min', 'max')
 
     def __init__(self, id_: int, name: str, data: Union[int, float],
                  min_: Union[int, float] = 0, max_: Union[int, float] = 0, precision: int = 0, desc: str = ""):
@@ -551,12 +552,17 @@ class SQLiteGeneralSettingsItem(DynamicObject):
         super(SQLiteGeneralSettingsItem, self).__init__(**kwargs)
 
     def __repr__(self):
+        # For db insert using, don't change it
         data = list()
         dict_ = self.dict
-        for name in self.SEQUENCE:
+        for name in self._json_dump_sequence:
             data.append('"{}"'.format(dict_.get(name)))
 
         return ", ".join(data)
+
+    @staticmethod
+    def factory(dict_: dict):
+        return SQLiteGeneralSettingsItem(**{f'{k}_' if k in ('id', 'min', 'max') else k: v for k, v in dict_.items()})
 
 
 class SQLiteUIElementScheme(DynamicObject):
@@ -576,6 +582,66 @@ class SQLiteUIElementScheme(DynamicObject):
             )
         else:
             return UiIntegerInput(name=name, minimum=self.min, maximum=self.max, readonly=readonly)
+
+
+class SQLiteUITableScheme(DynamicObject):
+    COLUMN_HEADER = ('ID', '名称', '默认数据', '最小值', '最大值', '精度', '描述')
+    _properties = {'name', 'maxRow', 'isMultiColumn', 'scheme', 'floating', 'readonly', 'ignoreNames'}
+    _json_dump_sequence = ('maxRow', 'isMultiColumn', 'floating', 'readonly', 'scheme')
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('readonly', dict())
+        kwargs.setdefault('ignoreNames', list())
+        super(SQLiteUITableScheme, self).__init__(**kwargs)
+
+    def subTitle(self) -> str:
+        return f'#### 多列数据，最大行数：{self.maxRow}\n' if self.isMultiColumn else f'#### 单列数据'
+
+    def mainTitle(self, title: str) -> str:
+        return f"\n\n## {title} ({self.name})\n\n"
+
+    def updateReadonly(self, check: Callable[[DynamicObject, str], bool]):
+        for item in self.scheme.values():
+            item = DynamicObject(**item)
+            if check(self, item.name):
+                self.readonly[item.id] = item.name
+
+    def tableHeader(self) -> List[str]:
+        header = list(self.COLUMN_HEADER) + ['权限']
+        header[0] = 'Column' if self.isMultiColumn else 'Row'
+        return header
+
+    def generateMarkdownDocs(self, title: str):
+        table = list()
+        table.append(self.mainTitle(title))
+        table.append(self.subTitle())
+        table.append('|' + '|'.join(self.tableHeader()) + '|')
+        table.append("----".join("|" * (len(self.tableHeader()) + 1)))
+
+        for item in self.scheme.values():
+            item = SQLiteGeneralSettingsItem.factory(item)
+            if item.name in self.ignoreNames:
+                continue
+
+            rw = ['ReadOnly' if item.id in self.readonly else 'R/W']
+            row_data = [f'{x}' for x in item.json.values()] + rw
+            table.append('|' + '|'.join(row_data) + '|')
+
+        return "\n".join(table)
+
+    def getUIElementScheme(self) -> Dict[int, SQLiteUIElementScheme]:
+        scheme = dict()
+        for item in self.scheme.values():
+            item = DynamicObject(**item)
+            precision = str2number(item.precision)
+            process = str2float if precision else str2number
+
+            scheme[item.id] = SQLiteUIElementScheme(
+                name=item.name, data=process(item.data),
+                precision=item.precision, min=process(item.min), max=process(item.max)
+            )
+
+        return scheme
 
 
 class SQLiteDatabaseCreator(object):
@@ -638,9 +704,9 @@ class SQLiteDatabaseCreator(object):
         fp.write(";\n}\n/*")
 
     @staticmethod
-    def get_settings_table_ui_scheme(name: str) -> Dict[int, SQLiteUIElementScheme]:
+    def get_settings_table_ui_scheme(name: str, db_path: str) -> Dict[int, SQLiteUIElementScheme]:
         try:
-            db = SQLiteDatabase(os.path.join('config', 'gas_sampler.db'))
+            db = SQLiteDatabase(db_path)
         except (OSError, SQLiteDatabaseError) as e:
             print("Load db scheme error: {}".format(e))
             return dict()
@@ -656,9 +722,9 @@ class SQLiteDatabaseCreator(object):
         return scheme
 
     @staticmethod
-    def get_general_table_ui_scheme(name: str) -> Dict[int, SQLiteUIElementScheme]:
+    def get_general_table_ui_scheme(name: str, db_path: str) -> Dict[int, SQLiteUIElementScheme]:
         try:
-            db = SQLiteDatabase(os.path.join('config', 'gas_sampler.db'))
+            db = SQLiteDatabase(db_path)
         except (OSError, SQLiteDatabaseError) as e:
             print("Load db scheme error: {}".format(e))
             return dict()
@@ -691,6 +757,10 @@ class SQLiteDatabaseCreator(object):
     @property
     def database_path(self) -> str:
         return self._db_name
+
+    @property
+    def output_dir(self) -> str:
+        return self._output_dir
 
     def create_settings_table(self, name: str):
         self._db_cursor.execute("CREATE TABLE {} ("
@@ -740,7 +810,7 @@ class SQLiteDatabaseCreator(object):
 
     def set_settings_data(self, table_name: str,
                           settings: Sequence[SQLiteGeneralSettingsItem],
-                          protobuf_enum: bool = False):
+                          protobuf_enum: bool = False) -> SQLiteUITableScheme:
         """Create settings table and fill settings data
 
         :param table_name: settings table name
@@ -774,11 +844,14 @@ class SQLiteDatabaseCreator(object):
             if protobuf_enum:
                 self.__output_protobuf_items(fp, table_name, enum_items)
 
-        return True
+        sc = {x.id: x.json for x in settings}
+        ff = {x.id: x.name for x in settings if x.precision > 0}
+        return SQLiteUITableScheme(name=table_name, maxRow=-1, isMultiColumn=False, floating=ff, scheme=sc)
 
-    def set_general_table_limit(self, table_name: str, max_column: int,
+    def set_general_table_limit(self, table_name: str,
+                                max_row: int, max_column: int,
                                 limit: Sequence[SQLiteGeneralSettingsItem],
-                                protobuf_enum: bool = False):
+                                protobuf_enum: bool = False) -> SQLiteUITableScheme:
         try:
             print("{} data count: {}".format(table_name, len(limit)))
             with open(self.__get_header_file_name(table_name), "wt") as fp:
@@ -786,7 +859,7 @@ class SQLiteDatabaseCreator(object):
                 fp.write(self.ENUM_DEFAULT_NAME + " {\n")
                 for id_, item in enumerate(limit):
                     if not isinstance(item, SQLiteGeneralSettingsItem):
-                        return False
+                        raise RuntimeError(f'item must be {SQLiteGeneralSettingsItem.__name__!r}')
                     enum_items.append(self.__format_enum_item(item.name, id_))
 
                 enum_items.append(self.__format_enum_item(self._enum_tail(table_name), len(enum_items)))
@@ -834,7 +907,15 @@ class SQLiteDatabaseCreator(object):
             self._db_cursor.execute("INSERT INTO {} VALUES({});".format(table_name, upper_limit))
             self._db_conn.commit()
         except (TypeError,):
-            print("Error limit request a tuple list")
+            raise RuntimeError("Error limit request a tuple list")
+        else:
+            # Id is column index
+            for column in range(len(limit)):
+                limit[column].id = column
+
+            sc = {i: x.json for i, x in enumerate(limit)}
+            ff = {c: l for c, l in enumerate(limit) if l.precision > 0}
+            return SQLiteUITableScheme(name=table_name, maxRow=max_row, isMultiColumn=True, floating=ff, scheme=sc)
 
     def set_general_table_data(self, table_name: str, row_count: int, fill_random_data: bool = False):
         """Create general table and fill data
