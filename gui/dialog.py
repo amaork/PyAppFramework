@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import time
-
 import hashlib
 import threading
 from PySide.QtGui import *
@@ -28,7 +28,7 @@ __all__ = ['SimpleColorDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'SoftwareRegistrationDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
-           'showFileImportDialog', 'showFileExportDialog']
+           'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
 
 __showFileImportDialogRecentPathDict = dict()
 DialogApplyFunction = Callable[[dict], None]
@@ -992,3 +992,11 @@ def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
 
     __showFileImportDialogRecentPathDict[title] = os.path.dirname(import_path)
     return import_path
+
+
+def checkSocketSingleInstanceLock(port: int, parent: QWidget) -> SocketSingleInstanceLock:
+    try:
+        return SocketSingleInstanceLock(port)
+    except RuntimeError as e:
+        showMessageBox(parent, MB_TYPE_WARN, "{}".format(e))
+        sys.exit()

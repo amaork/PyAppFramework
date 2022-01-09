@@ -6,13 +6,14 @@ import serial
 import struct
 from threading import Thread
 from typing import Callable, List, Optional, Tuple
+from google.protobuf.message import Message, DecodeError
 
 
 from .crc16 import crc16
 from .serialport import SerialPort
 from ..network.utility import create_socket_and_connect, set_keepalive
 __all__ = ['Transmit', 'TransmitTimeout', 'TransmitException',
-           'UARTTransmit', 'TCPClientTransmit', 'TCPServerTransmit']
+           'UARTTransmit', 'TCPClientTransmit', 'TCPServerTransmit', 'UartTransmitWithProtobufEndingCheck']
 
 
 class TransmitException(Exception):
@@ -241,3 +242,25 @@ class TCPServerTransmit(Transmit):
             raise TransmitTimeout(err)
         except socket.error as err:
             raise TransmitException(err)
+
+
+class UartTransmitWithProtobufEndingCheck(UARTTransmit):
+    def __init__(self, msg_cls, with_crc16: bool = False):
+        if not issubclass(msg_cls, Message):
+            raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
+        self.__msg_cls = msg_cls
+        self.__with_crc16 = with_crc16
+        super(UartTransmitWithProtobufEndingCheck, self).__init__(ending_check=self.ending_check)
+
+    def ending_check(self, data: bytes) -> bool:
+        try:
+            if not data:
+                return False
+
+            if self.__with_crc16 and crc16(data):
+                return False
+
+            self.__msg_cls.FromString(data[0:-2])
+            return True
+        except DecodeError:
+            return False

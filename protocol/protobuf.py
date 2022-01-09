@@ -68,6 +68,10 @@ class ProtoBufSdk(object):
         return self._transmit.connected
 
     @property
+    def isTimeout(self) -> bool:
+        return self._timeout
+
+    @property
     def isCommIdle(self, remain: int = 1) -> bool:
         return self._comm_queue.qsize() <= remain
 
