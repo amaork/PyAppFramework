@@ -12,7 +12,7 @@ from google.protobuf.message import Message, DecodeError
 from .crc16 import crc16
 from .serialport import SerialPort
 from ..network.utility import create_socket_and_connect, set_keepalive
-__all__ = ['Transmit', 'TransmitTimeout', 'TransmitException',
+__all__ = ['Transmit', 'TransmitWarning', 'TransmitException',
            'UARTTransmit', 'TCPClientTransmit', 'TCPServerTransmit', 'UartTransmitWithProtobufEndingCheck']
 
 
@@ -20,7 +20,7 @@ class TransmitException(Exception):
     pass
 
 
-class TransmitTimeout(Exception):
+class TransmitWarning(Exception):
     pass
 
 
@@ -99,16 +99,16 @@ class UARTTransmit(Transmit):
 
             # Check received data length
             if len(data) < self.RESPONSE_MIN_LEN:
-                raise TransmitTimeout("Too short:{}".format(len(data)))
+                raise TransmitWarning("Too short:{}".format(len(data)))
 
             # Check data checksum
             if crc16(data):
-                raise TransmitException("Crc16 verify failed")
+                raise TransmitWarning("Crc16 verify failed")
 
             # Return payload
             return data[0:-2]
         except serial.SerialTimeoutException as err:
-            raise TransmitTimeout(err)
+            raise TransmitWarning(err)
         except serial.SerialException as err:
             raise TransmitException(err)
 
@@ -154,7 +154,7 @@ class TCPClientTransmit(Transmit):
         try:
             return self._socket.send(data) == len(data)
         except socket.timeout as err:
-            raise TransmitTimeout(err)
+            raise TransmitWarning(err)
         except socket.error as err:
             raise TransmitException(err)
 
@@ -164,7 +164,7 @@ class TCPClientTransmit(Transmit):
             self._socket.settimeout(timeout)
             return self._socket.recv(size)
         except socket.timeout as err:
-            raise TransmitTimeout(err)
+            raise TransmitWarning(err)
         except socket.error as err:
             raise TransmitException(err)
 
@@ -231,7 +231,7 @@ class TCPServerTransmit(Transmit):
         try:
             return self._socket.send(data) == len(data)
         except socket.timeout as err:
-            raise TransmitTimeout(err)
+            raise TransmitWarning(err)
         except socket.error as err:
             raise TransmitException(err)
 
@@ -239,7 +239,7 @@ class TCPServerTransmit(Transmit):
         try:
             return self._socket.recv(size)
         except socket.timeout as err:
-            raise TransmitTimeout(err)
+            raise TransmitWarning(err)
         except socket.error as err:
             raise TransmitException(err)
 

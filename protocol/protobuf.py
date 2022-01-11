@@ -10,7 +10,7 @@ from typing import Callable, Optional, Tuple, Any
 from ..misc.settings import UiLogMessage
 from ..core.timer import Task, Tasklet
 from ..core.datatype import DynamicObject
-from .transmit import Transmit, TransmitTimeout, TransmitException
+from .transmit import Transmit, TransmitWarning, TransmitException
 __all__ = ['CommunicationEvent',
            'ProtoBufSdk', 'ProtoBufSdkRequestCallback',
            'ProtoBufHandle', 'ProtoBufHandleCallback']
@@ -148,7 +148,7 @@ class ProtoBufSdk(object):
                     # Send request
                     req_data = request.SerializeToString()
                     if not self._transmit.tx(req_data):
-                        raise TransmitTimeout
+                        raise TransmitWarning("tx error")
 
                     if not periodic:
                         self._debugLogging("Tx[{0:02d}]: {1}[Raw: {2}]".format(len(req_data), request, req_data.hex()))
@@ -156,7 +156,7 @@ class ProtoBufSdk(object):
                     # Receive response
                     res_data = self._transmit.rx(self._max_msg_length)
                     if not res_data:
-                        raise TransmitTimeout
+                        raise TransmitWarning("rx timeout")
 
                     if not periodic:
                         self._debugLogging("Rx[{0:02d}]: {1}[Raw: {1}]".format(len(res_data), res_data.hex()))
@@ -179,7 +179,7 @@ class ProtoBufSdk(object):
                         self._exception = True
                         self._event_callback(CommunicationEvent(CommunicationEvent.Type.Exception, e))
                     break
-                except TransmitTimeout:
+                except TransmitWarning as e:
                     retry += 1
                     time.sleep(retry * 0.3)
 
@@ -190,7 +190,7 @@ class ProtoBufSdk(object):
                         # Make sure timeout callback only invoke once
                         if not self._timeout:
                             self._timeout = True
-                            self._event_callback(CommunicationEvent(CommunicationEvent.Type.Timeout))
+                            self._event_callback(CommunicationEvent(CommunicationEvent.Type.Timeout, e))
 
 
 class ProtoBufHandle(object):
@@ -305,5 +305,5 @@ class ProtoBufHandle(object):
                 self._errorLogging("Comm error: {}".format(e))
                 self._transmit.disconnect()
                 continue
-            except TransmitTimeout:
+            except TransmitWarning:
                 continue
