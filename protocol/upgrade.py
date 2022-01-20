@@ -350,11 +350,13 @@ class GogsSoftwareReleaseDesc(JsonSettings):
         return GogsSoftwareReleaseDesc(name="", desc="", size=0, date="", md5="", version=0.0, url="")
 
     @classmethod
-    def generate(cls, path: str, version: float) -> bool:
+    def generate(cls, path: str, version: float, desc: str = '', url: str = '') -> bool:
         """
         Generate #path specified software release desc
         :param path: software path
         :param version: software version
+        :param desc: app description
+        :param url: app url
         :return: success return True
         """
         try:
@@ -364,8 +366,8 @@ class GogsSoftwareReleaseDesc(JsonSettings):
                 name=os.path.basename(path),
                 size=os.path.getsize(path),
                 version=version,
-                desc="",
-                url=""
+                desc=desc,
+                url=url
             )
 
             return desc.save(os.path.join(os.path.dirname(path), GogsSoftwareReleaseDesc.file_path()))

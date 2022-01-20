@@ -185,7 +185,7 @@ class ProtoBufSdk(object):
 
                     if retry >= 3:
                         # Set timeout flag
-                        self._infoLogging("{!r}: Timeout".format(self.name))
+                        self._infoLogging(f"{self.name}: {e}")
 
                         # Make sure timeout callback only invoke once
                         if not self._timeout:
