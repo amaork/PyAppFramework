@@ -17,7 +17,7 @@ __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network'
            'get_host_address', 'get_broadcast_address',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
-           'create_socket_and_connect', 'wait_device_reboot',
+           'create_socket_and_connect', 'wait_device_reboot', 'tcp_socket_send_data',
            'SocketSingleInstanceLock', 'NicInfo']
 
 
@@ -215,6 +215,21 @@ def scan_lan_alive(network: Union[ipaddress.IPv4Network, str] = "",
                   for x in network.hosts()]
 
     return [str(x) for x, r in zip(network.hosts(), result) if r.result() is not None]
+
+
+def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes) -> List[int]:
+    total_send = 0
+    send_length = list()
+
+    while total_send < len(data):
+        send = tcp_socket.send(data[total_send:])
+        if send == 0:
+            raise ConnectionError('peer closed')
+
+        total_send += send
+        send_length.append(send)
+
+    return send_length
 
 
 def create_socket_and_connect(address: str, port: int, timeout: float,

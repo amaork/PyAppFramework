@@ -44,3 +44,6 @@ class ThreadLockAndDataWrap(object):
     def data(self, data: Any):
         with self.__lock:
             self.__data = data
+
+    def assign(self, data: Any):
+        self.data = data
