@@ -7,7 +7,8 @@ from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 
 from ..core.datatype import *
-__all__ = ['WirelessNetwork', 'WirelessInterface', 'WirelessNetworkShell']
+from ..misc.util import awk_query
+__all__ = ['WirelessNetwork', 'WirelessInterface', 'WirelessNetworkShell', 'LinuxWirelessNetworkShell']
 
 
 class WirelessInterface(DynamicObject):
@@ -312,3 +313,40 @@ class WirelessNetworkShell(object):
             return False
 
         return True
+
+
+class LinuxWirelessNetworkShell:
+    def __init__(self, interface: str = 'wlan0'):
+        self._interface = interface
+        self._iw_config= f'iwconfig {self._interface}'
+
+    def __repr__(self):
+        return f'{self.attr.dict}'
+
+    @property
+    def attr(self) -> DynamicObject:
+        return DynamicObject(ssid=self.get_ssid(),
+                             quality=self.get_quality(),
+                             signal_level=self.get_signal_level(), mode=self.get_mode(), ap=self.get_ap())
+
+    def get_ap(self) -> str:
+        pass
+
+    def get_mode(self) -> str:
+        pass
+
+    def get_ssid(self) -> str:
+        return awk_query(self._iw_config, 'ESSID', 4).split(":")[-1]
+
+    def get_quality(self) -> int:
+        try:
+            dbm = self.get_signal_level()
+            return max(min(2 * (dbm + 100), 0), 100)
+        except ValueError:
+            return 0
+
+    def get_signal_level(self) -> int:
+        try:
+            return int(awk_query(self._iw_config, '"Signal level"', 4).split('=')[-1])
+        except ValueError:
+            return 0

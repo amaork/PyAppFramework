@@ -17,7 +17,8 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
-           'Font', 'Time', 'Color', 'IndexColor', 'Layout', 'LayoutSpace', 'LayoutMargins']
+           'Font', 'Time', 'Color', 'IndexColor', 'color_property',
+           'Layout', 'LayoutSpace', 'LayoutMargins']
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
@@ -396,7 +397,6 @@ class UiColorInput(UiInputSetting):
         if len(html_color) != 7 or html_color[0] != '#' or any([x.upper() not in hexdigits for x in html_color[1:]]):
             return 0, 0, 0
 
-        a, b = html_color[1::2], html_color[2::2]
         return tuple([int(a + b, 16) for a, b in zip(html_color[1::2], html_color[2::2])])
 
     @staticmethod
@@ -599,3 +599,19 @@ class UiLogMessage(DynamicObject):
 
 
 LoggingMsgCallback = Callable[[UiLogMessage], None]
+
+
+def color_property(color_name: str, max_value: int = 255):
+    def color_check(color) -> bool:
+        return isinstance(color, (list, tuple)) and len(color) == 3 and all([0 <= x <= max_value for x in color])
+
+    def color_getter(instance) -> Color:
+        return instance.__dict__[color_name]
+
+    def color_setter(instance, color):
+        if color_check(color):
+            instance.__dict__[color_name] = color
+        else:
+            raise ValueError(f'{color_name!r} invalid error')
+
+    return property(color_getter, color_setter, doc=f'{color_name}')
