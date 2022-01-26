@@ -601,7 +601,7 @@ class UiLogMessage(DynamicObject):
 LoggingMsgCallback = Callable[[UiLogMessage], None]
 
 
-def color_property(color_name: str, max_value: int = 255):
+def color_property(color_name: str, max_value: int = 255) -> property:
     def color_check(color) -> bool:
         return isinstance(color, (list, tuple)) and len(color) == 3 and all([0 <= x <= max_value for x in color])
 
@@ -612,6 +612,6 @@ def color_property(color_name: str, max_value: int = 255):
         if color_check(color):
             instance.__dict__[color_name] = color
         else:
-            raise ValueError(f'{color_name!r} invalid error')
+            raise ValueError(f'{color_name!r} invalid: {color}')
 
     return property(color_getter, color_setter, doc=f'{color_name}')

@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
+import sys
 import math
 import json
 import ctypes
 import collections
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Any
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
-           'str2float', 'str2number', 'resolve_number', 'ip4_check']
+           'str2float', 'str2number', 'resolve_number', 'ip4_check',
+           'convert_property', 'float_property', 'integer_property', 'enum_property']
 
 
 def resolve_number(number: float, decimals: int) -> Tuple[int, int]:
@@ -66,6 +68,46 @@ def str2number(text: Union[str, bool, int, float]) -> int:
 
     except ValueError:
         return 0
+
+
+def enum_property(name: str, enum: collections.Sequence) -> property:
+    def enum_getter(instance):
+        return instance.__dict__[name]
+
+    def enum_setter(instance, value):
+        if value in enum:
+            instance.__dict__[name] = value
+        else:
+            raise ValueError(f'{name!r} invalid {value}, should be one of: {enum}')
+
+    return property(enum_getter, enum_setter, doc=f'{name} ({enum})')
+
+
+def convert_property(name: str, minimum, maximum, convert_func) -> property:
+    if not callable(convert_func):
+        raise TypeError("'convert_func' must be callable")
+
+    def value_check(value) -> bool:
+        return minimum <= value <= maximum
+
+    def value_getter(instance) -> float:
+        return convert_func(instance.__dict__[name])
+
+    def value_setter(instance, value: float):
+        if value_check(convert_func(value)):
+            instance.__dict__[name] = convert_func(value)
+        else:
+            raise ValueError(f'{name!r} ({value}) invalid: should in range: ({minimum} - {maximum})')
+
+    return property(value_getter, value_setter, doc=f'{name} ({minimum} - {maximum})')
+
+
+def float_property(name: str, minimum: float = sys.float_info.min, maximum: float = sys.float_info.max) -> property:
+    return convert_property(name, minimum, maximum, str2float)
+
+
+def integer_property(name: str, minimum: int = float('-inf'), maximum: int = float('inf')) -> property:
+    return convert_property(name, minimum, maximum, str2number)
 
 
 def ip4_check(address: str) -> bool:
@@ -297,3 +339,15 @@ class ComparableXml(XmlElementTree.Element):
 
         data = ComparableXml.string_strip(data)
         return XmlElementTree.fromstring(data)
+
+
+class CustomEvent(DynamicObject):
+    _properties = {'type', 'data'}
+
+    def __init__(self, type_, data: Any = ''):
+        self.type = type_
+        kwargs = dict(type=type_, data=data)
+        super(CustomEvent, self).__init__(**kwargs)
+
+    def isEvent(self, type_) -> bool:
+        return self.type == type_
