@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import threading
 from typing import Any, Optional
-__all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap']
+__all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap', 'ThreadSafeBool', 'ThreadSafeInteger']
 
 
 class ThreadConditionWrap(object):
@@ -47,3 +47,44 @@ class ThreadLockAndDataWrap(object):
 
     def assign(self, data: Any):
         self.data = data
+
+
+class ThreadSafeBool(ThreadLockAndDataWrap):
+    def __init__(self, value: bool):
+        if not isinstance(value, bool):
+            raise TypeError('value must be a bool')
+        super(ThreadSafeBool, self).__init__(value)
+
+    def set(self):
+        self.data = True
+
+    def clear(self):
+        self.data = False
+
+    def is_set(self) -> bool:
+        return self.data
+
+    def reverse(self) -> bool:
+        with self.__lock:
+            self.__data = not self.__data
+            return self.__data
+
+
+class ThreadSafeInteger(ThreadLockAndDataWrap):
+    def __init__(self, value: int):
+        if not isinstance(value, int):
+            raise TypeError('value must be an integer')
+        super(ThreadSafeInteger, self).__init__(value)
+
+    def reset(self):
+        self.data = 0
+
+    def increase(self) -> int:
+        with self.__lock:
+            self.__data += 1
+            return self.__data
+
+    def decrease(self) -> int:
+        with self.__lock:
+            self.__data -= 1
+            return self.__data
