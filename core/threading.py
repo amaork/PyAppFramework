@@ -29,21 +29,21 @@ class ThreadConditionWrap(object):
 
 class ThreadLockAndDataWrap(object):
     def __init__(self, data: Any):
-        self.__data = data
-        self.__lock = threading.Lock()
+        self._data = data
+        self._lock = threading.Lock()
 
     def __bool__(self):
         return bool(self.data)
 
     @property
     def data(self) -> Any:
-        with self.__lock:
-            return self.__data
+        with self._lock:
+            return self._data
 
     @data.setter
     def data(self, data: Any):
-        with self.__lock:
-            self.__data = data
+        with self._lock:
+            self._data = data
 
     def assign(self, data: Any):
         self.data = data
@@ -65,9 +65,9 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
         return self.data
 
     def reverse(self) -> bool:
-        with self.__lock:
-            self.__data = not self.__data
-            return self.__data
+        with self._lock:
+            self._data = not self._data
+            return self._data
 
 
 class ThreadSafeInteger(ThreadLockAndDataWrap):
@@ -80,11 +80,11 @@ class ThreadSafeInteger(ThreadLockAndDataWrap):
         self.data = 0
 
     def increase(self) -> int:
-        with self.__lock:
-            self.__data += 1
-            return self.__data
+        with self._lock:
+            self._data += 1
+            return self._data
 
     def decrease(self) -> int:
-        with self.__lock:
-            self.__data -= 1
-            return self.__data
+        with self._lock:
+            self._data -= 1
+            return self._data
