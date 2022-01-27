@@ -4,7 +4,7 @@ import math
 import json
 import ctypes
 import collections
-from typing import Tuple, List, Union, Any
+from typing import Tuple, List, Union, Iterable
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
@@ -70,7 +70,7 @@ def str2number(text: Union[str, bool, int, float]) -> int:
         return 0
 
 
-def enum_property(name: str, enum: collections.Sequence) -> property:
+def enum_property(name: str, enum: Iterable) -> property:
     def enum_getter(instance):
         return instance.__dict__[name]
 
@@ -344,9 +344,9 @@ class ComparableXml(XmlElementTree.Element):
 class CustomEvent(DynamicObject):
     _properties = {'type', 'data'}
 
-    def __init__(self, type_, data: Any = ''):
-        self.type = type_
-        kwargs = dict(type=type_, data=data)
+    def __init__(self, **kwargs):
+        self.type = kwargs.get('type')
+        kwargs.setdefault('data', '')
         super(CustomEvent, self).__init__(**kwargs)
 
     def isEvent(self, type_) -> bool:

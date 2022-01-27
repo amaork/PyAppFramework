@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import abc
 import time
 import queue
 import collections
@@ -9,9 +10,9 @@ from typing import Callable, Optional, Tuple, Any
 
 from ..misc.settings import UiLogMessage
 from ..core.timer import Task, Tasklet
-from ..core.datatype import DynamicObject
+from ..core.datatype import CustomEvent, enum_property
 from .transmit import Transmit, TransmitWarning, TransmitException
-__all__ = ['CommunicationEvent',
+__all__ = ['CommunicationEvent', 'CommunicationEventHandle',
            'ProtoBufSdk', 'ProtoBufSdkRequestCallback',
            'ProtoBufHandle', 'ProtoBufHandleCallback']
 
@@ -22,18 +23,57 @@ ProtoBufSdkRequestCallback = Callable[[message.Message, bytes], None]
 ProtoBufHandleCallback = Callable[[bytes], Optional[message.Message]]
 
 
-class CommunicationEvent(DynamicObject):
-    _properties = {'type', 'data'}
+class CommunicationEvent(CustomEvent):
     Type = collections.namedtuple('Type', ['Timeout', 'Restore', 'Exception', 'Logging', 'Connected', 'Disconnect'])(*(
         'timeout', 'restore', 'exception', 'logging', 'connect', 'disconnect'
     ))
+
+    type = enum_property('type', Type)
 
     def __init__(self, type_: Type, data: Any = ''):
         kwargs = dict(type=type_, data=data)
         super(CommunicationEvent, self).__init__(**kwargs)
 
-    def isEvent(self, type_: Type) -> bool:
-        return self.type == type_
+
+class CommunicationEventHandle:
+    def __call__(self, event: CommunicationEvent):
+        handle = {
+            CommunicationEvent.Type.Logging: self.handleCommEventLogging,
+            CommunicationEvent.Type.Timeout: self.handleCommEventTimeout,
+            CommunicationEvent.Type.Restore: self.handleCommEventRestore,
+            CommunicationEvent.Type.Exception: self.handleCommEventException,
+            CommunicationEvent.Type.Connected: self.handleCommEventConnected,
+            CommunicationEvent.Type.Disconnect: self.handleCommEventDisconnect,
+        }.get(event.type)
+
+        if callable(handle):
+            handle(event.data)
+        else:
+            print(f'Unregistered type: {event.type}')
+
+    @abc.abstractmethod
+    def handleCommEventLogging(self, msg: UiLogMessage):
+        pass
+
+    @abc.abstractmethod
+    def handleCommEventTimeout(self, exp: Exception):
+        pass
+
+    @abc.abstractmethod
+    def handleCommEventRestore(self, arg: Any):
+        pass
+
+    @abc.abstractmethod
+    def handleCommEventException(self, exp: Exception):
+        pass
+
+    @abc.abstractmethod
+    def handleCommEventConnected(self, arg: Any):
+        pass
+
+    @abc.abstractmethod
+    def handleCommEventDisconnect(self, exp: Exception):
+        pass
 
 
 class ProtoBufSdk(object):
