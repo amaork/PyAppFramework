@@ -2,7 +2,8 @@
 import time
 import reprlib
 import functools
-__all__ = ['track_time']
+import contextlib
+__all__ = ['track_time', 'statistics_time']
 
 
 def track_time(func):
@@ -25,3 +26,12 @@ def track_time(func):
         return result
 
     return wrapper_debug_time
+
+
+@contextlib.contextmanager
+def statistics_time(label: str = 'statistics_time'):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        print(f'{label}: {time.perf_counter() - start}')

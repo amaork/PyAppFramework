@@ -2,6 +2,7 @@
 import time
 import queue
 import inspect
+import traceback
 import threading
 import collections
 from typing import Optional, Callable, Any, Tuple
@@ -159,12 +160,17 @@ class Task(DynamicObject):
         """Run task and set result"""
         with self.__lock:
             auto_args = {self.TASK_KEYWORD: self, self.TASKLET_KEYWORD: self.runtime.tasklet}
-
             start_ts = time.perf_counter()
-            self.result.finished(self.func(**util_auto_kwargs(self.func, self.args, auto_args)))
-            end_ts = time.perf_counter()
 
-            self.runtime.update(dict(cnt=self.runtime.cnt + 1, latest=end_ts, cost=end_ts - start_ts))
+            try:
+                self.result.finished(self.func(**util_auto_kwargs(self.func, self.args, auto_args)))
+            except Exception as e:
+                self.delete()
+                self.result.finished(False)
+                return f'Task: {self} raise critical error, will be deleted: {e}, {traceback.format_exc()}'
+            finally:
+                end_ts = time.perf_counter()
+                self.runtime.update(dict(cnt=self.runtime.cnt + 1, latest=end_ts, cost=end_ts - start_ts))
 
             # Periodic task auto reload timeout
             if self.periodic:
@@ -230,7 +236,7 @@ class Tasklet(SwTimer):
     def __init__(self,
                  schedule_interval: float = 1.0,
                  max_workers: Optional[int] = None,
-                 name: str = '', dump: Optional[Callable[[str], None]] = None):
+                 name: str = '', dump: Optional[Callable[[str], None]] = None, err: Callable[[str], None] = print):
         """Tasklet is sample Round-Robin schedule is base on SwTimer(a threading)
         Add a Task to tasklet, when task timeout will schedule it once,
         if a Task is running, it could be delete or reschedule.
@@ -247,9 +253,15 @@ class Tasklet(SwTimer):
         :param max_workers: max worker thread, default only one thread
         :param name: Tasklet name just for debug and track
         :param dump: Tasklet dump output function
+        :param err: Tasklet error log output
         """
+        if not callable(err):
+            raise TypeError('log must be callable')
+
         self.__tasks = dict()
         self.__dump_callback = dump
+        self.__error_callback = err
+
         self.__queue = queue.Queue()
         self.__name = str(name) or str(id(self))
         self.__schedule_interval = schedule_interval
@@ -275,7 +287,7 @@ class Tasklet(SwTimer):
             if task is None:
                 break
 
-            task.run()
+            self.__error_handle(task.run())
 
     def __schedule(self):
         for task in self.__tasks.values():
@@ -288,7 +300,11 @@ class Tasklet(SwTimer):
                     self.__queue.put(task)
             else:
                 if not task.is_running():
-                    task.run()
+                    self.__error_handle(task.run())
+
+    def __error_handle(self, result):
+        if result is not None:
+            self.__error_callback(f'Tasklet: {self}, {result}')
 
     @property
     def tick(self) -> float:
