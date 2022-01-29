@@ -1,31 +1,26 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import time
 import hashlib
-import threading
 from PySide.QtGui import *
 from PySide.QtCore import *
-from typing import Optional, Union, Sequence, Callable, Dict
+from typing import Optional, Union, Sequence, Callable
 
 from .msgbox import *
 from .button import RectButton
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
 
-from ..misc.mrc import MachineCode
 from ..misc.windpi import get_program_scale_factor
 from ..misc.settings import UiLayout, Color, IndexColor
-from ..misc.qrcode import qrcode_generate, qrcode_decode
 
 from ..core.datatype import DynamicObject
-from ..core.threading import ThreadLockAndDataWrap
-from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, ImageWidget, \
+from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 __all__ = ['SimpleColorDialog',
            'SerialPortSettingDialog',
-           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'SoftwareRegistrationDialog',
+           'ProgressDialog', 'PasswordDialog', 'OptionDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
@@ -791,180 +786,6 @@ class OptionDialog(QDialog):
         dialog = cls(options, title, parent)
         dialog.exec_()
         return dialog.getSelectionIndex()
-
-
-class SoftwareRegistrationDialog(QDialog):
-    QR_CODE_FORMAT = 'png'
-    QR_CODE_FS_FMT = "PNG(*.png)"
-    QR_CODE_WIDTH, QR_CODE_HEIGHT = 500, 500
-
-    signalMsgBox = Signal(str, str)
-    signalMachineCodeGenerated = Signal(bytes)
-    signalVerifyRegistrationCode = Signal(bool)
-
-    def __init__(self, rsa_public_key: str, register_file: str,
-                 machine_code_opt: Optional[Dict[str, bool]] = None, parent: Optional[QWidget] = None):
-        super(SoftwareRegistrationDialog, self).__init__(parent)
-        self.__mc_qr_image = bytes()
-        self.__rc_qr_image = bytes()
-        self.__registered = ThreadLockAndDataWrap(False)
-        self.__machine = MachineCode(rsa_public_key=rsa_public_key,
-                                     register_file=register_file, options=machine_code_opt)
-
-        self.__initUi()
-        self.__initData()
-        self.__initSignalAndSlot()
-
-    def __initUi(self):
-        self.ui_save_mc = QPushButton(self.tr("Save Machine Code"))
-        self.ui_load_rc = QPushButton(self.tr("Load Registration Code"))
-        self.ui_mc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
-        self.ui_rc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
-        self.ui_tool_btn = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
-        self.ui_backup_rc = self.ui_tool_btn.addButton(self.tr("Backup Registration Code"), QDialogButtonBox.ResetRole)
-
-        mc_layout = QVBoxLayout()
-        mc_layout.addWidget(self.ui_mc_image)
-        mc_layout.addWidget(self.ui_save_mc)
-
-        rc_layout = QVBoxLayout()
-        rc_layout.addWidget(self.ui_rc_image)
-        rc_layout.addWidget(self.ui_load_rc)
-
-        preview_layout = QHBoxLayout()
-        preview_layout.addLayout(mc_layout)
-        preview_layout.addLayout(rc_layout)
-
-        layout = QVBoxLayout()
-        layout.addLayout(preview_layout)
-        layout.addWidget(QSplitter())
-        layout.addWidget(self.ui_tool_btn)
-        self.setLayout(layout)
-        self.setWindowTitle(self.tr("Software Register"))
-
-    def __initData(self):
-        self.ui_save_mc.setHidden(True)
-        self.ui_load_rc.setHidden(True)
-        self.ui_backup_rc.setHidden(True)
-        self.ui_mc_image.drawFromText(self.tr("Generating please wait..."))
-        self.ui_rc_image.drawFromText(self.tr("Please Load Registration Code"))
-
-        # Display machine code
-        th = threading.Thread(target=self.threadGenerateMachineCode, name="Generating machine code")
-        th.setDaemon(True)
-        th.start()
-
-        # Verify registration code
-        th = threading.Thread(target=self.threadCheckAndLoadRegistrationState, name="Check registration state")
-        th.setDaemon(True)
-        th.start()
-
-    def __initSignalAndSlot(self):
-        self.ui_tool_btn.accepted.connect(self.accept)
-        self.ui_tool_btn.rejected.connect(self.reject)
-        self.ui_save_mc.clicked.connect(self.slotSaveMachineCode)
-        self.ui_load_rc.clicked.connect(self.slotLoadRegistrationCode)
-        self.ui_backup_rc.clicked.connect(self.slotBackupRegistrationCode)
-
-        self.signalMachineCodeGenerated.connect(self.slotShowMachineCode)
-        self.signalVerifyRegistrationCode.connect(self.slotShowRegistrationCode)
-        self.signalMsgBox.connect(lambda t, c: showMessageBox(self, msg_type=t, content=c))
-
-    def isRegistered(self) -> bool:
-        return self.__registered.data
-
-    def slotSaveMachineCode(self):
-        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="machine_code.png",
-                                    title=self.tr("Please select machine code save path"))
-        if not path:
-            return
-
-        try:
-            with open(path, 'wb') as fp:
-                fp.write(self.__mc_qr_image)
-
-            self.signalMsgBox.emit(MB_TYPE_INFO, self.tr("Machine code save success") + "\n{!r}".format(path))
-        except OSError as e:
-            showMessageBox(self, MB_TYPE_ERR, self.tr("Save machine code error") + ": {}".format(e))
-
-    def slotLoadRegistrationCode(self):
-        if self.__registered:
-            return showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
-
-        path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT,
-                                    title=self.tr("Please select registration code"))
-        if not os.path.isfile(path):
-            return
-
-        self.ui_rc_image.drawFromText(self.tr("Verifying, please wait..."))
-        th = threading.Thread(target=self.threadVerifyRegistrationCode, args=(path,))
-        th.setDaemon(True)
-        th.start()
-
-    def slotBackupRegistrationCode(self):
-        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="registration_code.png",
-                                    title=self.tr("Please select registration code backup path"))
-        if not path:
-            return
-
-        try:
-            with open(path, "wb") as fp:
-                fp.write(self.__rc_qr_image)
-
-            self.signalMsgBox.emit(MB_TYPE_INFO,
-                                   self.tr("Software registration code backup success") + "\n{!r}".format(path))
-        except OSError as e:
-            self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Software registration code backup failed") + ": {}".format(e))
-
-    def slotShowMachineCode(self, image: bytes):
-        if not image or not self.ui_mc_image.drawFromMem(image, self.QR_CODE_FORMAT):
-            return
-
-        self.__mc_qr_image = image
-        self.ui_save_mc.setVisible(True)
-        self.ui_load_rc.setVisible(True)
-
-    def slotShowRegistrationCode(self, verify: bool):
-        self.__registered.data = verify
-
-        if not verify:
-            return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid software registration code"))
-
-        self.__rc_qr_image = qrcode_generate(self.__machine.get_registration_code(), fmt=self.QR_CODE_FORMAT)
-        self.ui_rc_image.drawFromMem(self.__rc_qr_image, self.QR_CODE_FORMAT)
-
-        self.ui_backup_rc.setVisible(True)
-        self.ui_load_rc.setText(self.tr("Software registered"))
-        showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
-
-    def threadGenerateMachineCode(self):
-        try:
-            self.signalMachineCodeGenerated.emit(qrcode_generate(self.__machine.get_machine_code()))
-        except Exception as e:
-            self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Generate machine code error") + ": {}".format(e))
-
-    def threadVerifyRegistrationCode(self, path: str):
-        try:
-            self.signalVerifyRegistrationCode.emit(self.__machine.register(qrcode_decode(path)))
-        except (OSError, ValueError, IndexError, TypeError):
-            self.signalVerifyRegistrationCode.emit(False)
-
-    def threadCheckAndLoadRegistrationState(self):
-        if self.__machine.verify():
-            self.signalVerifyRegistrationCode.emit(True)
-        else:
-            time.sleep(3)
-            self.signalMsgBox.emit(MB_TYPE_WARN, self.tr("Please click 'Load Registration Code' register software"))
-
-    @staticmethod
-    def isSoftwareRegistered(rsa_public_key: str, register_file: str,
-                             machine_code_opt: Optional[Dict[str, bool]] = None,
-                             parent: Optional[QWidget] = None) -> bool:
-        dialog = SoftwareRegistrationDialog(rsa_public_key=rsa_public_key,
-                                            register_file=register_file,
-                                            machine_code_opt=machine_code_opt, parent=parent)
-        dialog.exec_()
-        return dialog.isRegistered()
 
 
 def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
