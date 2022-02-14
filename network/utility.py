@@ -14,7 +14,7 @@ from threading import Thread
 from typing import List, Optional, Dict, Union, Tuple
 from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
-           'get_host_address', 'get_broadcast_address',
+           'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
            'create_socket_and_connect', 'wait_device_reboot', 'tcp_socket_send_data',
@@ -58,6 +58,29 @@ def get_system_nic(ignore_loopback: bool = True) -> Dict[str, NicInfo]:
 def get_default_network(prefix: int = 24) -> str:
     networks = [x.network for _, x in get_system_nic(ignore_loopback=True).items() if x.network_prefix == prefix]
     return networks[0] if networks else ""
+
+
+def get_address_prefix_len(ip: str) -> int:
+    if '/' in ip:
+        try:
+            return ipaddress.ip_network(ip, strict=False).prefixlen
+        except ValueError:
+            return 24
+
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return 24
+
+    for network, prefix in (
+            (ipaddress.IPv4Network('10.0.0.0/8'), 8),
+            (ipaddress.IPv4Network('172.16.0.0/12'), 16),
+            (ipaddress.IPv4Network('192.168.0.0/16'), 24)
+    ):
+        if address in network:
+            return prefix
+    else:
+        return 24
 
 
 def get_address_source_network(ip: str) -> Union[ipaddress.IPv4Network, None]:

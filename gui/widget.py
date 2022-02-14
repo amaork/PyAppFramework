@@ -2434,6 +2434,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         path_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(path_edit, QLineEdit):
             path_edit.setText(path)
+            # path_edit.setReadOnly(True)
             enabled = self.ui_manager.getPrevSibling(path_edit)
             if isinstance(enabled, QCheckBox):
                 enabled.setChecked(True)
@@ -2633,15 +2634,15 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setCurrentAddress(setting.get_data())
             elif setting.is_file_type():
                 widget = QLineEdit(parent)
-                widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
+                widget.setReadOnly(not UiFileInput.isEditable(setting.get_check()))
 
                 enable = QCheckBox(QApplication.translate("JsonSettingWidget",
                                                           "Enable", None,
                                                           QApplication.UnicodeUTF8), parent=parent)
                 enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
-                enable.setVisible(setting.get_check()[UiFileInput.CHECK_SELECTABLE] == str(True))
+                enable.setVisible(UiFileInput.isSelectable(setting.get_check()))
 
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select File",

@@ -4,7 +4,7 @@ import sys
 import hashlib
 from PySide.QtGui import *
 from PySide.QtCore import *
-from typing import Optional, Union, Sequence, Callable
+from typing import Optional, Union, Sequence, Callable, Any
 
 from .msgbox import *
 from .button import RectButton
@@ -493,6 +493,7 @@ class BasicJsonSettingDialog(QDialog):
         layout = QVBoxLayout()
         self.ui_widget = widget_cls(settings, data, parent)
         self.ui_widget.settingChanged.connect(self.slotSettingChanged)
+        self.ui_widget.settingChangedDetail.connect(self.slotSettingChangedDetail)
 
         self.ui_buttons = QDialogButtonBox(dialog_buttons)
         self.ui_buttons.accepted.connect(self.accept)
@@ -533,6 +534,9 @@ class BasicJsonSettingDialog(QDialog):
             showMessageBox(self, MB_TYPE_ERR, self.tr("Apply settings error") + " : {}".format(error))
 
     def slotSettingChanged(self):
+        pass
+
+    def slotSettingChangedDetail(self, name: str, value: Any):
         pass
 
     def getJsonDataWithoutConfirm(self) -> dict:

@@ -260,11 +260,14 @@ class UiInputSetting(DynamicObject):
 
 
 class UiFileInput(UiInputSetting):
-    CHECK_SELECTABLE = -1
+    CHECK_EDITABLE = -1
+    CHECK_SELECTABLE = -2
 
-    def __init__(self, name: str, fmt: Tuple[str, ...], default: str = "", selectable: bool = False):
+    def __init__(self, name: str, fmt: Tuple[str, ...], default: str = "",
+                 selectable: bool = False, editable: bool = False):
         fmt = list(fmt)
         fmt.append(str(selectable))
+        fmt.append(str(editable))
         super(UiFileInput, self).__init__(name=name, data="", default=default,
                                           check=fmt, readonly=False, type="FILE")
 
@@ -275,6 +278,20 @@ class UiFileInput(UiInputSetting):
             return file_path
         except ValueError:
             return data
+
+    @staticmethod
+    def isEditable(check: Sequence) -> bool:
+        try:
+            return check[UiFileInput.CHECK_EDITABLE] == str(True)
+        except IndexError:
+            return False
+
+    @staticmethod
+    def isSelectable(check: Sequence) -> bool:
+        try:
+            return check[UiFileInput.CHECK_SELECTABLE] == str(True)
+        except IndexError:
+            return False
 
 
 class UiFolderInput(UiInputSetting):
