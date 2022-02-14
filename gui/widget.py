@@ -1116,6 +1116,11 @@ class TableWidget(QTableWidget):
     def __slotShowContentMenu(self, pos: QPoint):
         for group in self.SUPPORT_ACTIONS:
             enabled = group & self.__contentMenuEnableMask
+
+            if enabled and group in (self.ACTION.MOVE, self.ACTION.FROZEN):
+                if not self.rowCount():
+                    return
+
             for action in self.__contentMenu.actions():
                 if action.property("group") == group:
                     action.setVisible(enabled)
