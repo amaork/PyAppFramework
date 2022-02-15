@@ -131,7 +131,8 @@ class Task(DynamicObject):
 
     def __init__(self, func: Callable, timeout: float,
                  periodic: bool = False, args: Tuple = (),
-                 result: Optional[ThreadConditionWrap] = None, id_ignore_args: bool = True):
+                 result: Optional[ThreadConditionWrap] = None,
+                 id_ignore_args: bool = True, id_ignore_timeout: bool = False):
         util_check_arguments(func, args, self.AUTO_ARGS)
 
         runtime = TaskRuntime()
@@ -140,16 +141,18 @@ class Task(DynamicObject):
         super(Task, self).__init__(**kwargs)
         self.__lock = threading.Lock()
         self.__id_ignore_args = True if id_ignore_args else False
+        self.__id_ignore_timeout = True if id_ignore_timeout else False
 
     def __eq__(self, other):
         return self.id() == other.id()
 
     def __str__(self):
         args = '' if self.__id_ignore_args else f'{self.args}'
-        return f"{self.func.__name__}{inspect.signature(self.func)}{args}{self.timeout}{self.periodic}"
+        timeout = '' if self.__id_ignore_timeout else f'{self.timeout}'
+        return f"{self.func.__name__}{inspect.signature(self.func)}{args}{timeout}{self.periodic}"
 
     def __repr__(self):
-        dict_ = {k: v for k, v in self.dict.items() if k not in ('result', '_Task__id_ignore_args', '_Task__lock')}
+        dict_ = {k: v for k, v in self.dict.items() if k not in ('result',) and not k.startswith('_Task__')}
         dict_.update(func=self.func.__name__)
         return f'{dict_}'
 

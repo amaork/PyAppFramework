@@ -60,7 +60,7 @@ class JsonSettings(DynamicObject):
                 dict_ = json.load(fp, object_pairs_hook=collections.OrderedDict)
 
             return cls(**dict_) if dict_ else cls.default()
-        except (JsonSettingsDecodeError, DynamicObjectDecodeError) as err:
+        except (json.JSONDecodeError, JsonSettingsDecodeError, DynamicObjectDecodeError) as err:
             raise JsonSettingsDecodeError(err)
 
     @classmethod
