@@ -145,7 +145,7 @@ class ProtoBufSdk(object):
     def sendRequestToQueue(self,
                            msg: message.Message,
                            callback: Optional[ProtoBufSdkRequestCallback] = None,
-                           priority: Optional[int] = None, periodic: bool = True) -> bool:
+                           priority: Optional[int] = None, periodic: bool = False) -> bool:
         """
         Send request to queue
         :param msg: request message
@@ -220,6 +220,10 @@ class ProtoBufSdk(object):
                         self._event_callback(CommunicationEvent(CommunicationEvent.Type.Exception, e))
                     break
                 except TransmitWarning as e:
+                    # Periodic msg do not retry
+                    if periodic:
+                        break
+
                     retry += 1
                     time.sleep(retry * 0.3)
 

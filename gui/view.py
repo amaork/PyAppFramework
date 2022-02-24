@@ -543,6 +543,7 @@ class TableViewDelegate(QItemDelegate):
         elif isinstance(settings, UiPushButtonInput):
             button = QPushButton(settings.get_name(), parent=parent)
             button.setProperty('private', index.data())
+            button.setProperty('index', index)
             button.clicked.connect(settings.get_default())
             return button
         else:
@@ -580,7 +581,7 @@ class TableViewDelegate(QItemDelegate):
         ComponentManager.setComponentData(editor, value)
 
     def setModelData(self, editor: QWidget, model: QStandardItemModel, index: QModelIndex):
-        if not isinstance(index, QModelIndex) or not isinstance(model, QStandardItemModel):
+        if not isinstance(index, QModelIndex) or not isinstance(model, QAbstractItemModel):
             return None
 
         data = ComponentManager.getComponentData(editor)
