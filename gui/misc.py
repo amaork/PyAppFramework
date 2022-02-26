@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 import glob
 import platform
-
 import websocket
 from PySide.QtGui import *
 from PySide.QtCore import *
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
+from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
+
 from ..network.utility import get_system_nic
-from ..misc.settings import Color
-from typing import Optional, Union, Sequence, Tuple, Callable
+from ..misc.settings import Color, CustomAction
 __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector',
-           'TabBar', 'ExpandWidget',
+           'TabBar', 'ExpandWidget', 'CustomTextEditor',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel',
@@ -612,3 +612,64 @@ class HyperlinkLabel(ThreadSafeLabel):
 
     def mousePressEvent(self, ev: QMouseEvent):
         self.click()
+
+
+class CustomTextEditor(QTextEdit):
+    def __init__(self,
+                 save_as_title: str = '',
+                 actions: Optional[Iterable[CustomAction]] = None, parent: Optional[QWidget] = None):
+        super(CustomTextEditor, self).__init__(parent)
+        self.__save_as_title = save_as_title
+        self.__customize_actions = actions or list()
+
+        # Register custom action shortcuts
+        for action in self.__customize_actions:
+            if not action.shortcut:
+                continue
+
+            action.ks = QKeySequence(action.shortcut)
+            shortcut = QShortcut(action.ks, self)
+            shortcut.activated.connect(action.slot)
+
+        # Shortcut for clear all and save as
+        self.__save_ks = QKeySequence('Ctrl+S')
+        self.__clear_ks = QKeySequence('Ctrl+Alt+C')
+
+        self.__save_shortcut = QShortcut(self.__save_ks, self)
+        self.__clear_shortcut = QShortcut(self.__clear_ks, self)
+
+        self.__clear_shortcut.activated.connect(self.clear)
+        self.__save_shortcut.activated.connect(self.slotSaveAs)
+
+    def contextMenuEvent(self, event: QContextMenuEvent):
+        menu = self.createStandardContextMenu(event.pos())
+        # Standard clear and save action
+        menu.addSeparator()
+        menu.addAction('Clear All', self, SLOT('clear()'), self.__clear_ks)
+        if self.__save_as_title:
+            menu.addAction('Save As File', self, SLOT('slotSaveAs()'), self.__save_ks)
+
+        # Customize actions
+        menu.addSeparator()
+        for action in self.__customize_actions:
+            act = menu.addAction(action.text)
+            act.setShortcut(action.ks)
+            act.triggered.connect(action.slot)
+
+        menu.exec_(event.globalPos())
+
+    @Slot()
+    def slotSaveAs(self):
+        if not self.__save_as_title:
+            return
+
+        from .dialog import showFileExportDialog
+        from .msgbox import showMessageBox, MB_TYPE_INFO
+        path = showFileExportDialog(self, '*.txt', title=self.__save_as_title)
+        if not path:
+            return
+
+        with open(path, 'w', encoding='utf-8') as fp:
+            fp.write(self.toPlainText())
+
+        return showMessageBox(self, MB_TYPE_INFO, self.tr('Save success') + f'\n{path}', title=self.tr('Save File'))

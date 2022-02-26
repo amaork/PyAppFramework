@@ -9,7 +9,7 @@ from string import Template, hexdigits
 from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple, Callable
 
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
-__all__ = ['JsonSettings', 'JsonSettingsDecodeError',
+__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'CustomAction',
            'UiLogMessage', 'LoggingMsgCallback',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
@@ -85,6 +85,19 @@ class JsonSettings(DynamicObject):
     @classmethod
     def default(cls) -> DynamicObject:
         pass
+
+
+class CustomAction(DynamicObject):
+    _properties = {'text', 'slot', 'shortcut', 'ks'}
+
+    def __init__(self, text: str, slot: Callable[[None], None], shortcut: str = ''):
+        if not isinstance(text, str):
+            raise TypeError("text must be 'str' type")
+
+        if not callable(slot):
+            raise TypeError("slot must be 'callable' type")
+
+        super(CustomAction, self).__init__(text=text, slot=slot, shortcut=shortcut, ks='')
 
 
 class UiInputSetting(DynamicObject):
