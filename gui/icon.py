@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import Sequence, Dict
-from PySide.QtGui import QLabel, QPixmap
-from PySide.QtCore import QSize, QTimerEvent
+from PySide2.QtGui import QPixmap
+from PySide2.QtWidgets import QLabel
+from PySide2.QtCore import QSize, QTimerEvent
 from ..core.threading import ThreadLockAndDataWrap
 __all__ = ['StatusIcon', 'MultiStatusIcon', 'DynamicStatusIcon', 'MultiStatusNamedIcon']
 

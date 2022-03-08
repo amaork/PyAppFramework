@@ -114,7 +114,7 @@ def bmp_to_16bpp(im: Image.Image,
         for h in h_list:
             # Already handle the width can't divisible by 4 issue
             offset = (height - v - 1) * width * 3 + h * 3
-            bpp16.append(pixel_process(original[offset: offset + 3]))
+            bpp16.append(pixel_process(*original[offset: offset + 3]))
 
     header = file_header.raw + info_header.raw if with_header else bytes()
     return header + struct.pack("<{}H".format(width * height), *tuple(bpp16))
@@ -312,7 +312,7 @@ class ScrollingTextGifMaker(object):
         :param text: text to stroll display
         :param path: gif file save path
         :param char_count_per_frame: how many chars will display on each frame(screen)
-        :param move_pixel_per_frame: how many pixels will moved on each frame
+        :param move_pixel_per_frame: how many pixels will move on each frame
         :param duration: gif duration
         :param wait_frame_count: how many frames it will wait at then end
         :param blank_frame_count: how many blank frames it will display at the end

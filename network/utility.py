@@ -133,7 +133,7 @@ def set_keepalive(sock: socket.socket, after_idle_sec: int = 1, interval_sec: in
     :param sock: opened tcp socket
     :param after_idle_sec: after #after_idle_sec idleness then send keepalive ping
     :param interval_sec: send keepalive ping every #interval_sec
-    :param max_fails: after #max_fails times indicate the connection is lose
+    :param max_fails: after #max_fails times indicate the connection is lost
     :return:
     """
     _system = platform.system().lower()

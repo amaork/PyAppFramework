@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtGui import *
+from PySide2.QtCore import *
+from PySide2.QtWidgets import QTableView, QMenu, QWidget, QAction, QTableWidgetItem, QHeaderView, QAbstractItemView, \
+    QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QPushButton, QRadioButton, QItemDelegate, QDial, \
+    QStyleOptionViewItem, QTextEdit, QPlainTextEdit, QDateTimeEdit
 from typing import List, Any, Dict, Optional, Union, Sequence
 
 from ..misc.settings import *
@@ -27,6 +30,7 @@ class TableView(QTableView):
         self.__columnStretchFactor = list()
         self.__scale_x, self.__scale_y = get_program_scale_factor()
 
+        # noinspection PyTypeChecker
         for group, actions in {
             self.COMM_ACTION: [
                 (QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
@@ -42,6 +46,7 @@ class TableView(QTableView):
         }.items():
             for action, slot in actions:
                 action.triggered.connect(slot)
+                # noinspection PyTypeChecker
                 action.setProperty("group", group)
                 self.__contentMenu.addAction(action)
 
@@ -96,6 +101,7 @@ class TableView(QTableView):
             if not isinstance(action, QAction):
                 continue
 
+            # noinspection PyTypeChecker
             action.setProperty("group", self.CUSTOM_ACTION)
             self.__contentMenu.addAction(action)
 
@@ -129,7 +135,7 @@ class TableView(QTableView):
 
     def setVerticalHeaderHeight(self, height: int):
         vertical_header = self.verticalHeader()
-        vertical_header.setResizeMode(QHeaderView.Fixed)
+        vertical_header.setSectionResizeMode(QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
         self.setVerticalHeader(vertical_header)
 
@@ -139,7 +145,7 @@ class TableView(QTableView):
 
     def setHorizontalHeaderWidth(self, width: int):
         horizontal_header = self.horizontalHeader()
-        horizontal_header.setResizeMode(QHeaderView.Fixed)
+        horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
 
@@ -256,7 +262,7 @@ class TableView(QTableView):
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
-            header.setResizeMode(column, QHeaderView.Fixed)
+            header.setSectionResizeMode(column, QHeaderView.Fixed)
             self.setColumnWidth(column, width * factor)
 
     def getCurrentRow(self) -> int:
@@ -278,6 +284,7 @@ class TableView(QTableView):
         if not isinstance(model, QAbstractItemModel):
             return False
 
+        # noinspection PyTypeChecker
         return self.setCurrentIndex(model.index(row, 0, QModelIndex()))
 
     def setRowCount(self, count: int):
@@ -298,6 +305,7 @@ class TableView(QTableView):
         if not isinstance(data, list) or len(data) != model.rowCount():
             return False
 
+        # noinspection PyTypeChecker
         return sum([self.setRowData(row, data[row], role) for row in range(model.rowCount())]) == len(data)
 
     def getRowData(self, row: int, role: Qt.ItemDataRole = Qt.DisplayRole):
@@ -352,6 +360,7 @@ class TableView(QTableView):
         if not isinstance(model, QAbstractItemModel):
             return False
 
+        # noinspection PyTypeChecker
         return model.setData(model.index(row, column, QModelIndex()), data, role)
 
     def frozenItem(self, row: int, column: int, frozen: bool) -> bool:
@@ -373,6 +382,7 @@ class TableView(QTableView):
                 widget.setCheckable(not frozen) if isinstance(widget, QCheckBox) else widget.setDisabled(frozen)
 
         if isinstance(self.itemDelegate(), QItemDelegate):
+            # noinspection PyTypeChecker
             self.itemDelegate().setProperty(str(DynamicObject(row=row, column=column)), frozen)
 
         return True
@@ -526,6 +536,7 @@ class TableViewDelegate(QItemDelegate):
     def isFrozen(self, index: QStyleOptionViewItem) -> bool:
         row = index.row()
         column = index.column()
+        # noinspection PyTypeChecker
         return self.property(str(DynamicObject(row=row, column=column)))
 
     def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
@@ -542,7 +553,9 @@ class TableViewDelegate(QItemDelegate):
             return checkbox
         elif isinstance(settings, UiPushButtonInput):
             button = QPushButton(settings.get_name(), parent=parent)
+            # noinspection PyTypeChecker
             button.setProperty('private', index.data())
+            # noinspection PyTypeChecker
             button.setProperty('index', index)
             button.clicked.connect(settings.get_default())
             return button

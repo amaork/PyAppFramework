@@ -203,7 +203,7 @@ class RMIShellClient(object):
                          network: Optional[ipaddress.IPv4Network] = None, random_port: bool = True,
                          verbose: bool = False, verify_by_md5: bool = True, timeout: int = 60) -> bool:
         """
-        Uoload a local_file from local to remote
+        Upload a local_file from local to remote
         :param local_file: file to upload
         :param remote_path: file upload to remote path
         :param remote_name: if is not empty will rename to this name

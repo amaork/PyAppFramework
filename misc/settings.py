@@ -128,8 +128,8 @@ class UiInputSetting(DynamicObject):
     SELECT_TYPE_CHECK_DEMO = ("A", "B", "C")
 
     # Regular expression, max length
-    TEXT_TYPE_CHECK_DEMO = ("^(\d+)\.(\d+)\.(\d+)\.(\d+)$", 16, False)
-    PASSWORD_TYPE_CHECK_DEMO = ("[\s\S]*", 16, True)
+    TEXT_TYPE_CHECK_DEMO = (r"^(\d+)\.(\d+)\.(\d+)\.(\d+)$", 16, False)
+    PASSWORD_TYPE_CHECK_DEMO = (r"[\s\S]*", 16, True)
 
     def __init__(self, **kwargs):
         kwargs.setdefault('readonly', False)
@@ -146,7 +146,7 @@ class UiInputSetting(DynamicObject):
         except TypeError:
             raise ValueError("type ValueError is must be one of theme:{!r}".format(self.INPUT_TYPES))
 
-        # Check check type
+        # Check type
         if not isinstance(self.check, check_type):
             raise TypeError("check type error, it require {!r}".format(data_type))
 
@@ -347,7 +347,7 @@ class UiTextInput(UiInputSetting):
     CHECK = collections.namedtuple('UiTextInputCheck', ['REGEXP', 'LENGTH'])(*range(2))
 
     def __init__(self, name: str, length: int, default: str = "",
-                 password: bool = False, re_: str = "[\s\S]*", readonly: bool = False):
+                 password: bool = False, re_: str = r"[\s\S]*", readonly: bool = False):
         super(UiTextInput, self).__init__(name=name, data=default, default=default,
                                           check=(re_, length, password), readonly=readonly, type="TEXT")
 
@@ -362,7 +362,7 @@ class UiTimeInput(UiTextInput):
         else:
             h = str(hour_number)
             length = 6 + hour_number
-            re_ = Template("^(\d{0,$h}):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$$")
+            re_ = Template(r"^(\d{0,$h}):([0-5]{1})([0-9]{1}):([0-5]{1})([0-9]{1})$$")
             super(UiTimeInput, self).__init__(name, length, default=default, re_=re_.substitute(h=h), readonly=readonly)
 
     @staticmethod
@@ -409,7 +409,7 @@ class UiAddressInput(UiTextInput):
 
 
 class UiHexByteInput(UiTextInput):
-    RegExp = Template("^([0-9a-fA-F]{2}\ ?){0,$len}")
+    RegExp = Template(r"^([0-9a-fA-F]{2}\ ?){0,$len}")
 
     def __init__(self, name: str, length: int, default: str = "00 01 02 03 04 05 06", readonly: bool = False):
         re_ = self.RegExp.substitute(len=length)

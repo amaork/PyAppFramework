@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from ..misc.setup import get_git_commit_count, get_git_release_hash, get_git_release_date
 
 

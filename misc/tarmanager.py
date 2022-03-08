@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tar package file manager, support package file/directory to tar, gz, bz2  or unpackage file
+Tar package file manager, support package file/directory to tar, gz, bz2  or un-package file
 """
 import os
 import shutil
@@ -300,7 +300,7 @@ class TarManager(object):
         :param name: package name
         :param fmt: package formats
         :param extensions: if set only pack those extension names
-        :param filters: if set when filter is true will packed
+        :param filters: if set when filter is true will be packed
         :param verbose: show verbose message
         :param simulate: set simulate means not real pack only run process to get how many files it;s need to pack
         :param callback: before pack every file will call this callback function
@@ -359,7 +359,7 @@ class TarManager(object):
                     if len(extensions) or filters:
                         continue
 
-                    # Do not has extension and filters pack all
+                    # Do not have extension and filters pack all
                     compress.pack(tar_file, full_path)
 
             # Close tarFile

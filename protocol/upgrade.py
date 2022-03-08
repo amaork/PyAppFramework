@@ -22,13 +22,13 @@ __all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler', 'GogsUpgrad
 
 
 class UpgradeClient(object):
-    def __init__(self, name, addr, port, timeout=3):
+    def __init__(self, name, host, port, timeout=3):
         timeout = timeout if isinstance(timeout, int) else 3
         if not isinstance(name, str):
             raise TypeError("name require {!r} not {!r}".format(str.__name__, name.__class__.__name__))
 
         self.__key = name
-        self.__addr = addr
+        self.__host = host
         self.__port = port
         self.__connected = False
         
@@ -38,14 +38,14 @@ class UpgradeClient(object):
         try:
             # Connect upgrade server
             self.sock.settimeout(timeout)
-            self.sock.connect((self.__addr, self.__port))
+            self.sock.connect((self.__host, self.__port))
             
             # Mark connect success
             self.__connected = True
             
         except (TypeError, socket.error) as e:
             self.__connected = False
-            print("Connect server:{}:{} error:{}".format(self.__addr, self.__port, e))
+            print("Connect server:{}:{} error:{}".format(self.__host, self.__port, e))
             
     def __del__(self):
         if self.__connected:
@@ -238,10 +238,10 @@ class UpgradeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         return self.__file_server
 
     def get_newest_version(self, software):
-        """Get newest software version
+        """Get the newest software version
 
         :param software: software name
-        :return: software newest version
+        :return: the newest version
         """
 
         package_dir = software
@@ -260,7 +260,7 @@ class UpgradeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             return 0.0
 
     def get_newest_version_durl(self, software):
-        """Get newest software download address
+        """Get the newest software download address
 
         :param software: software name
         :return: software info and download url
@@ -276,7 +276,7 @@ class UpgradeServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             if version == 0.0:
                 return "No new version to download"
 
-            # Get newest version download path
+            # Get the newest version download path
             for name in [x for x in os.listdir(software) if self.UPGRADE_PACKAGE_SUFFIX in x]:
                 if str2float(os.path.splitext(name)[0]) == version:
                     file_name = name

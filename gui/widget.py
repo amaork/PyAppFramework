@@ -31,8 +31,14 @@ import os.path
 import collections
 
 from serial import Serial
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QPen, QBrush, QImage, QImageReader, QTextCursor,\
+    QMouseEvent, QHideEvent, QPaintEvent, QContextMenuEvent, QResizeEvent, QRegExpValidator
+from PySide2.QtCore import Qt, Signal, Slot, QPoint, QSize, QDate, QDateTime, QRegExp, QTime
+from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QButtonGroup, \
+    QSpinBox, QDoubleSpinBox, QTableWidget, QHeaderView, QSplitter, QLabel, QMenu, QAction, QRadioButton, \
+    QCheckBox, QPushButton, QLineEdit, QProgressBar, QDateTimeEdit, QAbstractItemView, QTableWidgetItem, \
+    QComboBox, QTreeWidget, QListWidget, QSizePolicy, QTreeWidgetItem, QFileDialog, QColorDialog, QFontDialog, \
+    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit
 from datetime import datetime
 from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
 
@@ -87,6 +93,7 @@ class BasicWidget(QWidget):
         input_ = input_cls()
         label = QLabel(label)
         input_.setProperty("name", key)
+        # noinspection PyTypeChecker
         label.setProperty("name", "{}_label".format(key))
         return label, input_
 
@@ -98,6 +105,7 @@ class BasicWidget(QWidget):
             text = input_cls()
             label = QLabel(label)
             text.setProperty("name", key)
+            # noinspection PyTypeChecker
             label.setProperty("name", "{}_label".format(key))
             layout.addWidget(label, row, 0)
             layout.addWidget(text, row, 1)
@@ -115,9 +123,11 @@ class BasicWidget(QWidget):
         label = QLabel(title)
         group = QButtonGroup()
         layout = QHBoxLayout()
+        # noinspection PyTypeChecker
         group.setProperty("name", key)
         for bid, name in enumerate(names):
             button = QRadioButton(name)
+            # noinspection PyTypeChecker
             button.setProperty("name", name)
             group.addButton(button)
             group.setId(button, bid)
@@ -179,7 +189,7 @@ class PaintWidget(QWidget):
         :return:QPoint
         """
         if not isinstance(fontSize, int) or not isinstance(textSize, int):
-            return QPoint(self.width() / 2, self.height() / 2)
+            return QPoint(self.width() // 2, self.height() // 2)
 
         # Get mouse position
         x, y = self.getCursorPos()
@@ -329,7 +339,7 @@ class PaintWidget(QWidget):
 
         :param color: QColor
         :param brightness: brightness value (0 - 255)
-        :return:success return after just color, else Qt.back
+        :return:success return after just color, else black
         """
 
         if not PaintWidget.isColor(color) or not PaintWidget.isNumber(brightness):
@@ -473,7 +483,7 @@ class ColorWidget(PaintWidget):
 
         :param font: Color r, g, b value display font
         :param parent:
-        :return:None double click mouse right button will exit
+        :return: None, double click mouse right button will exit
         """
         super(ColorWidget, self).__init__(parent)
         # Enter full screen mode
@@ -500,7 +510,7 @@ class ColorWidget(PaintWidget):
     def addColor(self, color: Sequence[Union[QColor, Qt.GlobalColor]]) -> bool:
         """Add color to color group
 
-        :param color:(QColor, QColor)
+        :param color: (QColor, QColor)
         :return:
         """
         if not isinstance(color, (tuple, list)) or len(color) != 2:
@@ -565,7 +575,8 @@ class CursorWidget(ColorWidget):
         """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
 
         CursorWidget provide two signal 'cursorChanged' and 'cursorStopChange', when mouse moved, the cursor position
-        will changed, the 'cursorChanged' signal will send. 'cursorStopChange' signal will send when the mouse is stop .
+        will be changed, the 'cursorChanged' signal will send.
+        'cursorStopChange' signal will send when the mouse is stop.
 
         Signal: cursorChanged(int x, int y, int backgroundColor)
         Signal: cursorStopChange(int x, int y, int backgroundColor)
@@ -636,7 +647,7 @@ class RgbWidget(PaintWidget):
     rgbChanged = Signal(bool, bool, bool)
 
     def __init__(self, parent: Optional[QWidget] = None):
-        """ RGB color control widget, double click the color zone will turn of or turn off this color.
+        """ RGB color control widget, double-click the color zone will turn of or turn off this color.
 
         When color states changed will send 'rgbChanged' signal
 
@@ -709,7 +720,7 @@ class LumWidget(PaintWidget):
         Press mouse right button, then move mouse will change the high luminance
 
         LumWidget provide 2 signal 'lumChanged' and 'lumStopChange', when mouse moved, the windows Luminance
-        will changed, the 'lumChanged' signal will send. 'lumStopChange' signal will send when the mouse is stop .
+        will be changed, the 'lumChanged' signal will send. 'lumStopChange' signal will send when the mouse is stop .
 
         Signal: lumChanged(int hi, int low, int mode)
         Signal: lumStopChange(int hi, int low, int mode)
@@ -785,21 +796,21 @@ class LumWidget(PaintWidget):
         self.lumChanged.emit(self.lum[1], self.lum[0], self.lumMode)
 
         if self.lumMode == self.CE1_MODE:
-            self.drawCenterSquare(painter, self.getHighLum(), self.height() / 2)
+            self.drawCenterSquare(painter, self.getHighLum(), self.height() // 2)
         elif self.lumMode == self.CE2_MODE:
-            self.drawCenterRect(painter, self.getHighLum(), self.width() / 2, self.height() / 2)
+            self.drawCenterRect(painter, self.getHighLum(), self.width() // 2, self.height() // 2)
         elif self.lumMode == self.LF_MODE:
-            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width() / 2, self.height())
+            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width() // 2, self.height())
         elif self.lumMode == self.UD_MODE:
-            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width(), self.height() / 2)
+            self.drawRectangle(painter, self.getHighLum(), QPoint(0, 0), self.width(), self.height() // 2)
         elif self.lumMode == self.CT_MODE:
-            side = self.height() / 7
+            side = self.height() // 7
             self.drawBackground(painter, QColor(127, 127, 127))
             self.drawCenterSquare(painter, self.getHighLum(), side)
-            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side / 2, side), side)
-            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side / 2, side * 5), side)
-            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 - side * 2.5, side * 3), side)
-            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() / 2 + side * 1.5, side * 3), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() // 2 - side // 2, side), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(self.width() // 2 - side // 2, side * 5), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(int(self.width() / 2 - side * 2.5), side * 3), side)
+            self.drawSquare(painter, self.getLowLum(), QPoint(int(self.width() / 2 + side * 1.5), side * 3), side)
 
         self.drawDynamicText(painter, self.font, textColor, text)
 
@@ -807,11 +818,11 @@ class LumWidget(PaintWidget):
 class ImageWidget(PaintWidget):
     def __init__(self, width: int = 0, height: int = 0,
                  zoomInRatio: int = 0, zoomInArea: int = 20, parent: Optional[QWidget] = None):
-        """ImageWidget provide 3 method to draw a image
+        """ImageWidget provide 3 method to draw an image
 
-        drawFromFs  :   load a image from filesystem and show it
-        drawFromMem :   load a image form memory data and show it
-        drawFromText:   Dynamic draw a image with text
+        drawFromFs  :   load an image from filesystem and show it
+        drawFromMem :   load an image form memory data and show it
+        drawFromText:   Dynamic draw an image with text
 
         :param width: widget fixed width
         :param height:widget fixed height
@@ -827,7 +838,7 @@ class ImageWidget(PaintWidget):
         self.text = ""
         self.textColor = Qt.black
         self.bgColor = Qt.lightGray
-        self.textFont = QFont("Times New Roman", width / 16)
+        self.textFont = QFont("Times New Roman", width // 16)
 
         # Draw image using
         self.image = QImage()
@@ -844,7 +855,7 @@ class ImageWidget(PaintWidget):
 
     @Slot(str)
     def drawFromFs(self, filePath: str) -> bool:
-        """Load a image from filesystem, then display it
+        """Load an image from filesystem, then display it
 
         :param filePath: Image file path
         :return:
@@ -864,7 +875,7 @@ class ImageWidget(PaintWidget):
         return True
 
     @Slot(object, object)
-    def drawFromMem(self, data: bytes, imageFormat: str = "bmp") -> bool:
+    def drawFromMem(self, data: bytes, imageFormat: str = str(b"bmp")) -> bool:
         """Load image form memory
 
         :param data: Image data
@@ -875,12 +886,14 @@ class ImageWidget(PaintWidget):
             print("Invalid image data:{}".format(type(data)))
             return False
 
+        imageFormat = str(imageFormat.encode())
         if not isinstance(imageFormat, str) or imageFormat not in self.supportFormats:
             print("Invalid image format:{}".format(imageFormat))
             return False
 
         # Clear loadImageFromFs data
         # QImage fromData(const uchar * data, int size, const char * format = 0)
+        # noinspection PyTypeChecker
         self.image = QImage.fromData(data, imageFormat)
         self.update()
         return True
@@ -919,6 +932,7 @@ class ImageWidget(PaintWidget):
         if self.textFont.pointSize() > fontMaxWidth:
             self.textFont.setPointSize(fontMaxWidth)
 
+        # noinspection PyTypeChecker
         self.text = self.tr(text)
         self.image = QImage()
         self.update()
@@ -1024,6 +1038,7 @@ class TableWidget(QTableWidget):
         }.items():
             for action, slot in actions:
                 action.triggered.connect(slot)
+                # noinspection PyTypeChecker
                 action.setProperty("group", group)
                 self.__contentMenu.addAction(action)
 
@@ -1035,7 +1050,8 @@ class TableWidget(QTableWidget):
         self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
     def tr(self, text: str) -> str:
-        return QApplication.translate("TableWidget", text, None, QApplication.UnicodeUTF8)
+        # noinspection PyTypeChecker
+        return QApplication.translate("TableWidget", text, None)
 
     def __checkRow(self, row: int) -> bool:
         if not isinstance(row, int):
@@ -1107,8 +1123,10 @@ class TableWidget(QTableWidget):
         # Copy widget property
         for key in widget.dynamicPropertyNames():
             key = str(key)
+            # noinspection PyTypeChecker
             temp.setProperty(key, widget.property(key))
             if key == "clicked" and isinstance(widget, QPushButton):
+                # noinspection PyTypeChecker
                 temp.clicked.connect(widget.property(key))
 
         return temp
@@ -1154,6 +1172,7 @@ class TableWidget(QTableWidget):
             if not isinstance(action, QAction):
                 continue
 
+            # noinspection PyTypeChecker
             action.setProperty("group", self.ACTION.CUSTOM)
             self.__contentMenu.addAction(action)
 
@@ -1162,7 +1181,7 @@ class TableWidget(QTableWidget):
     def resizeColumnWidthFitContents(self):
         header = self.horizontalHeader()
         for column in range(self.columnCount()):
-            header.setResizeMode(column, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
 
     def setColumnMaxWidth(self, column: int, max_width: int):
         if not self.__checkColumn(column):
@@ -1225,7 +1244,7 @@ class TableWidget(QTableWidget):
 
     def setVerticalHeaderHeight(self, height: int):
         vertical_header = self.verticalHeader()
-        vertical_header.setResizeMode(QHeaderView.Fixed)
+        vertical_header.setSectionResizeMode(QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
         self.setVerticalHeader(vertical_header)
 
@@ -1235,7 +1254,7 @@ class TableWidget(QTableWidget):
 
     def setHorizontalHeaderWidth(self, width: int):
         horizontal_header = self.horizontalHeader()
-        horizontal_header.setResizeMode(QHeaderView.Fixed)
+        horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
 
@@ -1447,7 +1466,7 @@ class TableWidget(QTableWidget):
     def addRow(self, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
         """Add a row and set row property data
 
-        :param data: row data should be a iterable object
+        :param data: row data should be an iterable object
         :param property_: row hidden property data
         :return:
         """
@@ -1617,6 +1636,7 @@ class TableWidget(QTableWidget):
                     self.removeCellWidget(row, column)
                     self.setCellWidget(row, column, widget)
                 elif isinstance(widget, QPushButton) and isinstance(data, object):
+                    # noinspection PyTypeChecker
                     widget.setProperty("private", data)
                     self.removeCellWidget(row, column)
                     self.setCellWidget(row, column, widget)
@@ -1690,6 +1710,7 @@ class TableWidget(QTableWidget):
 
                 widget = QDateTimeEdit(dt)
                 widget.setCalendarPopup(True)
+                # noinspection PyTypeChecker
                 widget.setProperty("format", filters[2])
                 widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
@@ -1698,8 +1719,11 @@ class TableWidget(QTableWidget):
             elif len(filters) == 3 and isinstance(filters[0], str) and hasattr(filters[1], "__call__"):
                 button = QPushButton(self.tr(filters[0]))
                 button.clicked.connect(filters[1])
+                # noinspection PyTypeChecker
                 button.setProperty("clicked", filters[1])
+                # noinspection PyTypeChecker
                 button.setProperty("private", filters[2])
+                # noinspection PyTypeChecker
                 button.setProperty("dataChanged", self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, button)
@@ -1728,6 +1752,7 @@ class TableWidget(QTableWidget):
                     value = int(value)
                 except ValueError:
                     value = filters.index(value) if value in filters else 0
+                    # noinspection PyTypeChecker
                     widget.setProperty("format", "text")
                 widget.setCurrentIndex(value)
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
@@ -1807,10 +1832,13 @@ class TableWidget(QTableWidget):
         elif isinstance(widget, QCheckBox):
             return widget.isChecked()
         elif isinstance(widget, QComboBox):
+            # noinspection PyTypeChecker
             return widget.currentText() if widget.property("format") else widget.currentIndex()
         elif isinstance(widget, QDateTimeEdit):
+            # noinspection PyTypeChecker
             return widget.dateTime().toString(widget.property("format"))
         elif isinstance(widget, QPushButton):
+            # noinspection PyTypeChecker
             return widget.property("private")
         elif isinstance(widget, QProgressBar):
             return widget.value()
@@ -1860,7 +1888,7 @@ class TableWidget(QTableWidget):
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
-            header.setResizeMode(column, self.__columnStretchMode)
+            header.setSectionResizeMode(column, self.__columnStretchMode)
             self.setColumnWidth(column, width * factor)
 
         # Apply max width after resize
@@ -1877,7 +1905,9 @@ class TreeWidget(QTreeWidget):
         self.__columnStretchFactor = list()
 
         self.ui_context_menu = QMenu(self)
+        # noinspection PyTypeChecker
         self.ui_expand_all = QAction(self.tr("Expand All"), self)
+        # noinspection PyTypeChecker
         self.ui_collapse_all = QAction(self.tr("Collapse All"), self)
 
         self.ui_context_menu.addAction(self.ui_expand_all)
@@ -1960,7 +1990,7 @@ class TreeWidget(QTreeWidget):
         header = self.header()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
-            header.setResizeMode(column, QHeaderView.Fixed)
+            header.setSectionResizeMode(column, QHeaderView.Fixed)
             header.resizeSection(column, width * factor)
 
     def contextMenuEvent(self, ev: QContextMenuEvent):
@@ -2100,11 +2130,16 @@ class ListWidget(QListWidget):
 
 
 class SerialPortSettingWidget(QWidget):
-    PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None, QApplication.UnicodeUTF8)
-    DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None, QApplication.UnicodeUTF8)
-    STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None, QApplication.UnicodeUTF8)
-    BAUDRATE_STR = QApplication.translate("SerialPortSettingWidget", "BaudRate", None, QApplication.UnicodeUTF8)
-    TIMEOUT_STR = QApplication.translate("SerialPortSettingWidget", "Timeout (ms)", None, QApplication.UnicodeUTF8)
+    # noinspection PyTypeChecker
+    PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None)
+    # noinspection PyTypeChecker
+    DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None)
+    # noinspection PyTypeChecker
+    STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None)
+    # noinspection PyTypeChecker
+    BAUDRATE_STR = QApplication.translate("SerialPortSettingWidget", "BaudRate", None)
+    # noinspection PyTypeChecker
+    TIMEOUT_STR = QApplication.translate("SerialPortSettingWidget", "Timeout (ms)", None)
 
     # Options
     OPTIONS = {
@@ -2150,12 +2185,14 @@ class SerialPortSettingWidget(QWidget):
 
         # If specified port select it
         port = SerialPortSelector()
+        # noinspection PyTypeChecker
         port.setProperty("name", "port")
         select_port = settings.get("port")
         if select_port is not None:
             port.setSelectedPort(select_port)
 
         # Add port to dialog
+        # noinspection PyTypeChecker
         layout.addWidget(QLabel(self.tr("PortName")), 0, 0)
         layout.addWidget(port, 0, 1)
 
@@ -2182,7 +2219,9 @@ class SerialPortSettingWidget(QWidget):
                 element.setValue(value)
 
             # Set option property
+            # noinspection PyTypeChecker
             label = QLabel(self.tr(text))
+            # noinspection PyTypeChecker
             element.setProperty("name", option)
 
             # Layout direction setting
@@ -2196,12 +2235,14 @@ class SerialPortSettingWidget(QWidget):
         settings = dict()
         for item in self.__uiManager.findKey("name"):
             if isinstance(item, QComboBox):
+                # noinspection PyTypeChecker
                 value = item.property("name")
                 if value == "port" and item.currentIndex() == 0:
                     settings[value] = ""
                 else:
                     settings[value] = item.itemData(item.currentIndex())
             elif isinstance(item, QSpinBox):
+                # noinspection PyTypeChecker
                 settings[item.property("name")] = item.value()
 
         return settings
@@ -2298,6 +2339,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                             if not isinstance(widget, VirtualNumberInput):
                                 widget.textChanged.connect(self.slotSettingChanged)
+                                # noinspection PyTypeChecker
                                 widget.textChanged.connect(
                                     lambda x: self.settingChangedDetail.emit(widget.property("data"), x)
                                 )
@@ -2317,7 +2359,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                         layout.addLayout(widget, row, column)
                         column += 1
 
-                        # This is necessary otherwise buttonClicked won't be emit
+                        # This is necessary otherwise buttonClicked won't be emitted
                         self.__groups.append(btn_group)
 
                         # Text mode
@@ -2372,7 +2414,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     preview.textChanged.connect(self.slotPreviewColor)
 
     def tr(self, text: str) -> str:
-        return QApplication.translate("JsonSettingWidget", text, None, QApplication.UnicodeUTF8)
+        # noinspection PyTypeChecker
+        return QApplication.translate("JsonSettingWidget", text, None)
 
     def getSettings(self) -> DynamicObject:
         data = self.getData()
@@ -2402,14 +2445,17 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             if isinstance(button, QPushButton):
                 preview = self.ui_manager.getPrevSibling(button)
                 if isinstance(preview, QLineEdit) and data:
+                    # noinspection PyTypeChecker
                     button.setProperty("private", "{}".format(data.get(preview.property("data"))))
 
         for button in file_inputs:
             if isinstance(button, QPushButton):
                 preview = self.ui_manager.getPrevSibling(button)
                 enabled = self.ui_manager.getPrevSibling(preview)
+                # noinspection PyTypeChecker
                 if isinstance(enabled, QCheckBox) and isinstance(preview, QLineEdit) and \
                         data and preview.property("data"):
+                    # noinspection PyTypeChecker
                     file_name = preview.property("data")
                     try:
                         enabled, path = data.get(file_name)
@@ -2459,7 +2505,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         sender = self.sender()
         if not isinstance(sender, QPushButton):
             return
+        # noinspection PyTypeChecker
         title = self.tr("Please select") + " {}".format(sender.property("title"))
+        # noinspection PyTypeChecker
         font_name, point_size, weight = UiFontInput.get_font(sender.property("private"))
         font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self, title)
         if not selected or not isinstance(font, QFont):
@@ -2468,6 +2516,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         font_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(font_edit, QLineEdit):
             font_setting = font.rawName(), font.pointSize(), font.weight()
+            # noinspection PyTypeChecker
             sender.setProperty("private", "{}".format(font_setting))
             font_edit.setText("{}".format(font_setting))
 
@@ -2507,6 +2556,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         sender = self.sender()
         # Line edit text content check
         if isinstance(sender, QLineEdit):
+            # noinspection PyTypeChecker
             filters = sender.property("filter")
             if not filters:
                 return
@@ -2536,6 +2586,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget = VirtualNumberInput(parent=parent, initial_value=setting.get_data(),
                                                 min_=setting.get_check()[UiIntegerInput.CHECK.MIN],
                                                 max_=setting.get_check()[UiIntegerInput.CHECK.MAX])
+                    # noinspection PyTypeChecker
                     widget.setProperty("format", "int")
                 else:
                     widget = QSpinBox(parent)
@@ -2557,6 +2608,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget.setEchoMode(QLineEdit.Password)
 
                 # Set regular expression and max length
+                # noinspection PyTypeChecker
                 widget.setProperty("filter", setting.check[UiTextInput.CHECK.REGEXP])
                 widget.setValidator(QRegExpValidator(QRegExp(setting.check[UiTextInput.CHECK.REGEXP])))
                 widget.setMaxLength(setting.check[UiTextInput.CHECK.LENGTH])
@@ -2567,6 +2619,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                                                 min_=setting.get_check()[UiDoubleInput.CHECK.MIN],
                                                 max_=setting.get_check()[UiDoubleInput.CHECK.MAX],
                                                 decimals=setting.get_check()[UiDoubleInput.CHECK.DECIMALS])
+                    # noinspection PyTypeChecker
                     widget.setProperty("format", "float")
                 else:
                     widget = QDoubleSpinBox(parent)
@@ -2581,6 +2634,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.addItems(setting.get_check())
                 # Data is text, using text format set and get
                 if isinstance(setting.get_data(), str) and setting.get_data() in setting.get_check():
+                    # noinspection PyTypeChecker
                     widget.setProperty("format", "text")
                     widget.setCurrentIndex(setting.get_check().index(setting.get_data()))
                 # Data is number, using index format set and get
@@ -2594,6 +2648,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                 for id_, text in enumerate(setting.get_check()):
                     btn = QRadioButton(text, parent=parent)
+                    # noinspection PyTypeChecker
                     btn.setProperty("id", id_)
                     group.addButton(btn, id_)
                     layout.addWidget(btn)
@@ -2602,10 +2657,12 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 text_input = QLineEdit(parent=parent)
                 text_input.setReadOnly(True)
                 text_input.setVisible(False)
+                # noinspection PyTypeChecker
                 text_input.setProperty("data", name)
 
                 number_input = QSpinBox(parent=parent)
                 number_input.setVisible(False)
+                # noinspection PyTypeChecker
                 number_input.setProperty("data", name)
 
                 # Default select the first item
@@ -2629,6 +2686,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 return layout, group, number_input
             elif setting.is_serial_type():
                 widget = SerialPortSelector(parent=parent)
+                # noinspection PyTypeChecker
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
             elif setting.is_network_type():
@@ -2639,21 +2697,25 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setCurrentAddress(setting.get_data())
             elif setting.is_file_type():
                 widget = QLineEdit(parent)
+                # noinspection PyTypeChecker
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 widget.setReadOnly(not UiFileInput.isEditable(setting.get_check()))
 
-                enable = QCheckBox(QApplication.translate("JsonSettingWidget",
-                                                          "Enable", None,
-                                                          QApplication.UnicodeUTF8), parent=parent)
+                # noinspection PyTypeChecker
+                enable = QCheckBox(QApplication.translate("JsonSettingWidget", "Enable", None), parent=parent)
+                # noinspection PyTypeChecker
                 enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
                 enable.setVisible(UiFileInput.isSelectable(setting.get_check()))
-
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select File",
-                                                            None, QApplication.UnicodeUTF8), parent=parent)
+                                                            None), parent=parent)
+                # noinspection PyTypeChecker
                 button.setProperty("clicked", "file")
+                # noinspection PyTypeChecker
                 button.setProperty("title", setting.get_name())
+                # noinspection PyTypeChecker
                 button.setProperty("private", setting.get_check()[:UiFileInput.CHECK_SELECTABLE])
 
                 layout = QHBoxLayout()
@@ -2664,14 +2726,18 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             elif setting.is_folder_type():
                 widget = QLineEdit(parent)
                 widget.setReadOnly(True)
+                # noinspection PyTypeChecker
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
-
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Directory",
-                                                            None, QApplication.UnicodeUTF8), parent=parent)
+                                                            None), parent=parent)
+                # noinspection PyTypeChecker
                 button.setProperty("clicked", "folder")
+                # noinspection PyTypeChecker
                 button.setProperty("title", setting.get_name())
+                # noinspection PyTypeChecker
                 button.setProperty("private", setting.get_check())
 
                 layout = QHBoxLayout()
@@ -2681,15 +2747,20 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             elif setting.is_font_type():
                 widget = QLineEdit(parent)
                 widget.setReadOnly(True)
+                # noinspection PyTypeChecker
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
 
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Font",
-                                                            None, QApplication.UnicodeUTF8), parent=parent)
+                                                            None), parent=parent)
+                # noinspection PyTypeChecker
                 button.setProperty("clicked", "font")
+                # noinspection PyTypeChecker
                 button.setProperty("title", setting.get_name())
+                # noinspection PyTypeChecker
                 button.setProperty("private", setting.get_data())
 
                 layout = QHBoxLayout()
@@ -2700,15 +2771,20 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 color = setting.get_data()
                 widget = QLineEdit(parent)
                 widget.setReadOnly(True)
+                # noinspection PyTypeChecker
                 widget.setProperty("data", name)
                 widget.setText("{}".format(setting.get_data()))
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
 
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Color",
-                                                            None, QApplication.UnicodeUTF8), parent=parent)
+                                                            None), parent=parent)
+                # noinspection PyTypeChecker
                 button.setProperty("clicked", "color")
+                # noinspection PyTypeChecker
                 button.setProperty("title", setting.get_name())
+                # noinspection PyTypeChecker
                 button.setProperty("private", setting.get_data())
 
                 layout = QHBoxLayout()
@@ -2720,6 +2796,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
         # Set property for ComponentManager get data
         if isinstance(name, str) and isinstance(widget, QWidget):
+            # noinspection PyTypeChecker
             widget.setProperty("data", name)
 
         # Set readonly option
@@ -2774,9 +2851,11 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
                 elif ui_input.is_select_type():
                     table_filters[column] = ui_input.get_check()
                 elif ui_input.is_file_type():
+                    # noinspection PyTypeChecker
                     text = self.tr("Please Select File")
                     table_filters[column] = (text, self.slotSelectFile, ui_input.get_check())
                 elif ui_input.is_folder_type():
+                    # noinspection PyTypeChecker
                     text = self.tr("Please Select Directory")
                     table_filters[column] = (text, self.slotSelectFolder, ui_input.get_check())
 
@@ -2826,6 +2905,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         file_format = "*"
         sender = self.sender()
         from .dialog import showFileImportDialog
+        # noinspection PyTypeChecker
         path = showFileImportDialog(parent=self, title=self.tr("Please Select File"), fmt=self.tr(file_format))
         if not os.path.isfile(path):
             return
@@ -2834,6 +2914,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
     def slotSelectFolder(self):
         sender = self.sender()
+        # noinspection PyTypeChecker
         path = QFileDialog.getExistingDirectory(self, self.tr("Please Select Directory"), "")
         if not os.path.isdir(path):
             return
@@ -2846,6 +2927,7 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
         sender = self.sender()
         # Line edit text content check
         if isinstance(sender, QLineEdit):
+            # noinspection PyTypeChecker
             filters = sender.property("filter")
             try:
                 re.search(filters, sender.text(), re.S).group(0)
@@ -2900,6 +2982,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
                             settings[item_name] = self.settings.get(item_name)
 
                     box_widget = JsonSettingWidget(DynamicObject(**settings))
+                    # noinspection PyTypeChecker
                     box_widget.setProperty("name", group_settings.get_name())
                     group_layout.addWidget(box_widget)
                     box.setLayout(group_layout)
@@ -3011,6 +3094,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                         settings[item] = self.settings.get(item)
 
                 widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
+                # noinspection PyTypeChecker
                 widget.setProperty('name', tab_setting.name)
 
                 self.widget_list.append(widget)
@@ -3129,9 +3213,13 @@ class LogMessageWidget(QTextEdit):
 
         # Context menu
         self.ui_context_menu = QMenu(self)
+        # noinspection PyTypeChecker
         self.ui_show_info = QAction(self.tr("Show Info"), self)
+        # noinspection PyTypeChecker
         self.ui_show_debug = QAction(self.tr("Show Debug"), self)
+        # noinspection PyTypeChecker
         self.ui_show_error = QAction(self.tr("Show Error"), self)
+        # noinspection PyTypeChecker
         self.ui_clean_action = QAction(self.tr("Clear All"), self)
 
         self.ui_context_menu.addAction(self.ui_clean_action)

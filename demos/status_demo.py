@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import random
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import *
+from PySide2.QtGui import QColor
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
 from ..dashboard.status import DashboardStatusIcon
@@ -12,6 +12,7 @@ class DemoDashboardStatus(BasicWidget):
     def __init__(self, parent=None):
         super(DemoDashboardStatus, self).__init__(parent)
 
+    # noinspection PyTypeChecker
     def _initUi(self):
         layout = QHBoxLayout()
 
@@ -83,7 +84,6 @@ class DemoDashboardStatus(BasicWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = DemoDashboardStatus()
     widget.show()
     sys.exit(app.exec_())

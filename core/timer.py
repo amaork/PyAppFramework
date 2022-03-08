@@ -215,7 +215,9 @@ class Task(DynamicObject):
             print("Error: {} is not attached, please add task to tasklet first".format(self))
 
     def is_delayed(self):
-        """Return true if a task latest running time is out of tasklet schedule time (only works for periodic task)"""
+        """
+        Return true, if a task the latest running time is out of tasklet schedule time (only works for periodic task)
+        """
         if self.periodic and self.is_attached():
             return self.runtime.cost > self.runtime.tasklet.tick
 
@@ -242,10 +244,10 @@ class Tasklet(SwTimer):
                  name: str = '', dump: Optional[Callable[[str], None]] = None, err: Callable[[str], None] = print):
         """Tasklet is sample Round-Robin schedule is base on SwTimer(a threading)
         Add a Task to tasklet, when task timeout will schedule it once,
-        if a Task is running, it could be delete or reschedule.
+        if a Task is running, it could be deleted or reschedule.
 
-        A task has an unique id(function name, timeout and periodic params)
-        at the sametime only one task instance could running in tasklet.
+        A task has a unique id(function name, timeout and periodic params)
+        at the sametime only one task instance could be running in tasklet.
 
         Add same task to tasklet will cause previous task rescheduled.
 

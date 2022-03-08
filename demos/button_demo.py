@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 from .images import ImagesPath
-from PySide.QtCore import QTextCodec
 from ..gui.button import RectButton, RoundButton, IconButton, StateButton, TextButton
-from PySide.QtGui import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, QPushButton, QLabel, \
-    QImageReader, QFileDialog, QApplication
+from PySide2.QtGui import QImageReader
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QComboBox, QPushButton, QLabel, \
+    QFileDialog, QApplication
 
 
 class DemoWidget(QWidget):
@@ -64,7 +64,6 @@ class DemoWidget(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = DemoWidget()
     widget.show()
     sys.exit(app.exec_())

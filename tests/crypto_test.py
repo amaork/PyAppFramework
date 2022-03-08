@@ -15,7 +15,7 @@ class CRC16Test(unittest.TestCase):
 
     def testAES(self):
         with self.assertRaises(TypeError):
-            AESCrypto(key=b'amaork')
+            AESCrypto(key='amaork')
 
         with self.assertRaises(ValueError):
             AESCrypto(key='amaork', mode="cbc")

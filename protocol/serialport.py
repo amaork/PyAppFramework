@@ -187,7 +187,7 @@ class SerialTransferProtocol(object):
     PAYLOAD_SIZE = 128
 
     def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback):
-        """"Init a serial port transfer protocol object
+        """Init a serial port transfer protocol object
 
         :param send: serial port send function
         :param recv: serial port receive function
@@ -307,7 +307,7 @@ class SerialTransferProtocol(object):
         return ack.get_data_payload()
 
     def __w_init(self, package_size: int, global_data: bytes) -> WriteAckMsg:
-        """Launch a write transfer section
+        """Launch a write transport section
 
         :param package_size: will write total package size
         :param global_data: global data
@@ -440,7 +440,7 @@ class SerialPort(object):
                 port_list.append("{}".format(port))
         else:
             for index, port in enumerate(list(serial.tools.list_ports.comports())):
-                # Windows serial port is a object linux is a tuple
+                # Windows serial port is an object linux is a tuple
                 device = port.device
                 desc = "{0:s}".format(device).split(" - ")[-1]
                 port_list.append("{0:s}".format(desc))

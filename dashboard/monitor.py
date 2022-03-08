@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtGui import QColor, QFont, QFontMetrics, QPaintEvent, QPen, QBrush, QPainter
+from PySide2.QtWidgets import QLabel, QWidget, QVBoxLayout, QSplitter, QHBoxLayout
+from PySide2.QtCore import QSize, Qt, QRectF
 from typing import Union, Optional
 
 from ..gui.widget import BasicWidget
@@ -115,8 +116,8 @@ class NumberMonitor(BasicWidget):
 
     def sizeHint(self) -> QSize:
         meter1 = QFontMetrics(QFont("宋体", self.DEF_FONT_SIZE))
-        meter2 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize()))
-        meter3 = QFontMetrics(QFont(self.DEF_RV_FONT, self.__getFontSize() / 2))
+        meter2 = QFontMetrics(QFont(self.DEF_RV_FONT, int(self.__getFontSize())))
+        meter3 = QFontMetrics(QFont(self.DEF_RV_FONT, int(self.__getFontSize() / 2)))
 
         min_height = meter1.height() * len(self._title) * 1.5 * 1.5
         min_width = meter1.width("中") + meter2.width(self._max_number * "0") + meter3.width(".00") * 2.5
@@ -141,13 +142,13 @@ class NumberMonitor(BasicWidget):
         painter.setPen(QPen(QColor(Qt.white)))
 
         # Integer part
-        painter.setFont(QFont(self.DEF_RV_FONT, self.__getFontSize()))
+        painter.setFont(QFont(self.DEF_RV_FONT, int(self.__getFontSize())))
         current_str = "{}".format(integer if self.getRV() >= 0 else self.__getNoneState())
         painter.drawText(location, Qt.AlignCenter, current_str)
 
         # Decimal part
         if self.getRV() >= 0 and self._decimal_display:
-            decimal_font = QFont(self.DEF_RV_FONT, self.__getFontSize() / 2)
+            decimal_font = QFont(self.DEF_RV_FONT, int(self.__getFontSize() / 2))
             painter.setFont(decimal_font)
             space = 3 * (self._max_number - len(current_str))
             if len(current_str) > 2:

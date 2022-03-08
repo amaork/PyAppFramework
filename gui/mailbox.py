@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 from typing import Callable, Optional, Union
-from PySide.QtCore import Qt, Signal, Slot, QObject, QTimer
-from PySide.QtGui import QColor, QWidget, QStatusBar, QLabel
+from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QWidget, QStatusBar, QLabel
+from PySide2.QtCore import Qt, Signal, Slot, QObject, QTimer
 
-from .timer import Task, Tasklet
-from .threading import ThreadConditionWrap
+from ..core.timer import Task, Tasklet
+from ..core.threading import ThreadConditionWrap
 
-from ..gui.dialog import ProgressDialog
-from ..gui.msgbox import MB_TYPES, showMessageBox, showQuestionBox
+from .dialog import ProgressDialog
+from .msgbox import MB_TYPES, showMessageBox, showQuestionBox
 
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail',
            'WindowsTitleMail', 'CallbackFuncMail', 'ProgressBarMail']
@@ -79,7 +80,7 @@ class MessageBoxMail(BaseUiMail):
 
 class WindowsTitleMail(BaseUiMail):
     def __init__(self, content: str):
-        """Show a message on windows title with #content
+        """Show a message on window title with #content
 
         :param content: message content
         :return:
@@ -133,7 +134,7 @@ class QuestionBoxMail(BaseUiMail):
 
         :param content: QMessageBox.Question content
         :param title: QMessageBox.Question title
-        :param condition: sync user click result ThreadConditionWrap.wait
+        :param condition: sync user click result ThreadConditionWrap::wait
         """
         super(QuestionBoxMail, self).__init__(content)
         if not isinstance(title, str):
@@ -189,7 +190,7 @@ class UiMailBox(QObject):
     hasNewMail = Signal(object)
 
     def __init__(self, parent: QWidget):
-        """UI mail box using send and receive ui display message in thread
+        """UiMail box using send and receive ui display message in thread
 
         :return:
         """
@@ -239,6 +240,7 @@ class UiMailBox(QObject):
                 color = "rgb({0:d},{1:d},{2:d})".format(mail.color.red(), mail.color.green(), mail.color.blue())
                 # Main windows has status bar
                 if isinstance(self.__parent.ui.statusbar, QStatusBar):
+                    # noinspection PyTypeChecker
                     self.__parent.ui.statusbar.showMessage(self.tr(mail.content), mail.timeout)
                     self.__parent.ui.statusbar.setStyleSheet(
                         "QStatusBar{"
@@ -248,6 +250,7 @@ class UiMailBox(QObject):
                         "font-weight:bold;}" % color)
                 # Widget has label named as statusbar
                 elif isinstance(self.__parent.ui.statusbar, QLabel):
+                    # noinspection PyTypeChecker
                     self.__parent.ui.statusbar.setText(self.tr(mail.content))
                     self.__parent.ui.statusbar.setStyleSheet(
                         "color:{0:s};padding-top:8px;font-weight:bold;".format(color)
@@ -282,8 +285,9 @@ class UiMailBox(QObject):
                 self.__progress.slotHidden()
                 self.__progress.setCloseable(True)
 
-        # Appended a message on windows title
+        # Appended a message on window title
         elif isinstance(mail, WindowsTitleMail):
+            # noinspection PyTypeChecker
             self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
 
         # Callback function

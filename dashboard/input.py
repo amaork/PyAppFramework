@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 import math
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import QLineEdit, QWidget, QRadioButton, QDialog, QGridLayout, QPushButton, \
+    QSizePolicy, QVBoxLayout
+from PySide2.QtCore import QPoint, Qt, Signal, QRect, QEvent, QSize, QRectF, QTimerEvent
+from PySide2.QtGui import QColor, QFont, QPen, QBrush, QPainter, QIntValidator, QFontMetrics
+from PySide2.QtGui import QPaintEvent, QResizeEvent, QMouseEvent
 from typing import Union, Optional, Tuple
 
 from ..core.datatype import *
@@ -41,7 +44,7 @@ class SampleSelectInput(QWidget):
 
     def __updatePanelDiameter(self, diameter: int):
         self.outer_ring_diameter = diameter - self.MARGIN * 2
-        self.outer_ring_radius = self.outer_ring_diameter / 2
+        self.outer_ring_radius = self.outer_ring_diameter // 2
 
         self.inner_ring_diameter = self.outer_ring_diameter * 0.618
         self.inner_ring_radius = self.inner_ring_diameter / 2
@@ -49,8 +52,8 @@ class SampleSelectInput(QWidget):
         self.middle_ring_diameter = self.inner_ring_diameter + (self.outer_ring_diameter - self.inner_ring_diameter) / 2
         self.middle_ring_radius = self.middle_ring_diameter / 2
 
-        self.sample_diameter = math.pi * self.middle_ring_diameter / (self.numbers + 2)
-        self.sample_radius = self.sample_diameter / 2
+        self.sample_diameter = int(math.pi * self.middle_ring_diameter / (self.numbers + 2))
+        self.sample_radius = int(self.sample_diameter / 2)
 
         self.center = QPoint(self.MARGIN + self.outer_ring_radius, self.MARGIN + self.outer_ring_radius)
         self.update()
@@ -97,7 +100,7 @@ class SampleSelectInput(QWidget):
     def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        font = QFont(self.font_name, self.get_font_size(self.sample_diameter, self.numbers))
+        font = QFont(self.font_name, int(self.get_font_size(self.sample_diameter, self.numbers)))
 
         # Draw outer ring
         painter.setPen(QPen(Qt.NoPen))
@@ -113,14 +116,15 @@ class SampleSelectInput(QWidget):
             fm = QFontMetrics(font)
             painter.setPen(self.bg_color)
             painter.setFont(font)
+            # noinspection PyTypeChecker
             painter.drawText(self.MARGIN + self.outer_ring_diameter / 2 - fm.width(self.state) / 2,
                              self.MARGIN + self.outer_ring_diameter / 2 + fm.height() / 3,
                              self.tr(self.state))
 
         # Draw sample
         self.sample_poses.clear()
-        w = self.inner_ring_diameter
-        s = self.MARGIN + self.sample_diameter
+        w = int(self.inner_ring_diameter)
+        s = int(self.MARGIN + self.sample_diameter)
         self.sample_poses[0] = QRect(s, s, w, w)
         for idx, angel in enumerate(self.sample_angles):
             r = self.middle_ring_radius
@@ -197,8 +201,8 @@ class VolumeSelectInput(QRadioButton):
         return QSize(self.__width, self.__height + self.__cap_height * 2)
 
     def __updateSize(self, width: int, height: int, cap_height: int):
-        self.__width = width * self.__scale_x
-        self.__height = height * self.__scale_y
+        self.__width = int(width * self.__scale_x)
+        self.__height = int(height * self.__scale_y)
         self.__cap_height = cap_height
         self.__neck_height = self.__cap_height - 5
         self.__neck_width = self.__width * 0.618
@@ -216,12 +220,12 @@ class VolumeSelectInput(QRadioButton):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(bg, Qt.SolidPattern))
         painter.drawRoundedRect(0, 0, self.__width, self.__cap_height, 5.0, 5.0)
-        painter.drawRoundedRect(self.__width / 5, self.__cap_height - 10,
-                                self.__width / 5 * 3, self.__neck_height * 2, 5.0, 5.0)
+        painter.drawRoundedRect(self.__width // 5, self.__cap_height - 10,
+                                self.__width // 5 * 3, self.__neck_height * 2, 5.0, 5.0)
         painter.drawRoundedRect(QRectF(0.0, self.__cap_height * 1.5, self.__width, self.__height), 5.0, 5.0)
 
         painter.setPen(QPen(QColor(fg)))
-        painter.setFont(QFont("Times New Roman", self.__width / 3 / self.__scale_factor))
+        painter.setFont(QFont("Times New Roman", int(self.__width / 3 / self.__scale_factor)))
         painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, self.text)
 
     def slotChecked(self):
@@ -248,7 +252,10 @@ class VirtualNumberInput(QLineEdit):
     __textColor = QColor(255, 255, 255)
     __hoverColor = QColor(0x96, 0xf7, 0x51)
 
-    def __init__(self, initial_value=0, min_=0, max_=9999, decimals=0, parent=None):
+    # noinspection PyTypeChecker
+    def __init__(self, initial_value: Union[int, float] = 0,
+                 min_: Union[int, float] = 0, max_: Union[int, float] = 9999, decimals: int = 0,
+                 parent: Optional[QWidget] = None):
         super(VirtualNumberInput, self).__init__(parent)
         self.setReadOnly(True)
         self.setValidator(QIntValidator(min_, max_))
@@ -304,8 +311,11 @@ class VirtualNumberInput(QLineEdit):
                UiColorInput.get_bg_color_stylesheet(cls.color2Tuple(cls.getThemeColor()))
 
     def showKeyboard(self):
+        # noinspection PyTypeChecker
         input_min = self.property("min")
+        # noinspection PyTypeChecker
         input_max = self.property("max")
+        # noinspection PyTypeChecker
         input_decimals = self.property("decimals")
         if not input_decimals:
             value = VirtualNumberKeyboard.getInt(min_=input_min, max_=input_max, parent=self)
@@ -317,6 +327,7 @@ class VirtualNumberInput(QLineEdit):
             self.numberChanged.emit(value)
 
     def setValue(self, value: Union[int, float]):
+        # noinspection PyTypeChecker
         number_decimals = self.property('decimals')
         self.setText("{0:.{1}f}".format(value, number_decimals) if number_decimals else str(value))
 
@@ -408,13 +419,16 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         key_layout = QGridLayout()
         for row, row_keys in enumerate(self.key_map):
             for column, key in enumerate(row_keys):
+                # noinspection PyTypeChecker
                 key = {
                     self.OK_KEY: self.tr("OK"),
                     self.CANCEL_KEY: self.tr("Cancel")
                 }.get(key, key)
                 btn = QPushButton(key)
                 btn.clicked.connect(self.slotNumberClicked)
+                # noinspection PyTypeChecker
                 btn.setProperty("name", key)
+                # noinspection PyTypeChecker
                 btn.setProperty("value", key)
                 btn.setMinimumHeight(50 * self.__scale_factor)
                 btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -439,7 +453,7 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.ui_display.setMinimumHeight(self.FONT_BASE_SIZE * 4 * self.__scale_factor)
         self.ui_display.setMaxLength(len("{}".format(self.max_number)) + self.number_decimals + 1)
 
-        meter = QFontMetrics(QFont("等线 Light", self.DISPLAY_FONT_SIZE * self.__scale_factor))
+        meter = QFontMetrics(QFont("等线 Light", int(self.DISPLAY_FONT_SIZE * self.__scale_factor)))
         self.ui_display.setMinimumWidth(meter.width("0" * self.ui_display.maxLength() + "-."))
 
         [item.setStyleSheet(self.rg_color) for item in (self.ui_min, self.ui_max)]
@@ -453,7 +467,9 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
 
     def __initSignalAndSlots(self):
+        # noinspection PyTypeChecker
         ok = self.ui_manager.getByValue("name", self.tr(self.OK_KEY), QPushButton)
+        # noinspection PyTypeChecker
         cancel = self.ui_manager.getByValue("name", self.tr(self.CANCEL_KEY), QPushButton)
         ok.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)

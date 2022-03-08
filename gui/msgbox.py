@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import QMessageBox, QApplication, QWidget
+from PySide2.QtWidgets import QMessageBox, QApplication, QWidget
 
 __all__ = ['showQuestionBox', 'showMessageBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
@@ -33,18 +33,12 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
     :param title: Message title
     :return: result
     """
+    # noinspection PyTypeChecker
     attributes = {
-        MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error",
-                                                                   None, QApplication.UnicodeUTF8)),
-
-        MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning",
-                                                                   None, QApplication.UnicodeUTF8)),
-
-        MB_TYPE_INFO: (QMessageBox.Information, QApplication.translate("msgbox", "Info",
-                                                                       None, QApplication.UnicodeUTF8)),
-
-        MB_TYPE_QUESTION: (QMessageBox.Question, QApplication.translate("msgbox", "Confirm",
-                                                                        None, QApplication.UnicodeUTF8))
+        MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error", None)),
+        MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning", None)),
+        MB_TYPE_INFO: (QMessageBox.Information, QApplication.translate("msgbox", "Info", None)),
+        MB_TYPE_QUESTION: (QMessageBox.Question, QApplication.translate("msgbox", "Confirm", None))
     }
 
     try:
@@ -57,5 +51,6 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
         else:
             msg.exec_()
             return True if msg_type == MB_TYPE_INFO else False
-    except TypeError:
+    except TypeError as e:
+        print(f'showMessageBox:{e}')
         return False

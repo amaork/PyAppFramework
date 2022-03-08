@@ -82,7 +82,7 @@ class ProtoBufSdk(object):
         Init a protocol buffers sdk
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
         :param max_msg_length: protocol buffers maximum message length
-        :param event_callback: when sdk has event will callback this
+        :param event_callback: when sdk has event will call back this
         """
         if not isinstance(transmit, Transmit):
             raise TypeError('{!r} required {!r}'.format('transmit', Transmit.__name__))
@@ -151,7 +151,7 @@ class ProtoBufSdk(object):
         :param msg: request message
         :param callback: after receive response will call this callback
         :param priority: message priority if set as None using it as normal queue
-        :param periodic: it this message is periodic request(do not need retry if send failed)
+        :param periodic: it this message is periodic request(do not need to retry if send failed)
         :return:
         """
         try:

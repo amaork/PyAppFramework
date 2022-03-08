@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 from ..gui.container import ComboBoxGroup
-from PySide.QtGui import QWidget, QPushButton, QLabel, QCheckBox, QApplication, QFrame, QComboBox, \
+from PySide2.QtWidgets import QWidget, QPushButton, QLabel, QCheckBox, QApplication, QFrame, QComboBox, \
     QVBoxLayout, QGridLayout
 
 

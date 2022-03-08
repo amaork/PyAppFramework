@@ -175,7 +175,7 @@ class SQLiteDatabase(object):
         return [table_info.get(n)[self.TBL_DEF] for n in column_names]
 
     def getTablePrimaryKey(self, name: str) -> Tuple[int, str, type]:
-        """Get table primary key column if do not have pk return 0
+        """Get table primary key column, don't have pk will return 0
 
         :param name: table name
         :return: (primary key column, primary key name, primary key data type)
@@ -249,7 +249,7 @@ class SQLiteDatabase(object):
             raise SQLiteDatabaseError(error)
 
     def updateRecord(self, name: str, record: Union[list, tuple, dict], condition: Optional[str] = None):
-        """Update an exist recode
+        """Update exist recode
 
         :param name: table name
         :param record: recode data could be list or dict (with column name and data)
@@ -272,7 +272,7 @@ class SQLiteDatabase(object):
             if isinstance(record, (list, tuple)) and len(column_names) != len(record):
                 raise ValueError("recode length dis-matched")
 
-            # Pre process record
+            # Pre-process record
             recode_data = list()
             blob_records = list()
 
@@ -330,7 +330,7 @@ class SQLiteDatabase(object):
             if not isinstance(condition, str):
                 raise TypeError("conditions require string object")
 
-            # Pre process
+            # Pre-process
             columns = ", ".join(columns) or "*"
 
             # SQL
@@ -368,7 +368,7 @@ class SQLiteUserPasswordDatabase(object):
     CIPHER_LEVEL_KEY = "level"
 
     def __init__(self, magic: str = MAGIC_STR, path: str = DEF_PATH, self_check: bool = True):
-        """SQLite user password database
+        """SQLite base user password database
         c1 = c1_encrypt_func(raw_password)
         c2 = c2_encrypt_func(c1 + magic)
         c3 = c3_encrypt_func(c1 + c2)
@@ -488,7 +488,7 @@ class SQLiteUserPasswordDatabase(object):
             self.db.insertRecord(self.CIPHER_TBL, [level2, ""])
             self.db.insertRecord(self.CIPHER_TBL, [level3, ""])
 
-            # Finally update user password
+            # Finally, update user password
             self.updatePassword(user, password)
         except SQLiteDatabaseError as error:
             raise RuntimeError("添加用户「{}」,失败：{}！！！".format(user, error))
@@ -531,7 +531,7 @@ class SQLiteGeneralSettingsItem(DynamicObject):
 
     def __init__(self, id_: int, name: str, data: Union[int, float],
                  min_: Union[int, float] = 0, max_: Union[int, float] = 0, precision: int = 0, desc: str = ""):
-        """SQLite settings item
+        """SQLite base settings item
 
         :param id_:  data index corresponding database row id
         :param name: settings item name
@@ -909,7 +909,7 @@ class SQLiteDatabaseCreator(object):
         except (TypeError,):
             raise RuntimeError("Error limit request a tuple list")
         else:
-            # Id is column index
+            # id is column index
             for column in range(len(limit)):
                 limit[column].id = column
 

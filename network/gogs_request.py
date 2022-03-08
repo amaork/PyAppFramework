@@ -120,10 +120,10 @@ class GogsRequest(HttpRequest):
                          max_workers: int = 4, ignore_error: bool = True,
                          callback: Optional[Callable[[str, float], bool]] = None) -> Dict[str, bool]:
         """
-        Download an a pack of file
+        Download a pack of file
         :param package: Package to download, package is dict include multi-files name is key url is value
         :param path: Download path, path should be a directory
-        :param parallel: Thread pool parallel download parallel download
+        :param parallel: Thread pool parallel download
         :param max_workers: Thread pool max workers
         :param timeout: Download timeout for single file
         :param ignore_error: If set ignore error, when error occurred will ignore error continue download

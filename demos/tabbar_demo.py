@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import *
 from ..gui.misc import TabBar
 from ..gui.container import ComponentManager
 
@@ -10,6 +9,7 @@ class TabBarDemo(QWidget):
     PositionText = ["East", "West", "South", "North"]
     Positions = [QTabWidget.East, QTabWidget.West, QTabWidget.South, QTabWidget.North]
 
+    # noinspection PyTypeChecker
     def __init__(self, parent=None):
         super(TabBarDemo, self).__init__(parent)
 
@@ -54,7 +54,6 @@ class TabBarDemo(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = TabBarDemo()
     widget.show()
     sys.exit(app.exec_())

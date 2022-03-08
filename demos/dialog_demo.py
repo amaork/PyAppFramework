@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 import hashlib
-from PySide.QtCore import QTextCodec
-
 from ..gui.dialog import *
 from ..misc.settings import UiInputSetting
 from ..gui.container import ComponentManager
-from PySide.QtGui import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QLineEdit
+from PySide2.QtWidgets import QApplication, QPushButton, QSpinBox, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QLineEdit
 
 
 class DialogTest(QWidget):
@@ -17,6 +15,7 @@ class DialogTest(QWidget):
         self.__initSignalAndSlots()
         self.__uiManager = ComponentManager(self.layout())
 
+    # noinspection PyTypeChecker
     def __initUi(self):
         diff = QHBoxLayout()
         self.__diff = QPushButton(self.tr("获取颜色（RGB 不同）"))
@@ -34,6 +33,7 @@ class DialogTest(QWidget):
         same = QHBoxLayout()
         self.__sameColor = QLabel()
         self.__sameColor.setMinimumSize(32, 15)
+        # noinspection PyTypeChecker
         self.__same = QPushButton(self.tr("获取颜色（RGB 相同）"))
         color = QSpinBox()
         color.setRange(0, 7)
@@ -160,7 +160,6 @@ class DialogTest(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     window = DialogTest()
     window.show()
     sys.exit(app.exec_())

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
-from PySide.QtGui import *
-from PySide.QtCore import *
 from typing import Optional, Union
+
+from PySide2.QtWidgets import *
+from PySide2.QtCore import Qt, Signal, Slot, QSize, QPointF, QEvent, QModelIndex, QAbstractItemModel
+from PySide2.QtGui import QFont, QColor, QPen, QBrush, QPainter, QMouseEvent, QPaintEvent, QFontMetrics, QPolygonF
+
 from ..core.datatype import DynamicObject, DynamicObjectEncodeError, str2number
 __all__ = ['CheckBox', 'CheckBoxStyleSheet', 'CheckBoxDelegate']
 
@@ -24,7 +27,7 @@ class CheckBoxStyleSheet(DynamicObject):
         try:
             return QFont(*self.font)
         except TypeError:
-            return QFont(("等线 Light", 11))
+            return QFont("等线 Light", 11)
 
     def getBoxColor(self) -> QColor:
         try:

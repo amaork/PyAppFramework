@@ -8,7 +8,7 @@ import signal
 import platform
 import threading
 import subprocess
-from typing import List, Type
+from typing import List
 __all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info_without_console']
 
 

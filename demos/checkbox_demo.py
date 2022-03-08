@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import QPushButton, QLabel, QVBoxLayout, QTextEdit, QHBoxLayout, QColorDialog, QApplication, \
+    QDoubleSpinBox
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QColor
 from ..gui.checkbox import *
 from ..core.datatype import *
 from ..gui.widget import BasicWidget, TableWidget
@@ -13,6 +15,7 @@ class CheckboxDemoWidget(BasicWidget):
     def __init__(self, parent=None):
         super(CheckboxDemoWidget, self).__init__(parent)
 
+    # noinspection PyTypeChecker
     def _initUi(self):
         self.def_style = CheckBoxStyleSheet.default()
         style = DynamicObject(background=(240, 240, 240), font=("宋体", 9))
@@ -116,7 +119,6 @@ class CheckboxDemoWidget(BasicWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = CheckboxDemoWidget()
     widget.show()
     sys.exit(app.exec_())

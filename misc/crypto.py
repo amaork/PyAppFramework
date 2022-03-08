@@ -78,7 +78,7 @@ class RSAKeyHandle(object):
         return RSAKeyPair(public_key=public_key.decode(), private_key=private_key.decode())
 
     @staticmethod
-    def generate_key_pair_and_save(path: str = "", binary: bool = False, bits: int = 2048) ->bool:
+    def generate_key_pair_and_save(path: str = "", binary: bool = False, bits: int = 2048) -> bool:
         key = RSAKeyHandle.generate_key_pair(bits)
         if not isinstance(key, RSAKeyPair):
             return False

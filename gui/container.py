@@ -3,8 +3,8 @@
 Provide UI elements container
 """
 
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtCore import *
+from PySide2.QtWidgets import *
 from typing import Union, Optional, List, Any, Sequence
 
 from .binder import *
@@ -275,12 +275,14 @@ class ComponentManager(QObject):
         elif isinstance(component, NetworkInterfaceSelector):
             return component.currentSelect()
         elif isinstance(component, QComboBox):
+            # noinspection PyTypeChecker
             return component.currentText() if component.property("format") == "text" else component.currentIndex()
         elif isinstance(component, QCheckBox):
             return component.isChecked()
         elif isinstance(component, QRadioButton):
             return component.isChecked()
         elif isinstance(component, QLineEdit):
+            # noinspection PyTypeChecker
             return {
                 "int": str2number(component.text()),
                 "float": str2float(component.text())
@@ -296,6 +298,7 @@ class ComponentManager(QObject):
         elif isinstance(component, QLCDNumber):
             return component.value()
         elif isinstance(component, QPushButton):
+            # noinspection PyTypeChecker
             return component.property(ComponentManager.QPushButtonPrivateDataKey)
         else:
             return ""
@@ -339,6 +342,7 @@ class ComponentManager(QObject):
         elif isinstance(component, QLCDNumber):
             component.display(str2float(data))
         elif isinstance(component, QPushButton):
+            # noinspection PyTypeChecker
             component.setProperty(ComponentManager.QPushButtonPrivateDataKey, data)
 
     @staticmethod
@@ -401,10 +405,10 @@ class ComponentManager(QObject):
                 components.extend(ComponentManager.getAllComponents(widget))
                 continue
 
-            sublayout = item.layout()
+            sub_layout = item.layout()
             # Is a QLayout
-            if isinstance(sublayout, QLayout):
-                components.extend(ComponentManager.getAllComponents(sublayout))
+            if isinstance(sub_layout, QLayout):
+                components.extend(ComponentManager.getAllComponents(sub_layout))
 
         return components
 
@@ -514,6 +518,7 @@ class ComponentManager(QObject):
 
         # Search by property
         for component in self.__getComponentsWithType(componentType):
+            # noinspection PyTypeChecker
             if component.property(key) == value:
                 return component
 
@@ -533,6 +538,7 @@ class ComponentManager(QObject):
 
         lst = list()
         for component in self.__getComponentsWithType(componentType):
+            # noinspection PyTypeChecker
             if component.property(key) is not None:
                 lst.append(component)
 
@@ -548,6 +554,7 @@ class ComponentManager(QObject):
         """
         lst = list()
         for component in self.findKey(key, componentType):
+            # noinspection PyTypeChecker
             value = component.property(key)
             if isinstance(value, str) and searchValue in value or value == searchValue:
                 lst.append(component)
@@ -569,6 +576,7 @@ class ComponentManager(QObject):
             components = self.findKey(key, componentTypes)
 
         for component in components:
+            # noinspection PyTypeChecker
             value = component.property(key)
 
             if value in exclude:
@@ -583,6 +591,7 @@ class ComponentManager(QObject):
             return False
 
         for component in self.getAll():
+            # noinspection PyTypeChecker
             property_key = component.property(key)
             value = data.get(property_key)
 

@@ -318,7 +318,7 @@ class WirelessNetworkShell(object):
 class LinuxWirelessNetworkShell:
     def __init__(self, interface: str = 'wlan0'):
         self._interface = interface
-        self._iw_config= f'iwconfig {self._interface}'
+        self._iw_config = f'iwconfig {self._interface}'
 
     def __repr__(self):
         return f'{self.attr.dict}'

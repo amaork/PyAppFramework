@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import *
+from PySide2.QtCore import QEvent
+
 from ..gui.msgbox import *
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
@@ -13,10 +14,9 @@ class DemoEventFilter(BasicWidget):
         super(DemoEventFilter, self).__init__(parent)
 
         self.disable_event_handle = CustomEventFilterHandler(
-
             (QRadioButton, QCheckBox, QSpinBox, QDoubleSpinBox, QPushButton, QLineEdit),
             (QEvent.MouseButtonRelease, QEvent.MouseButtonPress, QEvent.MouseButtonDblClick,
-             QEvent.KeyPress, QEvent.KeyRelease),
+             QEvent.KeyPress, QEvent.KeyRelease, QEvent.Wheel),
             self,
         )
 
@@ -71,7 +71,6 @@ class DemoEventFilter(BasicWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = DemoEventFilter()
     widget.show()
     sys.exit(app.exec_())

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 from ..gui.msgbox import showMessageBox, MB_TYPES
-from PySide.QtGui import QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout, QApplication, QComboBox
+from PySide2.QtWidgets import QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout, QApplication, QComboBox
 
 
 class DemoWidget(QWidget):
@@ -29,7 +29,7 @@ class DemoWidget(QWidget):
         self.setWindowTitle("MessageBox Demo")
 
     def slotShowMessageBox(self):
-        showMessageBox(self.messageType.currentText(), self.contextEdit.text(), self.titleEdit.text())
+        showMessageBox(self, self.messageType.currentText(), self.contextEdit.text(), self.titleEdit.text())
 
 
 if __name__ == "__main__":

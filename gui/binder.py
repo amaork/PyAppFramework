@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from PySide.QtCore import QObject
+from PySide2.QtCore import QObject
 from typing import Optional, Union, Callable, Sequence, Tuple
-from PySide.QtGui import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget, QLineEdit
+from PySide2.QtWidgets import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget, QLineEdit
 
 
 __all__ = ['SpinBoxBinder', 'ComboBoxBinder']
@@ -78,6 +78,7 @@ class SpinBoxBinder(QObject):
                 receiver.setValue(self.__remap(factor, value))
             # QLabel or QLineEdit
             elif isinstance(receiver, (QLabel, QLineEdit)):
+                # noinspection PyTypeChecker
                 fmt = receiver.property('format')
                 fmt = fmt if isinstance(fmt, str) else "{}"
                 receiver.setText(fmt.format(self.__remap(factor, value)))

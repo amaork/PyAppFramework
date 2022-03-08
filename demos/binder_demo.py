@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 from ..gui.binder import SpinBoxBinder, ComboBoxBinder
-from PySide.QtCore import QTextCodec
-from PySide.QtGui import QWidget, QGridLayout, QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QApplication, QLineEdit
+from PySide2.QtWidgets import QWidget, QGridLayout, QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QApplication, QLineEdit
 
 
 class Demo(QWidget):
@@ -71,7 +70,6 @@ class Demo(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     demo = Demo()
     demo.show()
     sys.exit(app.exec_())

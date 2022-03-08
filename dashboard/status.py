@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QBrush, QResizeEvent, QMouseEvent, QPaintEvent
+from PySide2.QtCore import Qt, Signal, QSize, QEvent, QRectF, QTimer
+from PySide2.QtWidgets import *
 from typing import Union, Optional, Sequence
 from ..misc.windpi import get_program_scale_factor
 __all__ = ['DashboardStatusIcon']
@@ -166,7 +167,7 @@ class DashboardStatusIcon(QWidget):
         self.update()
 
     def resizeEvent(self, ev: QResizeEvent):
-        self._font = QFont(self.DEF_FONT_NAME, self.__getFontSize())
+        self._font = QFont(self.DEF_FONT_NAME, int(self.__getFontSize()))
         self.update()
 
     def mousePressEvent(self, ev: QMouseEvent):

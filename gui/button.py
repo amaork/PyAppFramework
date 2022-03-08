@@ -12,11 +12,9 @@ BaseButton
 """
 import os.path
 from typing import Optional, Union, Tuple, Sequence
-from PySide.QtCore import Signal, Qt, QSize, QRect
-from PySide.QtGui import QPushButton, QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen, \
-    QWidget, QPaintEvent
-
-
+from PySide2.QtWidgets import QPushButton, QWidget
+from PySide2.QtCore import Signal, Qt, QSize, QRect
+from PySide2.QtGui import QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen, QPaintEvent
 __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton']
 
 
@@ -25,6 +23,7 @@ class BaseButton(QPushButton):
                  styleSheet: str = "", tips: str = "", parent: Optional[QWidget] = None):
         super(BaseButton, self).__init__(parent)
         if isinstance(shortCut, str) and len(shortCut):
+            # noinspection PyTypeChecker
             self.setShortcut(QKeySequence(self.tr(shortCut)))
 
         if isinstance(styleSheet, str) and len(styleSheet):
@@ -59,6 +58,7 @@ class TextButton(BaseButton):
         self.text = ("", "")
         if isinstance(text, (tuple, list)) and len(text) == 2:
             self.text = text
+            # noinspection PyTypeChecker
             self.setText(self.tr(text[0]))
 
     def slotChangeView(self, ck: bool):
@@ -109,6 +109,7 @@ class IconButton(BaseButton):
         idx = self.isChecked()
 
         if self.iconSize != QSize(-1, -1):
+            # noinspection PyTypeChecker
             pixmap.loadFromData(self.iconData[idx])
             painter.drawPixmap(self.rect(), pixmap)
 

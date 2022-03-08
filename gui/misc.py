@@ -2,8 +2,11 @@
 import glob
 import platform
 import websocket
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtCore import QSize, Signal, QEvent, QObject, SLOT, Qt
+from PySide2.QtGui import QIcon, QMouseEvent, QColor, QPixmap, QFont, QFontMetrics, QKeySequence, QImage, QPaintEvent, \
+    QMoveEvent, QPen, QContextMenuEvent, qRgba, qAlpha, QPainter
+from PySide2.QtWidgets import QComboBox, QApplication, QWidget, QTabBar, QStyleOptionTab, QStylePainter, QStyle, \
+    QMenu, QAction, QActionGroup, QSizePolicy, QToolBar, QTextEdit, QShortcut, QToolButton
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from raspi_io import Query, RaspiSocketError
@@ -25,7 +28,8 @@ class SerialPortSelector(QComboBox):
     """
     # When port selected this signal will emit
     portSelected = Signal(object)
-    TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None, QApplication.UnicodeUTF8)
+    # noinspection PyTypeChecker
+    TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False, parent: Optional[QWidget] = None):
         """Select serial port
@@ -40,6 +44,7 @@ class SerialPortSelector(QComboBox):
         self.__text = text
         self.__one_shot = one_shot
         self.__system = platform.system().lower()
+        # noinspection PyTypeChecker
         self.setToolTip(self.tr("Right click reset and refresh serial port"))
 
         # Flush current serial port list
@@ -72,6 +77,7 @@ class SerialPortSelector(QComboBox):
         self.setEnabled(True)
 
         if self.__text:
+            # noinspection PyTypeChecker
             self.addItem(self.tr(self.__text))
 
         # Scan local system serial port
@@ -81,7 +87,7 @@ class SerialPortSelector(QComboBox):
                 self.setItemData(self.count() - 1, port)
         else:
             for index, port in enumerate(list(serial.tools.list_ports.comports())):
-                # Windows serial port is a object linux is a tuple
+                # Windows serial port is an object linux is a tuple
                 device = port.device
                 desc = "{0:s}".format(device).split(" - ")[-1]
                 self.addItem("{0:s}".format(desc))
@@ -115,8 +121,8 @@ class NetworkInterfaceSelector(QComboBox):
     addressChanged = Signal(object)
 
     """List current system exist network interface"""
-    TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface",
-                                  None, QApplication.UnicodeUTF8)
+    # noinspection PyTypeChecker
+    TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_short: bool = False,
                  ignore_loopback: bool = True, network_mode: bool = False, parent: Optional[QWidget] = None):
@@ -125,6 +131,7 @@ class NetworkInterfaceSelector(QComboBox):
         self._text = text
         self._one_short = one_short
         self._ignore_loopback = ignore_loopback
+        # noinspection PyTypeChecker
         self.setToolTip(self.tr("Right click reset and refresh network interface"))
 
         self.flushNic()
@@ -142,12 +149,15 @@ class NetworkInterfaceSelector(QComboBox):
             self.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
 
     def isNetworkMode(self) -> bool:
+        # noinspection PyTypeChecker
         return self.property("format") == "network"
 
     def setNetworkMode(self):
+        # noinspection PyTypeChecker
         self.setProperty("format", "network")
 
     def setAddressMode(self):
+        # noinspection PyTypeChecker
         self.setProperty("format", "address")
 
     def slotNicSelected(self, idx: int) -> bool:
@@ -204,7 +214,7 @@ class NetworkInterfaceSelector(QComboBox):
 
 class TabBar(QTabBar):
     def __init__(self, *args, **kwargs):
-        self.tabSize = QSize(kwargs.pop('width'), kwargs.pop('height'))
+        self.tabSize = QSize(int(kwargs.pop('width')), int(kwargs.pop('height')))
         super(TabBar, self).__init__(*args, **kwargs)
 
     def updateTabSize(self, size: QSize):
@@ -557,13 +567,14 @@ class ThreadSafeLabel(QWidget):
 
         painter.setFont(self.font())
         painter.setPen(QPen(self._color))
+        # noinspection PyTypeChecker
         painter.drawText(self.rect(), self._align, self._text)
 
     def sizeHint(self) -> QSize:
         metrics = QFontMetrics(self.font())
         min_height = metrics.height()
         min_width = metrics.width(self._text) * 1.3
-        return QSize(min_width, min_height)
+        return QSize(int(min_width), int(min_height))
 
 
 class HyperlinkLabel(ThreadSafeLabel):
@@ -645,9 +656,9 @@ class CustomTextEditor(QTextEdit):
         menu = self.createStandardContextMenu(event.pos())
         # Standard clear and save action
         menu.addSeparator()
-        menu.addAction('Clear All', self, SLOT('clear()'), self.__clear_ks)
+        menu.addAction('Clear All', self, SLOT(b'clear()'), self.__clear_ks)
         if self.__save_as_title:
-            menu.addAction('Save As File', self, SLOT('slotSaveAs()'), self.__save_ks)
+            menu.addAction('Save As File', self, SLOT(b'slotSaveAs()'), self.__save_ks)
 
         # Customize actions
         menu.addSeparator()
@@ -658,7 +669,6 @@ class CustomTextEditor(QTextEdit):
 
         menu.exec_(event.globalPos())
 
-    @Slot()
     def slotSaveAs(self):
         if not self.__save_as_title:
             return
@@ -672,4 +682,4 @@ class CustomTextEditor(QTextEdit):
         with open(path, 'w', encoding='utf-8') as fp:
             fp.write(self.toPlainText())
 
-        return showMessageBox(self, MB_TYPE_INFO, self.tr('Save success') + f'\n{path}', title=self.tr('Save File'))
+        return showMessageBox(self, MB_TYPE_INFO, self.tr(b'Save success') + f'\n{path}', title=self.tr(b'Save File'))

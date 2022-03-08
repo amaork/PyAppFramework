@@ -84,10 +84,10 @@ class FTPClient(object):
         try:
 
             cwd = self.ftp.pwd()
-            # Try enter directory
+            # Try to enter directory
             self.ftp.cwd(name)
 
-            # Success enter, then return back
+            # Success, entered, then return
             self.ftp.cwd(cwd)
             return True
 
@@ -108,7 +108,7 @@ class FTPClient(object):
         return not self.is_dir(name)
 
     def is_exist(self, path: str) -> bool:
-        """Check if path is exist
+        """Check if path is existed
 
         :param path: absolute path
         :return: True if path exist False not exist
@@ -193,7 +193,7 @@ class FTPClient(object):
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
-        extensions = [x[2:] for x in [name for name in exclude if re.search("\*.(.*?)", name, re.S)]]
+        extensions = [x[2:] for x in [name for name in exclude if re.search(r"\*.(.*?)", name, re.S)]]
                
         try:
             # If local dir is not exist create it
@@ -281,7 +281,7 @@ class FTPClient(object):
 
         pwd = ""
         exclude = exclude if isinstance(exclude, (list, tuple)) else list()
-        extensions = [x[2:] for x in [name for name in exclude if re.search("\*.(.*?)", name, re.S)]]
+        extensions = [x[2:] for x in [name for name in exclude if re.search(r"\*.(.*?)", name, re.S)]]
         
         try:
             
@@ -374,7 +374,7 @@ class FTPClient(object):
             if not self.is_dir(remote_dir):
                 raise FTPClientError("Remove files error, remote dir:{} is not exist".format(remote_dir))
 
-            # Automatic ignore extx filesystem recovery dir
+            # Automatic ignore extX filesystem recovery dir
             if self.EXTx_FS_RECOVERY_DIR in remove_files:
                 remove_files.remove(self.EXTx_FS_RECOVERY_DIR)
             
@@ -428,7 +428,7 @@ class FTPClient(object):
 
     def force_remove_dir(self, remote_dir: str):
         try:
-            # Try remove the whole dir
+            # Try to remove the whole dir
             self.remove_dir(remote_dir)
         except FTPClientError:
             try:

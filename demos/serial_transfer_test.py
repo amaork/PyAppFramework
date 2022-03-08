@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-
 import sys
 import argparse
 from ..protocol.serialport import SerialTransferProtocol, SerialPort, SerialTransferError
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--port", help="Serial port name", default="COM17")
+    parser.add_argument("-p", "--port", help="Serial port name", default="COM65")
     parser.add_argument("-t", "--timeout", help="Serial port timeout", default=1)
     parser.add_argument("-b", "--baudrate", help="Serial port baudrate", default=38400)
     args = vars(parser.parse_args())

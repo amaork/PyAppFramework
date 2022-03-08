@@ -9,19 +9,19 @@ ScaleFactor = NamedTuple('ScaleFactor', [('x', float), ('y', float)])
 
 
 def get_win_dpi() -> DPI:
-    """ this function get the dpi on X and Y axis of default windows desktop.
+    """ this function get the dpi on X and Y axis of default Windows desktop.
 
     In:
     none
 
     Out:
-    x_dpi: dpi on x axis. [int]
-    y_dpi: dpi on y axis. [int]
+    x_dpi: dpi on x-axis. [int]
+    y_dpi: dpi on y-axis. [int]
 
     """
 
-    para_x = 88  # magic number of windows API for x axis
-    para_y = 90  # magic number of windows API for y axis
+    para_x = 88  # magic number of Windows API for x-axis
+    para_y = 90  # magic number of Windows API for y-axis
 
     if platform.system().lower() == "windows":
         try:
@@ -45,13 +45,13 @@ def get_program_scale_factor() -> ScaleFactor:
     none
 
     Out:
-    scale_x: scale factor on x axis. [float]
-    scale_y: scale factor on y axis. [float]
+    scale_x: scale factor on x-axis. [float]
+    scale_y: scale factor on y-axis. [float]
 
     """
 
-    default_dpi_x = 96.0  # default x axis dpi setting for windows
-    default_dpi_y = 96.0  # default y axis dpi setting for windows
+    default_dpi_x = 96.0  # default x-axis dpi setting for windows
+    default_dpi_y = 96.0  # default y-axis dpi setting for windows
 
     current_dpi_x, current_dpi_y = get_win_dpi()
     current_dpi_x = float(current_dpi_x)

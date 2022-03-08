@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import random
-from PySide.QtGui import *
-from PySide.QtCore import *
+from PySide2.QtWidgets import *
 from ..dashboard.monitor import *
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
@@ -51,7 +50,6 @@ class DemoWidget(BasicWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    QTextCodec.setCodecForTr(QTextCodec.codecForName("UTF-8"))
     widget = DemoWidget()
     widget.show()
     sys.exit(app.exec_())
