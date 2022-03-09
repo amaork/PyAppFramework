@@ -2,7 +2,9 @@
 import os
 import sys
 import hashlib
-from PySide2.QtWidgets import *
+from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
+    QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
+    QProgressDialog
 from PySide2.QtCore import Qt, Signal, QPoint, QLocale
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from typing import Optional, Union, Sequence, Callable, Any

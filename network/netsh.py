@@ -7,7 +7,7 @@ from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 
 from ..core.datatype import *
-from ..misc.util import awk_query
+from ..misc.utils import awk_query
 __all__ = ['WirelessNetwork', 'WirelessInterface', 'WirelessNetworkShell', 'LinuxWirelessNetworkShell']
 
 
