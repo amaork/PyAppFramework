@@ -2,8 +2,8 @@
 import os
 import sys
 import hashlib
-from PySide2.QtCore import *
 from PySide2.QtWidgets import *
+from PySide2.QtCore import Qt, Signal, QPoint, QLocale
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from typing import Optional, Union, Sequence, Callable, Any
 
@@ -418,7 +418,8 @@ class ProgressDialog(QProgressDialog):
     def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
                  cancel_button: Optional[str] = None, closeable: bool = True, cancelable: bool = False):
         super(ProgressDialog, self).__init__(parent)
-
+        # fix ProgressDialog sometimes will auto popup issue
+        self.reset()
         self.__canceled = False
         self.__closeable = closeable
         self.__cancelable = cancelable

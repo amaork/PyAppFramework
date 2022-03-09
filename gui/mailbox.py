@@ -199,7 +199,7 @@ class UiMailBox(QObject):
             raise RuntimeError("UiMailBox needs a QWidget as parent")
 
         self.__parent = parent
-        self.__progress = ProgressDialog(parent)
+        self.__progress = ProgressDialog(parent=parent)
 
         self.__pai_tid = ''
         self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)

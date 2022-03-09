@@ -247,7 +247,7 @@ class ProtoBufHandle(object):
         Init a protocol buffers handle for protocol buffer comm simulator
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
         :param max_msg_length: protocol buffers maximum message length
-        :param handle_callback: when received an request will callback this
+        :param handle_callback: when received a request will call back this
         :param event_callback: communicate event callback
         :param verbose: show communicate verbose detail
         """
