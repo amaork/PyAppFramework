@@ -15,7 +15,6 @@ class CheckboxDemoWidget(BasicWidget):
     def __init__(self, parent=None):
         super(CheckboxDemoWidget, self).__init__(parent)
 
-    # noinspection PyTypeChecker
     def _initUi(self):
         self.def_style = CheckBoxStyleSheet.default()
         style = DynamicObject(background=(240, 240, 240), font=("宋体", 9))

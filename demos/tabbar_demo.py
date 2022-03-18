@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
-from PySide2.QtWidgets import *
+from PySide2.QtWidgets import QApplication, QWidget, QTabWidget, QHBoxLayout, QRadioButton, QLabel, QComboBox, \
+    QButtonGroup
+
 from ..gui.misc import TabBar
 from ..gui.container import ComponentManager
 
@@ -9,7 +11,6 @@ class TabBarDemo(QWidget):
     PositionText = ["East", "West", "South", "North"]
     Positions = [QTabWidget.East, QTabWidget.West, QTabWidget.South, QTabWidget.North]
 
-    # noinspection PyTypeChecker
     def __init__(self, parent=None):
         super(TabBarDemo, self).__init__(parent)
 

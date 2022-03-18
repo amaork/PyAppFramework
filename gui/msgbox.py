@@ -33,7 +33,6 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
     :param title: Message title
     :return: result
     """
-    # noinspection PyTypeChecker
     attributes = {
         MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error", None)),
         MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning", None)),

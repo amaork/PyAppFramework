@@ -240,7 +240,6 @@ class UiMailBox(QObject):
                 color = "rgb({0:d},{1:d},{2:d})".format(mail.color.red(), mail.color.green(), mail.color.blue())
                 # Main windows has status bar
                 if isinstance(self.__parent.ui.statusbar, QStatusBar):
-                    # noinspection PyTypeChecker
                     self.__parent.ui.statusbar.showMessage(self.tr(mail.content), mail.timeout)
                     self.__parent.ui.statusbar.setStyleSheet(
                         "QStatusBar{"
@@ -250,7 +249,6 @@ class UiMailBox(QObject):
                         "font-weight:bold;}" % color)
                 # Widget has label named as statusbar
                 elif isinstance(self.__parent.ui.statusbar, QLabel):
-                    # noinspection PyTypeChecker
                     self.__parent.ui.statusbar.setText(self.tr(mail.content))
                     self.__parent.ui.statusbar.setStyleSheet(
                         "color:{0:s};padding-top:8px;font-weight:bold;".format(color)
@@ -287,7 +285,6 @@ class UiMailBox(QObject):
 
         # Appended a message on window title
         elif isinstance(mail, WindowsTitleMail):
-            # noinspection PyTypeChecker
             self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
 
         # Callback function

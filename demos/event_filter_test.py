@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
-from PySide2.QtWidgets import *
 from PySide2.QtCore import QEvent
+from PySide2.QtWidgets import QPushButton, QRadioButton, QCheckBox, QLineEdit, QDoubleSpinBox, QSpinBox, QLabel, \
+    QHBoxLayout, QApplication
 
 from ..gui.msgbox import *
 from ..gui.widget import BasicWidget

@@ -116,7 +116,6 @@ class SampleSelectInput(QWidget):
             fm = QFontMetrics(font)
             painter.setPen(self.bg_color)
             painter.setFont(font)
-            # noinspection PyTypeChecker
             painter.drawText(self.MARGIN + self.outer_ring_diameter / 2 - fm.width(self.state) / 2,
                              self.MARGIN + self.outer_ring_diameter / 2 + fm.height() / 3,
                              self.tr(self.state))
@@ -252,7 +251,6 @@ class VirtualNumberInput(QLineEdit):
     __textColor = QColor(255, 255, 255)
     __hoverColor = QColor(0x96, 0xf7, 0x51)
 
-    # noinspection PyTypeChecker
     def __init__(self, initial_value: Union[int, float] = 0,
                  min_: Union[int, float] = 0, max_: Union[int, float] = 9999, decimals: int = 0,
                  parent: Optional[QWidget] = None):
@@ -311,11 +309,8 @@ class VirtualNumberInput(QLineEdit):
                UiColorInput.get_bg_color_stylesheet(cls.color2Tuple(cls.getThemeColor()))
 
     def showKeyboard(self):
-        # noinspection PyTypeChecker
         input_min = self.property("min")
-        # noinspection PyTypeChecker
         input_max = self.property("max")
-        # noinspection PyTypeChecker
         input_decimals = self.property("decimals")
         if not input_decimals:
             value = VirtualNumberKeyboard.getInt(min_=input_min, max_=input_max, parent=self)
@@ -327,7 +322,6 @@ class VirtualNumberInput(QLineEdit):
             self.numberChanged.emit(value)
 
     def setValue(self, value: Union[int, float]):
-        # noinspection PyTypeChecker
         number_decimals = self.property('decimals')
         self.setText("{0:.{1}f}".format(value, number_decimals) if number_decimals else str(value))
 
@@ -419,16 +413,13 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         key_layout = QGridLayout()
         for row, row_keys in enumerate(self.key_map):
             for column, key in enumerate(row_keys):
-                # noinspection PyTypeChecker
                 key = {
                     self.OK_KEY: self.tr("OK"),
                     self.CANCEL_KEY: self.tr("Cancel")
                 }.get(key, key)
                 btn = QPushButton(key)
                 btn.clicked.connect(self.slotNumberClicked)
-                # noinspection PyTypeChecker
                 btn.setProperty("name", key)
-                # noinspection PyTypeChecker
                 btn.setProperty("value", key)
                 btn.setMinimumHeight(50 * self.__scale_factor)
                 btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -467,9 +458,7 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
 
     def __initSignalAndSlots(self):
-        # noinspection PyTypeChecker
         ok = self.ui_manager.getByValue("name", self.tr(self.OK_KEY), QPushButton)
-        # noinspection PyTypeChecker
         cancel = self.ui_manager.getByValue("name", self.tr(self.CANCEL_KEY), QPushButton)
         ok.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)

@@ -80,7 +80,6 @@ class SimpleColorDialog(QDialog):
         self.__depth.setTickInterval(10)
         self.__depth.setTickPosition(QSlider.TicksBelow)
         self.__depth.valueChanged.connect(self.slotChangeDepth)
-        # noinspection PyTypeChecker
         depthLayout.addWidget(QLabel(self.tr("Luminance")))
         depthLayout.addWidget(self.__depth)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
@@ -93,7 +92,6 @@ class SimpleColorDialog(QDialog):
         self.__green = QSpinBox()
         self.__blue = QSpinBox()
         valueLayout = QHBoxLayout()
-        # noinspection PyTypeChecker
         for text, spinbox in (
                 (self.tr("Red"), self.__red), (self.tr("Green"), self.__green), (self.tr("Blue"), self.__blue)
         ):
@@ -119,7 +117,6 @@ class SimpleColorDialog(QDialog):
             layout.addWidget(button)
 
         self.setLayout(layout)
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Please select color"))
 
     def __getColor(self) -> Color:
@@ -265,7 +262,6 @@ class SerialPortSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Please select serial port"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -301,7 +297,6 @@ class SerialPortSettingDialog(QDialog):
 
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Serial Configuration Dialog"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -333,7 +328,6 @@ class NetworkAddressSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Please select address"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -370,7 +364,6 @@ class NetworkInterfaceSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Please Select Network Interface"))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -414,7 +407,6 @@ class NetworkInterfaceSelectDialog(QDialog):
 
 class ProgressDialog(QProgressDialog):
     progressCanceled = Signal(bool)
-    # noinspection PyTypeChecker
     DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None)
 
     def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
@@ -427,14 +419,12 @@ class ProgressDialog(QProgressDialog):
         self.__cancelable = cancelable
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr(title))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         if cancel_button is None:
             # noinspection PyTypeChecker
             self.setCancelButton(None)
         else:
-            # noinspection PyTypeChecker
             self.setCancelButtonText(self.tr(cancel_button))
 
     def closeEvent(self, ev: QCloseEvent):
@@ -442,9 +432,7 @@ class ProgressDialog(QProgressDialog):
             ev.ignore()
 
         if self.__cancelable:
-            # noinspection PyTypeChecker
             if showQuestionBox(self, self.tr("Cancel") + " " + self.windowTitle() + " ?"):
-                # noinspection PyTypeChecker
                 self.setLabelText(self.tr("Canceling please wait..."))
                 self.setCancelState(True)
 
@@ -523,7 +511,6 @@ class BasicJsonSettingDialog(QDialog):
         try:
             title = settings.layout.get_name() if isinstance(settings.layout, UiLayout) else settings.layout.get("name")
         except AttributeError:
-            # noinspection PyTypeChecker
             title = self.tr("Configuration Dialog")
 
         self.setLayout(layout)
@@ -531,7 +518,6 @@ class BasicJsonSettingDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def tr(self, text: str) -> str:
-        # noinspection PyTypeChecker
         return QApplication.translate("BasicJsonSettingDialog", text, None)
 
     def getJsonData(self) -> Optional[dict]:
@@ -653,20 +639,16 @@ class PasswordDialog(QDialog):
     def __initUi(self):
         # Ui elements
         self.ui_old_password = QLineEdit()
-        # noinspection PyTypeChecker
         self.ui_old_password.setPlaceholderText(self.tr("Please input old password"))
 
         self.ui_new_password = QLineEdit()
-        # noinspection PyTypeChecker
         self.ui_new_password.setPlaceholderText(self.tr("Please input new password"))
 
         self.ui_show_password = QCheckBox()
 
         self.ui_confirm_password = QLineEdit()
-        # noinspection PyTypeChecker
         self.ui_confirm_password.setPlaceholderText(self.tr("Confirm new password"))
 
-        # noinspection PyTypeChecker
         self.ui_old_password_label = QLabel(self.tr("Old password"))
         self.ui_buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
 
@@ -675,18 +657,15 @@ class PasswordDialog(QDialog):
         item_layout.addWidget(self.ui_old_password_label, 0, 0)
         item_layout.addWidget(self.ui_old_password, 0, 1)
 
-        # noinspection PyTypeChecker
         item_layout.addWidget(QLabel(self.tr("New password")), 1, 0)
         item_layout.addWidget(self.ui_new_password, 1, 1)
 
-        # noinspection PyTypeChecker
         item_layout.addWidget(QLabel(self.tr("Confirm new password")), 2, 0)
         item_layout.addWidget(self.ui_confirm_password, 2, 1)
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.ui_show_password)
         self.ui_show_password.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        # noinspection PyTypeChecker
         sub_layout.addWidget(QLabel(self.tr("Show password")))
         item_layout.addLayout(sub_layout, 3, 1)
 
@@ -698,10 +677,8 @@ class PasswordDialog(QDialog):
 
         # Mode switch
         if self.__password:
-            # noinspection PyTypeChecker
             self.setWindowTitle(self.tr("Change password"))
         else:
-            # noinspection PyTypeChecker
             self.setWindowTitle(self.tr("Reset password"))
             self.ui_old_password.setHidden(True)
             self.ui_old_password_label.setHidden(True)
@@ -730,15 +707,12 @@ class PasswordDialog(QDialog):
         confirm = self.__hash_function(self.ui_confirm_password.text().encode())
 
         if self.__password and old != self.__password:
-            # noinspection PyTypeChecker
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Old password error, please retry"))
 
         if new != confirm:
-            # noinspection PyTypeChecker
             return showMessageBox(self, MB_TYPE_ERR, self.tr("New password mismatch, please retry"))
 
         if len(self.ui_new_password.text()) == 0 or len(self.ui_confirm_password.text()) == 0:
-            # noinspection PyTypeChecker
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Password can't be empty, please retry!"))
 
         self.__new_password = new
@@ -766,7 +740,6 @@ class PasswordDialog(QDialog):
 
 
 class OptionDialog(QDialog):
-    # noinspection PyTypeChecker
     DEF_TITLE = QApplication.translate("OptionDialog", "Please select", None)
 
     def __init__(self, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None):
@@ -781,7 +754,6 @@ class OptionDialog(QDialog):
             layout.addWidget(btn)
             btn.clicked.connect(self.slotSelected)
 
-        # noinspection PyTypeChecker
         cancel = QPushButton(self.tr("Cancel"))
         cancel.clicked.connect(self.reject)
         layout.addWidget(cancel)
@@ -820,7 +792,6 @@ class OptionDialog(QDialog):
         return dialog.getSelectionIndex()
 
 
-# noinspection PyTypeChecker
 def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
                          title: str = QApplication.translate("dialog",
                                                              "Please select export file save path",
@@ -832,7 +803,6 @@ def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
     return path
 
 
-# noinspection PyTypeChecker
 def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
                          title: str = QApplication.translate("dialog",
                                                              "Please select import file",

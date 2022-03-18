@@ -23,7 +23,6 @@ class BaseButton(QPushButton):
                  styleSheet: str = "", tips: str = "", parent: Optional[QWidget] = None):
         super(BaseButton, self).__init__(parent)
         if isinstance(shortCut, str) and len(shortCut):
-            # noinspection PyTypeChecker
             self.setShortcut(QKeySequence(self.tr(shortCut)))
 
         if isinstance(styleSheet, str) and len(styleSheet):
@@ -58,7 +57,6 @@ class TextButton(BaseButton):
         self.text = ("", "")
         if isinstance(text, (tuple, list)) and len(text) == 2:
             self.text = text
-            # noinspection PyTypeChecker
             self.setText(self.tr(text[0]))
 
     def slotChangeView(self, ck: bool):

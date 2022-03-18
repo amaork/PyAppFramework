@@ -28,7 +28,6 @@ class SerialPortSelector(QComboBox):
     """
     # When port selected this signal will emit
     portSelected = Signal(object)
-    # noinspection PyTypeChecker
     TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False, parent: Optional[QWidget] = None):
@@ -44,7 +43,6 @@ class SerialPortSelector(QComboBox):
         self.__text = text
         self.__one_shot = one_shot
         self.__system = platform.system().lower()
-        # noinspection PyTypeChecker
         self.setToolTip(self.tr("Right click reset and refresh serial port"))
 
         # Flush current serial port list
@@ -77,7 +75,6 @@ class SerialPortSelector(QComboBox):
         self.setEnabled(True)
 
         if self.__text:
-            # noinspection PyTypeChecker
             self.addItem(self.tr(self.__text))
 
         # Scan local system serial port
@@ -121,7 +118,6 @@ class NetworkInterfaceSelector(QComboBox):
     addressChanged = Signal(object)
 
     """List current system exist network interface"""
-    # noinspection PyTypeChecker
     TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_short: bool = False,
@@ -131,7 +127,6 @@ class NetworkInterfaceSelector(QComboBox):
         self._text = text
         self._one_short = one_short
         self._ignore_loopback = ignore_loopback
-        # noinspection PyTypeChecker
         self.setToolTip(self.tr("Right click reset and refresh network interface"))
 
         self.flushNic()
@@ -149,15 +144,12 @@ class NetworkInterfaceSelector(QComboBox):
             self.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
 
     def isNetworkMode(self) -> bool:
-        # noinspection PyTypeChecker
         return self.property("format") == "network"
 
     def setNetworkMode(self):
-        # noinspection PyTypeChecker
         self.setProperty("format", "network")
 
     def setAddressMode(self):
-        # noinspection PyTypeChecker
         self.setProperty("format", "address")
 
     def slotNicSelected(self, idx: int) -> bool:
@@ -567,7 +559,6 @@ class ThreadSafeLabel(QWidget):
 
         painter.setFont(self.font())
         painter.setPen(QPen(self._color))
-        # noinspection PyTypeChecker
         painter.drawText(self.rect(), self._align, self._text)
 
     def sizeHint(self) -> QSize:

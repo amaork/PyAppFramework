@@ -15,7 +15,6 @@ class DialogTest(QWidget):
         self.__initSignalAndSlots()
         self.__uiManager = ComponentManager(self.layout())
 
-    # noinspection PyTypeChecker
     def __initUi(self):
         diff = QHBoxLayout()
         self.__diff = QPushButton(self.tr("获取颜色（RGB 不同）"))
@@ -33,7 +32,6 @@ class DialogTest(QWidget):
         same = QHBoxLayout()
         self.__sameColor = QLabel()
         self.__sameColor.setMinimumSize(32, 15)
-        # noinspection PyTypeChecker
         self.__same = QPushButton(self.tr("获取颜色（RGB 相同）"))
         color = QSpinBox()
         color.setRange(0, 7)

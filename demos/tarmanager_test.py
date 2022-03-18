@@ -6,14 +6,14 @@ from ..misc.tarmanager import TarManager, TarManagerError
 
 
 def usage():
-    print("\n{} -c[x] -s xxx -d xxx -f xxx\n".format(os.path.basename(sys.argv[0])))
-    print("\t-h\--help\tshow this help menu")
-    print("\t-v\--verbose\toutput verbose message")
-    print("\t-c\--create\tcreate a package file")
-    print("\t-x\--extract\textract a package file")
-    print("\t-s\--src\tspecify will package file path or will extract file path")
-    print("\t-d\--dest\tspecify package file name or will extract file  path")
-    print("\t-x\--format\tspecify package file format: {}".format(TarManager.get_support_format()))
+    print(r"\n{} -c[x] -s xxx -d xxx -f xxx\n".format(os.path.basename(sys.argv[0])))
+    print(r"\t-h--help show this help menu")
+    print(r"\t-v--verbose output verbose message")
+    print(r"\t-c--create create a package file")
+    print(r"\t-x--extract extract a package file")
+    print(r"\t-s--src specify will package file path or will extract file path")
+    print(r"\t-d--dest specify package file name or will extract file  path")
+    print(r"\t-x--format specify package file format: {}".format(TarManager.get_support_format()))
 
 
 if __name__ == '__main__':

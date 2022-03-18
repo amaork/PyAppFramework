@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
 import math
-from PySide2.QtWidgets import *
+from PySide2.QtWidgets import QPushButton, QLabel, QSpinBox, QColorDialog, QApplication, QSizePolicy, \
+    QAbstractSpinBox, QGridLayout, QDoubleSpinBox
+
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
@@ -47,7 +49,6 @@ class DemoDashboardInput(BasicWidget):
 
         self.setLayout(layout)
         self.ui_manager = ComponentManager(layout)
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("Dashboard 虚拟键盘输入测试"))
 
     def _initData(self):
@@ -78,7 +79,6 @@ class DemoDashboardInput(BasicWidget):
         self.ui_theme_color.clicked.connect(self.slotChangeKeyboardThemeColor)
         self.ui_hover_color.clicked.connect(self.slotChangeKeyboardHoverColor)
 
-    # noinspection PyTypeChecker
     def slotInputRangeChanged(self, value):
         if self.sender() == self.ui_int_min:
             self.ui_int_input.setProperty("min", value)

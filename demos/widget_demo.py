@@ -2,9 +2,10 @@
 import os
 import sys
 import datetime
-from PySide2.QtWidgets import *
 from PySide2.QtCore import Qt, QDir, Signal
 from PySide2.QtGui import QColor, QImageReader
+from PySide2.QtWidgets import QApplication, QPushButton, QMainWindow, QWidget, QTextEdit, QFontDialog, QLabel, \
+    QLineEdit, QVBoxLayout, QHBoxLayout, QGridLayout, QInputDialog, QProgressBar, QFrame
 
 from ..gui.widget import *
 from ..misc.settings import *
@@ -13,7 +14,6 @@ from ..gui.container import ComponentManager
 from ..gui.dialog import showFileImportDialog
 from ..gui.widget import SerialPortSettingWidget
 from ..gui.misc import NavigationItem, NavigationBar
-from ..misc.crypto import RSAPrivateKeyHandle
 from ..gui.srm import SoftwareRegistrationMachineWidget
 
 
@@ -369,7 +369,6 @@ class SerialSettingWidgetTest(QWidget):
         super(SerialSettingWidgetTest, self).__init__(parent)
         self.__text = QTextEdit()
         self.__setting = SerialPortSettingWidget()
-        # noinspection PyTypeChecker
         get_setting = QPushButton(self.tr("获取串口设置"))
         get_setting.clicked.connect(self.slotGetSetting)
 
@@ -379,7 +378,6 @@ class SerialSettingWidgetTest(QWidget):
         layout.addWidget(self.__text)
 
         self.setLayout(layout)
-        # noinspection PyTypeChecker
         self.setWindowTitle(self.tr("串口设置对话框"))
 
     def slotGetSetting(self):
@@ -393,7 +391,6 @@ class JsonSettingWidgetTest(QWidget):
         layout = QVBoxLayout()
         self.widget = JsonSettingWidget(UiInputSetting.getDemoSettings())
         self.widget.settingChanged.connect(self.slotShowData)
-        # noinspection PyTypeChecker
         self.ui_button = QPushButton(self.tr("Get settings"))
         self.ui_button.clicked.connect(self.slotShowData)
         self.ui_data = QTextEdit()
@@ -444,10 +441,8 @@ class MultiJsonSettingsWidgetTest(QWidget):
         self.widget = MultiJsonSettingsWidget(MultiJsonSetting.default(), data)
 
         self.widget.settingChanged.connect(self.slotShowData)
-        # noinspection PyTypeChecker
         self.ui_get = QPushButton(self.tr("Get settings"))
         self.ui_get.clicked.connect(self.slotShowData)
-        # noinspection PyTypeChecker
         self.ui_reset = QPushButton(self.tr("Reset data"))
         self.ui_reset.clicked.connect(self.slotResetData)
         self.ui_data = QTextEdit()

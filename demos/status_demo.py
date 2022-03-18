@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
 import random
-from PySide2.QtWidgets import *
 from PySide2.QtGui import QColor
+from PySide2.QtWidgets import QPushButton, QHBoxLayout, QGridLayout, QApplication, QColorDialog
+
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager
 from ..dashboard.status import DashboardStatusIcon
@@ -12,7 +13,6 @@ class DemoDashboardStatus(BasicWidget):
     def __init__(self, parent=None):
         super(DemoDashboardStatus, self).__init__(parent)
 
-    # noinspection PyTypeChecker
     def _initUi(self):
         layout = QHBoxLayout()
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import random
-from PySide2.QtWidgets import *
+from PySide2.QtWidgets import QApplication, QHBoxLayout
+
 from ..dashboard.monitor import *
 from ..gui.widget import BasicWidget
 from ..gui.container import ComponentManager

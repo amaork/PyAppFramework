@@ -30,7 +30,6 @@ class TableView(QTableView):
         self.__columnStretchFactor = list()
         self.__scale_x, self.__scale_y = get_program_scale_factor()
 
-        # noinspection PyTypeChecker
         for group, actions in {
             self.COMM_ACTION: [
                 (QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
@@ -46,7 +45,6 @@ class TableView(QTableView):
         }.items():
             for action, slot in actions:
                 action.triggered.connect(slot)
-                # noinspection PyTypeChecker
                 action.setProperty("group", group)
                 self.__contentMenu.addAction(action)
 
@@ -101,7 +99,6 @@ class TableView(QTableView):
             if not isinstance(action, QAction):
                 continue
 
-            # noinspection PyTypeChecker
             action.setProperty("group", self.CUSTOM_ACTION)
             self.__contentMenu.addAction(action)
 
@@ -284,7 +281,6 @@ class TableView(QTableView):
         if not isinstance(model, QAbstractItemModel):
             return False
 
-        # noinspection PyTypeChecker
         return self.setCurrentIndex(model.index(row, 0, QModelIndex()))
 
     def setRowCount(self, count: int):
@@ -305,7 +301,6 @@ class TableView(QTableView):
         if not isinstance(data, list) or len(data) != model.rowCount():
             return False
 
-        # noinspection PyTypeChecker
         return sum([self.setRowData(row, data[row], role) for row in range(model.rowCount())]) == len(data)
 
     def getRowData(self, row: int, role: Qt.ItemDataRole = Qt.DisplayRole):
@@ -360,7 +355,6 @@ class TableView(QTableView):
         if not isinstance(model, QAbstractItemModel):
             return False
 
-        # noinspection PyTypeChecker
         return model.setData(model.index(row, column, QModelIndex()), data, role)
 
     def frozenItem(self, row: int, column: int, frozen: bool) -> bool:
@@ -382,7 +376,6 @@ class TableView(QTableView):
                 widget.setCheckable(not frozen) if isinstance(widget, QCheckBox) else widget.setDisabled(frozen)
 
         if isinstance(self.itemDelegate(), QItemDelegate):
-            # noinspection PyTypeChecker
             self.itemDelegate().setProperty(str(DynamicObject(row=row, column=column)), frozen)
 
         return True
@@ -536,7 +529,6 @@ class TableViewDelegate(QItemDelegate):
     def isFrozen(self, index: QStyleOptionViewItem) -> bool:
         row = index.row()
         column = index.column()
-        # noinspection PyTypeChecker
         return self.property(str(DynamicObject(row=row, column=column)))
 
     def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
@@ -553,9 +545,7 @@ class TableViewDelegate(QItemDelegate):
             return checkbox
         elif isinstance(settings, UiPushButtonInput):
             button = QPushButton(settings.get_name(), parent=parent)
-            # noinspection PyTypeChecker
             button.setProperty('private', index.data())
-            # noinspection PyTypeChecker
             button.setProperty('index', index)
             button.clicked.connect(settings.get_default())
             return button

@@ -49,7 +49,6 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         return self.__decrypt(key) if hasattr(self.__decrypt, '__call__') else key.decode()
 
     def tr(self, text: str) -> str:
-        # noinspection PyTypeChecker
         return QApplication.translate("SoftwareRegistrationMachineWidget", text, None)
 
     def _initUi(self):
@@ -232,7 +231,6 @@ class SoftwareRegistrationDialog(QDialog):
         self.__initData()
         self.__initSignalAndSlot()
 
-    # noinspection PyTypeChecker
     def __initUi(self):
         self.ui_save_mc = QPushButton(self.tr("Save Machine Code"))
         self.ui_load_rc = QPushButton(self.tr("Load Registration Code"))
@@ -264,9 +262,7 @@ class SoftwareRegistrationDialog(QDialog):
         self.ui_save_mc.setHidden(True)
         self.ui_load_rc.setHidden(True)
         self.ui_backup_rc.setHidden(True)
-        # noinspection PyTypeChecker
         self.ui_mc_image.drawFromText(self.tr("Generating please wait..."))
-        # noinspection PyTypeChecker
         self.ui_rc_image.drawFromText(self.tr("Please Load Registration Code"))
 
         # Display machine code
@@ -294,7 +290,6 @@ class SoftwareRegistrationDialog(QDialog):
         return self.__registered.data
 
     def slotSaveMachineCode(self):
-        # noinspection PyTypeChecker
         path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="machine_code.png",
                                     title=self.tr("Please select machine code save path"))
         if not path:
@@ -304,31 +299,25 @@ class SoftwareRegistrationDialog(QDialog):
             with open(path, 'wb') as fp:
                 fp.write(self.__mc_qr_image)
 
-            # noinspection PyTypeChecker
             self.signalMsgBox.emit(MB_TYPE_INFO, self.tr("Machine code save success") + "\n{!r}".format(path))
         except OSError as e:
-            # noinspection PyTypeChecker
             showMessageBox(self, MB_TYPE_ERR, self.tr("Save machine code error") + ": {}".format(e))
 
     def slotLoadRegistrationCode(self):
         if self.__registered:
-            # noinspection PyTypeChecker
             return showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
 
-        # noinspection PyTypeChecker
         path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT,
                                     title=self.tr("Please select registration code"))
         if not os.path.isfile(path):
             return
 
-        # noinspection PyTypeChecker
         self.ui_rc_image.drawFromText(self.tr("Verifying, please wait..."))
         th = threading.Thread(target=self.threadVerifyRegistrationCode, args=(path,))
         th.setDaemon(True)
         th.start()
 
     def slotBackupRegistrationCode(self):
-        # noinspection PyTypeChecker
         path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="registration_code.png",
                                     title=self.tr("Please select registration code backup path"))
         if not path:
@@ -338,11 +327,9 @@ class SoftwareRegistrationDialog(QDialog):
             with open(path, "wb") as fp:
                 fp.write(self.__rc_qr_image)
 
-            # noinspection PyTypeChecker
             self.signalMsgBox.emit(MB_TYPE_INFO,
                                    self.tr("Software registration code backup success") + "\n{!r}".format(path))
         except OSError as e:
-            # noinspection PyTypeChecker
             self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Software registration code backup failed") + ": {}".format(e))
 
     def slotShowMachineCode(self, image: bytes):
@@ -357,23 +344,19 @@ class SoftwareRegistrationDialog(QDialog):
         self.__registered.data = verify
 
         if not verify:
-            # noinspection PyTypeChecker
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid software registration code"))
 
         self.__rc_qr_image = qrcode_generate(self.__machine.get_registration_code(), fmt=self.QR_CODE_FORMAT)
         self.ui_rc_image.drawFromMem(self.__rc_qr_image, self.QR_CODE_FORMAT)
 
         self.ui_backup_rc.setVisible(True)
-        # noinspection PyTypeChecker
         self.ui_load_rc.setText(self.tr("Software registered"))
-        # noinspection PyTypeChecker
         showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
 
     def threadGenerateMachineCode(self):
         try:
             self.signalMachineCodeGenerated.emit(qrcode_generate(self.__machine.get_machine_code()))
         except Exception as e:
-            # noinspection PyTypeChecker
             self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Generate machine code error") + ": {}".format(e))
 
     def threadVerifyRegistrationCode(self, path: str):
@@ -387,7 +370,6 @@ class SoftwareRegistrationDialog(QDialog):
             self.signalVerifyRegistrationCode.emit(True)
         else:
             time.sleep(3)
-            # noinspection PyTypeChecker
             self.signalMsgBox.emit(MB_TYPE_WARN, self.tr("Please click 'Load Registration Code' register software"))
 
     @staticmethod
