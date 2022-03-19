@@ -23,7 +23,7 @@ def get_win_dpi() -> DPI:
     para_x = 88  # magic number of Windows API for x-axis
     para_y = 90  # magic number of Windows API for y-axis
 
-    if platform.system().lower() == "windows":
+    if platform.system().lower() == "windows" and int(platform.release()) <= 7:
         try:
             import win32gui
             import win32print

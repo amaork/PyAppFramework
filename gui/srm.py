@@ -49,6 +49,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         return self.__decrypt(key) if hasattr(self.__decrypt, '__call__') else key.decode()
 
     def tr(self, text: str) -> str:
+        # noinspection PyTypeChecker
         return QApplication.translate("SoftwareRegistrationMachineWidget", text, None)
 
     def _initUi(self):

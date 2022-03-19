@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from xml.dom import minidom
-from typing import Iterable, Dict
+from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
 __all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search']
@@ -32,7 +32,7 @@ def xml_format(element: XmlElement, with_version: bool = True) -> str:
     return re_parsed.toprettyxml(indent="\t", newl="\n")[0 if with_version else 23:]
 
 
-def qt_rcc_generate(res: Dict[str, Iterable[str]]) -> str:
+def qt_rcc_generate(res: Dict[str, List[str]]) -> str:
     """Generate Qt resources xml
 
     :param res: dict {resource prefix: resource file list}
@@ -41,6 +41,9 @@ def qt_rcc_generate(res: Dict[str, Iterable[str]]) -> str:
     root = XmlElementTree.Element("RCC")
 
     for tag, items in res.items():
+        if not len(items):
+            continue
+
         doc = XmlElementTree.SubElement(root, "qresource", prefix=tag)
 
         for file in items:
@@ -49,7 +52,7 @@ def qt_rcc_generate(res: Dict[str, Iterable[str]]) -> str:
     return xml_format(root, with_version=False)
 
 
-def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, Iterable]:
+def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, List[str]]:
     """Auto search qt resources with #rules specified rule
 
     :param path: search path
@@ -57,6 +60,6 @@ def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, Iterable]:
     :return: resource pass to qt_rcc_generate to generate qrc xml file
     """
     return {
-        prefix: (x for x in os.listdir(path) if os.path.splitext(x)[-1] == extensions)
+        prefix: [os.path.join(path, x) for x in os.listdir(path) if os.path.splitext(x)[-1] == extensions]
         for prefix, extensions in rules.items()
     }

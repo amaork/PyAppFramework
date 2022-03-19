@@ -407,6 +407,7 @@ class NetworkInterfaceSelectDialog(QDialog):
 
 class ProgressDialog(QProgressDialog):
     progressCanceled = Signal(bool)
+    # noinspection PyTypeChecker
     DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None)
 
     def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
@@ -518,6 +519,7 @@ class BasicJsonSettingDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def tr(self, text: str) -> str:
+        # noinspection PyTypeChecker
         return QApplication.translate("BasicJsonSettingDialog", text, None)
 
     def getJsonData(self) -> Optional[dict]:
@@ -740,6 +742,7 @@ class PasswordDialog(QDialog):
 
 
 class OptionDialog(QDialog):
+    # noinspection PyTypeChecker
     DEF_TITLE = QApplication.translate("OptionDialog", "Please select", None)
 
     def __init__(self, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None):
@@ -792,6 +795,7 @@ class OptionDialog(QDialog):
         return dialog.getSelectionIndex()
 
 
+# noinspection PyTypeChecker
 def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
                          title: str = QApplication.translate("dialog",
                                                              "Please select export file save path",
@@ -803,6 +807,7 @@ def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
     return path
 
 
+# noinspection PyTypeChecker
 def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
                          title: str = QApplication.translate("dialog",
                                                              "Please select import file",

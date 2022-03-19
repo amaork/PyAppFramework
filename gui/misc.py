@@ -28,6 +28,7 @@ class SerialPortSelector(QComboBox):
     """
     # When port selected this signal will emit
     portSelected = Signal(object)
+    # noinspection PyTypeChecker
     TIPS = QApplication.translate("SerialPortSelector", "Please select serial port", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False, parent: Optional[QWidget] = None):
@@ -118,6 +119,7 @@ class NetworkInterfaceSelector(QComboBox):
     addressChanged = Signal(object)
 
     """List current system exist network interface"""
+    # noinspection PyTypeChecker
     TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_short: bool = False,
@@ -559,6 +561,7 @@ class ThreadSafeLabel(QWidget):
 
         painter.setFont(self.font())
         painter.setPen(QPen(self._color))
+        # noinspection PyTypeChecker
         painter.drawText(self.rect(), self._align, self._text)
 
     def sizeHint(self) -> QSize:
@@ -673,4 +676,4 @@ class CustomTextEditor(QTextEdit):
         with open(path, 'w', encoding='utf-8') as fp:
             fp.write(self.toPlainText())
 
-        return showMessageBox(self, MB_TYPE_INFO, self.tr(b'Save success') + f'\n{path}', title=self.tr(b'Save File'))
+        return showMessageBox(self, MB_TYPE_INFO, self.tr('Save success') + f'\n{path}', title=self.tr('Save File'))

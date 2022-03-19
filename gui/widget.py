@@ -871,7 +871,7 @@ class ImageWidget(PaintWidget):
         return True
 
     @Slot(object, object)
-    def drawFromMem(self, data: bytes, imageFormat: str = str(b"bmp")) -> bool:
+    def drawFromMem(self, data: bytes, imageFormat: str = 'bmp') -> bool:
         """Load image form memory
 
         :param data: Image data
@@ -1044,6 +1044,7 @@ class TableWidget(QTableWidget):
         self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
     def tr(self, text: str) -> str:
+        # noinspection PyTypeChecker
         return QApplication.translate("TableWidget", text, None)
 
     def __checkRow(self, row: int) -> bool:
@@ -2109,10 +2110,15 @@ class ListWidget(QListWidget):
 
 
 class SerialPortSettingWidget(QWidget):
+    # noinspection PyTypeChecker
     PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None)
+    # noinspection PyTypeChecker
     DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None)
+    # noinspection PyTypeChecker
     STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None)
+    # noinspection PyTypeChecker
     BAUDRATE_STR = QApplication.translate("SerialPortSettingWidget", "BaudRate", None)
+    # noinspection PyTypeChecker
     TIMEOUT_STR = QApplication.translate("SerialPortSettingWidget", "Timeout (ms)", None)
 
     # Options
@@ -2381,6 +2387,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     preview.textChanged.connect(self.slotPreviewColor)
 
     def tr(self, text: str) -> str:
+        # noinspection PyTypeChecker
         return QApplication.translate("JsonSettingWidget", text, None)
 
     def getSettings(self) -> DynamicObject:
@@ -2652,9 +2659,11 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setText(setting.get_data())
                 widget.setReadOnly(not UiFileInput.isEditable(setting.get_check()))
 
+                # noinspection PyTypeChecker
                 enable = QCheckBox(QApplication.translate("JsonSettingWidget", "Enable", None), parent=parent)
                 enable.setProperty("data", JsonSettingWidget.get_file_input_enable_key(name))
                 enable.setVisible(UiFileInput.isSelectable(setting.get_check()))
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select File",
                                                             None), parent=parent)
@@ -2672,6 +2681,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setReadOnly(True)
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Directory",
                                                             None), parent=parent)
@@ -2689,7 +2699,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText(setting.get_data())
                 widget.setStyleSheet(UiFontInput.get_stylesheet(setting.get_data()))
-
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Font",
                                                             None), parent=parent)
@@ -2708,7 +2718,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("data", name)
                 widget.setText("{}".format(setting.get_data()))
                 widget.setStyleSheet("background-color: rgb{}; color: rgb{};".format(color, color))
-
+                # noinspection PyTypeChecker
                 button = QPushButton(QApplication.translate("JsonSettingWidget",
                                                             "Please Select Color",
                                                             None), parent=parent)
