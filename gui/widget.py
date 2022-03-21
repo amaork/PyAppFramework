@@ -1106,6 +1106,7 @@ class TableWidget(QTableWidget):
         elif isinstance(widget, QPushButton):
             temp = QPushButton(widget.text())
             widget.setHidden(True)
+            widget.deleteLater()
         elif isinstance(widget, QProgressBar):
             temp = QProgressBar()
             temp.setInvertedAppearance(widget.invertedAppearance())
@@ -1116,7 +1117,7 @@ class TableWidget(QTableWidget):
 
         # Copy widget property
         for key in widget.dynamicPropertyNames():
-            key = str(key)
+            key = bytes(key).decode()
             temp.setProperty(key, widget.property(key))
             if key == "clicked" and isinstance(widget, QPushButton):
                 temp.clicked.connect(widget.property(key))
