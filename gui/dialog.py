@@ -409,7 +409,7 @@ class ProgressDialog(QProgressDialog):
     def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
                  cancel_button: Optional[str] = None, closeable: bool = True, cancelable: bool = False):
         super(ProgressDialog, self).__init__(parent)
-
+        self.reset()
         self.__canceled = False
         self.__closeable = closeable
         self.__cancelable = cancelable

@@ -12,6 +12,7 @@ from ..gui.container import ComponentManager
 from ..gui.dialog import showFileImportDialog
 from ..gui.widget import SerialPortSettingWidget
 from ..gui.misc import NavigationItem, NavigationBar
+from ..gui.srm import SoftwareRegistrationMachineWidget
 
 
 class NavigationWidget(QMainWindow):
