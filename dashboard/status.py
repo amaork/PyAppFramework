@@ -62,7 +62,7 @@ class DashboardStatusIcon(QWidget):
 
     def __getFontSize(self) -> float:
         try:
-            return self.width() / 10 / self._scale_factor
+            return self.width() / 15 / self._scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 
