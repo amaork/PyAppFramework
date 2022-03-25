@@ -59,7 +59,10 @@ def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, List[str]]:
     :param rules: search rule {resource prefix: resource extensions}
     :return: resource pass to qt_rcc_generate to generate qrc xml file
     """
+    def get_path(x):
+        return x if path in ('.', './') else os.path.join(path, x)
+
     return {
-        prefix: [os.path.join(path, x) for x in os.listdir(path) if os.path.splitext(x)[-1] == extensions]
+        prefix: [get_path(x) for x in os.listdir(path) if os.path.splitext(x)[-1] == extensions]
         for prefix, extensions in rules.items()
     }
