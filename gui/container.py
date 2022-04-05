@@ -232,6 +232,10 @@ class ComponentManager(QObject):
         # Watch all component data changed event
         self.__initSignalAndSlots()
 
+    @property
+    def layout(self) -> QLayout:
+        return self.__object
+
     def __initSignalAndSlots(self):
         from ..dashboard.input import VirtualNumberInput
 

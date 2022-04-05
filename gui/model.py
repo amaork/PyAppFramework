@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 import abc
 import PySide2.QtCore
-from typing import Sequence, Optional, Any
+from typing import Optional, Any
 from PySide2.QtCore import Qt, QModelIndex, QAbstractTableModel, QObject
 __all__ = ['AbstractTableModel']
 
 
 class AbstractTableModel(QAbstractTableModel):
-    def __init__(self, headers: Sequence[str], row_count: int, parent: Optional[QObject] = None):
+    def __init__(self, row_count: int, parent: Optional[QObject] = None):
         super(AbstractTableModel, self).__init__(parent)
+        self._header = ()
         self._row_count = row_count
-        self._header = tuple(headers)
-        self._data = {x: '' for x in range(self.rowCount())}
+        self._data = [''] * self.rowCount()
 
     def rowCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex) -> int:
         return self._row_count
@@ -25,6 +25,13 @@ class AbstractTableModel(QAbstractTableModel):
         else:
             return super(QAbstractTableModel, self).headerData(section, orientation, role)
 
+    def flags(self, index: PySide2.QtCore.QModelIndex) -> PySide2.QtCore.Qt.ItemFlags:
+        flags = super(QAbstractTableModel, self).flags(index)
+        if not self.isReadonly(index):
+            return flags | Qt.ItemIsEditable
+        else:
+            return super(QAbstractTableModel, self).flags(index)
+
     def data(self, index: PySide2.QtCore.QModelIndex, role: int = Qt.DisplayRole) -> Any:
         if role in (Qt.DisplayRole, Qt.EditRole):
             return self.getDisplay(index)
@@ -33,16 +40,24 @@ class AbstractTableModel(QAbstractTableModel):
         else:
             return None
 
-    def setData(self, index: PySide2.QtCore.QModelIndex, value : Any, role: int = Qt.DisplayRole) -> bool:
+    def setData(self, index: PySide2.QtCore.QModelIndex, value: Any, role: int = Qt.DisplayRole) -> bool:
         if index.row() < self.rowCount():
-            self._data[index.row()] = value
+            self._data[index.row()] = self.setDisplay(index, value)
             return True
 
         return False
+
+    def getAlignment(self, _index: QModelIndex) -> Any:
+        return Qt.AlignCenter
 
     @abc.abstractmethod
     def getDisplay(self, index: QModelIndex) -> Any:
         pass
 
-    def getAlignment(self, _index: QModelIndex) -> Any:
-        return Qt.AlignCenter
+    @abc.abstractmethod
+    def setDisplay(self, index: QModelIndex, value: Any) -> Any:
+        pass
+
+    @abc.abstractmethod
+    def isReadonly(self, index: QModelIndex) -> bool:
+        pass

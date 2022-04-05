@@ -18,9 +18,10 @@ class DashboardStatusIcon(QWidget):
     clicked = Signal(object)
     doubleClicked = Signal(object)
 
-    def __init__(self, parent: QWidget, name: str, status: Sequence[str],
-                 tips: str = "", size: Optional[QSize] = None, differ_font_size: bool = False,
-                 max_double_click_interval: int = 300):
+    def __init__(self, parent: QWidget,
+                 name: str, status: Sequence[str],
+                 tips: str = "", size: Optional[QSize] = None,
+                 differ_font_size: bool = False, font_size_factor: int = 10, max_double_click_interval: int = 300):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
@@ -37,6 +38,7 @@ class DashboardStatusIcon(QWidget):
         self._hover_color = self.HOVER_COLOR
         self._font_color = self.DEF_FONT_COLOR
         self._font_color_bk = self.DEF_FONT_COLOR
+        self._font_size_factor = font_size_factor
         self._scale_factor = max(get_program_scale_factor())
         self._scale_x, self._scale_y = get_program_scale_factor()
         self._radius = self.DEF_RADIUS * self._scale_factor
@@ -62,7 +64,7 @@ class DashboardStatusIcon(QWidget):
 
     def __getFontSize(self) -> float:
         try:
-            return self.width() / 15 / self._scale_factor
+            return self.width() / self._font_size_factor / self._scale_factor
         except ZeroDivisionError:
             print("Max number must greater than zero")
 

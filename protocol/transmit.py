@@ -46,6 +46,10 @@ class Transmit(object):
         return self._timeout
 
     @property
+    def address(self) -> Tuple[str, int]:
+        return self._address
+
+    @property
     def connected(self) -> bool:
         return self._connected
 
@@ -144,15 +148,18 @@ class UARTTransmit(Transmit):
 
 
 class TCPClientTransmit(Transmit):
+    MSG_LEN_FMT = '>L'
     DEFAULT_TIMEOUT = 0.1
 
-    def __init__(self):
+    def __init__(self, with_length: bool = False):
         super(TCPClientTransmit, self).__init__()
+        self._width_length = with_length
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def tx(self, data: bytes) -> bool:
         try:
-            return self._socket.send(data) == len(data)
+            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._width_length else data
+            return self._socket.send(msg) == len(msg)
         except socket.timeout as err:
             raise TransmitWarning(err)
         except socket.error as err:
@@ -162,10 +169,12 @@ class TCPClientTransmit(Transmit):
         try:
             timeout = timeout or self.timeout
             self._socket.settimeout(timeout)
+            if self._width_length:
+                size = struct.unpack(self.MSG_LEN_FMT, self._socket.recv(struct.calcsize(self.MSG_LEN_FMT)))[0]
             return self._socket.recv(size)
         except socket.timeout as err:
             raise TransmitWarning(err)
-        except socket.error as err:
+        except (socket.error, IndexError, struct.error, MemoryError) as err:
             raise TransmitException(err)
 
     def disconnect(self):
