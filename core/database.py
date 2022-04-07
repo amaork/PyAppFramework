@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import json
 import random
 import shutil
 import sqlite3
 import hashlib
-from .datatype import DynamicObject, str2float, str2number
+from .datatype import DynamicObject, str2float, str2number, DynamicObjectError
 from typing import Any, Optional, Union, List, Tuple, Sequence, Dict, Callable
 from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
 
@@ -15,7 +16,8 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'SQLiteUIElementScheme', 'SQLiteUITableScheme']
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem',
+           'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme']
 
 
 class SQLiteDatabaseError(Exception):
@@ -637,11 +639,48 @@ class SQLiteUITableScheme(DynamicObject):
             process = str2float if precision else str2number
 
             scheme[item.id] = SQLiteUIElementScheme(
+                id=item.id,
                 name=item.name, data=process(item.data),
                 precision=item.precision, min=process(item.min), max=process(item.max)
             )
 
         return scheme
+
+
+class SQLiteUIScheme:
+    _singleton = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._singleton:
+            cls._singleton = super(SQLiteUIScheme, cls).__new__(cls, *args, **kwargs)
+
+        return cls._singleton
+
+    def __init__(self, path: str):
+        """
+        Path should be a json file, generate by SQLiteDatabaseCreator {table_name: SQLiteUITableScheme}
+        """
+        try:
+            with open(path, 'rb') as fp:
+                self.__db_scheme = json.load(fp)
+        except (OSError, json.decoder.JSONDecodeError, DynamicObjectError) as e:
+            raise RuntimeError(f'Load {self.__class__.__name__} error: {e}')
+
+    def get_item_scheme(self, table: str, name: str) -> Optional[SQLiteUIElementScheme]:
+        table_scheme = self.get_table_scheme(table)
+        try:
+            return [x for x in table_scheme.values() if x.name == name][0]
+        except IndexError:
+            return None
+
+    def get_table_scheme(self, table: str) -> Dict[int, SQLiteUIElementScheme]:
+        if table in self.__db_scheme:
+            settings = self.__db_scheme.get(table)
+            settings.update(dict(name=table))
+            scheme = SQLiteUITableScheme(**settings)
+            return scheme.getUIElementScheme()
+
+        return dict()
 
 
 class SQLiteDatabaseCreator(object):
