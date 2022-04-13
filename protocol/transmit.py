@@ -153,12 +153,12 @@ class TCPClientTransmit(Transmit):
 
     def __init__(self, with_length: bool = False):
         super(TCPClientTransmit, self).__init__()
-        self._width_length = with_length
+        self._with_length = with_length
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def tx(self, data: bytes) -> bool:
         try:
-            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._width_length else data
+            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._with_length else data
             return self._socket.send(msg) == len(msg)
         except socket.timeout as err:
             raise TransmitWarning(err)
@@ -169,7 +169,7 @@ class TCPClientTransmit(Transmit):
         try:
             timeout = timeout or self.timeout
             self._socket.settimeout(timeout)
-            if self._width_length:
+            if self._with_length:
                 size = struct.unpack(self.MSG_LEN_FMT, self._socket.recv(struct.calcsize(self.MSG_LEN_FMT)))[0]
             return self._socket.recv(size)
         except socket.timeout as err:
@@ -200,8 +200,11 @@ class TCPClientTransmit(Transmit):
 
 
 class TCPServerTransmit(Transmit):
-    def __init__(self):
+    MSG_LEN_FMT = '>L'
+
+    def __init__(self, with_length: bool = False):
         super(TCPServerTransmit, self).__init__()
+        self._with_length = with_length
         self._client_address = ('', -1)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -238,7 +241,8 @@ class TCPServerTransmit(Transmit):
 
     def tx(self, data: bytes) -> bool:
         try:
-            return self._socket.send(data) == len(data)
+            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._with_length else data
+            return self._socket.send(msg) == len(msg)
         except socket.timeout as err:
             raise TransmitWarning(err)
         except socket.error as err:
@@ -246,10 +250,26 @@ class TCPServerTransmit(Transmit):
 
     def rx(self, size: int, timeout: float = 0) -> bytes:
         try:
-            return self._socket.recv(size)
+            if self._with_length:
+                header = self._socket.recv(struct.calcsize(self.MSG_LEN_FMT))
+                # Peer disconnected
+                if not header:
+                    self.disconnect()
+                    return header
+
+                # Get message length first
+                size = struct.unpack(self.MSG_LEN_FMT, header)[0]
+
+            # Read payload data
+            data = self._socket.recv(size)
+
+            # Peer disconnected
+            if not data:
+                self.disconnect()
+            return data
         except socket.timeout as err:
             raise TransmitWarning(err)
-        except socket.error as err:
+        except (socket.error, IndexError, struct.error, MemoryError) as err:
             raise TransmitException(err)
 
 
