@@ -1711,6 +1711,7 @@ class TableWidget(QTableWidget):
                 button.clicked.connect(filters[1])
                 button.setProperty("clicked", filters[1])
                 button.setProperty("private", filters[2])
+                button.setProperty('index', self.model().index(row, column))
                 button.setProperty("dataChanged", self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, button)

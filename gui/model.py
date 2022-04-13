@@ -2,6 +2,7 @@
 import abc
 import PySide2.QtCore
 from typing import Optional, Any
+from PySide2.QtGui import QColor
 from PySide2.QtCore import Qt, QModelIndex, QAbstractTableModel, QObject
 __all__ = ['AbstractTableModel']
 
@@ -13,10 +14,10 @@ class AbstractTableModel(QAbstractTableModel):
         self._row_count = row_count
         self._data = [''] * self.rowCount()
 
-    def rowCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex) -> int:
+    def rowCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex()) -> int:
         return self._row_count
 
-    def columnCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex) -> int:
+    def columnCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex()) -> int:
         return len(self._header)
 
     def headerData(self, section: int, orientation: PySide2.QtCore.Qt.Orientation, role: int = Qt.DisplayRole) -> Any:
@@ -37,17 +38,30 @@ class AbstractTableModel(QAbstractTableModel):
             return self.getDisplay(index)
         elif role == Qt.TextAlignmentRole:
             return self.getAlignment(index)
+        elif role == Qt.BackgroundRole:
+            return self.getBackground(index)
+        elif role == Qt.ForegroundRole:
+            return self.getForeground(index)
         else:
             return None
 
     def setData(self, index: PySide2.QtCore.QModelIndex, value: Any, role: int = Qt.DisplayRole) -> bool:
         if index.row() < self.rowCount():
-            self._data[index.row()] = self.setDisplay(index, value)
-            return True
+            if role in (Qt.DisplayRole, Qt.EditRole):
+                self._data[index.row()] = self.setDisplay(index, value)
+                return True
+            else:
+                return super(AbstractTableModel, self).setData(index, value, role)
 
         return False
 
-    def getAlignment(self, _index: QModelIndex) -> Any:
+    def getBackground(self, index: QModelIndex) -> QColor:
+        return QColor(Qt.white)
+
+    def getForeground(self, index: QModelIndex) -> QColor:
+        return QColor(Qt.black)
+
+    def getAlignment(self, index: QModelIndex) -> Qt.AlignmentFlag:
         return Qt.AlignCenter
 
     @abc.abstractmethod
