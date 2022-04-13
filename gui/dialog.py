@@ -2,12 +2,12 @@
 import os
 import sys
 import hashlib
+from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
     QProgressDialog
 from PySide2.QtCore import Qt, Signal, QPoint, QLocale
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
-from typing import Optional, Union, Sequence, Callable, Any
 
 from .msgbox import *
 from .button import RectButton
@@ -39,9 +39,12 @@ class SimpleColorDialog(QDialog):
     # This signal is emitted just after the user selected a color
     currentColorChanged = Signal(QColor)
 
+    # noinspection PyTypeChecker
+    DEF_TITLE = QApplication.translate("SimpleColorDialog", "Please select color")
+
     def __init__(self, basic: bool = False,
                  color: Union[QColor, Qt.GlobalColor] = Qt.black,
-                 button_box: bool = False, parent: Optional[QWidget] = None):
+                 button_box: bool = False, title: str = DEF_TITLE, parent: Optional[QWidget] = None):
         """Simple color dialog
 
         :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
@@ -54,12 +57,12 @@ class SimpleColorDialog(QDialog):
         if not isinstance(color, (QColor, Qt.GlobalColor)):
             raise TypeError("color expect a 'QColor' or 'Qt.GlobalColor' not '{}'".format(color.__class__.__name__))
 
-        self.__initUi(button_box)
+        self.__initUi(button_box, title)
         self.__basic = basic
         self.__color = QColor(color)
         self.__updateColor(self.__color)
 
-    def __initUi(self, without_buttons: bool):
+    def __initUi(self, without_buttons: bool, title: str):
         # Color select buttons
         colorLayout = QGridLayout()
         colors = (Qt.black, Qt.red, Qt.blue, Qt.magenta, Qt.yellow, Qt.green, Qt.cyan, Qt.white)
@@ -117,7 +120,7 @@ class SimpleColorDialog(QDialog):
             layout.addWidget(button)
 
         self.setLayout(layout)
-        self.setWindowTitle(self.tr("Please select color"))
+        self.setWindowTitle(title)
 
     def __getColor(self) -> Color:
         """Get select color setting
@@ -248,7 +251,10 @@ class SimpleColorDialog(QDialog):
 
 
 class SerialPortSelectDialog(QDialog):
-    def __init__(self, timeout: float = 0.04, parent: Optional[QWidget] = None):
+    # noinspection PyTypeChecker
+    DEF_TITLE = QApplication.translate("SerialPortSelectDialog", "Please select serial port")
+
+    def __init__(self, timeout: float = 0.04, title: str = DEF_TITLE, parent: Optional[QWidget] = None):
         super(SerialPortSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._ports = QComboBox(self)
@@ -262,15 +268,17 @@ class SerialPortSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(self.tr("Please select serial port"))
+        self.setWindowTitle(title)
+        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getPort(self) -> Union[str, None]:
         return self._ports.currentText() if self.result() else None
 
     @classmethod
-    def getSerialPort(cls, timeout: float = 0.04, parent: Optional[QWidget] = None) -> Union[str, None]:
-        dialog = cls(timeout, parent)
+    def getSerialPort(cls, timeout: float = 0.04, title: str = DEF_TITLE,
+                      parent: Optional[QWidget] = None) -> Union[str, None]:
+        dialog = cls(timeout=timeout, title=title, parent=parent)
         dialog.exec_()
         return dialog.getPort()
 
@@ -314,7 +322,11 @@ class SerialPortSettingDialog(QDialog):
 
 
 class NetworkAddressSelectDialog(QDialog):
-    def __init__(self, port: int, timeout: float = 0.04, network: str = '', parent: Optional[QWidget] = None):
+    # noinspection PyTypeChecker
+    DEF_TITLE = QApplication.translate("NetworkAddressSelectDialog", "Please select address")
+
+    def __init__(self, port: int, timeout: float = 0.04, network: str = '',
+                 title: str = DEF_TITLE, parent: Optional[QWidget] = None):
         super(NetworkAddressSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._address_list = QComboBox(self)
@@ -327,16 +339,17 @@ class NetworkAddressSelectDialog(QDialog):
         layout.addWidget(QSplitter())
         layout.addWidget(button)
         self.setLayout(layout)
-        self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(self.tr("Please select address"))
+        self.setWindowTitle(title)
+        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSelectedAddress(self) -> Union[str, None]:
         return self._address_list.currentText() if self.result() else None
 
     @classmethod
-    def getAddress(cls, port: int, timeout: float = 0.04, parent: Optional[QWidget] = None) -> Union[str, None]:
-        dialog = NetworkAddressSelectDialog(port, timeout, parent)
+    def getAddress(cls, port: int, timeout: float = 0.04,
+                   title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> Union[str, None]:
+        dialog = NetworkAddressSelectDialog(port=port, timeout=timeout, title=title, parent=parent)
         dialog.exec_()
         return dialog.getSelectedAddress()
 
