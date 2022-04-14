@@ -3,12 +3,13 @@ import sys
 import math
 import json
 import ctypes
+import ipaddress
 import collections
 from typing import Tuple, List, Union, Iterable
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
-           'str2float', 'str2number', 'resolve_number', 'ip4_check',
+           'str2float', 'str2number', 'resolve_number', 'ip4_check', 'port_check',
            'convert_property', 'float_property', 'integer_property', 'enum_property']
 
 
@@ -112,17 +113,14 @@ def integer_property(name: str, minimum: int = float('-inf'), maximum: int = flo
 
 def ip4_check(address: str) -> bool:
     try:
-        data = address.split(".")
-        if len(data) != 4:
-            return False
-
-        for num in data:
-            if not (0 <= int(num) < 255):
-                return False
-
+        ipaddress.ip_address(address)
         return True
     except (ValueError, AttributeError):
         return False
+
+
+def port_check(port: Union[str, int]) -> bool:
+    return 1 <= str2number(port) <= 65535
 
 
 class BasicDataType(ctypes.Structure):

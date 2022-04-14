@@ -108,6 +108,10 @@ class ProtoBufSdk(object):
         return self._transmit.connected
 
     @property
+    def address(self) -> Tuple[str, int]:
+        return self._transmit.address
+
+    @property
     def isTimeout(self) -> bool:
         return self._timeout
 
@@ -344,8 +348,8 @@ class ProtoBufHandle(object):
 
                 if self._verbose:
                     print(">>> {:.2f}: [{}] {}".format(time.perf_counter(), len(response), response.hex()))
-            except AttributeError:
-                self.event_callback(CommunicationEvent.Type.Exception, AttributeError)
+            except AttributeError as e:
+                self.event_callback(CommunicationEvent.Type.Exception, e)
                 break
             except message.DecodeError as e:
                 self._errorLogging("Decode msg error: {}".format(e))

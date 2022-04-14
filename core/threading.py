@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import threading
+import contextlib
 from typing import Any, Optional
-__all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap', 'ThreadSafeBool', 'ThreadSafeInteger']
+__all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap', 'ThreadSafeBool', 'ThreadSafeInteger', 'ThreadLockWithOwner']
 
 
 class ThreadConditionWrap(object):
@@ -88,3 +89,63 @@ class ThreadSafeInteger(ThreadLockAndDataWrap):
         with self._lock:
             self._data -= 1
             return self._data
+
+
+class ThreadLockWithOwner(object):
+    def __init__(self, verbose: bool = False):
+        self.__verbose = verbose
+        self.__lock = threading.Lock()
+        self.__owner = ThreadLockAndDataWrap(None)
+
+    @property
+    def owner(self) -> Any:
+        return self.__owner.data
+
+    def __print__(self):
+        if self.__verbose:
+            if self.is_locked():
+                print(f'Locked by: {self.owner}')
+            else:
+                print('Unlocked')
+
+    def is_locked(self) -> bool:
+        return self.__lock.locked()
+
+    def is_owned(self, owner: Any) -> bool:
+        return self.__owner.data == owner
+
+    def unlock(self, owner: Any) -> bool:
+        if not self.__lock.locked():
+            return True
+
+        if self.__lock.locked() and self.is_owned(owner):
+            self.__owner.assign(None)
+            self.__lock.release()
+            print(f'Unlocked: {self.owner}')
+            return True
+
+        self.__print__()
+        return False
+
+    def try_lock(self, owner: Any) -> bool:
+        return self.lock(owner, timeout=0)
+
+    def lock(self, owner: Any, timeout: float = 0) -> bool:
+        if self.__lock.locked() and self.is_owned(owner):
+            return True
+
+        if self.__lock.acquire(timeout=timeout):
+            self.__owner.assign(owner)
+            print(f'Locked: {self.owner}')
+            return True
+
+        self.__print__()
+        return False
+
+    @contextlib.contextmanager
+    def __call__(self, owner: Any):
+        if self.try_lock(owner):
+            yield
+            self.unlock(owner)
+        else:
+            RuntimeError(f'Locked by {self.owner}')

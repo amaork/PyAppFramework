@@ -240,7 +240,7 @@ class TCPClientTransmit(Transmit):
         try:
             timeout = timeout or self.DEFAULT_TIMEOUT
             self._socket.raw_socket = create_socket_and_connect(address[0], address[1], timeout)
-            return self._update(address, timeout, True)
+            return self._update(self._socket.raw_socket.getsockname(), timeout, True)
         except RuntimeError as err:
             raise TransmitException(err)
 
