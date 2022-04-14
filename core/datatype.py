@@ -342,11 +342,12 @@ class ComparableXml(XmlElementTree.Element):
 
 
 class CustomEvent(DynamicObject):
-    _properties = {'type', 'data'}
+    _properties = {'type', 'data', 'source'}
 
     def __init__(self, **kwargs):
         self.type = kwargs.get('type')
         kwargs.setdefault('data', '')
+        kwargs.setdefault('source', '')
         super(CustomEvent, self).__init__(**kwargs)
 
     def isEvent(self, type_) -> bool:

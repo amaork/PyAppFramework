@@ -4,16 +4,18 @@ import time
 import socket
 import serial
 import struct
-from threading import Thread
+import threading
 from typing import Callable, List, Optional, Tuple
 from google.protobuf.message import Message, DecodeError
 
 
 from .crc16 import crc16
 from .serialport import SerialPort
+from ..core.threading import ThreadSafeBool
 from ..network.utility import create_socket_and_connect, set_keepalive
 __all__ = ['Transmit', 'TransmitWarning', 'TransmitException',
-           'UARTTransmit', 'TCPClientTransmit', 'TCPServerTransmit', 'UartTransmitWithProtobufEndingCheck']
+           'UARTTransmit', 'UartTransmitWithProtobufEndingCheck',
+           'TCPClientTransmit', 'TCPServerTransmit', 'TCPSocketTransmit', 'TCPServerTransmitHandle']
 
 
 class TransmitException(Exception):
@@ -30,15 +32,15 @@ class Transmit(object):
     def __init__(self):
         self._timeout = 0.0
         self._address = ('', 0)
-        self._connected = False
+        self._connected = ThreadSafeBool(False)
 
     def __del__(self):
         self.disconnect()
-        self._connected = False
+        self._connected.clear()
 
     def __repr__(self):
         return str(
-            dict(name=type(self).__name__, address=self._address, timeout=self._timeout, connected=self._connected)
+            dict(name=type(self).__name__, address=self._address, timeout=self._timeout, connected=self._connected.data)
         )
 
     @property
@@ -51,7 +53,7 @@ class Transmit(object):
 
     @property
     def connected(self) -> bool:
-        return self._connected
+        return self._connected.is_set()
 
     @abc.abstractmethod
     def tx(self, data: bytes) -> bool:
@@ -72,8 +74,8 @@ class Transmit(object):
     def _update(self, address: Tuple[str, int], timeout: float, connected: bool = False) -> bool:
         self._address = address
         self._timeout = timeout
-        self._connected = connected
-        return self._connected
+        self._connected.assign(connected)
+        return self._connected.is_set()
 
 
 class UARTTransmit(Transmit):
@@ -82,9 +84,9 @@ class UARTTransmit(Transmit):
     DEFAULT_TIMEOUT = 0.1
 
     def __init__(self, ending_check: Optional[Callable[[bytes], bool]] = None):
-        super(UARTTransmit, self).__init__()
         self.__serial = None
         self.__ending_check = ending_check
+        super(UARTTransmit, self).__init__()
 
     def tx(self, data: bytes) -> bool:
         try:
@@ -120,7 +122,7 @@ class UARTTransmit(Transmit):
         try:
             self.__serial.flush()
             self.__serial.close()
-            self._connected = False
+            self._connected.clear()
         except AttributeError:
             pass
 
@@ -147,97 +149,23 @@ class UARTTransmit(Transmit):
         return ["{}".format(data.hex()[x: x + 2]) for x in range(0, len(data.hex()), 2)]
 
 
-class TCPClientTransmit(Transmit):
-    MSG_LEN_FMT = '>L'
-    DEFAULT_TIMEOUT = 0.1
-
-    def __init__(self, with_length: bool = False):
-        super(TCPClientTransmit, self).__init__()
-        self._with_length = with_length
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    def tx(self, data: bytes) -> bool:
-        try:
-            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._with_length else data
-            return self._socket.send(msg) == len(msg)
-        except socket.timeout as err:
-            raise TransmitWarning(err)
-        except socket.error as err:
-            raise TransmitException(err)
-
-    def rx(self, size: int, timeout: float = 0) -> bytes:
-        try:
-            timeout = timeout or self.timeout
-            self._socket.settimeout(timeout)
-            if self._with_length:
-                size = struct.unpack(self.MSG_LEN_FMT, self._socket.recv(struct.calcsize(self.MSG_LEN_FMT)))[0]
-            return self._socket.recv(size)
-        except socket.timeout as err:
-            raise TransmitWarning(err)
-        except (socket.error, IndexError, struct.error, MemoryError) as err:
-            raise TransmitException(err)
-
-    def disconnect(self):
-        try:
-            self._socket.close()
-            self._connected = False
-        except AttributeError:
-            pass
-
-    def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
-        """
-        Connect tcp server
-        :param address: (host, port)
-        :param timeout: socket timeout in seconds
-        :return:
-        """
-        try:
-            timeout = timeout or self.DEFAULT_TIMEOUT
-            self._socket = create_socket_and_connect(address[0], address[1], timeout)
-            return self._update(address, timeout, True)
-        except RuntimeError as err:
-            raise TransmitException(err)
-
-
-class TCPServerTransmit(Transmit):
+class TCPSocketTransmit(Transmit):
     MSG_LEN_FMT = '>L'
 
-    def __init__(self, with_length: bool = False):
-        super(TCPServerTransmit, self).__init__()
+    def __init__(self, sock: socket.socket, with_length: bool = False, disconnect_callback: Optional[Callable] = None):
+        super(TCPSocketTransmit, self).__init__()
+        self._socket = sock
         self._with_length = with_length
-        self._client_address = ('', -1)
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._disconnect_callback = disconnect_callback
 
     @property
-    def client(self) -> Tuple[str, int]:
-        return self._client_address
+    def raw_socket(self) -> socket.socket:
+        return self._socket
 
-    def handle(self, listen_socket: socket.socket):
-        while True:
-            self._socket, self._client_address = listen_socket.accept()
-
-            # Set keepalive to detect client lost connection
-            set_keepalive(self._socket, after_idle_sec=1, interval_sec=1, max_fails=3)
-            self._socket.setblocking(True)
-            self._connected = True
-
-            # Waiting client disconnect
-            while self._connected:
-                time.sleep(0.1)
-
-    def connect(self, address: Tuple[str, int], _timeout: float = 0.0) -> bool:
-        listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-        listen_socket.bind(address)
-        listen_socket.listen(1)
-        Thread(target=self.handle, args=(listen_socket,), name=self.__class__.__name__, daemon=True).start()
-        return self._update(address, _timeout, False)
-
-    def disconnect(self):
-        try:
-            self._socket.close()
-            self._connected = False
-        except AttributeError:
-            pass
+    @raw_socket.setter
+    def raw_socket(self, sock: socket.socket):
+        if isinstance(sock, socket.socket):
+            self._socket = sock
 
     def tx(self, data: bytes) -> bool:
         try:
@@ -248,7 +176,7 @@ class TCPServerTransmit(Transmit):
         except socket.error as err:
             raise TransmitException(err)
 
-    def rx(self, size: int, timeout: float = 0) -> bytes:
+    def rx(self, size: int, timeout: float = 0.0) -> bytes:
         try:
             if self._with_length:
                 header = self._socket.recv(struct.calcsize(self.MSG_LEN_FMT))
@@ -271,6 +199,140 @@ class TCPServerTransmit(Transmit):
             raise TransmitWarning(err)
         except (socket.error, IndexError, struct.error, MemoryError) as err:
             raise TransmitException(err)
+
+    def disconnect(self):
+        if callable(self._disconnect_callback):
+            self._disconnect_callback()
+
+        self._socket.close()
+        self._connected.clear()
+
+    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+        self._socket.settimeout(timeout)
+        self._update(address, timeout, True)
+        return True
+
+
+class TCPClientTransmit(Transmit):
+    DEFAULT_TIMEOUT = 0.1
+
+    def __init__(self, with_length: bool = False):
+        super(TCPClientTransmit, self).__init__()
+        self._socket = TCPSocketTransmit(socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length)
+
+    def tx(self, data: bytes) -> bool:
+        return self._socket.tx(data)
+
+    def rx(self, size: int, timeout: float = 0) -> bytes:
+        return self._socket.rx(size, timeout)
+
+    def disconnect(self):
+        self._connected.clear()
+        self._socket.disconnect()
+
+    def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
+        """
+        Connect tcp server
+        :param address: (host, port)
+        :param timeout: socket timeout in seconds
+        :return:
+        """
+        try:
+            timeout = timeout or self.DEFAULT_TIMEOUT
+            self._socket.raw_socket = create_socket_and_connect(address[0], address[1], timeout)
+            return self._update(address, timeout, True)
+        except RuntimeError as err:
+            raise TransmitException(err)
+
+
+class TCPServerTransmit(Transmit):
+    def __init__(self, with_length: bool = False):
+        super(TCPServerTransmit, self).__init__()
+        self._client_address = ('', -1)
+        self._stopped = threading.Event()
+        self._socket = TCPSocketTransmit(socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length)
+
+    def __del__(self):
+        self._stopped.set()
+        self._socket.disconnect()
+
+    @property
+    def client(self) -> Tuple[str, int]:
+        return self._client_address
+
+    def accept_handle(self, listen_socket: socket.socket):
+        while not self._stopped.is_set():
+            self._socket.raw_socket, self._client_address = listen_socket.accept()
+
+            # Set keepalive to detect client lost connection
+            set_keepalive(self._socket.raw_socket, after_idle_sec=1, interval_sec=1, max_fails=3)
+            self._socket.raw_socket.setblocking(True)
+            self._connected.set()
+
+            # Waiting client disconnect
+            while self._connected.is_set():
+                time.sleep(0.1)
+
+    def connect(self, address: Tuple[str, int], _timeout: float = 0.0) -> bool:
+        try:
+            listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+            listen_socket.bind(address)
+        except OSError as e:
+            raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
+        else:
+            listen_socket.listen(1)
+            threading.Thread(target=self.accept_handle, args=(listen_socket,), daemon=True).start()
+            return self._update(address, _timeout, False)
+
+    def disconnect(self):
+        self._connected.clear()
+        self._socket.disconnect()
+
+    def tx(self, data: bytes) -> bool:
+        return self._socket.tx(data)
+
+    def rx(self, size: int, timeout: float = 0) -> bytes:
+        return self._socket.rx(size, timeout)
+
+
+class TCPServerTransmitHandle:
+    def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit], None],
+                 timeout: float = 0.3, with_length: bool = False):
+        self._timeout = timeout
+        self._with_length = with_length
+        self._stopped = threading.Event()
+        self._new_connection_callback = new_connection_callback
+        self._listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+
+    def __del__(self):
+        self._stopped.set()
+        self._listen_socket.close()
+
+    def start(self, address: Tuple[str, int], backlog: int = 1):
+        try:
+            self._listen_socket.bind(address)
+        except OSError as e:
+            raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
+        else:
+            self._listen_socket.listen(backlog)
+            threading.Thread(target=self.accept_handle, args=(self._listen_socket,), daemon=True).start()
+
+    def accept_handle(self, listen_socket: socket.socket):
+        while not self._stopped.is_set():
+            try:
+                client_socket, client_address = listen_socket.accept()
+            except OSError:
+                break
+
+            # Set keepalive to detect client lost connection
+            set_keepalive(client_socket, after_idle_sec=1, interval_sec=1, max_fails=3)
+            client_socket.setblocking(True)
+
+            # Create TCPSocketTransmit and call callback
+            transmit = TCPSocketTransmit(client_socket, with_length=self._with_length)
+            transmit.connect(client_address, self._timeout)
+
+            self._new_connection_callback(transmit)
 
 
 class UartTransmitWithProtobufEndingCheck(UARTTransmit):
