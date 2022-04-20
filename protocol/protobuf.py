@@ -92,7 +92,6 @@ class ProtoBufSdk(object):
         self._comm_queue = queue.PriorityQueue()
 
         self._timeout = False
-        self._exception = False
         self._event_callback = event_callback
         Thread(target=self.threadCommunicationHandle, daemon=True).start()
 
@@ -178,8 +177,6 @@ class ProtoBufSdk(object):
                 time.sleep(0.05)
                 continue
 
-            self._exception = False
-
             try:
                 _, msg = self._comm_queue.get()
             except (queue.Empty, TypeError):
@@ -221,10 +218,9 @@ class ProtoBufSdk(object):
                 except message.DecodeError as e:
                     self._errorLogging("Decode msg error: {}".format(e))
                 except TransmitException as e:
-                    self._errorLogging("Comm error: {}".format(e))
-                    if not self._exception:
-                        self._exception = True
-                        self.event_callback(CommunicationEvent.Type.Exception, e)
+                    self.disconnect()
+                    self._errorLogging("Comm error: {}, disconnect".format(e))
+                    self.event_callback(CommunicationEvent.Type.Disconnect, e)
                     break
                 except TransmitWarning as e:
                     # Periodic msg do not retry
