@@ -1020,7 +1020,7 @@ class TableWidget(QTableWidget):
 
         for group, actions in {
             self.ACTION.COMM: [
-                (QAction(self.tr("Clear All"), self), lambda: self.setRowCount(0)),
+                (QAction(self.tr("Clear All"), self), self.clearTableData),
             ],
 
             self.ACTION.MOVE: [
@@ -1852,6 +1852,10 @@ class TableWidget(QTableWidget):
 
     def getTableData(self) -> List[List[Any]]:
         return [self.getRowData(row) for row in range(self.rowCount())]
+
+    def clearTableData(self):
+        self.setRowCount(0)
+        self.tableDataChanged.emit()
 
     def getTableProperty(self) -> List[List[Any]]:
         return [self.getRowProperty(row) for row in range(self.rowCount())]
