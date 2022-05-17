@@ -12,7 +12,7 @@ from google.protobuf.message import Message, DecodeError
 from .crc16 import crc16
 from .serialport import SerialPort
 from ..core.threading import ThreadSafeBool
-from ..network.utility import create_socket_and_connect, set_keepalive
+from ..network.utility import create_socket_and_connect, set_keepalive, tcp_socket_recv_data, tcp_socket_send_data
 __all__ = ['Transmit', 'TransmitWarning', 'TransmitException',
            'UARTTransmit', 'UartTransmitWithProtobufEndingCheck',
            'TCPClientTransmit', 'TCPServerTransmit', 'TCPSocketTransmit', 'TCPServerTransmitHandle']
@@ -170,10 +170,10 @@ class TCPSocketTransmit(Transmit):
     def tx(self, data: bytes) -> bool:
         try:
             msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._with_length else data
-            return self._socket.send(msg) == len(msg)
+            return sum(tcp_socket_send_data(self._socket, msg)) == len(msg)
         except socket.timeout as err:
             raise TransmitWarning(err)
-        except socket.error as err:
+        except (socket.error, ConnectionError) as err:
             raise TransmitException(err)
 
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
@@ -189,7 +189,7 @@ class TCPSocketTransmit(Transmit):
                 size = struct.unpack(self.MSG_LEN_FMT, header)[0]
 
             # Read payload data
-            data = self._socket.recv(size)
+            data = tcp_socket_recv_data(self._socket, size)
 
             # Peer disconnected
             if not data:
@@ -197,7 +197,7 @@ class TCPSocketTransmit(Transmit):
             return data
         except socket.timeout as err:
             raise TransmitWarning(err)
-        except (socket.error, IndexError, struct.error, MemoryError) as err:
+        except (socket.error, IndexError, struct.error, MemoryError, ConnectionError) as err:
             raise TransmitException(err)
 
     def disconnect(self):

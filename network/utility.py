@@ -17,7 +17,7 @@ __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network'
            'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
-           'create_socket_and_connect', 'wait_device_reboot', 'tcp_socket_send_data',
+           'create_socket_and_connect', 'wait_device_reboot', 'tcp_socket_send_data', 'tcp_socket_recv_data',
            'SocketSingleInstanceLock', 'NicInfo']
 
 
@@ -253,6 +253,19 @@ def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes) -> List[int]:
         send_length.append(send)
 
     return send_length
+
+
+def tcp_socket_recv_data(tcp_socket: socket.socket, length: int) -> bytes:
+    recv_data = bytes()
+
+    while len(recv_data) < length:
+        data = tcp_socket.recv(length - len(recv_data))
+        if not data:
+            raise ConnectionError('recv timeout')
+
+        recv_data += data
+
+    return recv_data
 
 
 def create_socket_and_connect(address: str, port: int, timeout: float,
