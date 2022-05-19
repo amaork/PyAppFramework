@@ -2506,8 +2506,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
         title = self.tr("Please select") + " {}".format(sender.property("title"))
         r, g, b = UiColorInput.get_color(sender.property("private"))
         color = QColorDialog.getColor(QColor(r, g, b), self, title)
-        if not isinstance(color, QColor):
-            return
+        if not isinstance(color, QColor) or not color.isValid():
+            color = QColor(r, g, b)
 
         color_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(color_edit, QLineEdit):
