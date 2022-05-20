@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import glob
+import typing
 import platform
 import websocket
 from PySide2.QtCore import QSize, Signal, QEvent, QObject, SLOT, Qt
@@ -412,6 +413,7 @@ class NavigationBar(QToolBar):
         from .container import ComponentManager
 
         self.__fold = False
+        self.__items = list()
         self.__fold_size = fold_size
         self.__normal_size = normal_size
         self.__disable_horizontal_fold = disableHorizontalFold
@@ -434,11 +436,15 @@ class NavigationBar(QToolBar):
         self.setIconSize(self.__fold_size if self.__fold else self.__normal_size)
         [item.setFold(self.__fold) for item in self.ui_manager.getByType(NavigationItem)]
 
+    def items(self) -> typing.List[NavigationItem]:
+        return self.__items
+
     def addItem(self, item: NavigationItem):
         if not isinstance(item, NavigationItem):
             return
 
         self.addWidget(item)
+        self.__items.append(item)
         if item.isActivateInvert():
             item.activated.connect(self.slotActivateItem)
 

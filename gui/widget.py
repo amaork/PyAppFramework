@@ -88,6 +88,9 @@ class BasicWidget(QWidget):
     def _initSignalAndSlots(self):
         pass
 
+    def initStyle(self):
+        self._initStyle()
+
     @staticmethod
     def createInputWithLabel(label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
         input_ = input_cls()
