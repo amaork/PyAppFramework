@@ -16,6 +16,7 @@ class DashboardStatusIcon(QWidget):
     DEF_FONT_COLOR = QColor(240, 240, 240)
 
     clicked = Signal(object)
+    statusChanged = Signal()
     doubleClicked = Signal(object)
 
     def __init__(self, parent: QWidget,
@@ -158,6 +159,8 @@ class DashboardStatusIcon(QWidget):
         elif isinstance(st, str):
             self._display = st
             self.update()
+
+        self.statusChanged.emit()
 
     def enterEvent(self, ev: QEvent):
         self._font_color_bk = self._font_color

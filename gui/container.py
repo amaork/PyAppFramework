@@ -11,6 +11,7 @@ from typing import Union, Optional, List, Any, Sequence
 from .binder import *
 from .misc import HyperlinkLabel, NetworkInterfaceSelector, CustomEventFilterHandler
 from ..core.datatype import str2number, str2float, DynamicObject
+from ..dashboard.status import DashboardStatusIcon
 
 __all__ = ['ComboBoxGroup', 'ComponentManager', 'HyperlinkGroup']
 
@@ -211,6 +212,8 @@ class ComboBoxGroup(QObject):
 class ComponentManager(QObject):
     dataChanged = Signal()
     dataChangedDetail = Signal(str, object)
+
+    DefaultObjectNameKey = 'data'
     QPushButtonPrivateDataKey = 'private'
 
     def __init__(self, layout: QLayout, parent: Optional[QWidget] = None):
@@ -262,6 +265,8 @@ class ComponentManager(QObject):
                 component.dateTimeChanged.connect(self.slotDataChanged)
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
+            elif isinstance(component, DashboardStatusIcon):
+                component.statusChanged.connect(self.slotDataChanged)
 
     def __getComponentsWithType(self, componentType: QWidget.__class__) -> List[QWidget]:
         if isinstance(componentType, QWidget.__class__):
@@ -302,6 +307,8 @@ class ComponentManager(QObject):
             return component.value()
         elif isinstance(component, QPushButton):
             return component.property(ComponentManager.QPushButtonPrivateDataKey)
+        elif isinstance(component, DashboardStatusIcon):
+            return component.status()
         else:
             return ""
 
@@ -345,6 +352,8 @@ class ComponentManager(QObject):
             component.display(str2float(data))
         elif isinstance(component, QPushButton):
             component.setProperty(ComponentManager.QPushButtonPrivateDataKey, data)
+        elif isinstance(component, DashboardStatusIcon):
+            component.changeStatus(data)
 
     @staticmethod
     def findParentLayout(obj: QWidget, top: QLayout) -> Union[QLayout, None]:
@@ -420,7 +429,7 @@ class ComponentManager(QObject):
 
         # Emit dataChanged signal
         self.dataChanged.emit()
-        self.dataChangedDetail.emit(sender.property("data"), self.getComponentData(sender))
+        self.dataChangedDetail.emit(sender.property(self.DefaultObjectNameKey), self.getComponentData(sender))
 
     def getAll(self) -> List[QWidget]:
         return self.getAllComponents(self.__object)
