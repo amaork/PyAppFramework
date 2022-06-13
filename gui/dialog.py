@@ -290,7 +290,7 @@ class SerialPortSettingDialog(QDialog):
         :param settings: serial port settings
         :param parent:
         """
-        settings = settings or self.DEFAULTS
+        settings = settings or SerialPortSettingWidget.DEFAULTS
         super(SerialPortSettingDialog, self).__init__(parent)
 
         layout = QVBoxLayout()
