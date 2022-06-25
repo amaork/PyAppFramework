@@ -256,19 +256,29 @@ def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes) -> List[int]:
 
 
 def tcp_socket_recv_data(tcp_socket: socket.socket, length: int) -> bytes:
+    """Receive #length specified bytes data until to timeout or peer closed (raise BrokenPipeError)
+
+    :param tcp_socket: tcp socket to receive data
+    :param length: receive data length
+    :return: receive data
+    """
     recv_data = bytes()
 
     while len(recv_data) < length:
-        data = tcp_socket.recv(length - len(recv_data))
+        try:
+            data = tcp_socket.recv(length - len(recv_data))
+        except socket.timeout:
+            return recv_data
+
         if not data:
-            raise ConnectionError('recv timeout')
+            raise BrokenPipeError('peer closed')
 
         recv_data += data
 
     return recv_data
 
 
-def create_socket_and_connect(address: str, port: int, timeout: float,
+def create_socket_and_connect(address: str, port: int, timeout: Union[float, None] = None,
                               recv_buf_size: int = 32 * 1024, retry: int = 3, no_delay: bool = True) -> socket.socket:
     times = 0
     while times < retry:

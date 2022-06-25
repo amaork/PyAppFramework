@@ -203,7 +203,7 @@ class DynamicObject(object):
     def __init__(self, **kwargs):
         try:
             for key in self._properties:
-                if kwargs.get(key) is None:
+                if key not in kwargs:
                     raise KeyError("do not found key:{!r}".format(key))
 
             self.__dict__.update(**kwargs)
