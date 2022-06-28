@@ -552,28 +552,7 @@ class TableViewDelegate(QItemDelegate):
         else:
             widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
             widget.setFocus()
-
-            if isinstance(widget, QSpinBox):
-                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
-            if isinstance(widget, QDoubleSpinBox):
-                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QComboBox):
-                widget.currentIndexChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QCheckBox):
-                widget.stateChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QRadioButton):
-                widget.clicked.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QLineEdit):
-                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QTextEdit):
-                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QPlainTextEdit):
-                widget.textChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QDateTimeEdit):
-                widget.dateTimeChanged.connect(lambda x: self.commitData.emit(widget))
-            elif isinstance(widget, QDial):
-                widget.valueChanged.connect(lambda x: self.commitData.emit(widget))
-
+            ComponentManager.connectComponentSignalAndSlot(widget, lambda _: self.commitData.emit(widget))
             return widget
 
     def setEditorData(self, editor: QWidget, index: QModelIndex):

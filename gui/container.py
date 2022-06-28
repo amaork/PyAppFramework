@@ -6,7 +6,7 @@ Provide UI elements container
 from PySide2.QtCore import *
 from PySide2.QtWidgets import QComboBox, QWidget, QDoubleSpinBox, QSpinBox, QLineEdit, QPlainTextEdit, QDateTimeEdit, \
     QDial, QRadioButton, QCheckBox, QPushButton, QLCDNumber, QLabel, QTextEdit, QLayout, QGridLayout, QLayoutItem
-from typing import Union, Optional, List, Any, Sequence
+from typing import Union, Optional, List, Any, Sequence, Callable
 
 from .binder import *
 from .misc import HyperlinkLabel, NetworkInterfaceSelector, CustomEventFilterHandler
@@ -354,6 +354,29 @@ class ComponentManager(QObject):
             component.setProperty(ComponentManager.QPushButtonPrivateDataKey, data)
         elif isinstance(component, DashboardStatusIcon):
             component.changeStatus(data)
+
+    @staticmethod
+    def connectComponentSignalAndSlot(component: QWidget, slot: Callable[[Any], None]):
+        if isinstance(component, QSpinBox):
+            component.valueChanged.connect(slot)
+        if isinstance(component, QDoubleSpinBox):
+            component.valueChanged.connect(slot)
+        elif isinstance(component, QComboBox):
+            component.currentIndexChanged.connect(slot)
+        elif isinstance(component, QCheckBox):
+            component.stateChanged.connect(slot)
+        elif isinstance(component, QRadioButton):
+            component.clicked.connect(slot)
+        elif isinstance(component, QLineEdit):
+            component.textChanged.connect(slot)
+        elif isinstance(component, QTextEdit):
+            component.textChanged.connect(slot)
+        elif isinstance(component, QPlainTextEdit):
+            component.textChanged.connect(slot)
+        elif isinstance(component, QDateTimeEdit):
+            component.dateTimeChanged.connect(slot)
+        elif isinstance(component, QDial):
+            component.valueChanged.connect(slot)
 
     @staticmethod
     def findParentLayout(obj: QWidget, top: QLayout) -> Union[QLayout, None]:

@@ -38,7 +38,7 @@ from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBox
     QSpinBox, QDoubleSpinBox, QTableWidget, QHeaderView, QSplitter, QLabel, QMenu, QAction, QRadioButton, \
     QCheckBox, QPushButton, QLineEdit, QProgressBar, QDateTimeEdit, QAbstractItemView, QTableWidgetItem, \
     QComboBox, QTreeWidget, QListWidget, QSizePolicy, QTreeWidgetItem, QFileDialog, QColorDialog, QFontDialog, \
-    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit
+    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit, QDial, QPlainTextEdit
 from datetime import datetime
 from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
 
@@ -60,7 +60,7 @@ __all__ = ['BasicWidget', 'PaintWidget',
            'BasicJsonSettingWidget', 'JsonSettingWidget', 'MultiJsonSettingsWidget',
            'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
-TableDataFilter = Union[list, tuple, str]
+TableDataFilter = Union[list, tuple, str, UiInputSetting]
 
 
 class BasicWidget(QWidget):
@@ -1089,6 +1089,8 @@ class TableWidget(QTableWidget):
         if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
             temp.setRange(widget.minimum(), widget.maximum())
+            temp.setSingleStep(widget.singleStep())
+            temp.setDecimals(widget.decimals())
             temp.setEnabled(widget.isEnabled())
             temp.setValue(widget.value())
         elif isinstance(widget, QCheckBox):
@@ -1121,6 +1123,9 @@ class TableWidget(QTableWidget):
         # Copy widget property
         for key in widget.dynamicPropertyNames():
             key = bytes(key).decode()
+            # Internal using, do not copy
+            if key.startswith('_'):
+                continue
             temp.setProperty(key, widget.property(key))
             if key == "clicked" and isinstance(widget, QPushButton):
                 temp.clicked.connect(widget.property(key))
@@ -1661,7 +1666,7 @@ class TableWidget(QTableWidget):
 
         try:
 
-            if not isinstance(filters, (list, tuple, str)):
+            if not isinstance(filters, (list, tuple, str, UiInputSetting)):
                 return False
 
             # Normal text
@@ -1746,6 +1751,14 @@ class TableWidget(QTableWidget):
                     widget.setProperty("format", "text")
                 widget.setCurrentIndex(value)
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
+                self.takeItem(row, column)
+                self.setCellWidget(row, column, widget)
+            elif isinstance(filters, UiInputSetting):
+                # Create widget, set data and connect signal and slot
+                widget = JsonSettingWidget.createInputWidget(filters, parent=self)
+                ComponentManager.setComponentData(widget, self.getItemData(row, column))
+                ComponentManager.connectComponentSignalAndSlot(widget, lambda _: self.__slotWidgetDataChanged())
+
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
             else:
