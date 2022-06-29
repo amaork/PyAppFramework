@@ -3,11 +3,14 @@ import sys
 import math
 import json
 import ctypes
+import keyword
 import ipaddress
 import collections
+import collections.abc
+import typing
 from typing import Tuple, List, Union, Iterable
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent', 'FrozenJSON',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
            'str2float', 'str2number', 'resolve_number', 'ip4_check', 'port_check',
            'convert_property', 'float_property', 'integer_property', 'enum_property']
@@ -289,6 +292,30 @@ class DynamicObject(object):
                 raise DynamicObjectEncodeError("Key {!r} new value {!r} check failed".format(k, v))
 
             self.__dict__[k] = v
+
+
+class FrozenJSON:
+    """From <<Fluent Python>> by Luciano Ramalho"""
+    def __new__(cls, arg):
+        if isinstance(arg, collections.abc.Mapping):
+            return super().__new__(cls)
+        elif isinstance(arg, collections.abc.MutableSequence):
+            return [cls(item) for item in arg]
+        else:
+            return arg
+
+    def __init__(self, mapping: typing.Mapping):
+        self.__data = {}
+        for key, value in mapping.items():
+            if keyword.iskeyword(key):
+                key += '_'
+            self.__data[key] = value
+
+    def __getattr__(self, item):
+        if hasattr(self.__data, item):
+            return getattr(self.__data, item)
+        else:
+            return FrozenJSON(self.__data[item])
 
 
 class ComparableXml(XmlElementTree.Element):
