@@ -38,7 +38,7 @@ from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBox
     QSpinBox, QDoubleSpinBox, QTableWidget, QHeaderView, QSplitter, QLabel, QMenu, QAction, QRadioButton, \
     QCheckBox, QPushButton, QLineEdit, QProgressBar, QDateTimeEdit, QAbstractItemView, QTableWidgetItem, \
     QComboBox, QTreeWidget, QListWidget, QSizePolicy, QTreeWidgetItem, QFileDialog, QColorDialog, QFontDialog, \
-    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit, QDial, QPlainTextEdit
+    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit
 from datetime import datetime
 from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
 
@@ -3044,8 +3044,12 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                         continue
 
                     settings[group] = group_setting
-                    for item in group_setting.get_layout():
-                        settings[item] = self.settings.get(item)
+                    if group_setting.is_vertical_layout(group_setting.get_layout(), self.settings):
+                        for item_name in group_setting.get_layout():
+                            settings[item_name] = self.settings.get(item_name)
+                    else:
+                        for item_name in group_setting.get_vertical_layout(group_setting.dict):
+                            settings[item_name] = self.settings.get(item_name)
 
                 widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
                 widget.setProperty('name', tab_setting.name)
