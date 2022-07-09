@@ -278,6 +278,8 @@ class ComponentManager(QObject):
 
     @staticmethod
     def getComponentData(component: QWidget) -> Any:
+        from ..dashboard.monitor import NumberMonitor
+
         if isinstance(component, QSpinBox):
             return component.value()
         elif isinstance(component, QDoubleSpinBox):
@@ -307,6 +309,8 @@ class ComponentManager(QObject):
             return component.value()
         elif isinstance(component, QPushButton):
             return component.property(ComponentManager.QPushButtonPrivateDataKey)
+        elif isinstance(component, NumberMonitor):
+            return component.getRV()
         elif isinstance(component, DashboardStatusIcon):
             return component.status()
         else:
@@ -315,6 +319,7 @@ class ComponentManager(QObject):
     @staticmethod
     def setComponentData(component: QWidget, data: Any):
         from ..dashboard.input import VirtualNumberInput
+        from ..dashboard.monitor import NumberMonitor
 
         if isinstance(component, QSpinBox):
             component.setValue(str2number(data))
@@ -352,6 +357,8 @@ class ComponentManager(QObject):
             component.display(str2float(data))
         elif isinstance(component, QPushButton):
             component.setProperty(ComponentManager.QPushButtonPrivateDataKey, data)
+        elif isinstance(component, NumberMonitor):
+            component.setRV(data)
         elif isinstance(component, DashboardStatusIcon):
             component.changeStatus(data)
 

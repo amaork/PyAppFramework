@@ -3,11 +3,12 @@ from PySide2.QtGui import QColor, QFont, QFontMetrics, QPaintEvent, QPen, QBrush
 from PySide2.QtWidgets import QLabel, QWidget, QVBoxLayout, QSplitter, QHBoxLayout
 from PySide2.QtCore import QSize, Qt, QRectF
 from typing import Union, Optional
+import collections
 
 from ..gui.widget import BasicWidget
 from ..core.datatype import resolve_number
 from ..misc.windpi import get_program_scale_factor
-__all__ = ['NumberMonitor', 'TemperatureMonitor', 'PressureMonitor']
+__all__ = ['NumberMonitor', 'TemperatureMonitor', 'PressureMonitor', 'FlowMonitor', 'PercentageMonitor']
 
 
 class NumberMonitor(BasicWidget):
@@ -15,8 +16,8 @@ class NumberMonitor(BasicWidget):
     DEF_RV_FONT = "等线 Light"
     DEF_BG_COLOR = QColor(0x5d, 0x4e, 0x60)
 
+    Unit = ()
     DISPLAY_UNITS = ("", "")
-    SETTINGS_UNITS = ("", "")
 
     def __init__(self, title: str, unit_id: int = 0, sv: Optional[Union[int, float]] = None,
                  max_numbers: int = 4, decimal: bool = True, parent: Optional[QWidget] = None):
@@ -73,12 +74,8 @@ class NumberMonitor(BasicWidget):
         self._current = self.unitConvert(rv)
         self.update()
 
-    def setUnit(self, unit: str):
-        try:
-            self._unit_id = self.SETTINGS_UNITS.index(unit)
-        except ValueError:
-            self._unit_id = 0
-
+    def setUnit(self, unit: int):
+        self._unit_id = unit if unit in self.Unit else 0
         self._sv = self.unitConvert(self.getSV())
         self._current = self.unitConvert(self.getRV())
         self.update()
@@ -177,9 +174,26 @@ class NumberMonitor(BasicWidget):
         painter.drawText(location, Qt.AlignCenter, sv_str)
 
 
+class FlowMonitor(NumberMonitor):
+    DISPLAY_UNITS = ('mL/min', 'mL/hour')
+    Unit = collections.namedtuple('Unit', 'ml_min ml_hour')(*range(len(DISPLAY_UNITS)))
+
+    def __init__(self, title: str, unit_id: int = Unit.ml_min, max_numbers: int = 3, parent: Optional[QWidget] = None):
+        super(FlowMonitor, self).__init__(title=title, unit_id=unit_id, max_numbers=max_numbers, parent=parent)
+
+    def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
+        if self._unit_id == 0:
+            return data
+
+        try:
+            return data * 60
+        except TypeError:
+            return None
+
+
 class PressureMonitor(NumberMonitor):
     DISPLAY_UNITS = ("psi", "kPa", "bar")
-    SETTINGS_UNITS = ("psi", "kPa", "bar")
+    Unit = collections.namedtuple('Unit', DISPLAY_UNITS)(*range(len(DISPLAY_UNITS)))
 
     def __init__(self, title: str, unit_id: int = 2, max_numbers: int = 3, parent: Optional[QWidget] = None):
         super(PressureMonitor, self).__init__(title=title, unit_id=unit_id, max_numbers=max_numbers, parent=parent)
@@ -207,9 +221,16 @@ class PressureMonitor(NumberMonitor):
             return None
 
 
+class PercentageMonitor(NumberMonitor):
+    DISPLAY_UNITS = ('%',)
+
+    def __init__(self, title: str, max_numbers: int = 3, parent: Optional[QWidget] = None):
+        super(PercentageMonitor, self).__init__(title=title, unit_id=0, max_numbers=max_numbers, parent=parent)
+
+
 class TemperatureMonitor(NumberMonitor):
     DISPLAY_UNITS = ("℃", "℉")
-    SETTINGS_UNITS = ("摄氏温度℃", "华氏温度℉")
+    Unit = collections.namedtuple('Unit', 'C F')(*range(len(DISPLAY_UNITS)))
 
     def __init__(self, title: str, sv: Optional[Union[int, float]] = None,
                  unit_id: int = 0, max_number: int = 3, parent: Optional[QWidget] = None):
