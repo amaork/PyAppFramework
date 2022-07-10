@@ -12,7 +12,6 @@ class AbstractTableModel(QAbstractTableModel):
         super(AbstractTableModel, self).__init__(parent)
         self._header = ()
         self._row_count = row_count
-        self._data = [''] * self.rowCount()
 
     def rowCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex()) -> int:
         return self._row_count
@@ -48,8 +47,7 @@ class AbstractTableModel(QAbstractTableModel):
     def setData(self, index: PySide2.QtCore.QModelIndex, value: Any, role: int = Qt.DisplayRole) -> bool:
         if index.row() < self.rowCount():
             if role in (Qt.DisplayRole, Qt.EditRole):
-                self._data[index.row()] = self.setDisplay(index, value)
-                return True
+                return self.setDisplay(index, value)
             else:
                 return super(AbstractTableModel, self).setData(index, value, role)
 
