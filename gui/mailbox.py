@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Optional, Union
+import typing
 from PySide2.QtGui import QColor
-from PySide2.QtWidgets import QWidget, QStatusBar, QLabel
 from PySide2.QtCore import Qt, Signal, Slot, QObject, QTimer
+from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox
 
 from ..core.timer import Task, Tasklet
 from ..core.threading import ThreadConditionWrap
 
 from .dialog import ProgressDialog
-from .msgbox import MB_TYPES, showMessageBox, showQuestionBox
+from .msgbox import MB_TYPES, showMessageBox, showQuestionBox, showOnSPMsgBox
 
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail',
            'WindowsTitleMail', 'CallbackFuncMail', 'ProgressBarMail']
@@ -26,7 +26,7 @@ class BaseUiMail(object):
 
 
 class StatusBarMail(BaseUiMail):
-    def __init__(self, color: Union[QColor, Qt.GlobalColor], content: str, timeout: int = 0):
+    def __init__(self, color: typing.Union[QColor, Qt.GlobalColor], content: str, timeout: int = 0):
         """ Show message on statusBar
 
         :param color: Message color
@@ -54,20 +54,26 @@ class StatusBarMail(BaseUiMail):
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_: str, content: str, title: Optional[str] = None):
+    def __init__(self, type_: str, content: str, title: typing.Optional[str] = None, tag: str = ''):
         """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
         :param content: QMessageBox context
         :param title: QMessageBox title
+        :param tag: specified which message box showing on
         :return:
         """
         super(MessageBoxMail, self).__init__(content)
         if type_ not in MB_TYPES:
             raise RuntimeError("MessageBox mail message type TypeError:{}".format(type_))
 
+        self.__tag = tag
         self.__type = type_
         self.__title = title
+
+    @property
+    def tag(self) -> str:
+        return self.__tag[:]
 
     @property
     def type(self) -> str:
@@ -89,7 +95,7 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func: Callable, timeout: int = 0, args: tuple = (), kwargs: Optional[dict] = None):
+    def __init__(self, func: typing.Callable, timeout: int = 0, args: tuple = (), kwargs: typing.Optional[dict] = None):
         """Call #func specified function with #args
 
         :param func: Callback function
@@ -111,7 +117,7 @@ class CallbackFuncMail(BaseUiMail):
         self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
 
     @property
-    def callback(self) -> Callable:
+    def callback(self) -> typing.Callable:
         return self.__func
 
     @property
@@ -199,12 +205,16 @@ class UiMailBox(QObject):
             raise RuntimeError("UiMailBox needs a QWidget as parent")
 
         self.__parent = parent
+        self.__bind_msg_boxs = dict()
         self.__progress = ProgressDialog(parent=parent)
 
         self.__pai_tid = ''
         self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
 
         self.hasNewMail.connect(self.mailProcess)
+
+    def bindMsgBox(self, msg_box: QMessageBox, tag: str):
+        self.__bind_msg_boxs[tag] = msg_box
 
     def taskProgressAutoIncrease(self, mail: ProgressBarMail):
         self.send(ProgressBarMail(self.__progress.value() + mail.increase, mail.content, mail.closeable))
@@ -262,7 +272,10 @@ class UiMailBox(QObject):
 
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
-            showMessageBox(self.__parent, mail.type, mail.content, mail.title)
+            if mail.tag not in self.__bind_msg_boxs:
+                showMessageBox(self.__parent, mail.type, mail.content, mail.title)
+            else:
+                showOnSPMsgBox(self.__parent, self.__bind_msg_boxs.get(mail.tag), mail.type, mail.content, mail.title)
 
         # Show a question box
         elif isinstance(mail, QuestionBoxMail):

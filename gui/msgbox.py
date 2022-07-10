@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from PySide2.QtWidgets import QMessageBox, QApplication, QWidget
 
-__all__ = ['showQuestionBox', 'showMessageBox',
+__all__ = ['showQuestionBox', 'showMessageBox', 'showOnSPMsgBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
 
 # Message box types
@@ -34,7 +34,7 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
     :return: result
     """
     # noinspection PyTypeChecker
-    attributes = {
+    __attributes = {
         MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error", None)),
         MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning", None)),
         MB_TYPE_INFO: (QMessageBox.Information, QApplication.translate("msgbox", "Info", None)),
@@ -42,7 +42,7 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
     }
 
     try:
-        icon, default_title = attributes.get(msg_type)
+        icon, default_title = __attributes.get(msg_type)
         title = title if title else parent.tr(default_title)
         buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
         msg = QMessageBox(icon, title, content, buttons, parent=parent)
@@ -53,4 +53,32 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
             return True if msg_type == MB_TYPE_INFO else False
     except TypeError as e:
         print(f'showMessageBox:{e}')
+        return False
+
+
+def showOnSPMsgBox(parent: QWidget, msg_box: QMessageBox, msg_type: str, content: str, title: str = '') -> bool:
+    # noinspection PyTypeChecker
+    __attributes = {
+        MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error", None)),
+        MB_TYPE_WARN: (QMessageBox.Warning, QApplication.translate("msgbox", "Warning", None)),
+        MB_TYPE_INFO: (QMessageBox.Information, QApplication.translate("msgbox", "Info", None)),
+        MB_TYPE_QUESTION: (QMessageBox.Question, QApplication.translate("msgbox", "Confirm", None))
+    }
+
+    try:
+        icon, default_title = __attributes.get(msg_type)
+        title = title if title else parent.tr(default_title)
+        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
+
+        msg_box.setIcon(icon)
+        msg_box.setText(content)
+        msg_box.setWindowTitle(title)
+        msg_box.setDefaultButton(buttons)
+        if msg_type == MB_TYPE_QUESTION:
+            return msg_box.exec_() == QMessageBox.Ok
+        else:
+            msg_box.exec_()
+            return True if msg_type == MB_TYPE_INFO else False
+    except (TypeError, AttributeError) as e:
+        print(f'showOnMsgBox:{e}')
         return False
