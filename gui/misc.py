@@ -3,6 +3,7 @@ import glob
 import typing
 import platform
 import websocket
+import collections
 from PySide2.QtCore import QSize, Signal, QEvent, QObject, SLOT, Qt
 from PySide2.QtGui import QIcon, QMouseEvent, QColor, QPixmap, QFont, QFontMetrics, QKeySequence, QImage, QPaintEvent, \
     QMoveEvent, QPen, QContextMenuEvent, qRgba, qAlpha, QPainter
@@ -118,23 +119,28 @@ class SerialPortSelector(QComboBox):
 class NetworkInterfaceSelector(QComboBox):
     networkChanged = Signal(object)
     addressChanged = Signal(object)
+    Mode = collections.namedtuple('Mode', 'Address Network Interface')(*('address', 'network', 'interface'))
 
     """List current system exist network interface"""
     # noinspection PyTypeChecker
     TIPS = QApplication.translate("NetworkInterfaceSelector", "Please select network interface", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_short: bool = False,
-                 ignore_loopback: bool = True, network_mode: bool = False, parent: Optional[QWidget] = None):
+                 ignore_loopback: bool = True, mode: Mode = Mode.Address, parent: Optional[QWidget] = None):
         super(NetworkInterfaceSelector, self).__init__(parent)
 
         self._text = text
+        self._mode = mode
         self._one_short = one_short
         self._ignore_loopback = ignore_loopback
         self.setToolTip(self.tr("Right click reset and refresh network interface"))
 
         self.flushNic()
+        self.setProperty("format", mode)
         self.currentIndexChanged.connect(self.slotNicSelected)
-        self.setNetworkMode() if network_mode else self.setAddressMode()
+
+    def getMode(self) -> str:
+        return self._mode[:]
 
     def flushNic(self):
         self.clear()
@@ -146,14 +152,14 @@ class NetworkInterfaceSelector(QComboBox):
         for nic_name, nic_attr in get_system_nic(self._ignore_loopback).items():
             self.addItem("{}: {}".format(nic_name, nic_attr.ip), nic_attr.network)
 
-    def isNetworkMode(self) -> bool:
-        return self.property("format") == "network"
-
     def setNetworkMode(self):
-        self.setProperty("format", "network")
+        self.setProperty("format", self.Mode.Network)
 
     def setAddressMode(self):
-        self.setProperty("format", "address")
+        self.setProperty("format", self.Mode.Address)
+
+    def setInterfaceMode(self):
+        self.setProperty("format", self.Mode.Interface)
 
     def slotNicSelected(self, idx: int) -> bool:
         if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
@@ -165,7 +171,13 @@ class NetworkInterfaceSelector(QComboBox):
         return True
 
     def currentSelect(self) -> str:
-        return self.currentNetwork() if self.isNetworkMode() else self.currentAddress()
+        get_func = {
+            self.Mode.Address: self.currentAddress,
+            self.Mode.Network: self.currentNetwork,
+            self.Mode.Interface: self.currentInterface
+        }.get(self._mode)
+
+        return get_func() if callable(get_func) else ''
 
     def currentAddress(self) -> str:
         if not self.count() or not self.itemData(self.currentIndex()):
@@ -179,8 +191,20 @@ class NetworkInterfaceSelector(QComboBox):
 
         return self.itemData(self.currentIndex())
 
+    def currentInterface(self) -> str:
+        if not self.count() or not self.itemData(self.currentIndex()):
+            return ""
+
+        return self.currentText().split(":")[0].strip()
+
     def setCurrentSelect(self, select: str) -> bool:
-        return self.setCurrentNetwork(select) if self.isNetworkMode() else self.setCurrentAddress(select)
+        set_func = {
+            self.Mode.Address: self.setCurrentAddress,
+            self.Mode.Network: self.setCurrentNetwork,
+            self.Mode.Interface: self.setCurrentInterface
+        }.get(self._mode)
+
+        return set_func(select) if callable(set_func) else False
 
     def setCurrentAddress(self, address: str) -> bool:
         try:
@@ -194,6 +218,15 @@ class NetworkInterfaceSelector(QComboBox):
     def setCurrentNetwork(self, network: str) -> bool:
         try:
             idx = [self.itemData(x) for x in range(self.count())].index(network)
+            self.setCurrentIndex(idx)
+            self.slotNicSelected(idx)
+            return True
+        except ValueError:
+            return False
+
+    def setCurrentInterface(self, interface: str) -> bool:
+        try:
+            idx = [self.itemText(x).split(":")[0].strip() for x in range(self.count())].index(interface)
             self.setCurrentIndex(idx)
             self.slotNicSelected(idx)
             return True

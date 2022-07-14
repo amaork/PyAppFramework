@@ -13,6 +13,9 @@ class AbstractTableModel(QAbstractTableModel):
         self._header = ()
         self._row_count = row_count
 
+    def item(self, row: int, column: int):
+        return None
+
     def rowCount(self, parent: PySide2.QtCore.QModelIndex = QModelIndex()) -> int:
         return self._row_count
 

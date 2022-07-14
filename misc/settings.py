@@ -15,7 +15,7 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'CustomAction',
            'UiFontInput', 'UiColorInput',
            'UiFileInput', 'UiFolderInput', 'UiPushButtonInput',
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
-           'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput',
+           'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput', 'UiInterfaceSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
            'Font', 'Time', 'Color', 'IndexColor', 'color_property',
            'Layout', 'LayoutSpace', 'LayoutMargins']
@@ -113,6 +113,7 @@ class UiInputSetting(DynamicObject):
         "SERIAL": (str, str),
         "NETWORK": (str, str),
         "ADDRESS": (str, str),
+        "INTERFACE": (str, str),
         "BUTTON": (object, object),
         "SELECT": ((str, int), (list, tuple)),
         "SBS_SELECT": ((str, int), (list, tuple)),
@@ -209,6 +210,9 @@ class UiInputSetting(DynamicObject):
 
     def is_address_type(self) -> bool:
         return self.type == "ADDRESS"
+
+    def is_interface_type(self) -> bool:
+        return self.type == "INTERFACE"
 
     def is_sbs_select_type(self) -> bool:
         return self.type == "SBS_SELECT"
@@ -514,6 +518,12 @@ class UiAddressSelectInput(UiInputSetting):
     def __init__(self, name: str, address: str = "", default: str = ""):
         super(UiAddressSelectInput, self).__init__(name=name, data=address, default=default,
                                                    check=address, readonly=False, type="ADDRESS")
+
+
+class UiInterfaceSelectInput(UiInputSetting):
+    def __init__(self, name: str, iface: str = '', default: str = ''):
+        super(UiInterfaceSelectInput, self).__init__(name=name, data=iface, default=default,
+                                                     check=iface, readonly=False, type="INTERFACE")
 
 
 class UiCheckBoxInput(UiInputSetting):

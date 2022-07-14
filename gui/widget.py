@@ -2670,11 +2670,20 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
             elif setting.is_network_type():
-                widget = NetworkInterfaceSelector(network_mode=True, text=setting.get_default(), parent=parent)
+                widget = NetworkInterfaceSelector(
+                    mode=NetworkInterfaceSelector.Mode.Network, text=setting.get_default(), parent=parent
+                )
                 widget.setCurrentNetwork(setting.get_data())
             elif setting.is_address_type():
-                widget = NetworkInterfaceSelector(network_mode=False, text=setting.get_default(), parent=parent)
+                widget = NetworkInterfaceSelector(
+                    mode=NetworkInterfaceSelector.Mode.Address, text=setting.get_default(), parent=parent
+                )
                 widget.setCurrentAddress(setting.get_data())
+            elif setting.is_interface_type():
+                widget = NetworkInterfaceSelector(
+                    mode=NetworkInterfaceSelector.Mode.Interface, text=setting.get_default(), parent=parent
+                )
+                widget.setCurrentInterface(setting.get_data())
             elif setting.is_file_type():
                 widget = QLineEdit(parent)
                 widget.setProperty("data", name)
