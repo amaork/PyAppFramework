@@ -218,6 +218,7 @@ class TCPClientTransmit(Transmit):
 
     def __init__(self, with_length: bool = False):
         super(TCPClientTransmit, self).__init__()
+        self._server_address = ('', -1)
         self._socket = TCPSocketTransmit(socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length)
 
     def tx(self, data: bytes) -> bool:
@@ -230,6 +231,10 @@ class TCPClientTransmit(Transmit):
         self._connected.clear()
         self._socket.disconnect()
 
+    @property
+    def server(self) -> Tuple[str, int]:
+        return self._server_address
+
     def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
         """
         Connect tcp server
@@ -238,6 +243,7 @@ class TCPClientTransmit(Transmit):
         :return:
         """
         try:
+            self._server_address = address
             timeout = timeout or self.DEFAULT_TIMEOUT
             self._socket.raw_socket = create_socket_and_connect(address[0], address[1], timeout)
             return self._update(self._socket.raw_socket.getsockname(), timeout, True)

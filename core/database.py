@@ -726,6 +726,10 @@ class SQLiteDatabaseCreator(object):
         tables = [i[0] for i in self._db_cursor.fetchall()]
         return table_name in tables
 
+    @property
+    def db_cursor(self):
+        return self._db_cursor
+
     @staticmethod
     def _enum_tail(table_name: str) -> str:
         return "{}{}".format(table_name.capitalize(), SQLiteDatabaseCreator.ENUM_TAIL_ITEM_NAME)
