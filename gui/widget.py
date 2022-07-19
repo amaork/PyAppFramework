@@ -2626,6 +2626,8 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                     widget.setCurrentIndex(setting.get_data())
                 else:
                     widget.setCurrentIndex(0)
+            elif setting.is_button_type():
+                widget = QPushButton(setting.get_name())
             elif setting.is_sbs_select_type():
                 group = QButtonGroup(parent)
                 layout = QHBoxLayout()

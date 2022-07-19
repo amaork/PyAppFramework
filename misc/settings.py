@@ -202,6 +202,9 @@ class UiInputSetting(DynamicObject):
     def is_select_type(self) -> bool:
         return self.type == "SELECT"
 
+    def is_button_type(self) -> bool:
+        return self.type == "BUTTON"
+
     def is_serial_type(self) -> bool:
         return self.type == "SERIAL"
 

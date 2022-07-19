@@ -251,6 +251,8 @@ class ComponentManager(QObject):
                 component.currentIndexChanged.connect(self.slotDataChanged)
             elif isinstance(component, QCheckBox):
                 component.stateChanged.connect(self.slotDataChanged)
+            elif isinstance(component, QPushButton):
+                component.clicked.connect(self.slotDataChanged)
             elif isinstance(component, QRadioButton):
                 component.clicked.connect(self.slotDataChanged)
             elif isinstance(component, VirtualNumberInput):
