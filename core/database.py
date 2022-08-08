@@ -957,7 +957,7 @@ class SQLiteDatabaseCreator(object):
                 limit[column].id = column
 
             sc = {i: x.json for i, x in enumerate(limit)}
-            ff = {c: l for c, l in enumerate(limit) if l.precision > 0}
+            ff = {c: l.name for c, l in enumerate(limit) if l.precision > 0}
             return SQLiteUITableScheme(name=table_name, maxRow=max_row, isMultiColumn=True, floating=ff, scheme=sc)
 
     def set_general_table_data(self, table_name: str, row_count: int, fill_random_data: bool = False):
