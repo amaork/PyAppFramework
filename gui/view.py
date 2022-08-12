@@ -22,7 +22,7 @@ class TableView(QTableView):
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
     COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, disable_custom_content_menu: bool = True, parent: Optional[QWidget] = None):
         super(TableView, self).__init__(parent)
         self.__autoHeight = False
         self.__contentMenu = QMenu(self)
@@ -50,7 +50,8 @@ class TableView(QTableView):
 
             self.__contentMenu.addSeparator()
 
-        self.customContextMenuRequested.connect(self.__slotShowContentMenu)
+        if not disable_custom_content_menu:
+            self.customContextMenuRequested.connect(self.__slotShowContentMenu)
 
     def __checkModel(self) -> bool:
         return isinstance(self.model(), QAbstractItemModel)
@@ -238,7 +239,7 @@ class TableView(QTableView):
             return
 
         self.__columnStretchFactor = factors
-        self.resize(self.geometry().width(), self.geometry().height())
+        self.resizeEvent(QResizeEvent(self.geometry().size(), self.geometry().size()))
 
     def resizeEvent(self, ev: QResizeEvent):
         if not self.model():
