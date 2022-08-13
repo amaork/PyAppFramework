@@ -1,46 +1,47 @@
 # -*- coding: utf-8 -*-
-from PySide2.QtGui import *
-from PySide2.QtCore import *
-from PySide2.QtWidgets import QTableView, QMenu, QWidget, QAction, QTableWidgetItem, QHeaderView, QAbstractItemView, \
-    QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox, QLineEdit, QPushButton, QRadioButton, QItemDelegate, QDial, \
-    QStyleOptionViewItem, QTextEdit, QPlainTextEdit, QDateTimeEdit
-from typing import List, Any, Dict, Optional, Union, Sequence
+import abc
+import typing
+from PySide2.QtCore import Qt
+from PySide2 import QtCore, QtGui, QtWidgets
+
+from .msgbox import *
+from .checkbox import CheckBox
+from .container import ComponentManager
+from .widget import JsonSettingWidget, BasicWidget
 
 from ..misc.settings import *
-from .checkbox import CheckBox
-from .widget import JsonSettingWidget
-from .container import ComponentManager
+from ..gui.model import SqliteQueryModel
 from ..core.datatype import DynamicObject
 from ..misc.windpi import get_program_scale_factor
-__all__ = ['TableView', 'TableViewDelegate']
+__all__ = ['TableView', 'TableViewDelegate', 'SQliteQueryView']
 
 
-class TableView(QTableView):
-    tableDataChanged = Signal()
+class TableView(QtWidgets.QTableView):
+    tableDataChanged = QtCore.Signal()
 
     ALL_ACTION = 0x7
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
     COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
 
-    def __init__(self, disable_custom_content_menu: bool = True, parent: Optional[QWidget] = None):
+    def __init__(self, disable_custom_content_menu: bool = True, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableView, self).__init__(parent)
         self.__autoHeight = False
-        self.__contentMenu = QMenu(self)
+        self.__contentMenu = QtWidgets.QMenu(self)
         self.__contentMenuEnableMask = 0x0
         self.__columnStretchFactor = list()
         self.__scale_x, self.__scale_y = get_program_scale_factor()
 
         for group, actions in {
             self.COMM_ACTION: [
-                (QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
+                (QtWidgets.QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
             ],
 
             self.MOVE_ACTION: [
-                (QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
-                (QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
+                (QtWidgets.QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
+                (QtWidgets.QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
 
-                (QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
-                (QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom()),
+                (QtWidgets.QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
+                (QtWidgets.QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom()),
             ],
         }.items():
             for action, slot in actions:
@@ -54,7 +55,7 @@ class TableView(QTableView):
             self.customContextMenuRequested.connect(self.__slotShowContentMenu)
 
     def __checkModel(self) -> bool:
-        return isinstance(self.model(), QAbstractItemModel)
+        return isinstance(self.model(), QtCore.QAbstractItemModel)
 
     def __checkRow(self, row: int) -> bool:
         if not isinstance(row, int):
@@ -74,7 +75,7 @@ class TableView(QTableView):
 
         return True
 
-    def __slotShowContentMenu(self, pos: QPoint):
+    def __slotShowContentMenu(self, pos: QtCore.QPoint):
         for group in self.SUPPORT_ACTIONS:
             enabled = group & self.__contentMenuEnableMask
             for action in self.__contentMenu.actions():
@@ -95,9 +96,9 @@ class TableView(QTableView):
         else:
             self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-    def setCustomContentMenu(self, menu: List[QAction]):
+    def setCustomContentMenu(self, menu: typing.List[QtWidgets.QAction]):
         for action in menu:
-            if not isinstance(action, QAction):
+            if not isinstance(action, QtWidgets.QAction):
                 continue
 
             action.setProperty("group", self.CUSTOM_ACTION)
@@ -105,7 +106,7 @@ class TableView(QTableView):
 
         self.__contentMenu.addSeparator()
 
-    def item(self, row: int, column: int) -> Union[QTableWidgetItem, None]:
+    def item(self, row: int, column: int) -> typing.Union[QtWidgets.QTableWidgetItem, None]:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return None
 
@@ -133,7 +134,7 @@ class TableView(QTableView):
 
     def setVerticalHeaderHeight(self, height: int):
         vertical_header = self.verticalHeader()
-        vertical_header.setSectionResizeMode(QHeaderView.Fixed)
+        vertical_header.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         vertical_header.setDefaultSectionSize(height)
         self.setVerticalHeader(vertical_header)
 
@@ -143,7 +144,7 @@ class TableView(QTableView):
 
     def setHorizontalHeaderWidth(self, width: int):
         horizontal_header = self.horizontalHeader()
-        horizontal_header.setSectionResizeMode(QHeaderView.Fixed)
+        horizontal_header.setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         horizontal_header.setDefaultSectionSize(width)
         self.setHorizontalHeader(horizontal_header)
 
@@ -153,19 +154,19 @@ class TableView(QTableView):
 
     def setNoSelection(self):
         self.setFocusPolicy(Qt.NoFocus)
-        self.setSelectionMode(QAbstractItemView.NoSelection)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
 
     def setRowSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
     def setItemSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectItems)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
     def setColumnSelectMode(self):
-        self.setSelectionBehavior(QAbstractItemView.SelectColumns)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectColumns)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
     def setAutoWidth(self):
         self.setColumnStretchFactor([1 / self.columnCount()] * self.columnCount())
@@ -184,6 +185,7 @@ class TableView(QTableView):
         for column in range(self.columnCount()):
             try:
                 item = self.item(row, column)
+                # noinspection PyTypeChecker
                 item.setTextAlignment(alignment)
             except AttributeError:
                 continue
@@ -200,6 +202,7 @@ class TableView(QTableView):
         for row in range(self.rowCount()):
             try:
                 item = self.item(row, column)
+                # noinspection PyTypeChecker
                 item.setTextAlignment(alignment)
             except AttributeError:
                 continue
@@ -213,7 +216,7 @@ class TableView(QTableView):
 
         return True
 
-    def setRowHeader(self, headers: Sequence[str]) -> bool:
+    def setRowHeader(self, headers: typing.Sequence[str]) -> bool:
         if not isinstance(headers, (list, tuple)) or not self.__checkModel():
             return False
 
@@ -222,7 +225,7 @@ class TableView(QTableView):
 
         return self.model().setVerticalHeaderLabels(headers)
 
-    def setColumnHeader(self, headers: Sequence[str]) -> bool:
+    def setColumnHeader(self, headers: typing.Sequence[str]) -> bool:
         if not isinstance(headers, (list, tuple)) or not self.__checkModel():
             return False
 
@@ -231,7 +234,7 @@ class TableView(QTableView):
 
         return self.model().setHorizontalHeaderLabels(headers)
 
-    def setColumnStretchFactor(self, factors: Sequence[float]):
+    def setColumnStretchFactor(self, factors: typing.Sequence[float]):
         if not isinstance(factors, (list, tuple)):
             return
 
@@ -239,9 +242,9 @@ class TableView(QTableView):
             return
 
         self.__columnStretchFactor = factors
-        self.resizeEvent(QResizeEvent(self.geometry().size(), self.geometry().size()))
+        self.resizeEvent(QtGui.QResizeEvent(self.geometry().size(), self.geometry().size()))
 
-    def resizeEvent(self, ev: QResizeEvent):
+    def resizeEvent(self, ev: QtGui.QResizeEvent):
         if not self.model():
             return
 
@@ -260,43 +263,44 @@ class TableView(QTableView):
         header = self.horizontalHeader()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
-            header.setSectionResizeMode(column, QHeaderView.Fixed)
+            header.setSectionResizeMode(column, QtWidgets.QHeaderView.Fixed)
             self.setColumnWidth(column, width * factor)
 
     def getCurrentRow(self) -> int:
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return 0
 
         return self.currentIndex().row()
 
     def getCurrentColumn(self) -> int:
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return 0
 
         return self.currentIndex().column()
 
     def setCurrentRow(self, row: int) -> bool:
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return False
 
-        return self.setCurrentIndex(model.index(row, 0, QModelIndex()))
+        # noinspection PyTypeChecker
+        return self.setCurrentIndex(model.index(row, 0, QtCore.QModelIndex()))
 
     def setRowCount(self, count: int):
-        if isinstance(self.model(), QAbstractItemModel):
+        if isinstance(self.model(), QtCore.QAbstractItemModel):
             self.model().setRowCount(count)
 
     def getTableData(self, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return list()
         return [self.getRowData(row, role) for row in range(model.rowCount())]
 
-    def setTableData(self, data: List[Any], role: Qt.ItemDataRole = Qt.EditRole):
+    def setTableData(self, data: typing.List[typing.Any], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return False
 
         if not isinstance(data, list) or len(data) != model.rowCount():
@@ -306,14 +310,14 @@ class TableView(QTableView):
 
     def getRowData(self, row: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return list()
 
         return [self.getItemData(row, column, role) for column in range(model.columnCount())]
 
-    def setRowData(self, row: int, data: Sequence[Any], role: Qt.ItemIsEditable = Qt.EditRole):
+    def setRowData(self, row: int, data: typing.Sequence[typing.Any], role: Qt.ItemIsEditable = Qt.EditRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return False
 
         if not isinstance(data, (list, tuple)) or len(data) != model.columnCount():
@@ -324,14 +328,14 @@ class TableView(QTableView):
 
     def getColumnData(self, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return list()
 
         return [self.getItemData(row, column, role) for row in range(model.rowCount())]
 
-    def setColumnData(self, column: int, data: Sequence[Any], role: Qt.ItemDataRole = Qt.EditRole):
+    def setColumnData(self, column: int, data: typing.Sequence[typing.Any], role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return False
 
         if not isinstance(data, (list, tuple)) or len(data) != model.rowCount():
@@ -342,28 +346,29 @@ class TableView(QTableView):
 
     def getItemData(self, row: int, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return ""
 
         widget = self.indexWidget(self.model().index(row, column))
-        if isinstance(widget, QWidget):
+        if isinstance(widget, QtWidgets.QWidget):
             return ComponentManager.getComponentData(widget)
         else:
-            return model.itemData(model.index(row, column, QModelIndex())).get(role)
+            return model.itemData(model.index(row, column, QtCore.QModelIndex())).get(role)
 
-    def setItemData(self, row: int, column: int, data: Any, role: Qt.ItemDataRole = Qt.EditRole):
+    def setItemData(self, row: int, column: int, data: typing.Any, role: Qt.ItemDataRole = Qt.EditRole):
         model = self.model()
-        if not isinstance(model, QAbstractItemModel):
+        if not isinstance(model, QtCore.QAbstractItemModel):
             return False
 
-        return model.setData(model.index(row, column, QModelIndex()), data, role)
+        # noinspection PyTypeChecker
+        return model.setData(model.index(row, column, QtCore.QModelIndex()), data, role)
 
     def frozenItem(self, row: int, column: int, frozen: bool) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column):
             return False
 
         item = self.item(row, column)
-        if isinstance(item, QTableWidgetItem):
+        if isinstance(item, QtWidgets.QTableWidgetItem):
             flags = item.flags()
             if frozen:
                 flags &= ~Qt.ItemIsEditable
@@ -373,10 +378,11 @@ class TableView(QTableView):
 
         if self.__checkModel():
             widget = self.indexWidget(self.model().index(row, column))
-            if isinstance(widget, QWidget):
-                widget.setCheckable(not frozen) if isinstance(widget, QCheckBox) else widget.setDisabled(frozen)
+            if isinstance(widget, QtWidgets.QWidget):
+                widget.setCheckable(not frozen) if isinstance(widget, QtWidgets.QCheckBox) \
+                    else widget.setDisabled(frozen)
 
-        if isinstance(self.itemDelegate(), QItemDelegate):
+        if isinstance(self.itemDelegate(), QtWidgets.QItemDelegate):
             self.itemDelegate().setProperty(str(DynamicObject(row=row, column=column)), frozen)
 
         return True
@@ -475,8 +481,8 @@ class TableView(QTableView):
         self.swapColumn(column, column + 1)
         return True
 
-    def setItemBackground(self, row: int, column: int, background: QBrush) -> bool:
-        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QBrush):
+    def setItemBackground(self, row: int, column: int, background: QtGui.QBrush) -> bool:
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QtGui.QBrush):
             return False
 
         try:
@@ -487,8 +493,8 @@ class TableView(QTableView):
 
         return True
 
-    def setItemForeground(self, row: int, column: int, foreground: QBrush) -> bool:
-        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QBrush):
+    def setItemForeground(self, row: int, column: int, foreground: QtGui.QBrush) -> bool:
+        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QtGui.QBrush):
             return False
 
         try:
@@ -499,27 +505,27 @@ class TableView(QTableView):
 
         return True
 
-    def setRowBackgroundColor(self, row: int, color: QBrush):
+    def setRowBackgroundColor(self, row: int, color: QtGui.QBrush):
         [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
 
-    def setRowForegroundColor(self, row: int, color: QBrush):
+    def setRowForegroundColor(self, row: int, color: QtGui.QBrush):
         [self.setItemForeground(row, column, color) for column in range(self.columnCount())]
 
-    def setColumnBackgroundColor(self, column: int, color: QBrush):
+    def setColumnBackgroundColor(self, column: int, color: QtGui.QBrush):
         [self.setItemBackground(row, column, color) for row in range(self.rowCount())]
 
-    def setColumnForegroundColor(self, column: int, color: QBrush):
+    def setColumnForegroundColor(self, column: int, color: QtGui.QBrush):
         [self.setItemForeground(row, column, color) for row in range(self.rowCount())]
 
 
-class TableViewDelegate(QItemDelegate):
-    dataChanged = Signal(QModelIndex, object)
+class TableViewDelegate(QtWidgets.QItemDelegate):
+    dataChanged = QtCore.Signal(QtCore.QModelIndex, object)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableViewDelegate, self).__init__(parent)
         self._columnDelegateSettings = dict()
 
-    def setColumnDelegate(self, filter_: Dict[int, UiInputSetting]):
+    def setColumnDelegate(self, filter_: typing.Dict[int, UiInputSetting]):
         if isinstance(filter_, dict):
             self._columnDelegateSettings = filter_
 
@@ -527,13 +533,14 @@ class TableViewDelegate(QItemDelegate):
         if column in self._columnDelegateSettings and isinstance(filter_, UiInputSetting):
             self._columnDelegateSettings[column] = filter_
 
-    def isFrozen(self, index: QStyleOptionViewItem) -> bool:
+    def isFrozen(self, index: QtWidgets.QStyleOptionViewItem) -> bool:
         row = index.row()
         column = index.column()
         return self.property(str(DynamicObject(row=row, column=column)))
 
-    def createEditor(self, parent: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
-        if not isinstance(index, QModelIndex) or self.isFrozen(index):
+    def createEditor(self, parent: QtWidgets.QWidget,
+                     option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex):
+        if not isinstance(index, QtCore.QModelIndex) or self.isFrozen(index):
             return None
 
         settings = self._columnDelegateSettings.get(index.column())
@@ -545,7 +552,7 @@ class TableViewDelegate(QItemDelegate):
             checkbox.stateChanged.connect(lambda x: self.commitData.emit(checkbox))
             return checkbox
         elif isinstance(settings, UiPushButtonInput):
-            button = QPushButton(settings.get_name(), parent=parent)
+            button = QtWidgets.QPushButton(settings.get_name(), parent=parent)
             button.setProperty('private', index.data())
             button.setProperty('index', index)
             button.clicked.connect(settings.get_default())
@@ -556,15 +563,15 @@ class TableViewDelegate(QItemDelegate):
             ComponentManager.connectComponentSignalAndSlot(widget, lambda _: self.commitData.emit(widget))
             return widget
 
-    def setEditorData(self, editor: QWidget, index: QModelIndex):
-        if not isinstance(index, QModelIndex):
+    def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
+        if not isinstance(index, QtCore.QModelIndex):
             return None
 
         value = index.model().data(index, Qt.EditRole)
         ComponentManager.setComponentData(editor, value)
 
-    def setModelData(self, editor: QWidget, model: QStandardItemModel, index: QModelIndex):
-        if not isinstance(index, QModelIndex) or not isinstance(model, QAbstractItemModel):
+    def setModelData(self, editor: QtWidgets.QWidget, model: QtGui.QStandardItemModel, index: QtCore.QModelIndex):
+        if not isinstance(index, QtCore.QModelIndex) or not isinstance(model, QtCore.QAbstractItemModel):
             return None
 
         data = ComponentManager.getComponentData(editor)
@@ -572,5 +579,174 @@ class TableViewDelegate(QItemDelegate):
             model.setData(index, data, Qt.EditRole)
             self.dataChanged.emit(index, data)
 
-    def updateEditorGeometry(self, editor: QWidget, option: QStyleOptionViewItem, index: QModelIndex):
+    def updateEditorGeometry(self, editor: QtWidgets.QWidget,
+                             option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex):
         editor.setGeometry(option.rect)
+
+
+class SQliteQueryView(BasicWidget):
+    signalRecordsCleared = QtCore.Signal()
+    signalRecordDeleted = QtCore.Signal(object)
+
+    def __init__(self, model: SqliteQueryModel,
+                 stretch_factor: typing.Sequence[float], column_header: typing.Iterable[str],
+                 custom_content_menu: typing.Optional[typing.Iterable[QtWidgets.QAction]],
+                 readonly: bool = False, row_autoincrement_factor: float = 0.0,
+                 parent: QtWidgets.QWidget = None):
+        custom_content_menu = custom_content_menu or list()
+        self._model = model
+        self._is_readonly = readonly
+        self._column_header = column_header
+        self._stretch_factor = stretch_factor
+        self._custom_content_menu = list(custom_content_menu)
+        self._row_autoincrement_factor = row_autoincrement_factor
+        super(SQliteQueryView, self).__init__(parent)
+
+    def _initUi(self):
+        self.ui_view = TableView(True, self)
+        self.ui_page_num = QtWidgets.QSpinBox(self)
+        self.ui_search_key = QtWidgets.QComboBox(self)
+        self.ui_search_value = QtWidgets.QLineEdit(self)
+        self.ui_end = QtWidgets.QPushButton(self.tr('End'))
+        self.ui_home = QtWidgets.QPushButton(self.tr('Home'))
+        self.ui_next = QtWidgets.QPushButton(self.tr('Next'))
+        self.ui_prev = QtWidgets.QPushButton(self.tr('Prev'))
+        self.ui_search = QtWidgets.QPushButton(self.tr('Search'))
+        self.ui_clear_search = QtWidgets.QPushButton(self.tr('Clear Search'))
+
+        # Custom content menu
+        self.ui_content_menu = QtWidgets.QMenu(self)
+        self.ui_action_del = QtWidgets.QAction(self.tr('Delete Record'), self.ui_content_menu)
+        self.ui_action_clear = QtWidgets.QAction(self.tr('Clear All Records'), self.ui_content_menu)
+
+        if not self._is_readonly:
+            self.ui_content_menu.addAction(self.ui_action_del)
+            self.ui_content_menu.addAction(self.ui_action_clear)
+
+        if self._custom_content_menu:
+            self.ui_content_menu.addSeparator()
+            self.ui_content_menu.addActions(self._custom_content_menu)
+
+        tools_layout = QtWidgets.QHBoxLayout()
+        for item in (self.ui_search_key, self.ui_search_value, self.ui_search, self.ui_clear_search,
+                     QtWidgets.QSplitter(), QtWidgets.QLabel(self.tr('Page Num')), self.ui_page_num,
+                     self.ui_prev, self.ui_next, self.ui_home, self.ui_end):
+            tools_layout.addWidget(item)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.ui_view)
+        layout.addLayout(tools_layout)
+        self.setLayout(layout)
+
+    def _initData(self):
+        self.ui_page_num.setValue(1)
+        self.ui_view.setModel(self._model)
+        self.ui_page_num.setRange(1, self._model.total_page)
+        self.ui_search_value.setPlaceholderText(self.tr('Please fill in the content to search for'))
+
+        self._model.flush_page(0)
+        self._model.set_column_header(self._column_header)
+
+        for key, name in zip(self._model.keys, self._model.column_header):
+            self.ui_search_key.addItem(name, key)
+
+    def _initStyle(self):
+        self.ui_view.setRowSelectMode()
+        self.ui_view.hideRowHeader(True)
+        self.ui_view.setAlternatingRowColors(True)
+        self.ui_view.setColumnStretchFactor(self._stretch_factor)
+        self.ui_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui_view.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
+
+    def _initSignalAndSlots(self):
+        self.ui_end.clicked.connect(self.slotEnd)
+        self.ui_home.clicked.connect(self.slotHome)
+        self.ui_prev.clicked.connect(self.slotPrev)
+        self.ui_next.clicked.connect(self.slotNext)
+        self.ui_search.clicked.connect(self.slotSearch)
+        self.ui_action_del.triggered.connect(self.slotDelete)
+        self.ui_action_clear.triggered.connect(self.slotClear)
+        self.ui_clear_search.clicked.connect(self.slotClearSearch)
+        self.ui_page_num.valueChanged.connect(self.slotPageNumChanged)
+        self.ui_view.customContextMenuRequested.connect(self.slotCustomContentMenu)
+
+        self.ui_end.setShortcut(QtGui.QKeySequence(Qt.Key_End))
+        self.ui_home.setShortcut(QtGui.QKeySequence(Qt.Key_Home))
+        self.ui_prev.setShortcut(QtGui.QKeySequence(Qt.Key_PageUp))
+        self.ui_next.setShortcut(QtGui.QKeySequence(Qt.Key_PageDown))
+        self.ui_search.setShortcut(QtGui.QKeySequence(Qt.Key_Return))
+        self.ui_clear_search.setShortcut(QtGui.QKeySequence(Qt.Key_Escape))
+
+    @abc.abstractmethod
+    def _get_pk_from_row(self, row: int) -> typing.Any:
+        pass
+
+    @abc.abstractmethod
+    def _enable_fuzzy_search(self, key: str) -> bool:
+        pass
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        if self._row_autoincrement_factor:
+            self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
+        super(SQliteQueryView, self).resizeEvent(event)
+
+    def slotEnd(self):
+        self.ui_page_num.setValue(self._model.total_page)
+
+    def slotHome(self):
+        self.ui_page_num.setValue(1)
+
+    def slotPrev(self):
+        if self.ui_page_num.value() > 1:
+            self.ui_page_num.setValue(self.ui_page_num.value() - 1)
+
+    def slotNext(self):
+        if self.ui_page_num.value() < self._model.total_page:
+            self.ui_page_num.setValue(self.ui_page_num.value() + 1)
+
+    def slotClear(self):
+        if not showQuestionBox(self, self.tr('Confirm to clear all records ?')):
+            return
+
+        if self._model.clear_table():
+            self.signalRecordsCleared.emit()
+            self.slotUpdatePageNum()
+
+    def slotSearch(self):
+        value = self.ui_search_value.text()
+        if not value:
+            self._model.show_all()
+        else:
+            key = self.ui_search_key.currentData(QtCore.Qt.UserRole)
+            self._model.search_record(key, value, self._enable_fuzzy_search(key))
+
+    def slotDelete(self):
+        if not showQuestionBox(self, self.tr('Confirm to delete this record ?')):
+            return
+
+        row = self.ui_view.getCurrentRow()
+        primary_key = self._get_pk_from_row(row)
+        if self._model.delete_record(primary_key):
+            self.signalRecordDeleted.emit(primary_key)
+            self.slotUpdatePageNum()
+
+    def slotClearSearch(self):
+        self._model.flush_page(self._model.cur_page)
+
+    def slotUpdatePageNum(self):
+        self.ui_page_num.setRange(1, self._model.total_page)
+        if self._model.record_count == 1:
+            self._model.set_column_header(self._column_header)
+            self.ui_view.setColumnStretchFactor(self._stretch_factor)
+
+    def slotPageNumChanged(self, page):
+        self._model.flush_page(page - 1)
+
+    def slotCustomContentMenu(self, pos: QtCore.QPoint):
+        if not self._model.record_count:
+            return
+
+        if not self.ui_content_menu.size():
+            return
+
+        self.ui_content_menu.popup(self.ui_view.viewport().mapToGlobal(pos))

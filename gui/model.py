@@ -79,6 +79,8 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
 
 class SqliteQueryModel(QtSql.QSqlQueryModel):
+    SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
+
     def __init__(self, db_name: str, tbl_name: str, pk_name: str = 'id',
                  is_autoincrement: bool = False, rows_per_page: int = 20, parent: QtCore.QObject = None):
         self._cur_page = 0
@@ -126,6 +128,17 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         self._rows_per_page = rows_per_page
         self.flush_page(self.cur_page, force=True)
 
+    @property
+    def autoincrement_id(self) -> int:
+        if not self._is_autoincrement:
+            return self.record_count
+
+        query = QtSql.QSqlQuery()
+        if query.exec_(f'SELECT seq FROM {self.SQLITE_SEQ_TBL_NAME} WHERE name = "{self._tbl_name}"') and query.first():
+            return query.value(0)
+
+        return self.record_count
+
     def set_column_header(self, header: typing.Iterable):
         for column, name in enumerate(header):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
@@ -139,7 +152,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             if not self._is_autoincrement:
                 return True
 
-            if query.exec_(f'UPDATE sqlite_sequence SET seq = 0 WHERE name = "{self._tbl_name}";'):
+            if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self._tbl_name}";'):
                 self.flush_page(self.cur_page, force=True)
                 return True
 
@@ -152,9 +165,23 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             condition = f'{self._pk_name} >= {start} AND {self._pk_name} < {start + self._rows_per_page}'
             self.setQuery(f'SELECT * FROM {self._tbl_name} WHERE {condition};')
 
-    def delete_record(self, record_id: typing.Any) -> bool:
+    def select_record(self, condition: str):
+        record_value = list()
         query = QtSql.QSqlQuery()
-        if query.exec_(f'DELETE FROM {self._tbl_name} WHERE {self._pk_name} = {record_id};'):
+        if query.exec_(f'SELECT * FROM {self._tbl_name} WHERE {condition};'):
+            while query.next():
+                values = list()
+                record = query.record()
+                for i in range(record.count()):
+                    values.append(record.value(i))
+
+                record_value.append(dict(zip(self.keys, values)))
+
+        return record_value
+
+    def delete_record(self, pk: typing.Any) -> bool:
+        query = QtSql.QSqlQuery()
+        if query.exec_(f'DELETE FROM {self._tbl_name} WHERE {self._pk_name} = {pk};'):
             self.flush_page(self.cur_page)
             return True
 
@@ -168,6 +195,15 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
                 self.flush_page(self.cur_page)
 
             return True
+        return False
+
+    def update_record(self, pk: typing.Any, kv: str) -> bool:
+        query = QtSql.QSqlQuery()
+        if query.exec_(f'UPDATE {self._tbl_name} {kv} WHERE {self._pk_name} = {pk};'):
+            self.flush_page(self.cur_page)
+            return True
+
+        print(query.lastError().text())
         return False
 
     def search_record(self, key: str, value: str, like: bool = False):
