@@ -642,7 +642,6 @@ class SQliteQueryView(BasicWidget):
         self.ui_page_num.setValue(1)
         self.ui_view.setModel(self._model)
         self.ui_page_num.setRange(1, self._model.total_page)
-        self.ui_search_value.setPlaceholderText(self.tr('Please fill in the content to search for'))
 
         self._model.flush_page(0)
         self._model.set_column_header(self._column_header)

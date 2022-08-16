@@ -29,11 +29,11 @@ class ChartAxesAttribute(DynamicObject):
 
 
 class CustomCanvas(FigureCanvas):
-    def __init__(self, width: float = 5.0, height: int = 5.0, dpi: int = 100,
+    def __init__(self, width: float = 5.0, height: float = 5.0, dpi: int = 100,
                  face_color: typing.Tuple[float, float, float] = (0.941, 0.941, 0.941)):
-        fig = Figure(figsize=(width, height), dpi=dpi, facecolor=face_color)
-        self.axes = fig.add_subplot()
-        super(CustomCanvas, self).__init__(fig)
+        self.fig = Figure(figsize=(width, height), dpi=dpi, facecolor=face_color)
+        self.axes = self.fig.add_subplot()
+        super(CustomCanvas, self).__init__(self.fig)
 
 
 class TimelineChartView(BasicWidget):
