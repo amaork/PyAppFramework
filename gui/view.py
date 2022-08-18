@@ -590,7 +590,7 @@ class SQliteQueryView(BasicWidget):
 
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float], column_header: typing.Iterable[str],
-                 custom_content_menu: typing.Optional[typing.Iterable[QtWidgets.QAction]],
+                 custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
                  readonly: bool = False, row_autoincrement_factor: float = 0.0,
                  parent: QtWidgets.QWidget = None):
         custom_content_menu = custom_content_menu or list()
@@ -684,6 +684,10 @@ class SQliteQueryView(BasicWidget):
     def _enable_fuzzy_search(self, key: str) -> bool:
         pass
 
+    def tr(self, text: str) -> str:
+        # noinspection PyTypeChecker
+        return QtWidgets.QApplication.translate("SQliteQueryView", text, None)
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         if self._row_autoincrement_factor:
             self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
@@ -704,7 +708,7 @@ class SQliteQueryView(BasicWidget):
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
 
     def slotClear(self):
-        if not showQuestionBox(self, self.tr('Confirm to clear all records ?')):
+        if not showQuestionBox(self, self.tr('Confirm to clear all records ?'), self.tr('Clear Confirm')):
             return
 
         if self._model.clear_table():
@@ -720,7 +724,7 @@ class SQliteQueryView(BasicWidget):
             self._model.search_record(key, value, self._enable_fuzzy_search(key))
 
     def slotDelete(self):
-        if not showQuestionBox(self, self.tr('Confirm to delete this record ?')):
+        if not showQuestionBox(self, self.tr('Confirm to delete this record ?'), self.tr('Delete Confirm')):
             return
 
         row = self.ui_view.getCurrentRow()
