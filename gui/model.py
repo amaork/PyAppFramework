@@ -8,16 +8,20 @@ __all__ = ['AbstractTableModel', 'SqliteQueryModel']
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
-    def __init__(self, row_count: int, parent: typing.Optional[QtCore.QObject] = None):
+    def __init__(self, parent: typing.Optional[QtCore.QObject] = None):
         super(AbstractTableModel, self).__init__(parent)
-        self._header = ()
-        self._row_count = row_count
+        self._user = list()
+        self._table = list()
+        self._header = tuple()
 
-    def item(self, row: int, column: int):
+    def clearAll(self):
+        self.removeRows(0, self.rowCount())
+
+    def item(self, _row: int, _column: int):
         return None
 
     def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
-        return self._row_count
+        return len(self._table)
 
     def columnCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         return len(self._header)
@@ -25,6 +29,10 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> typing.Any:
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             return self._header[section]
+        elif orientation == Qt.Horizontal and role == Qt.ForegroundRole:
+            return self.getForeground(QtCore.QModelIndex())
+        elif orientation == Qt.Horizontal and role == Qt.TextAlignmentRole:
+            return self.getAlignment(QtCore.QModelIndex())
         else:
             return super(QtCore.QAbstractTableModel, self).headerData(section, orientation, role)
 
@@ -44,6 +52,8 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
             return self.getBackground(index)
         elif role == Qt.ForegroundRole:
             return self.getForeground(index)
+        elif role == Qt.UserRole and index.isValid():
+            return self._user[index.row()][index.column()]
         else:
             return None
 
@@ -51,10 +61,27 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         if index.row() < self.rowCount():
             if role in (Qt.DisplayRole, Qt.EditRole):
                 return self.setDisplay(index, value)
+            elif role == Qt.UserRole and index.isValid():
+                self._user[index.row()][index.column()] = value
             else:
                 return super(AbstractTableModel, self).setData(index, value, role)
 
         return False
+
+    def insertRows(self, row: int, count: int, parent: QtCore.QModelIndex = ...) -> bool:
+        self.beginInsertRows(QtCore.QModelIndex(), row, row + count - 1)
+        for idx in range(count):
+            self._table.insert(row + idx, [''] * self.columnCount())
+            self._user.insert(row + idx, [''] * self.columnCount())
+        self.endInsertRows()
+        return True
+
+    def removeRows(self, row: int, count: int, parent: QtCore.QModelIndex = ...) -> bool:
+        self.beginRemoveRows(QtCore.QModelIndex(), row, row + count - 1)
+        del self._table[row: row + count]
+        del self._user[row: row + count]
+        self.endRemoveRows()
+        return True
 
     def getBackground(self, index: QtCore.QModelIndex) -> QtGui.QColor:
         return QtGui.QColor(Qt.white)
@@ -70,7 +97,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         pass
 
     @abc.abstractmethod
-    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> typing.Any:
+    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> bool:
         pass
 
     @abc.abstractmethod
@@ -209,4 +236,3 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def search_record(self, key: str, value: str, like: bool = False):
         condition = f'{key} like "%{value}%"' if like else f'{key} = {value}'
         self.setQuery(f'SELECT * FROM {self._tbl_name} WHERE {condition};')
-
