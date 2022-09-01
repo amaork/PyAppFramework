@@ -2,7 +2,7 @@
 import typing
 from PySide2.QtGui import QColor
 from PySide2.QtCore import Qt, Signal, Slot, QObject, QTimer
-from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox
+from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox, QProgressBar
 
 from ..core.timer import Task, Tasklet
 from ..core.threading import ThreadConditionWrap
@@ -11,7 +11,7 @@ from .dialog import ProgressDialog
 from .msgbox import MB_TYPES, showMessageBox, showQuestionBox, showOnSPMsgBox
 
 __all__ = ['UiMailBox', 'StatusBarMail', 'MessageBoxMail', 'QuestionBoxMail',
-           'WindowsTitleMail', 'CallbackFuncMail', 'ProgressBarMail']
+           'WindowsTitleMail', 'CallbackFuncMail', 'ProgressBarMail', 'StatusBarLabelMail', 'StatusBarProgressBarMail']
 
 
 class BaseUiMail(object):
@@ -176,6 +176,10 @@ class ProgressBarMail(BaseUiMail):
     def progress(self) -> int:
         return self._progress
 
+    @progress.setter
+    def progress(self, progress: int):
+        self._progress = progress
+
     @property
     def closeable(self) -> bool:
         return self._closeable
@@ -187,6 +191,63 @@ class ProgressBarMail(BaseUiMail):
     @property
     def interval(self) -> float:
         return self._interval
+
+    def autoIncreaseEnabled(self) -> bool:
+        return self._increase > 0 and self.interval > 0.0
+
+
+class StatusBarWidgetMail(BaseUiMail):
+    def __init__(self, widget_type, widget_name: str):
+        super(StatusBarWidgetMail, self).__init__('')
+        self._widget_type = widget_type
+        self._widget_name = widget_name
+
+    @property
+    def widget_type(self):
+        return self._widget_type
+
+    @property
+    def widget_name(self) -> str:
+        return self._widget_name
+
+
+class StatusBarLabelMail(StatusBarWidgetMail):
+    def __init__(self, name: str, text: str, cls = QLabel):
+        super(StatusBarLabelMail, self).__init__(cls, name)
+        self._text = text
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+
+class StatusBarProgressBarMail(StatusBarWidgetMail):
+    def __init__(self, name: str, progress: int, increase: int = 0, interval: float = 0.0, auto_hidden: bool = True):
+        super(StatusBarProgressBarMail, self).__init__(QProgressBar, name)
+        self._increase = increase
+        self._interval = interval
+        self._progress = progress
+        self._auto_hidden = auto_hidden
+
+    @property
+    def progress(self) -> int:
+        return self._progress
+
+    @progress.setter
+    def progress(self, progress: int):
+        self._progress = progress
+
+    @property
+    def increase(self) -> int:
+        return self._increase
+
+    @property
+    def interval(self) -> float:
+        return self._interval
+
+    @property
+    def autoHidden(self) -> bool:
+        return self._auto_hidden
 
     def autoIncreaseEnabled(self) -> bool:
         return self._increase > 0 and self.interval > 0.0
@@ -209,6 +270,7 @@ class UiMailBox(QObject):
         self.__progress = ProgressDialog(parent=parent)
 
         self.__pai_tid = ''
+        self.__sb_pai_tid = ''
         self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
 
         self.hasNewMail.connect(self.mailProcess)
@@ -218,6 +280,13 @@ class UiMailBox(QObject):
 
     def taskProgressAutoIncrease(self, mail: ProgressBarMail):
         self.send(ProgressBarMail(self.__progress.value() + mail.increase, mail.content, mail.closeable))
+
+    def findStatusWidget(self, type_, name: str):
+        statusbar = self.__parent.findChild(QStatusBar)
+        if not isinstance(statusbar, QStatusBar):
+            return None
+
+        return statusbar.findChild(type_, name)
 
     def send(self, mail: BaseUiMail) -> bool:
         """ Send a mail
@@ -282,24 +351,39 @@ class UiMailBox(QObject):
             mail.syncClickResult(showQuestionBox(self.__parent, content=mail.content, title=mail.title))
 
         elif isinstance(mail, ProgressBarMail):
-            if mail.progress:
-                self.__progress.setLabelText(mail.content)
-                self.__progress.setProgress(mail.progress)
-                self.__progress.setCloseable(mail.closeable)
+            self.__progress.setProgress(mail.progress)
+            self.__progress.setLabelText(mail.content)
+            self.__progress.setCloseable(mail.closeable)
 
-                if mail.autoIncreaseEnabled():
-                    self.__pai_tid, _ = self.__tasklet.add_task(
-                        Task(func=self.taskProgressAutoIncrease, timeout=mail.interval, periodic=True, args=(mail,))
-                    )
-            else:
-                self.__tasklet.del_task(self.__pai_tid)
+            if mail.progress >= self.__progress.maximum():
                 self.__progress.slotHidden()
-                self.__progress.setCloseable(True)
-
+                self.__tasklet.del_task(self.__pai_tid)
+            elif mail.autoIncreaseEnabled():
+                mail.progress += mail.increase
+                self.__tasklet.del_task(self.__pai_tid)
+                self.__pai_tid, _ = self.__tasklet.add_task(Task(
+                    func=self.send, timeout=mail.interval, args=(mail,), id_ignore_args=False
+                ))
+        elif isinstance(mail, StatusBarProgressBarMail):
+            pb = self.findStatusWidget(mail.widget_type, mail.widget_name)
+            if isinstance(pb, QProgressBar):
+                pb.setValue(mail.progress)
+                if mail.progress >= pb.maximum():
+                    pb.setHidden(True)
+                    self.__tasklet.del_task(self.__sb_pai_tid)
+                elif mail.autoIncreaseEnabled():
+                    mail.progress += mail.increase
+                    self.__tasklet.del_task(self.__sb_pai_tid)
+                    self.__sb_pai_tid, _ = self.__tasklet.add_task(Task(
+                        func=self.send, timeout=mail.interval, args=(mail,), id_ignore_args=False
+                    ))
         # Appended a message on window title
         elif isinstance(mail, WindowsTitleMail):
             self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
-
+        elif isinstance(mail, StatusBarLabelMail):
+            label = self.findStatusWidget(mail.widget_type, mail.widget_name)
+            if hasattr(label, 'setText'):
+                label.setText(mail.text)
         # Callback function
         elif isinstance(mail, CallbackFuncMail):
             if mail.timeout:

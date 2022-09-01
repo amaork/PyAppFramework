@@ -852,6 +852,13 @@ class ImageWidget(PaintWidget):
 
         self.setMinimumSize(width, height)
 
+    @staticmethod
+    def scaleBigImage(img_size: QSize, rule: QSize = QSize(4096, 4096), factor: int = 2) -> QSize:
+        if img_size.width() <= rule.width() and img_size.height() <= rule.height():
+            return img_size
+        else:
+            return ImageWidget.scaleBigImage(img_size / factor)
+
     @Slot(str)
     def drawFromFs(self, filePath: str) -> bool:
         """Load an image from filesystem, then display it
@@ -863,13 +870,16 @@ class ImageWidget(PaintWidget):
             print("File path:{} is not exist!".format(filePath))
             return False
 
-        image = QImageReader(filePath)
-        if not len(image.format()):
-            print("File is not a image file:{}".format(image.errorString()))
+        reader = QImageReader(filePath)
+        reader.setAutoTransform(True)
+        reader.setDecideFormatFromContent(True)
+        reader.setScaledSize(self.scaleBigImage(reader.size()))
+        if not len(reader.format()):
+            print("File is not a image file:{}".format(reader.errorString()))
             return False
 
         # Load image file to memory
-        self.image = image.read()
+        self.image = reader.read()
         self.update()
         return True
 
