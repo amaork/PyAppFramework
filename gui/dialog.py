@@ -2,6 +2,7 @@
 import os
 import sys
 import hashlib
+import typing
 from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
@@ -21,7 +22,8 @@ from ..core.datatype import DynamicObject
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
-__all__ = ['SimpleColorDialog',
+__all__ = ['BasicDialog',
+           'SimpleColorDialog',
            'SerialPortSettingDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
@@ -31,6 +33,46 @@ __all__ = ['SimpleColorDialog',
 __showFileImportDialogRecentPathDict = dict()
 DialogApplyFunction = Callable[[dict], None]
 PasswordHashFunction = Callable[[Union[bytes, bytearray, memoryview]], str]
+
+
+class BasicDialog(QDialog):
+    def __init__(self, parent: Optional[QWidget], **kwargs):
+        super(BasicDialog, self).__init__(parent)
+
+        dialog_buttons = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.ui_buttons = QDialogButtonBox(dialog_buttons)
+        self.ui_buttons.accepted.connect(self.accept)
+        self.ui_buttons.rejected.connect(self.reject)
+
+        self._initUi()
+        self._initData()
+        self._initStyle()
+        self._initThreadAndTimer()
+        self._initSignalAndSlots()
+
+    def _initUi(self):
+        pass
+
+    def _initData(self):
+        pass
+
+    def _initStyle(self):
+        pass
+
+    def _initThreadAndTimer(self):
+        pass
+
+    def _initSignalAndSlots(self):
+        pass
+
+    def getData(self) -> typing.Union[DynamicObject, dict, None]:
+        pass
+
+    @classmethod
+    def getSettings(cls, parent: Optional[QWidget], **kwargs):
+        dialog = cls(parent=parent, **kwargs)
+        dialog.exec_()
+        return dialog.getData()
 
 
 class SimpleColorDialog(QDialog):
