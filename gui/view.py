@@ -7,7 +7,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 from .msgbox import *
 from .checkbox import CheckBox
-from .misc import CustomSpinBox
+from .misc import PageNumberBox
 from .container import ComponentManager
 from .widget import JsonSettingWidget, BasicWidget
 
@@ -606,7 +606,7 @@ class SQliteQueryView(BasicWidget):
 
     def _initUi(self):
         self.ui_view = TableView(True, self)
-        self.ui_page_num = CustomSpinBox(maximum=sys.maxsize)
+        self.ui_page_num = PageNumberBox()
         self.ui_search_key = QtWidgets.QComboBox(self)
         self.ui_search_value = QtWidgets.QLineEdit(self)
         self.ui_end = QtWidgets.QPushButton(self.tr('End'))
@@ -740,7 +740,6 @@ class SQliteQueryView(BasicWidget):
 
     def slotUpdatePageNum(self):
         self.ui_page_num.setRange(1, self._model.total_page)
-        self.ui_page_num.setSuffix(f'/{self._model.total_page}')
         if self._model.record_count == 1:
             self._model.set_column_header(self._column_header)
             self.ui_view.setColumnStretchFactor(self._stretch_factor)

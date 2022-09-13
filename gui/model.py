@@ -109,13 +109,15 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
 
     def __init__(self, db_name: str, tbl_name: str, columns: str = '*', pk_name: str = 'id',
-                 is_autoincrement: bool = False, rows_per_page: int = 20, parent: QtCore.QObject = None):
+                 is_autoincrement: bool = False, rows_per_page: int = 20, verbose: bool = False,
+                 parent: QtCore.QObject = None):
         self._cur_page = 0
+        self._verbose = verbose
         self._pk_name = pk_name
         self._db_name = db_name
         self._tbl_name = tbl_name
         self._query_columns = columns
-        self._rows_per_page = rows_per_page
+        self._rows_per_page = int(rows_per_page)
         self._is_autoincrement = is_autoincrement
         self._keys = list(SQLiteDatabase(self._db_name).getTableInfo(self._tbl_name).keys())
         super(SqliteQueryModel, self).__init__(parent)
@@ -153,7 +155,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @rows_per_page.setter
     def rows_per_page(self, rows_per_page: int):
-        self._rows_per_page = rows_per_page
+        self._rows_per_page = int(rows_per_page)
         self.flush_page(self.cur_page, force=True)
 
     @property
@@ -172,7 +174,12 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
 
     def show_all(self):
-        self.setQuery(f'SELECT {self._query_columns} FROM {self._tbl_name};')
+        self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name};')
+
+    def set_query(self, query: str):
+        if self._verbose:
+            print(query)
+        self.setQuery(query)
 
     def clear_table(self) -> bool:
         query = QtSql.QSqlQuery()
@@ -189,9 +196,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def flush_page(self, page: int, force: bool = False):
         if page < self.total_page or force:
             self._cur_page = page
-            start = page * self._rows_per_page + self._is_autoincrement
-            condition = f'{self._pk_name} >= {start} AND {self._pk_name} < {start + self._rows_per_page}'
-            self.setQuery(f'SELECT {self._query_columns} FROM {self._tbl_name} WHERE {condition};')
+            start = page * self._rows_per_page
+            limit = f'LIMIT {int(self._rows_per_page)} OFFSET {int(start)};'
+            self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name} {limit}')
 
     def select_record(self, condition: str):
         record_value = list()
@@ -235,5 +242,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return False
 
     def search_record(self, key: str, value: str, like: bool = False):
-        condition = f'{key} like "%{value}%"' if like else f'{key} = {value}'
-        self.setQuery(f'SELECT {self._query_columns} FROM {self._tbl_name} WHERE {condition};')
+        # Sql sentence select
+        if 'select' in value.lower():
+            self.set_query(value)
+        else:
+            condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
+            self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name} WHERE {condition};')

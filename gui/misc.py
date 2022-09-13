@@ -15,7 +15,7 @@ from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
 from ..network.utility import get_system_nic
 from ..misc.settings import Color, CustomAction
 __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector',
-           'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox',
+           'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel',
@@ -742,3 +742,9 @@ class CustomSpinBox(QtWidgets.QSpinBox):
         fm = QtGui.QFontMetrics(self.font())
         width = fm.width(str(self.maximum()))
         return QtCore.QSize(width, height)
+
+
+class PageNumberBox(CustomSpinBox):
+    def setRange(self, minimum: int, maximum: int) -> None:
+        super(PageNumberBox, self).setRange(minimum, maximum)
+        self.setSuffix(f'/{maximum}')
