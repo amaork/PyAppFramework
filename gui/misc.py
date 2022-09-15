@@ -472,6 +472,13 @@ class NavigationBar(QtWidgets.QToolBar):
     def items(self) -> typing.List[NavigationItem]:
         return self.__items
 
+    def getActionByItemText(self, text: str) -> typing.Optional[QtWidgets.QAction]:
+        for idx, item in enumerate(self.__items):
+            if item.text() == text:
+                return self.actions()[idx]
+
+        return None
+
     def addItem(self, item: NavigationItem):
         if not isinstance(item, NavigationItem):
             return
@@ -492,6 +499,12 @@ class NavigationBar(QtWidgets.QToolBar):
 
         if isinstance(sender, NavigationItem):
             sender.setActivate(True)
+
+    def slotHiddenItem(self, name: str, hidden: bool):
+        try:
+            self.getActionByItemText(name).setVisible(not hidden)
+        except AttributeError:
+            pass
 
     def slotOrientationChanged(self, direction: Qt.Orientation):
         if not self.isFold():

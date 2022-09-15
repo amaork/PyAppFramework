@@ -591,14 +591,14 @@ class SQliteQueryView(BasicWidget):
     signalRecordDeleted = QtCore.Signal(object)
 
     def __init__(self, model: SqliteQueryModel,
-                 stretch_factor: typing.Sequence[float], column_header: typing.Iterable[str],
+                 stretch_factor: typing.Sequence[float],
                  custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
-                 readonly: bool = False, row_autoincrement_factor: float = 0.0,
+                 readonly: bool = False, without_search: bool = False, row_autoincrement_factor: float = 0.0,
                  parent: QtWidgets.QWidget = None):
         custom_content_menu = custom_content_menu or list()
         self._model = model
         self._is_readonly = readonly
-        self._column_header = column_header
+        self._without_search = without_search
         self._stretch_factor = stretch_factor
         self._custom_content_menu = list(custom_content_menu)
         self._row_autoincrement_factor = row_autoincrement_factor
@@ -634,6 +634,7 @@ class SQliteQueryView(BasicWidget):
                      QtWidgets.QSplitter(), QtWidgets.QLabel(self.tr('Page Num')), self.ui_page_num,
                      self.ui_prev, self.ui_next, self.ui_home, self.ui_end):
             tools_layout.addWidget(item)
+        self.ui_tools_manager = ComponentManager(tools_layout)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.ui_view)
@@ -645,11 +646,11 @@ class SQliteQueryView(BasicWidget):
         self.ui_view.setModel(self._model)
         self.ui_page_num.setRange(1, self._model.total_page)
 
-        self._model.flush_page(0)
-        self._model.set_column_header(self._column_header)
-
         for key, name in zip(self._model.keys, self._model.column_header):
             self.ui_search_key.addItem(name, key)
+
+        for element in (self.ui_search, self.ui_clear_search, self.ui_search_key, self.ui_search_value):
+            element.setProperty('tag', 'search')
 
     def _initStyle(self):
         self.ui_view.setRowSelectMode()
@@ -658,6 +659,10 @@ class SQliteQueryView(BasicWidget):
         self.ui_view.setColumnStretchFactor(self._stretch_factor)
         self.ui_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui_view.horizontalHeader().setDefaultAlignment(QtCore.Qt.AlignLeft)
+
+        if self._without_search:
+            for element in self.ui_tools_manager.findValue('tag', 'search'):
+                element.setHidden(True)
 
     def _initSignalAndSlots(self):
         self.ui_end.clicked.connect(self.slotEnd)
@@ -709,8 +714,10 @@ class SQliteQueryView(BasicWidget):
         if self.ui_page_num.value() < self._model.total_page:
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
 
-    def slotClear(self):
-        if not showQuestionBox(self, self.tr('Confirm to clear all records ?'), self.tr('Clear Confirm')):
+    def slotClear(self, without_confirm: bool = False):
+        if not without_confirm and not showQuestionBox(
+                self, self.tr('Confirm to clear all records ?'), self.tr('Clear Confirm')
+        ):
             return
 
         if self._model.clear_table():
@@ -741,7 +748,7 @@ class SQliteQueryView(BasicWidget):
     def slotUpdatePageNum(self):
         self.ui_page_num.setRange(1, self._model.total_page)
         if self._model.record_count == 1:
-            self._model.set_column_header(self._column_header)
+            self._model.set_column_header()
             self.ui_view.setColumnStretchFactor(self._stretch_factor)
 
     def slotPageNumChanged(self, page):

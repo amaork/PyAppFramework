@@ -108,7 +108,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
 
-    def __init__(self, db_name: str, tbl_name: str, columns: str = '*', pk_name: str = 'id',
+    def __init__(self, db_name: str, tbl_name: str, columns: typing.Sequence[str], pk_name: str = 'id',
                  is_autoincrement: bool = False, rows_per_page: int = 20, verbose: bool = False,
                  parent: QtCore.QObject = None):
         self._cur_page = 0
@@ -116,15 +116,17 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         self._pk_name = pk_name
         self._db_name = db_name
         self._tbl_name = tbl_name
-        self._query_columns = columns
         self._rows_per_page = int(rows_per_page)
         self._is_autoincrement = is_autoincrement
-        self._keys = list(SQLiteDatabase(self._db_name).getTableInfo(self._tbl_name).keys())
+        self._query_columns = ', '.join(columns) or '*'
+        self._columns = list(columns) or list(SQLiteDatabase(self._db_name).getTableInfo(self._tbl_name).keys())
         super(SqliteQueryModel, self).__init__(parent)
+        self.flush_page(self.cur_page)
+        self.set_column_header()
 
     @property
     def keys(self) -> typing.List[str]:
-        return self._keys[:]
+        return self._columns[:]
 
     @property
     def tbl_name(self) -> str:
@@ -146,8 +148,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {self._tbl_name};') and query.first() else 0
 
     @property
+    @abc.abstractmethod
     def column_header(self) -> typing.List[str]:
-        return [self.headerData(column, QtCore.Qt.Horizontal) for column in range(self.columnCount())]
+        pass
 
     @property
     def rows_per_page(self) -> int:
@@ -169,8 +172,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
         return self.record_count
 
-    def set_column_header(self, header: typing.Iterable):
-        for column, name in enumerate(header):
+    def set_column_header(self):
+        for column, name in enumerate(self.column_header):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
 
     def show_all(self):
@@ -217,14 +220,14 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def delete_record(self, pk: typing.Any) -> bool:
         query = QtSql.QSqlQuery()
         if query.exec_(f'DELETE FROM {self._tbl_name} WHERE {self._pk_name} = {pk};'):
-            self.flush_page(self.cur_page)
+            self.flush_page(self.cur_page, force=True)
             return True
 
         return False
 
     def insert_record(self, record: typing.Tuple) -> bool:
         query = QtSql.QSqlQuery()
-        keys = self._keys[1:] if self._is_autoincrement else self._keys[:]
+        keys = self._columns[1:] if self._is_autoincrement else self._columns[:]
         if query.exec_(f'INSERT INTO {self._tbl_name} {tuple(keys)} VALUES{tuple(record)}'):
             if self.rowCount() < self._rows_per_page:
                 self.flush_page(self.cur_page)
