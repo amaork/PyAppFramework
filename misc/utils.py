@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
+import time
+import datetime
 from xml.dom import minidom
 from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
-__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search']
+__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'get_timestamp_str']
 
 
 def awk_query(cmd: str, keyword: str, position: int) -> str:
@@ -66,3 +68,7 @@ def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, List[str]]:
         prefix: [get_path(x) for x in os.listdir(path) if os.path.splitext(x)[-1] == extensions]
         for prefix, extensions in rules.items()
     }
+
+
+def get_timestamp_str(ts: float = time.time(), fmt: str = '%Y/%m/%d %H:%M:%S') -> str:
+    return datetime.datetime.fromtimestamp(ts).strftime(fmt)

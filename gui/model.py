@@ -109,8 +109,14 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
 
     def __init__(self, db_name: str, tbl_name: str, columns: typing.Sequence[str], pk_name: str = 'id',
-                 is_autoincrement: bool = False, rows_per_page: int = 20, verbose: bool = False,
+                 is_autoincrement: bool = False, rows_per_page: int = 20, placeholder: str = '', verbose: bool = False,
                  parent: QtCore.QObject = None):
+        # Create placeholder
+        need_clear = False
+        if not self.get_row_count(tbl_name):
+            need_clear = True
+            QtSql.QSqlQuery().exec_(placeholder)
+
         self._cur_page = 0
         self._verbose = verbose
         self._pk_name = pk_name
@@ -123,6 +129,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         super(SqliteQueryModel, self).__init__(parent)
         self.flush_page(self.cur_page)
         self.set_column_header()
+
+        if need_clear:
+            self.clear_table()
 
     @property
     def keys(self) -> typing.List[str]:
@@ -144,8 +153,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def record_count(self) -> int:
-        query = QtSql.QSqlQuery()
-        return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {self._tbl_name};') and query.first() else 0
+        return self.get_row_count(self._tbl_name)
 
     @property
     @abc.abstractmethod
@@ -171,6 +179,11 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             return query.value(0)
 
         return self.record_count
+
+    @staticmethod
+    def get_row_count(tbl: str) -> int:
+        query = QtSql.QSqlQuery()
+        return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {tbl};') and query.first() else 0
 
     def set_column_header(self):
         for column, name in enumerate(self.column_header):
