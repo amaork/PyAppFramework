@@ -740,7 +740,7 @@ class CustomSpinBox(QtWidgets.QSpinBox):
         self.setRange(minimum, maximum)
 
         if suffix:
-            self.setSuffix(prefix)
+            self.setSuffix(suffix)
 
         if prefix:
             self.setPrefix(prefix)
