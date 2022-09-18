@@ -8,7 +8,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 from .widget import ImageWidget
 from ..misc.settings import Color
-__all__ = ['CanvasWidget', 'ScalableCanvasWidget']
+__all__ = ['CanvasWidget', 'ScalableCanvasWidget', 'canvas_init_helper']
 
 
 class CanvasWidget(QtWidgets.QWidget):
@@ -383,3 +383,36 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
         if self.__zoom_mode != self.ZoomMode.ManualZoom:
             self.adjustScale()
         super(ScalableCanvasWidget, self).resizeEvent(event)
+
+
+def canvas_init_helper(parent: QtWidgets.QWidget,
+                       canvas: ScalableCanvasWidget, zoom_factor: QtWidgets.QSpinBox,
+                       action_fit_width: QtWidgets.QAction, action_fit_window: QtWidgets.QAction):
+    """Help to connect canvas and zoom factor ant fit width/window actions signal and slots
+
+    :param parent: canvas parent widget
+    :param canvas: ScalableCanvasWidget
+    :param zoom_factor: zoom factor spinbox
+    :param action_fit_width: fit width action
+    :param action_fit_window: fit window action
+    :return: QActionGroup
+    """
+    action_fit_width.setCheckable(True)
+    action_fit_window.setCheckable(True)
+
+    # Fit width/window must be mutual
+    action_fit_window.setChecked(True)
+    group = QtWidgets.QActionGroup(parent)
+    group.addAction(action_fit_width)
+    group.addAction(action_fit_window)
+
+    # Connect signal and slots
+    zoom_factor.valueChanged.connect(canvas.slotPaintCanvas)
+    canvas.signalZoomFactorChanged.connect(zoom_factor.setValue)
+
+    canvas.signalRequestFitWidth.connect(action_fit_width.trigger)
+    canvas.signalRequestFitWindow.connect(action_fit_window.trigger)
+
+    action_fit_width.triggered.connect(lambda: canvas.slotFitWidth(action_fit_width.isChecked()))
+    action_fit_window.triggered.connect(lambda: canvas.slotFitWindow(action_fit_window.isChecked()))
+    return group

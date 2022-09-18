@@ -70,5 +70,5 @@ def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, List[str]]:
     }
 
 
-def get_timestamp_str(ts: float = time.time(), fmt: str = '%Y/%m/%d %H:%M:%S') -> str:
+def get_timestamp_str(ts: float, fmt: str = '%Y/%m/%d %H:%M:%S') -> str:
     return datetime.datetime.fromtimestamp(ts).strftime(fmt)
