@@ -60,7 +60,10 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def setData(self, index: QtCore.QModelIndex, value: typing.Any, role: int = Qt.DisplayRole) -> bool:
         if index.row() < self.rowCount():
             if role in (Qt.DisplayRole, Qt.EditRole):
-                return self.setDisplay(index, value)
+                if self.setDisplay(index, value):
+                    self.dataChanged.emit(index, index, role)
+                    return True
+                return False
             elif role == Qt.UserRole and index.isValid():
                 self._user[index.row()][index.column()] = value
             else:

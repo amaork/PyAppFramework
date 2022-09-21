@@ -66,6 +66,7 @@ class CheckBox(QCheckBox):
     def __init__(self, text: str = "", stylesheet: Optional[dict] = None, parent: Optional[QWidget] = None):
         super(CheckBox, self).__init__(text, parent)
         self.setAutoFillBackground(True)
+        self._frozen = False
         self._styleSheet = CheckBoxStyleSheet.default()
         self._boxColor = self._styleSheet.getBoxColor()
         self._sizeFactor = self._styleSheet.sizeFactor
@@ -83,6 +84,9 @@ class CheckBox(QCheckBox):
 
     def getSizeFactor(self) -> float:
         return self._sizeFactor
+
+    def setFrozen(self, frozen: bool):
+        self._frozen = True if frozen else False
 
     def setStyleSheet(self, stylesheet: Union[dict, DynamicObject]):
         try:
@@ -153,7 +157,8 @@ class CheckBox(QCheckBox):
         self.update()
 
     def mousePressEvent(self, ev: QMouseEvent):
-        if ev.button() != Qt.LeftButton or ev.type() == QEvent.MouseButtonDblClick or not self.isCheckable():
+        if ev.button() != Qt.LeftButton or ev.type() == QEvent.MouseButtonDblClick or \
+                not self.isCheckable() or self._frozen:
             return
 
         self.reverse()

@@ -381,7 +381,7 @@ class TableView(QtWidgets.QTableView):
         if self.__checkModel():
             widget = self.indexWidget(self.model().index(row, column))
             if isinstance(widget, QtWidgets.QWidget):
-                widget.setCheckable(not frozen) if isinstance(widget, QtWidgets.QCheckBox) \
+                widget.setFrozen(frozen) if isinstance(widget, CheckBox) \
                     else widget.setDisabled(frozen)
 
         if isinstance(self.itemDelegate(), QtWidgets.QItemDelegate):
@@ -525,15 +525,26 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
 
     def __init__(self, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableViewDelegate, self).__init__(parent)
+        self._itemDelegateSettings = dict()
         self._columnDelegateSettings = dict()
+
+    def setItemDelegate(self, filter_: typing.Dict[typing.Tuple[int, int], UiInputSetting]):
+        if isinstance(filter_, dict):
+            self._columnDelegateSettings.clear()
+            self._itemDelegateSettings = filter_
 
     def setColumnDelegate(self, filter_: typing.Dict[int, UiInputSetting]):
         if isinstance(filter_, dict):
+            self._itemDelegateSettings.clear()
             self._columnDelegateSettings = filter_
 
     def updateColumnDelegate(self, column: int, filter_: UiInputSetting):
         if column in self._columnDelegateSettings and isinstance(filter_, UiInputSetting):
             self._columnDelegateSettings[column] = filter_
+
+    def updateItemDelegate(self, row: int, column: int, filter_: UiInputSetting):
+        if (row, column) in self._itemDelegateSettings and isinstance(filter_, UiInputSetting):
+            self._itemDelegateSettings[(row, column)] = filter_
 
     def isFrozen(self, index: QtWidgets.QStyleOptionViewItem) -> bool:
         row = index.row()
@@ -545,7 +556,9 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
         if not isinstance(index, QtCore.QModelIndex) or self.isFrozen(index):
             return None
 
-        settings = self._columnDelegateSettings.get(index.column())
+        column_settings = self._columnDelegateSettings.get(index.column())
+        item_settings = self._itemDelegateSettings.get((index.row(), index.column()))
+        settings = item_settings or column_settings
         if not isinstance(settings, UiInputSetting):
             return None
 
