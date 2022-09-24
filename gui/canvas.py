@@ -12,6 +12,8 @@ __all__ = ['CanvasWidget', 'ScalableCanvasWidget', 'canvas_init_helper']
 
 
 class CanvasWidget(QtWidgets.QWidget):
+    signalImageChanged = QtCore.Signal(str)
+
     # Fit to image width
     signalFitWidthRequest = QtCore.Signal()
 
@@ -29,6 +31,8 @@ class CanvasWidget(QtWidgets.QWidget):
 
     def __init__(self,
                  cursor_size: int = 20,
+                 default_text: str = '',
+                 change_cursor: bool = True,
                  big_img_shrink_factor: int = 3,
                  double_click_timeout: int = 200,
                  enable_double_click_event: bool = True,
@@ -37,6 +41,8 @@ class CanvasWidget(QtWidgets.QWidget):
         """CanvasWidget
 
         @param cursor_size: define cursor size
+        @param default_text: show default text when image not load yet
+        @param change_cursor: enter/leave change cursor shape
         @param big_img_shrink_factor: big image shrink factor
         @param double_click_timeout: double click timeout, unit millisecond
         @param enable_double_click_event: enable double click emit signalFitWidthRequest/signalFitWindowRequest
@@ -48,6 +54,8 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__line_width = cursor_size // 2
         self.__scale_factor = 1.0
         self.__image_scale_factor = 1
+        self.__default_text = default_text
+        self.__change_cursor = change_cursor
         self.__paint_selected_pos = paint_selected_pos
         self.__big_img_shrink_factor = big_img_shrink_factor
 
@@ -187,6 +195,7 @@ class CanvasWidget(QtWidgets.QWidget):
             self.signalFitWindowRequest.emit()
 
         self.update()
+        self.signalImageChanged.emit(path)
         return ''
 
     def slotSingleClicked(self):
@@ -220,38 +229,50 @@ class CanvasWidget(QtWidgets.QWidget):
             self.update()
 
     def enterEvent(self, event: QtCore.QEvent) -> None:
-        pos = self.transformPos(QtGui.QCursor.pos())
-        self.setCursor(QtGui.QCursor(Qt.CrossCursor if self.isSelectable(pos) else Qt.ForbiddenCursor))
+        if not self.__change_cursor:
+            super(CanvasWidget, self).enterEvent(event)
+        else:
+            pos = self.transformPos(QtGui.QCursor.pos())
+            self.setCursor(QtGui.QCursor(Qt.CrossCursor if self.isSelectable(pos) else Qt.ForbiddenCursor))
 
     def leaveEvent(self, event: QtCore.QEvent) -> None:
-        self.setCursor(QtGui.QCursor(Qt.ArrowCursor))
+        if not self.__change_cursor:
+            super(CanvasWidget, self).leaveEvent(event)
+        else:
+            self.setCursor(QtGui.QCursor(Qt.ArrowCursor))
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:
-        if not self.__pixmap:
-            return super(CanvasWidget, self).paintEvent(event)
-
         p = self.__painter
         p.begin(self)
 
-        # Pixmap
-        p.setRenderHint(QtGui.QPainter.Antialiasing)
-        p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
-        p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        p.scale(self.__scale_factor, self.__scale_factor)
-        p.translate(self.offsetToCenter())
-        p.drawPixmap(0, 0, self.__pixmap)
+        if not self.__pixmap and self.__default_text:
+            font = self.font()
+            textMaxLength = max([len(t) for t in self.__default_text.split('\n')])
+            fontMaxWidth = round(self.width() / textMaxLength) / 1.5
+            font.setPointSize(fontMaxWidth)
+            p.setFont(font)
+            p.setPen(QtGui.QPen(QtGui.QColor(Qt.black)))
+            p.drawText(self.rect(), Qt.AlignCenter, self.__default_text)
+        else:
+            # Pixmap
+            p.setRenderHint(QtGui.QPainter.Antialiasing)
+            p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+            p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+            p.scale(self.__scale_factor, self.__scale_factor)
+            p.translate(self.offsetToCenter())
+            p.drawPixmap(0, 0, self.__pixmap)
 
-        # Pos
-        if self.__paint_selected_pos:
-            for pos in [self.remap2CanvasPos(p) for p in self.__selected_pos]:
-                p.setPen(QtGui.QPen(self.getCursorColor(pos)))
-                p.drawLine(pos.x() - self.__line_width, pos.y(), pos.x() + self.__line_width, pos.y())
-                p.drawLine(pos.x(), pos.y() - self.__line_width, pos.x(), pos.y() + self.__line_width)
+            # Pos
+            if self.__paint_selected_pos:
+                for pos in [self.remap2CanvasPos(p) for p in self.__selected_pos]:
+                    p.setPen(QtGui.QPen(self.getCursorColor(pos)))
+                    p.drawLine(pos.x() - self.__line_width, pos.y(), pos.x() + self.__line_width, pos.y())
+                    p.drawLine(pos.x(), pos.y() - self.__line_width, pos.x(), pos.y() + self.__line_width)
 
-                if pos == self.__highlight_pos:
-                    p.setBrush(QtGui.QBrush(self.__select_color))
-                    n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
-                    p.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
+                    if pos == self.__highlight_pos:
+                        p.setBrush(QtGui.QBrush(self.__select_color))
+                        n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
+                        p.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
 
         p.end()
 
@@ -270,8 +291,9 @@ class CanvasWidget(QtWidgets.QWidget):
         event.accept()
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
-        pos = self.transformPos(event.localPos())
-        self.setCursor(QtGui.QCursor(Qt.CrossCursor if self.isSelectable(pos) else Qt.ForbiddenCursor))
+        if self.__change_cursor:
+            pos = self.transformPos(event.localPos())
+            self.setCursor(QtGui.QCursor(Qt.CrossCursor if self.isSelectable(pos) else Qt.ForbiddenCursor))
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         self.__latest_clicked_pos = self.transformPos(event.localPos()).toPoint()
@@ -285,6 +307,7 @@ class CanvasWidget(QtWidgets.QWidget):
 
 
 class ScalableCanvasWidget(QtWidgets.QScrollArea):
+    signalImageChanged = QtCore.Signal(str)
     signalRequestFitWidth = QtCore.Signal()
     signalRequestFitWindow = QtCore.Signal()
     signalZoomFactorChanged = QtCore.Signal(int)
@@ -313,6 +336,7 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
         self.__scroll_bars = {Qt.Vertical: self.verticalScrollBar(), Qt.Horizontal: self.horizontalScrollBar()}
 
         # Pass by signals
+        self.canvas.signalImageChanged.connect(self.signalImageChanged)
         self.canvas.signalSelectRequest.connect(self.signalPositionSelected)
         self.canvas.signalFitWidthRequest.connect(self.signalRequestFitWidth)
         self.canvas.signalFitWindowRequest.connect(self.signalRequestFitWindow)
