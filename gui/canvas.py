@@ -28,16 +28,32 @@ class CanvasWidget(QtWidgets.QWidget):
     signalSelectRequest = QtCore.Signal(QtCore.QPoint, object)
 
     def __init__(self,
-                 line_width: int = 10, big_img_scale_factor: int = 3,
-                 paint_selected_pos: bool = False, select_pos_color: Color = (0, 255, 0),
+                 cursor_size: int = 20,
+                 big_img_shrink_factor: int = 3,
+                 double_click_timeout: int = 200,
+                 enable_double_click_event: bool = True,
+                 paint_selected_pos: bool = False, select_color: Color = (0, 255, 0),
                  parent: QtWidgets.QWidget = None):
+        """CanvasWidget
+
+        @param cursor_size: define cursor size
+        @param big_img_shrink_factor: big image shrink factor
+        @param double_click_timeout: double click timeout, unit millisecond
+        @param enable_double_click_event: enable double click emit signalFitWidthRequest/signalFitWindowRequest
+        @param paint_selected_pos: enable paint cursor clicked position (draw a cursor line)
+        @param select_color: selected position color
+        @param parent:
+        """
         super(CanvasWidget, self).__init__(parent)
-        self.__line_width = line_width
+        self.__line_width = cursor_size // 2
         self.__scale_factor = 1.0
         self.__image_scale_factor = 1
         self.__paint_selected_pos = paint_selected_pos
-        self.__big_img_scale_factor = big_img_scale_factor
-        self.__selected_pos_color = QtGui.QColor(*select_pos_color)
+        self.__big_img_shrink_factor = big_img_shrink_factor
+
+        self.__cursor_color = QtGui.QColor()
+        self.__select_color = QtGui.QColor(*select_color)
+        self.__enable_double_clicked_event = enable_double_click_event
 
         self.__current_image_name = ''
         self.__image = Image.Image()
@@ -49,7 +65,7 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__latest_clicked_pos = QtCore.QPoint()
 
         self.__timer = QtCore.QTimer()
-        self.__timer.setInterval(200)
+        self.__timer.setInterval(double_click_timeout)
         self.__timer.timeout.connect(self.slotSingleClicked)
 
         self.setMouseTracking(True)
@@ -74,6 +90,40 @@ class CanvasWidget(QtWidgets.QWidget):
     @property
     def current_image_name(self) -> str:
         return self.__current_image_name
+
+    @property
+    def sel_color(self) -> QtGui.QColor:
+        return self.__select_color
+
+    @sel_color.setter
+    def sel_color(self, color: QtGui.QColor):
+        if isinstance(color, QtGui.QColor):
+            self.__select_color = color
+
+    @property
+    def cursor_color(self) -> QtGui.QColor:
+        return self.__cursor_color
+
+    @cursor_color.setter
+    def cursor_color(self, color: QtGui.QColor):
+        if isinstance(color, QtGui.QColor):
+            self.__cursor_color = color
+
+    @property
+    def cursor_size(self) -> int:
+        return self.__line_width * 2
+
+    @cursor_size.setter
+    def cursor_size(self, size: int):
+        if isinstance(size, int):
+            self.__line_width = size // 2
+
+    def getCursorColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
+        if self.__cursor_color.isValid():
+            return self.__cursor_color
+        else:
+            r, g, b = self.getPositionColor(self.remap2RealPos(pos))
+            return QtGui.QColor(255 - r, 255 - g, 255 - b)
 
     def getPositionColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
         return self.__image.getpixel((pos.x(), pos.y()))[:3]
@@ -118,7 +168,7 @@ class CanvasWidget(QtWidgets.QWidget):
         reader = QtGui.QImageReader(path)
         reader.setAutoTransform(True)
         reader.setDecideFormatFromContent(True)
-        reader.setScaledSize(ImageWidget.scaleBigImage(reader.size(), factor=self.__big_img_scale_factor))
+        reader.setScaledSize(ImageWidget.scaleBigImage(reader.size(), factor=self.__big_img_shrink_factor))
 
         image = reader.read()
         if image.isNull():
@@ -131,7 +181,7 @@ class CanvasWidget(QtWidgets.QWidget):
 
         self.__current_image_name = path
         self.__pixmap = QtGui.QPixmap.fromImage(image)
-        self.__image_scale_factor = 1 if self.__pixmap.width() == self.__image.size[0] else self.__big_img_scale_factor
+        self.__image_scale_factor = 1 if self.__pixmap.width() == self.__image.size[0] else self.__big_img_shrink_factor
 
         if fit_window:
             self.signalFitWindowRequest.emit()
@@ -194,15 +244,12 @@ class CanvasWidget(QtWidgets.QWidget):
         # Pos
         if self.__paint_selected_pos:
             for pos in [self.remap2CanvasPos(p) for p in self.__selected_pos]:
-                r, g, b = self.getPositionColor(self.remap2RealPos(pos))
-                fg_color = QtGui.QColor(255 - r, 255 - g, 255 - b)
-
-                p.setPen(QtGui.QPen(fg_color))
+                p.setPen(QtGui.QPen(self.getCursorColor(pos)))
                 p.drawLine(pos.x() - self.__line_width, pos.y(), pos.x() + self.__line_width, pos.y())
                 p.drawLine(pos.x(), pos.y() - self.__line_width, pos.x(), pos.y() + self.__line_width)
 
                 if pos == self.__highlight_pos:
-                    p.setBrush(QtGui.QBrush(self.__selected_pos_color))
+                    p.setBrush(QtGui.QBrush(self.__select_color))
                     n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
                     p.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
 
@@ -232,6 +279,8 @@ class CanvasWidget(QtWidgets.QWidget):
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         self.__timer.stop()
+        if not self.__enable_double_clicked_event:
+            return
         self.signalFitWidthRequest.emit() if event.button() == Qt.LeftButton else self.signalFitWindowRequest.emit()
 
 
