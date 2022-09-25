@@ -8,10 +8,14 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 from .widget import ImageWidget
 from ..misc.settings import Color
-__all__ = ['CanvasWidget', 'ScalableCanvasWidget', 'canvas_init_helper']
+__all__ = ['CanvasWidget', 'ScalableCanvasWidget', 'canvas_init_helper', 'PaintMode', 'PaintShape']
+
+PaintMode = collections.namedtuple('PaintMode', 'NONE Dot Line Rect Mixture')(*('none', 'dot', 'line', 'rect', 'mix'))
+PaintShape = typing.Union[QtCore.QPoint, QtCore.QLine, QtCore.QRect]
 
 
 class CanvasWidget(QtWidgets.QWidget):
+
     signalImageChanged = QtCore.Signal(str)
 
     # Fit to image width
@@ -27,7 +31,7 @@ class CanvasWidget(QtWidgets.QWidget):
     signalZoomRequest = QtCore.Signal(int, QtCore.QPoint)
 
     # Selected position and this position color(r, g, b)
-    signalSelectRequest = QtCore.Signal(QtCore.QPoint, object)
+    signalSelectRequest = QtCore.Signal(object, object)
 
     def __init__(self,
                  cursor_size: int = 20,
@@ -36,7 +40,7 @@ class CanvasWidget(QtWidgets.QWidget):
                  big_img_shrink_factor: int = 3,
                  double_click_timeout: int = 200,
                  enable_double_click_event: bool = True,
-                 paint_selected_pos: bool = False, select_color: Color = (0, 255, 0),
+                 paint_mode: PaintMode = None, select_color: Color = (0, 255, 0),
                  parent: QtWidgets.QWidget = None):
         """CanvasWidget
 
@@ -46,7 +50,7 @@ class CanvasWidget(QtWidgets.QWidget):
         @param big_img_shrink_factor: big image shrink factor
         @param double_click_timeout: double click timeout, unit millisecond
         @param enable_double_click_event: enable double click emit signalFitWidthRequest/signalFitWindowRequest
-        @param paint_selected_pos: enable paint cursor clicked position (draw a cursor line)
+        @param paint_mode: paint mode
         @param select_color: selected position color
         @param parent:
         """
@@ -54,9 +58,9 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__line_width = cursor_size // 2
         self.__scale_factor = 1.0
         self.__image_scale_factor = 1
+        self.__paint_mode = paint_mode
         self.__default_text = default_text
         self.__change_cursor = change_cursor
-        self.__paint_selected_pos = paint_selected_pos
         self.__big_img_shrink_factor = big_img_shrink_factor
 
         self.__cursor_color = QtGui.QColor()
@@ -69,7 +73,10 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__painter = QtGui.QPainter()
 
         self.__selected_pos = list()
-        self.__highlight_pos = QtCore.QPoint()
+        self.__drawing_lines = list()
+        self.__drawing_rectangles = list()
+        self.__cursor_pos = QtCore.QPoint()
+        self.__highlight_shape = QtCore.QPoint()
         self.__latest_clicked_pos = QtCore.QPoint()
 
         self.__timer = QtCore.QTimer()
@@ -126,6 +133,15 @@ class CanvasWidget(QtWidgets.QWidget):
         if isinstance(size, int):
             self.__line_width = size // 2
 
+    @property
+    def paint_mode(self) -> PaintMode:
+        return self.__paint_mode
+
+    @paint_mode.setter
+    def paint_mode(self, mode: PaintMode):
+        if mode in PaintMode:
+            self.__paint_mode = mode
+
     def getCursorColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
         if self.__cursor_color.isValid():
             return self.__cursor_color
@@ -136,8 +152,53 @@ class CanvasWidget(QtWidgets.QWidget):
     def getPositionColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
         return self.__image.getpixel((pos.x(), pos.y()))[:3]
 
+    def isPaintDotMode(self) -> bool:
+        return self.__paint_mode == PaintMode.Dot
+
+    def isPaintLineMode(self) -> bool:
+        return self.__paint_mode == PaintMode.Line
+
+    def isPaintRectangleMode(self) -> bool:
+        return self.__paint_mode == PaintMode.Rect
+
+    def isPaintFinished(self) -> bool:
+        return self.__selected_pos and len(self.__selected_pos) % 2 == 0
+
+    def isPaintNotFinished(self) -> bool:
+        return not self.isPaintFinished() and self.__selected_pos
+
     def isSelectable(self, pos: QtCore.QPoint) -> bool:
         return 0 <= pos.x() < self.__pixmap.width() and 0 <= pos.y() < self.__pixmap.height()
+
+    def __cancelDrawShape(self):
+        if (self.isPaintLineMode() or self.isPaintRectangleMode()) and self.isPaintNotFinished():
+            self.__selected_pos.remove(self.__selected_pos[-1])
+            self.update()
+            return True
+
+        return False
+
+    def __drawSelectedRect(self, painter: QtGui.QPainter, rect: QtCore.QRect):
+        self.__drawSelectedPoint(painter, rect.topLeft())
+        self.__drawSelectedPoint(painter, rect.topRight())
+        self.__drawSelectedPoint(painter, rect.bottomLeft())
+        self.__drawSelectedPoint(painter, rect.bottomRight())
+
+    def __drawSelectedLine(self, painter: QtGui.QPainter, line: QtCore.QLine):
+        self.__drawSelectedPoint(painter, line.p1())
+        self.__drawSelectedPoint(painter, line.p2())
+
+    def __drawSelectedPoint(self, painter: QtGui.QPainter, pos: QtCore.QPoint):
+        painter.setBrush(QtGui.QBrush(self.__select_color))
+        n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
+        painter.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
+
+    def __getShapeListByName(self, name: str) -> typing.List[PaintShape]:
+        return {
+            QtCore.QRect.__name__: self.__drawing_rectangles,
+            QtCore.QLine.__name__: self.__drawing_lines,
+            QtCore.QPoint.__name__: self.__selected_pos
+        }.get(name)
 
     def setScale(self, factor: float):
         self.__scale_factor = factor
@@ -169,9 +230,12 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__pixmap = QtGui.QPixmap()
         self.slotClearAllSelect()
 
-    def slotLoadImage(self, path: str, fit_window: bool = True, sel_pos: typing.List[QtCore.QPoint] = None) -> str:
-        self.__selected_pos = sel_pos or list()
-        self.__highlight_pos = QtCore.QPoint()
+    def slotLoadImage(self, path: str, fit_window: bool = True, sel_shape: typing.List[PaintShape] = None) -> str:
+        sel_shape = sel_shape if isinstance(sel_shape, collections.Sequence) else list()
+        self.__highlight_shape = QtCore.QPoint()
+        self.__selected_pos = [x for x in sel_shape if isinstance(x, QtCore.QPoint)]
+        self.__drawing_lines = [x for x in sel_shape if isinstance(x, QtCore.QLine)]
+        self.__drawing_rectangles = [x for x in sel_shape if isinstance(x, QtCore.QRect)]
 
         reader = QtGui.QImageReader(path)
         reader.setAutoTransform(True)
@@ -204,28 +268,47 @@ class CanvasWidget(QtWidgets.QWidget):
         if self.isSelectable(pos):
             real_pos = self.remap2RealPos(pos)
             self.__selected_pos.append(real_pos)
-            self.signalSelectRequest.emit(real_pos, self.getPositionColor(real_pos))
+            if self.isPaintFinished():
+                if self.isPaintLineMode():
+                    self.__drawing_lines.append(QtCore.QLine(*self.__selected_pos[-2:]))
+                    self.signalSelectRequest.emit(self.__drawing_lines[-1], self.getPositionColor(real_pos))
+                elif self.isPaintRectangleMode():
+                    self.__drawing_rectangles.append(QtCore.QRect(*self.__selected_pos[-2:]))
+                    self.signalSelectRequest.emit(self.__drawing_rectangles[-1], self.getPositionColor(real_pos))
+
+            if self.isPaintDotMode():
+                self.signalSelectRequest.emit(real_pos, self.getPositionColor(real_pos))
             self.update()
 
     def slotClearAllSelect(self):
-        self.__highlight_pos = QtCore.QPoint()
+        self.__highlight_shape = QtCore.QPoint()
+        self.__drawing_rectangles.clear()
+        self.__drawing_lines.clear()
         self.__selected_pos.clear()
         self.update()
 
-    def slotDeleteSelect(self, pos: QtCore.QPoint):
+    def slotDeleteSelect(self, shape: PaintShape):
+        shape_list = self.__getShapeListByName(shape.__class__.__name__)
+        if shape_list is None:
+            return
+
         try:
-            idx = self.__selected_pos.index(pos)
+            idx = shape_list.index(shape)
         except ValueError:
             return
         else:
-            del self.__selected_pos[idx]
-            if self.__highlight_pos == pos:
-                self.__highlight_pos = QtCore.QPoint()
+            del shape_list[idx]
+            if self.__highlight_shape == shape:
+                self.__highlight_shape = QtCore.QPoint()
             self.update()
 
-    def slotHighlightSelect(self, pos: QtCore.QPoint):
-        if pos in self.__selected_pos:
-            self.__highlight_pos = self.remap2CanvasPos(pos)
+    def slotHighlightSelect(self, shape: PaintShape):
+        shape_list = self.__getShapeListByName(shape.__class__.__name__)
+        if not shape_list:
+            return
+
+        if shape in shape_list:
+            self.__highlight_shape = self.remap2CanvasPos(shape) if isinstance(shape, QtCore.QPoint) else shape
             self.update()
 
     def enterEvent(self, event: QtCore.QEvent) -> None:
@@ -262,17 +345,35 @@ class CanvasWidget(QtWidgets.QWidget):
             p.translate(self.offsetToCenter())
             p.drawPixmap(0, 0, self.__pixmap)
 
-            # Pos
-            if self.__paint_selected_pos:
+            if self.isPaintDotMode():
                 for pos in [self.remap2CanvasPos(p) for p in self.__selected_pos]:
                     p.setPen(QtGui.QPen(self.getCursorColor(pos)))
                     p.drawLine(pos.x() - self.__line_width, pos.y(), pos.x() + self.__line_width, pos.y())
                     p.drawLine(pos.x(), pos.y() - self.__line_width, pos.x(), pos.y() + self.__line_width)
 
-                    if pos == self.__highlight_pos:
-                        p.setBrush(QtGui.QBrush(self.__select_color))
-                        n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
-                        p.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
+                    if pos == self.__highlight_shape:
+                        self.__drawSelectedPoint(p, pos)
+
+            # Drawing unfinished line
+            if self.isPaintLineMode() and self.isPaintNotFinished():
+                p.drawLine(self.__selected_pos[-1], self.__cursor_pos)
+
+            # Drawing unfinished rect
+            if self.isPaintRectangleMode() and self.isPaintNotFinished():
+                start = self.__selected_pos[-1]
+                end = self.__cursor_pos
+                p.drawRect(start.x(), start.y(), end.x() - start.x(), end.y() - start.y())
+
+            for line in self.__drawing_lines:
+                if line == self.__highlight_shape:
+                    self.__drawSelectedLine(p, line)
+                p.drawLine(line)
+
+            for rect in self.__drawing_rectangles:
+                if rect == self.__highlight_shape:
+                    self.__drawSelectedRect(p, rect)
+                p.setBrush(QtGui.QBrush(Qt.NoBrush))
+                p.drawRect(rect)
 
         p.end()
 
@@ -280,8 +381,7 @@ class CanvasWidget(QtWidgets.QWidget):
         mods = event.modifiers()
         delta = event.angleDelta()
         if QtCore.Qt.ControlModifier == mods:
-            # with Ctrl/Command key
-            # zoom
+            # zoom with Ctrl key
             self.signalZoomRequest.emit(delta.y(), event.pos())
         else:
             # scroll
@@ -290,20 +390,34 @@ class CanvasWidget(QtWidgets.QWidget):
 
         event.accept()
 
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        if event.key() == Qt.Key_Escape:
+            self.__cancelDrawShape()
+
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        self.__cursor_pos = self.transformPos(event.localPos())
         if self.__change_cursor:
-            pos = self.transformPos(event.localPos())
-            self.setCursor(QtGui.QCursor(Qt.CrossCursor if self.isSelectable(pos) else Qt.ForbiddenCursor))
+            selectable = self.isSelectable(self.__cursor_pos)
+            self.setCursor(QtGui.QCursor(Qt.CrossCursor if selectable else Qt.ForbiddenCursor))
+
+        if self.__paint_mode not in (PaintMode.Dot, PaintMode.NONE):
+            self.update()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if self.__paint_mode == PaintMode.NONE:
+            return
         self.__latest_clicked_pos = self.transformPos(event.localPos()).toPoint()
         self.__timer.start()
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         self.__timer.stop()
-        if not self.__enable_double_clicked_event:
-            return
-        self.signalFitWidthRequest.emit() if event.button() == Qt.LeftButton else self.signalFitWindowRequest.emit()
+        if event.button() == Qt.RightButton:
+            # Right button double click cancel paint line/rectangle
+            if self.__cancelDrawShape():
+                return
+
+        if self.__enable_double_clicked_event:
+            self.signalFitWidthRequest.emit() if event.button() == Qt.LeftButton else self.signalFitWindowRequest.emit()
 
 
 class ScalableCanvasWidget(QtWidgets.QScrollArea):
@@ -311,7 +425,7 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
     signalRequestFitWidth = QtCore.Signal()
     signalRequestFitWindow = QtCore.Signal()
     signalZoomFactorChanged = QtCore.Signal(int)
-    signalPositionSelected = QtCore.Signal(QtCore.QPoint, object)
+    signalPositionSelected = QtCore.Signal(object, object)
 
     ZoomValue = collections.namedtuple('ZoomValue', 'mode value')
     ZoomMode = collections.namedtuple('ZoomMode', 'FitWindow FitWidth ManualZoom')(*range(3))
@@ -359,7 +473,6 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
         factor = self.__scale_functions[self.__zoom_mode]()
         zoom_value = int(100 * factor)
         self.signalZoomFactorChanged.emit(zoom_value)
-        # self.zoom_value_records[self.filename] = self.ZoomValue(self.zoom_mode, zoom_value)
 
     def setScroll(self, orientation: int, value: int):
         self.__scroll_bars[orientation].setValue(value)
@@ -393,11 +506,11 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
     def slotClearAllSelect(self):
         self.canvas.slotClearAllSelect()
 
-    def slotDeleteSelect(self, pos: QtCore.QPoint):
-        self.canvas.slotDeleteSelect(pos)
+    def slotDeleteSelect(self, shape: PaintShape):
+        self.canvas.slotDeleteSelect(shape)
 
-    def slotHighlightSelect(self, pos: QtCore.QPoint):
-        self.canvas.slotHighlightSelect(pos)
+    def slotHighlightSelect(self, shape: PaintShape):
+        self.canvas.slotHighlightSelect(shape)
 
     def slotFitWidth(self, enabled):
         self.__zoom_mode = self.ZoomMode.FitWidth if enabled else self.ZoomMode.ManualZoom
@@ -449,8 +562,8 @@ class ScalableCanvasWidget(QtWidgets.QScrollArea):
         bar = self.__scroll_bars[orientation]
         self.setScroll(orientation, bar.value() + bar.singleStep() * units)
 
-    def slotLoadImage(self, image: str, selected_positions: typing.List[QtCore.QPoint] = None):
-        self.canvas.slotLoadImage(image, image not in self.__zoom_value_records, selected_positions)
+    def slotLoadImage(self, image: str, selected_shapes: typing.List[PaintShape] = None):
+        self.canvas.slotLoadImage(image, image not in self.__zoom_value_records, selected_shapes)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         if self.__zoom_mode != self.ZoomMode.ManualZoom:
