@@ -63,7 +63,7 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__change_cursor = change_cursor
         self.__big_img_shrink_factor = big_img_shrink_factor
 
-        self.__cursor_color = QtGui.QColor()
+        self.__paint_color = QtGui.QColor()
         self.__select_color = QtGui.QColor(*select_color)
         self.__enable_double_clicked_event = enable_double_click_event
 
@@ -116,13 +116,13 @@ class CanvasWidget(QtWidgets.QWidget):
             self.__select_color = color
 
     @property
-    def cursor_color(self) -> QtGui.QColor:
-        return self.__cursor_color
+    def paint_color(self) -> QtGui.QColor:
+        return self.__paint_color
 
-    @cursor_color.setter
-    def cursor_color(self, color: QtGui.QColor):
+    @paint_color.setter
+    def paint_color(self, color: QtGui.QColor):
         if isinstance(color, QtGui.QColor):
-            self.__cursor_color = color
+            self.__paint_color = color
 
     @property
     def cursor_size(self) -> int:
@@ -142,9 +142,9 @@ class CanvasWidget(QtWidgets.QWidget):
         if mode in PaintMode:
             self.__paint_mode = mode
 
-    def getCursorColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
-        if self.__cursor_color.isValid():
-            return self.__cursor_color
+    def getPaintColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
+        if self.__paint_color.isValid():
+            return self.__paint_color
         else:
             r, g, b = self.getPositionColor(self.remap2RealPos(pos))
             return QtGui.QColor(255 - r, 255 - g, 255 - b)
@@ -177,6 +177,9 @@ class CanvasWidget(QtWidgets.QWidget):
             return True
 
         return False
+
+    def __painterAutoColor(self, painter: QtGui.QPainter, pos: QtCore.QPoint):
+        painter.setPen(QtGui.QPen(self.getPaintColor(pos)))
 
     def __drawSelectedRect(self, painter: QtGui.QPainter, rect: QtCore.QRect):
         self.__drawSelectedPoint(painter, rect.topLeft())
@@ -347,7 +350,7 @@ class CanvasWidget(QtWidgets.QWidget):
 
             if self.isPaintDotMode():
                 for pos in [self.remap2CanvasPos(p) for p in self.__selected_pos]:
-                    p.setPen(QtGui.QPen(self.getCursorColor(pos)))
+                    self.__painterAutoColor(p, pos)
                     p.drawLine(pos.x() - self.__line_width, pos.y(), pos.x() + self.__line_width, pos.y())
                     p.drawLine(pos.x(), pos.y() - self.__line_width, pos.x(), pos.y() + self.__line_width)
 
@@ -356,22 +359,26 @@ class CanvasWidget(QtWidgets.QWidget):
 
             # Drawing unfinished line
             if self.isPaintLineMode() and self.isPaintNotFinished():
+                self.__painterAutoColor(p, self.__selected_pos[-1])
                 p.drawLine(self.__selected_pos[-1], self.__cursor_pos)
 
             # Drawing unfinished rect
             if self.isPaintRectangleMode() and self.isPaintNotFinished():
                 start = self.__selected_pos[-1]
                 end = self.__cursor_pos
+                self.__painterAutoColor(p, start)
                 p.drawRect(start.x(), start.y(), end.x() - start.x(), end.y() - start.y())
 
             for line in self.__drawing_lines:
                 if line == self.__highlight_shape:
                     self.__drawSelectedLine(p, line)
+                self.__painterAutoColor(p, line.p1())
                 p.drawLine(line)
 
             for rect in self.__drawing_rectangles:
                 if rect == self.__highlight_shape:
                     self.__drawSelectedRect(p, rect)
+                self.__painterAutoColor(p, rect.topLeft())
                 p.setBrush(QtGui.QBrush(Qt.NoBrush))
                 p.drawRect(rect)
 
