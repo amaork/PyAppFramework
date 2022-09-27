@@ -15,7 +15,6 @@ PaintShape = typing.Union[QtCore.QPoint, QtCore.QLine, QtCore.QRect]
 
 
 class CanvasWidget(QtWidgets.QWidget):
-
     signalImageChanged = QtCore.Signal(str)
 
     # Fit to image width
@@ -72,6 +71,7 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__pixmap = QtGui.QPixmap()
         self.__painter = QtGui.QPainter()
 
+        # Store selected dots image position
         self.__selected_pos = list()
         self.__drawing_lines = list()
         self.__drawing_rectangles = list()
@@ -93,6 +93,10 @@ class CanvasWidget(QtWidgets.QWidget):
         if self.__pixmap:
             return self.__scale_factor * self.__pixmap.size()
         return super(CanvasWidget, self).minimumSizeHint()
+
+    @property
+    def image_size(self) -> QtCore.QSize:
+        return QtCore.QSize(*self.__image.size)
 
     @property
     def pixmap_width(self) -> int:
@@ -142,15 +146,17 @@ class CanvasWidget(QtWidgets.QWidget):
         if mode in PaintMode:
             self.__paint_mode = mode
 
-    def getPaintColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
+    def getImageColor(self, image_pos: QtCore.QPoint) -> QtGui.QColor:
+        """Get image specified position color"""
+        return self.__image.getpixel((image_pos.x(), image_pos.y()))[:3]
+
+    def getPaintColor(self, canvas_pos: QtCore.QPoint) -> QtGui.QColor:
+        """Accordingly pos color decide paint line/rect color if paint color is specified just return paint color"""
         if self.__paint_color.isValid():
             return self.__paint_color
         else:
-            r, g, b = self.getPositionColor(self.remap2RealPos(pos))
+            r, g, b = self.getImageColor(self.remap2ImagePos(canvas_pos))
             return QtGui.QColor(255 - r, 255 - g, 255 - b)
-
-    def getPositionColor(self, pos: QtCore.QPoint) -> QtGui.QColor:
-        return self.__image.getpixel((pos.x(), pos.y()))[:3]
 
     def isPaintDotMode(self) -> bool:
         return self.__paint_mode == PaintMode.Dot
@@ -167,10 +173,12 @@ class CanvasWidget(QtWidgets.QWidget):
     def isPaintNotFinished(self) -> bool:
         return not self.isPaintFinished() and self.__selected_pos
 
-    def isSelectable(self, pos: QtCore.QPoint) -> bool:
-        return 0 <= pos.x() < self.__pixmap.width() and 0 <= pos.y() < self.__pixmap.height()
+    def isSelectable(self, canvas_pos: QtCore.QPoint) -> bool:
+        """Check if pos is in canvas"""
+        return self.__pixmap.rect().contains(QtCore.QPoint(canvas_pos.x(), canvas_pos.y()))
 
-    def __cancelDrawShape(self):
+    def __cancelShapeDrawing(self):
+        """Cancel current drawing shape"""
         if (self.isPaintLineMode() or self.isPaintRectangleMode()) and self.isPaintNotFinished():
             self.__selected_pos.remove(self.__selected_pos[-1])
             self.update()
@@ -178,8 +186,9 @@ class CanvasWidget(QtWidgets.QWidget):
 
         return False
 
-    def __painterAutoColor(self, painter: QtGui.QPainter, pos: QtCore.QPoint):
-        painter.setPen(QtGui.QPen(self.getPaintColor(pos)))
+    def __painterAutoColor(self, painter: QtGui.QPainter, canvas_pos: QtCore.QPoint):
+        """Set paint color automatically by current canvas position color"""
+        painter.setPen(QtGui.QPen(self.getPaintColor(canvas_pos)))
 
     def __drawSelectedRect(self, painter: QtGui.QPainter, rect: QtCore.QRect):
         self.__drawSelectedPoint(painter, rect.topLeft())
@@ -196,6 +205,10 @@ class CanvasWidget(QtWidgets.QWidget):
         n = QtCore.QPoint(pos.x() - self.__line_width, pos.y() - self.__line_width)
         painter.drawEllipse(QtCore.QRectF(n, QtCore.QSize(self.__line_width * 2, self.__line_width * 2)))
 
+    def __getLatestPos(self) -> QtCore.QPoint:
+        """Get latest selected position"""
+        return self.remap2CanvasPos(self.__selected_pos[-1]) if self.__selected_pos else QtCore.QPoint()
+
     def __getShapeListByName(self, name: str) -> typing.List[PaintShape]:
         return {
             QtCore.QRect.__name__: self.__drawing_rectangles,
@@ -208,11 +221,21 @@ class CanvasWidget(QtWidgets.QWidget):
         self.adjustSize()
         self.update()
 
-    def remap2RealPos(self, pos: QtCore.QPoint) -> QtCore.QPoint:
-        return pos * self.__image_scale_factor
+    def remap2ImagePos(self, canvas_pos: QtCore.QPoint) -> QtCore.QPoint:
+        """Remap canvas position to real image position"""
+        image = QtCore.QRect(0, 0, *self.__image.size)
+        image_pos = canvas_pos * self.__image_scale_factor
+        return image_pos if image.contains(image_pos) else canvas_pos
 
-    def remap2CanvasPos(self, pos: QtCore.QPoint) -> QtCore.QPoint:
-        return pos / self.__image_scale_factor
+    def remap2CanvasPos(self, image_pos: QtCore.QPoint) -> QtCore.QPoint:
+        """Remap image position to canvas position"""
+        return QtCore.QPoint(image_pos.x() // self.__image_scale_factor, image_pos.y() // self.__image_scale_factor)
+
+    def remap2CanvasLine(self, line: QtCore.QLine) -> QtCore.QLine:
+        return QtCore.QLine(self.remap2CanvasPos(line.p1()), self.remap2CanvasPos(line.p2()))
+
+    def remap2CanvasRect(self, rect: QtCore.QRect) -> QtCore.QRect:
+        return QtCore.QRect(self.remap2CanvasPos(rect.topLeft()), rect.size() / self.__image_scale_factor)
 
     def transformPos(self, point):
         """Convert from widget-logical coordinates to painter-logical ones."""
@@ -234,7 +257,15 @@ class CanvasWidget(QtWidgets.QWidget):
         self.slotClearAllSelect()
 
     def slotLoadImage(self, path: str, fit_window: bool = True, sel_shape: typing.List[PaintShape] = None) -> str:
+        """Load and display image and image selected shape
+
+        @param path: image path
+        @param fit_window: emit signalFitWindowRequest or not
+        @param sel_shape: selected shapes
+        @return: success return empty str, failed return error desc
+        """
         sel_shape = sel_shape if isinstance(sel_shape, collections.Sequence) else list()
+
         self.__highlight_shape = QtCore.QPoint()
         self.__selected_pos = [x for x in sel_shape if isinstance(x, QtCore.QPoint)]
         self.__drawing_lines = [x for x in sel_shape if isinstance(x, QtCore.QLine)]
@@ -266,21 +297,25 @@ class CanvasWidget(QtWidgets.QWidget):
         return ''
 
     def slotSingleClicked(self):
+        """Mouse single clicked will call back this"""
         self.__timer.stop()
-        pos = self.__latest_clicked_pos
-        if self.isSelectable(pos):
-            real_pos = self.remap2RealPos(pos)
-            self.__selected_pos.append(real_pos)
+        canvas_pos = self.__latest_clicked_pos
+
+        if self.isSelectable(canvas_pos):
+            image_pos = self.remap2ImagePos(canvas_pos)
+            image_color = self.getImageColor(image_pos)
+            self.__selected_pos.append(image_pos)
+
             if self.isPaintFinished():
                 if self.isPaintLineMode():
                     self.__drawing_lines.append(QtCore.QLine(*self.__selected_pos[-2:]))
-                    self.signalSelectRequest.emit(self.__drawing_lines[-1], self.getPositionColor(real_pos))
+                    self.signalSelectRequest.emit(self.__drawing_lines[-1], image_color)
                 elif self.isPaintRectangleMode():
                     self.__drawing_rectangles.append(QtCore.QRect(*self.__selected_pos[-2:]))
-                    self.signalSelectRequest.emit(self.__drawing_rectangles[-1], self.getPositionColor(real_pos))
+                    self.signalSelectRequest.emit(self.__drawing_rectangles[-1], image_color)
 
             if self.isPaintDotMode():
-                self.signalSelectRequest.emit(real_pos, self.getPositionColor(real_pos))
+                self.signalSelectRequest.emit(image_pos, image_color)
             self.update()
 
     def slotClearAllSelect(self):
@@ -296,11 +331,10 @@ class CanvasWidget(QtWidgets.QWidget):
             return
 
         try:
-            idx = shape_list.index(shape)
+            shape_list.remove(shape)
         except ValueError:
             return
         else:
-            del shape_list[idx]
             if self.__highlight_shape == shape:
                 self.__highlight_shape = QtCore.QPoint()
             self.update()
@@ -315,6 +349,7 @@ class CanvasWidget(QtWidgets.QWidget):
             self.update()
 
     def enterEvent(self, event: QtCore.QEvent) -> None:
+        """Show cross cursor if mouse is canvas rectangle"""
         if not self.__change_cursor:
             super(CanvasWidget, self).enterEvent(event)
         else:
@@ -359,28 +394,31 @@ class CanvasWidget(QtWidgets.QWidget):
 
             # Drawing unfinished line
             if self.isPaintLineMode() and self.isPaintNotFinished():
-                self.__painterAutoColor(p, self.__selected_pos[-1])
-                p.drawLine(self.__selected_pos[-1], self.__cursor_pos)
+                start = self.__getLatestPos()
+                self.__painterAutoColor(p, start)
+                p.drawLine(start, self.__cursor_pos)
 
             # Drawing unfinished rect
             if self.isPaintRectangleMode() and self.isPaintNotFinished():
-                start = self.__selected_pos[-1]
                 end = self.__cursor_pos
+                start = self.__getLatestPos()
                 self.__painterAutoColor(p, start)
                 p.drawRect(start.x(), start.y(), end.x() - start.x(), end.y() - start.y())
 
             for line in self.__drawing_lines:
+                canvas_line = self.remap2CanvasLine(line)
                 if line == self.__highlight_shape:
-                    self.__drawSelectedLine(p, line)
-                self.__painterAutoColor(p, line.p1())
-                p.drawLine(line)
+                    self.__drawSelectedLine(p, canvas_line)
+                self.__painterAutoColor(p, canvas_line.p1())
+                p.drawLine(canvas_line)
 
             for rect in self.__drawing_rectangles:
+                canvas_rect = self.remap2CanvasRect(rect)
                 if rect == self.__highlight_shape:
-                    self.__drawSelectedRect(p, rect)
-                self.__painterAutoColor(p, rect.topLeft())
+                    self.__drawSelectedRect(p, canvas_rect)
+                self.__painterAutoColor(p, canvas_rect.topLeft())
                 p.setBrush(QtGui.QBrush(Qt.NoBrush))
-                p.drawRect(rect)
+                p.drawRect(canvas_rect)
 
         p.end()
 
@@ -399,20 +437,25 @@ class CanvasWidget(QtWidgets.QWidget):
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() == Qt.Key_Escape:
-            self.__cancelDrawShape()
+            self.__cancelShapeDrawing()
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         self.__cursor_pos = self.transformPos(event.localPos())
+
+        # Update cursor shape
         if self.__change_cursor:
             selectable = self.isSelectable(self.__cursor_pos)
             self.setCursor(QtGui.QCursor(Qt.CrossCursor if selectable else Qt.ForbiddenCursor))
 
+        # It's paint shape mode, dynamically drawing shape
         if self.__paint_mode not in (PaintMode.Dot, PaintMode.NONE):
             self.update()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if self.__paint_mode == PaintMode.NONE:
             return
+
+        # Record latest clicked pos start timer, timer using to distinguish click and double click
         self.__latest_clicked_pos = self.transformPos(event.localPos()).toPoint()
         self.__timer.start()
 
@@ -420,9 +463,10 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__timer.stop()
         if event.button() == Qt.RightButton:
             # Right button double click cancel paint line/rectangle
-            if self.__cancelDrawShape():
+            if self.__cancelShapeDrawing():
                 return
 
+        # If double_clicked_event enable emit fitWidth/fitWindow request
         if self.__enable_double_clicked_event:
             self.signalFitWidthRequest.emit() if event.button() == Qt.LeftButton else self.signalFitWindowRequest.emit()
 
