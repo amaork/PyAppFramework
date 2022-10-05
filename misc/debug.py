@@ -40,9 +40,12 @@ def statistics_time(label: str = 'statistics_time'):
 
 
 class ExceptionHandle:
-    def __init__(self, param: typing.Any, callback: typing.Callable[[typing.Any, str], None], release: bool = True):
+    def __init__(self, param: typing.Any,
+                 callback: typing.Callable[[typing.Any, str], None],
+                 release: bool = True, debug_info: str = ''):
         self.__param = param
         self.__callback = callback
+        self.__debug_info = debug_info
         self.__exception_handled = release
 
     def __enter__(self):
@@ -52,6 +55,8 @@ class ExceptionHandle:
         if exc_type and callable(self.__callback):
             frame = inspect.stack()[1][0]
             info = inspect.getframeinfo(frame)
-            debug_info = f'filename: {info.filename}, function: {info.function}, lineno: {info.lineno}'
-            self.__callback(self.__param, f'{exc_type} {exc_val} {exc_tb}\nStack: {debug_info}')
+            stack_info = f'filename: {info.filename}, function: {info.function}, lineno: {info.lineno}'
+            self.__callback(
+                self.__param, f'{exc_type} {exc_val} {exc_tb}\nStack: {stack_info}, debug_info: {self.__debug_info}'
+            )
         return self.__exception_handled

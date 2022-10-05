@@ -27,6 +27,9 @@ class ThreadConditionWrap(object):
             self.__finished = True
             self.__condition.notify()
 
+    def reset(self):
+        self.__finished = False
+
 
 class ThreadLockAndDataWrap(object):
     def __init__(self, data: Any):
@@ -48,6 +51,9 @@ class ThreadLockAndDataWrap(object):
 
     def assign(self, data: Any):
         self.data = data
+
+    def equal(self, right: Any) -> bool:
+        return self.data == right
 
 
 class ThreadSafeBool(ThreadLockAndDataWrap):

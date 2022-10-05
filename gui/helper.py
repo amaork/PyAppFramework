@@ -7,10 +7,10 @@ __all__ = ['ExceptionHandleMsgBox', 'showMessageBoxFromThread', 'showQuestionBox
 
 
 class ExceptionHandleMsgBox(ExceptionHandle):
-    def __init__(self, mailbox: UiMailBox, release: bool = True):
+    def __init__(self, mailbox: UiMailBox, release: bool = True, debug_info: str = ''):
         super(ExceptionHandleMsgBox, self).__init__(
             mailbox, lambda mbox, msg:
-            mbox.send(MessageBoxMail(MB_TYPE_ERR, msg, f'{self.__class__.__name__}')), release
+            mbox.send(MessageBoxMail(MB_TYPE_ERR, msg, f'{self.__class__.__name__}')), release, debug_info
         )
 
 
