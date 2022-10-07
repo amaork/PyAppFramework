@@ -212,7 +212,7 @@ class ProtoBufSdk(object):
                     # Clear timeout flag, and make sure timeout callback only invoke once
                     if self._timeout:
                         self._timeout = False
-                        self.event_callback(CommunicationEvent.Type.Restore)
+                        self.event_callback(CommunicationEvent.Type.Restore, request)
 
                     break
                 except message.DecodeError as e:
@@ -232,12 +232,12 @@ class ProtoBufSdk(object):
 
                     if retry >= 3:
                         # Set timeout flag
-                        self._infoLogging(f"{self.name}: {e}")
+                        self._infoLogging(f"{self.name}: {e}({request})")
 
                         # Make sure timeout callback only invoke once
                         if not self._timeout:
                             self._timeout = True
-                            self.event_callback(CommunicationEvent.Type.Timeout, e)
+                            self.event_callback(CommunicationEvent.Type.Timeout, request)
 
 
 class ProtoBufHandle(object):
