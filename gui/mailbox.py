@@ -212,7 +212,7 @@ class StatusBarWidgetMail(BaseUiMail):
 
 
 class StatusBarLabelMail(StatusBarWidgetMail):
-    def __init__(self, name: str, text: str, cls = QLabel):
+    def __init__(self, name: str, text: str, cls=QLabel):
         super(StatusBarLabelMail, self).__init__(cls, name)
         self._text = text
 
@@ -351,19 +351,19 @@ class UiMailBox(QObject):
             mail.syncClickResult(showQuestionBox(self.__parent, content=mail.content, title=mail.title))
 
         elif isinstance(mail, ProgressBarMail):
-            self.__progress.setProgress(mail.progress)
-            self.__progress.setLabelText(mail.content)
-            self.__progress.setCloseable(mail.closeable)
+            if mail.progress:
+                self.__progress.setLabelText(mail.content)
+                self.__progress.setProgress(mail.progress)
+                self.__progress.setCloseable(mail.closeable)
 
-            if mail.progress >= self.__progress.maximum():
+                if mail.autoIncreaseEnabled():
+                    self.__pai_tid, _ = self.__tasklet.add_task(
+                        Task(func=self.taskProgressAutoIncrease, timeout=mail.interval, periodic=True, args=(mail,))
+                    )
+            else:
+                self.__tasklet.del_task(self.__pai_tid)
                 self.__progress.slotHidden()
-                self.__tasklet.del_task(self.__pai_tid)
-            elif mail.autoIncreaseEnabled():
-                mail.progress += mail.increase
-                self.__tasklet.del_task(self.__pai_tid)
-                self.__pai_tid, _ = self.__tasklet.add_task(Task(
-                    func=self.send, timeout=mail.interval, args=(mail,), id_ignore_args=False
-                ))
+                self.__progress.setCloseable(True)
         elif isinstance(mail, StatusBarProgressBarMail):
             pb = self.findStatusWidget(mail.widget_type, mail.widget_name)
             if isinstance(pb, QProgressBar):
