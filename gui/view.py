@@ -758,11 +758,14 @@ class SQliteQueryView(BasicWidget):
     def slotClearSearch(self):
         self._model.flush_page(self._model.cur_page)
 
-    def slotUpdatePageNum(self):
+    def slotUpdatePageNum(self, scroll_to_end: bool = False):
         self.ui_page_num.setRange(1, self._model.total_page)
         if self._model.record_count == 1:
             self._model.set_column_header()
             self.ui_view.setColumnStretchFactor(self._stretch_factor)
+
+        if scroll_to_end and self.ui_page_num.value() != self._model.total_page:
+            self.slotNext()
 
     def slotPageNumChanged(self, page):
         self._model.flush_page(page - 1)

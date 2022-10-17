@@ -207,7 +207,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
                 return True
 
             if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self._tbl_name}";'):
-                self.flush_page(self.cur_page, force=True)
+                # Reset current page
+                self.flush_page(0, force=True)
                 return True
 
         return False
