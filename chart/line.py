@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-import typing
 import collections
 import matplotlib.axes
 matplotlib.use('Qt5Agg')
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
 from PySide2 import QtWidgets
-from framework.gui.widget import BasicWidget
-from framework.core.datatype import DynamicObject
-__all__ = ['CustomCanvas', 'TimelineChartView', 'ChartLine', 'ChartAxesAttribute']
+
+from .canvas import CustomCanvas
+from ..gui.widget import BasicWidget
+from ..core.datatype import DynamicObject
+__all__ = ['TimelineChartView', 'ChartLine', 'ChartAxesAttribute']
 ChartLine = collections.namedtuple('ChartLine', 'name tag color max')
 
 
@@ -28,21 +26,14 @@ class ChartAxesAttribute(DynamicObject):
         super(ChartAxesAttribute, self).__init__(**kwargs)
 
 
-class CustomCanvas(FigureCanvas):
-    def __init__(self, width: float = 5.0, height: float = 5.0, dpi: int = 100,
-                 face_color: typing.Tuple[float, float, float] = (0.941, 0.941, 0.941)):
-        self.fig = Figure(figsize=(width, height), dpi=dpi, facecolor=face_color)
-        self.axes = self.fig.add_subplot()
-        super(CustomCanvas, self).__init__(self.fig)
-
-
 class TimelineChartView(BasicWidget):
-    def __init__(self, attr: ChartAxesAttribute, parent: QtWidgets.QWidget = None):
+    def __init__(self, attr: ChartAxesAttribute, canvas_kwargs: dict = None, parent: QtWidgets.QWidget = None):
         self._attribute = attr
+        self._canvas_kwargs = canvas_kwargs or dict()
         super(TimelineChartView, self).__init__(parent)
 
     def _initUi(self):
-        self.canvas = CustomCanvas(self)
+        self.canvas = CustomCanvas(**self._canvas_kwargs)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.canvas)
         self.setLayout(layout)
@@ -62,14 +53,12 @@ class TimelineChartView(BasicWidget):
         self.cnt += 1
         self.xdata.append(self.cnt)
 
-        self.canvas.axes.cla()
+        with self.canvas.updateContextManager():
+            for line in self._attribute.lines:
+                self.ydata[line.tag].append(data.get(line.tag))
+                self.canvas.axes.plot(self.xdata, self.ydata[line.tag], line.color, label=line.name)
 
-        for line in self._attribute.lines:
-            self.ydata[line.tag].append(data.get(line.tag))
-            self.canvas.axes.plot(self.xdata, self.ydata[line.tag], line.color, label=line.name)
-
-        self.updateAxes(self.canvas.axes, self._attribute)
-        self.canvas.draw()
+            self.updateAxes(self.canvas.axes, self._attribute)
 
     @staticmethod
     def updateAxes(axes: matplotlib.axes.Axes, attribute: ChartAxesAttribute):
