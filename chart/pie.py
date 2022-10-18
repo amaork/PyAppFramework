@@ -16,7 +16,9 @@ class BasePieChart(BasicWidget):
                  show_detail: bool = True, precision: int = 2, kwargs: dict = None, canvas_kwargs: dict = None,
                  parent: QtWidgets.QWidget = None):
         self.kwargs = kwargs or {}
-        self.canvas_kwargs = canvas_kwargs or {}
+        self.canvas_kwargs = canvas_kwargs or dict()
+        self.canvas_kwargs.setdefault('figsize', (4, 3))
+        self.canvas_kwargs.setdefault('tight_layout', True)
 
         self.precision = precision
         self.show_detail = show_detail
