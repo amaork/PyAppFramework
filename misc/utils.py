@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
-import time
+import typing
+import shutil
+import tempfile
 import datetime
+import contextlib
 from xml.dom import minidom
 from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
-__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'get_timestamp_str']
+__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'get_timestamp_str', 'auto_deletion_tempdir']
 
 
 def awk_query(cmd: str, keyword: str, position: int) -> str:
@@ -72,3 +75,30 @@ def qt_rcc_search(path: str, rules: Dict[str, str]) -> Dict[str, List[str]]:
 
 def get_timestamp_str(ts: float, fmt: str = '%Y/%m/%d %H:%M:%S') -> str:
     return datetime.datetime.fromtimestamp(ts).strftime(fmt)
+
+
+@contextlib.contextmanager
+def auto_deletion_tempdir(catch_exceptions: typing.Sequence[typing.Type],
+                          exception_callback: typing.Callable[[str], None],
+                          ready_for_delete: typing.Callable[[], bool], **kwargs):
+    """Create a temporary directory after using automatic delete it
+
+    :param catch_exceptions: will handle exceptions
+    :param exception_callback: when exceptions occur will invoke this function
+    :param ready_for_delete: after use invoke this function to check if needed to delete this temporary directory
+    :param kwargs: tempfile.mkdtemp kwargs
+    :return:
+    """
+
+    tempdir = tempfile.mkdtemp(**kwargs)
+    try:
+        yield tempdir
+    except tuple(catch_exceptions) as e:
+        exception_callback(f'{e}')
+    finally:
+        try:
+            if ready_for_delete() and os.path.isdir(tempdir):
+                shutil.rmtree(tempdir)
+                print(f'auto_deletion_tempdir: {tempdir} deleted')
+        except shutil.Error as e:
+            print(f'auto_deletion_tempdir: {tempdir} delete error, {e}')
