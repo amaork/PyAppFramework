@@ -40,13 +40,15 @@ def statistics_time(label: str = 'statistics_time'):
 
 
 class ExceptionHandle:
+    RELEASE = True
+
     def __init__(self, param: typing.Any,
                  callback: typing.Callable[[typing.Any, str], None],
                  release: bool = True, debug_info: str = ''):
         self.__param = param
         self.__callback = callback
         self.__debug_info = debug_info
-        self.__exception_handled = release
+        self.__exception_handled = release and ExceptionHandle.RELEASE
 
     def __enter__(self):
         pass
