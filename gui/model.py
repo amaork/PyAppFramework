@@ -95,13 +95,15 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def getAlignment(self, index: QtCore.QModelIndex) -> Qt.AlignmentFlag:
         return Qt.AlignCenter
 
-    @abc.abstractmethod
     def getDisplay(self, index: QtCore.QModelIndex) -> typing.Any:
-        pass
+        return self._table[index.row()][index.column()] if index.isValid() else False
 
-    @abc.abstractmethod
     def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> bool:
-        pass
+        if index.isValid():
+            self._table[index.row()][index.column()] = value
+            return True
+
+        return False
 
     @abc.abstractmethod
     def isReadonly(self, index: QtCore.QModelIndex) -> bool:
@@ -160,7 +162,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     @abc.abstractmethod
-    def column_header(self) -> typing.List[str]:
+    def column_header(self) -> typing.Tuple[str, ...]:
         pass
 
     @property

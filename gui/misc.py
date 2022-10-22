@@ -4,17 +4,19 @@ import typing
 import platform
 import websocket
 import collections
+import datetime as dt
 from PySide2.QtCore import Qt, Signal, SLOT
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
+from ..misc.utils import get_timestamp_str
 from raspi_io import Query, RaspiSocketError
 from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
 
 from ..network.utility import get_system_nic
 from ..misc.settings import Color, CustomAction
-__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector',
+__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'DateTimeEdit',
            'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
@@ -761,3 +763,25 @@ class PageNumberBox(CustomSpinBox):
     def setRange(self, minimum: int, maximum: int) -> None:
         super(PageNumberBox, self).setRange(minimum, maximum)
         self.setSuffix(f'/{maximum}')
+
+
+class DateTimeEdit(QtWidgets.QLineEdit):
+    def __init__(self, fmt: str = '%Y/%m/%d %H:%M:%S',
+                 timezone: dt.tzinfo = dt.timezone(dt.timedelta(hours=8)),
+                 readonly: bool = True, on_the_wall: bool = True, parent: QtWidgets.QWidget = None):
+        super().__init__(parent)
+        self.__format = fmt
+        self.__timezone = timezone
+        self.setReadOnly(readonly)
+        self.setText(self.getDateTimeStr())
+        if on_the_wall:
+            self.startTimer(1000)
+
+    def getDateTime(self):
+        return dt.datetime.now(self.__timezone)
+
+    def getDateTimeStr(self, fmt: str = ''):
+        return get_timestamp_str(self.getDateTime().timestamp(), fmt or self.__format)
+
+    def timerEvent(self, event: QtCore.QTimerEvent) -> None:
+        self.setText(self.getDateTimeStr())

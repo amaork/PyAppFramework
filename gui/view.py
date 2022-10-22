@@ -727,15 +727,17 @@ class SQliteQueryView(BasicWidget):
         if self.ui_page_num.value() < self._model.total_page:
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
 
-    def slotClear(self, without_confirm: bool = False):
+    def slotClear(self, without_confirm: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(
                 self, self.tr('Confirm to clear all records ?'), self.tr('Clear Confirm')
         ):
-            return
+            return False
 
         if self._model.clear_table():
             self.signalRecordsCleared.emit()
             self.slotUpdatePageNum()
+
+        return True
 
     def slotSearch(self):
         value = self.ui_search_value.text()
@@ -745,15 +747,19 @@ class SQliteQueryView(BasicWidget):
             key = self.ui_search_key.currentData(QtCore.Qt.UserRole)
             self._model.search_record(key, value, self._enable_fuzzy_search(key))
 
-    def slotDelete(self):
-        if not showQuestionBox(self, self.tr('Confirm to delete this record ?'), self.tr('Delete Confirm')):
-            return
+    def slotDelete(self, without_confirm: bool = False) -> bool:
+        if not without_confirm and not showQuestionBox(
+                self, self.tr('Confirm to delete this record ?'), self.tr('Delete Confirm')
+        ):
+            return False
 
         row = self.ui_view.getCurrentRow()
         primary_key = self._get_pk_from_row(row)
         if self._model.delete_record(primary_key):
             self.signalRecordDeleted.emit(primary_key)
             self.slotUpdatePageNum()
+
+        return True
 
     def slotClearSearch(self):
         self._model.flush_page(self._model.cur_page)
