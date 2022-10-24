@@ -2,12 +2,47 @@
 import os
 import time
 import typing
+import collections
 from PySide2.QtCore import Qt
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from .widget import ImageWidget
 from .canvas import ScalableCanvasWidget
-__all__ = ['FilelistDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
+__all__ = ['StretchFactor', 'BasicDock', 'FilelistDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
+StretchFactor = collections.namedtuple('StretchFactor', 'h v')
+
+
+class BasicDock(QtWidgets.QDockWidget):
+    def __init__(self, suggest_area: Qt.DockWidgetArea, stretch_factor: StretchFactor,
+                 closeable: bool = True, allowed_areas: Qt.DockWidgetAreas = Qt.AllDockWidgetAreas, **kwargs):
+        super().__init__(**kwargs)
+        self.suggest_area = suggest_area
+        self.stretch_factor = stretch_factor
+        self.setAllowedAreas(allowed_areas)
+
+        if closeable:
+            self.setFeatures(self.features() & ~QtWidgets.QDockWidget.DockWidgetClosable)
+
+        self._initUi()
+        self._initData()
+        self._initStyle()
+        self._initThreadAndTimer()
+        self._initSignalAndSlots()
+
+    def _initUi(self):
+        pass
+
+    def _initData(self):
+        pass
+
+    def _initStyle(self):
+        pass
+
+    def _initThreadAndTimer(self):
+        pass
+
+    def _initSignalAndSlots(self):
+        pass
 
 
 class FilelistDock(QtWidgets.QDockWidget):
