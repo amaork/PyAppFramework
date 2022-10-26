@@ -15,7 +15,11 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         self._header = tuple()
 
     def clearAll(self):
-        self.removeRows(0, self.rowCount())
+        c = self.rowCount()
+        self._user.clear()
+        self._table.clear()
+        self.removeRows(0, c)
+        self.dataChanged.emit(self.index(-1, -1), self.index(-1, -1))
 
     def item(self, _row: int, _column: int):
         return None
