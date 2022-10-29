@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+import typing
 import contextlib
-import matplotlib.axes
+import matplotlib.pyplot
 matplotlib.use('Qt5Agg')
 from matplotlib.figure import Figure
 from ..core.datatype import DynamicObject
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+matplotlib.pyplot.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.pyplot.rcParams['axes.unicode_minus'] = False
 __all__ = ['CustomCanvas', 'ChartAxesAttribute']
 
 
@@ -43,6 +47,10 @@ class CustomCanvas(FigureCanvas):
         yield
         self.draw()
 
+    def save(self, path: str, **kwargs):
+        self.figure.savefig(path, **kwargs)
+        return path
+
     def updateAxesAttribute(self, attribute: ChartAxesAttribute):
         if attribute.legend_kwargs:
             self.axes.legend(**attribute.legend_kwargs)
@@ -72,3 +80,15 @@ class CustomCanvas(FigureCanvas):
 
         if attribute.show_grid:
             self.axes.grid()
+
+    def generatePlotAndSave(self, xdata, ydata, path: str, attr: ChartAxesAttribute):
+        self.updateAxesAttribute(attr)
+        self.axes.plot(xdata, ydata)
+        return self.save(path)
+
+    def generatePieAndSave(self, values, ingredients: typing.Sequence[str], path: str, attr: ChartAxesAttribute):
+        self.updateAxesAttribute(attr)
+        wedges, _, _ = self.axes.pie(values, autopct=f'%1.2f%%', textprops=dict(color="w"), startangle=45)
+        self.axes.legend(wedges, ingredients, loc='center left', bbox_to_anchor=(1, 0, 0.5, 1))
+        return self.save(path)
+
