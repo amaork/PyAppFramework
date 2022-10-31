@@ -83,40 +83,69 @@ class UARTTransmit(Transmit):
     RESPONSE_MIN_LEN = 4
     DEFAULT_TIMEOUT = 0.1
 
-    def __init__(self, ending_check: Optional[Callable[[bytes], bool]] = None):
+    def __init__(self, length_fmt: str = '',
+                 checksum: Optional[Callable[[bytes], int]] = None,
+                 ending_check: Optional[Callable[[bytes], bool]] = None, verbose: bool = False):
+        """
+        UARTTransmit
+        :param length_fmt: msg header length struct pack format
+        :param checksum: msg tail checksum algo
+        :param ending_check: msg ending check
+        :param verbose:  print verbose message
+        """
         self.__serial = None
+        self.__length_fmt = length_fmt
         self.__ending_check = ending_check
+        self.__verbose = verbose or UARTTransmit.VERBOSE
+        self.__checksum = checksum if callable(checksum) else crc16
         super(UARTTransmit, self).__init__()
 
     def tx(self, data: bytes) -> bool:
         try:
-            data += struct.pack("<H", crc16(data))
-            if self.VERBOSE:
-                print('tx: {0:03d} {1}'.format(len(data), self.hex_convert(data)))
-            return self.__serial.write(data) == len(data)
+            header = ''
+            checksum = struct.pack("<H", self.__checksum(data))
+            self.print_msg('tx: {0:03d} {1} {2}'.format(len(data), self.hex_convert(data), checksum.hex()))
+
+            if self.__length_fmt:
+                header = struct.pack(self.__length_fmt, len(data) + struct.calcsize(self.__length_fmt))
+
+            msg = header + data + checksum
+            return self.__serial.write(msg) == len(msg)
         except serial.SerialException as err:
             raise TransmitException(err)
 
     def rx(self, size: int, timeout: float = 0) -> bytes:
         try:
+            # Receive length first
+            if self.__length_fmt:
+                header = self.__serial.read(struct.calcsize(self.__length_fmt))
+                if not header:
+                    raise TransmitWarning('Read length error')
+
+                # Get length from header
+                size = struct.unpack(self.__length_fmt, header)[0]
+
             data = self.__serial.read(size)
-            if self.VERBOSE:
-                print('rx: {0:03d} {1}'.format(len(data), self.hex_convert(data)))
+            self.print_msg(('rx: {0:03d} {1}'.format(len(data), self.hex_convert(data))))
 
             # Check received data length
             if len(data) < self.RESPONSE_MIN_LEN:
                 raise TransmitWarning("Too short:{}".format(len(data)))
 
             # Check data checksum
-            if crc16(data):
+            if self.__checksum(data):
                 raise TransmitWarning("Crc16 verify failed")
 
             # Return payload
             return data[0:-2]
         except serial.SerialTimeoutException as err:
             raise TransmitWarning(err)
-        except serial.SerialException as err:
+        except (struct.error, serial.SerialException, MemoryError) as err:
             raise TransmitException(err)
+
+    def print_msg(self, msg: str):
+        if self.__verbose:
+            print(f'[{self._address[0]}] {msg}')
 
     def disconnect(self):
         try:
@@ -342,12 +371,12 @@ class TCPServerTransmitHandle:
 
 
 class UartTransmitWithProtobufEndingCheck(UARTTransmit):
-    def __init__(self, msg_cls, with_crc16: bool = False):
+    def __init__(self, msg_cls, with_crc16: bool = False, length_fmt: str = ''):
         if not issubclass(msg_cls, Message):
             raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
         self.__msg_cls = msg_cls
         self.__with_crc16 = with_crc16
-        super(UartTransmitWithProtobufEndingCheck, self).__init__(ending_check=self.ending_check)
+        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt)
 
     def ending_check(self, data: bytes) -> bool:
         try:
