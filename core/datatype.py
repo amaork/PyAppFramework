@@ -3,12 +3,11 @@ import sys
 import math
 import json
 import ctypes
+import typing
 import keyword
 import ipaddress
 import collections
 import collections.abc
-import typing
-from typing import Tuple, List, Union, Iterable
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent', 'FrozenJSON',
            'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
@@ -16,7 +15,7 @@ __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'Cust
            'convert_property', 'float_property', 'integer_property', 'enum_property']
 
 
-def resolve_number(number: float, decimals: int) -> Tuple[int, int]:
+def resolve_number(number: float, decimals: int) -> typing.Tuple[int, int]:
     """
     resolve_number to fractional and integer part
     10.3 ==> 10 3
@@ -29,7 +28,7 @@ def resolve_number(number: float, decimals: int) -> Tuple[int, int]:
     return int(integer), int(round(math.pow(10, decimals) * fractional))
 
 
-def str2float(text: Union[str, int, float]) -> float:
+def str2float(text: typing.Union[str, int, float]) -> float:
     if isinstance(text, (int, float)):
         return text
 
@@ -42,7 +41,7 @@ def str2float(text: Union[str, int, float]) -> float:
         return 0.0
 
 
-def str2number(text: Union[str, bool, int, float]) -> int:
+def str2number(text: typing.Union[str, bool, int, float]) -> int:
     if isinstance(text, (bool, int, float)):
         return text
 
@@ -74,7 +73,7 @@ def str2number(text: Union[str, bool, int, float]) -> int:
         return 0
 
 
-def enum_property(name: str, enum: Iterable) -> property:
+def enum_property(name: str, enum: typing.Iterable) -> property:
     def enum_getter(instance):
         return instance.__dict__[name]
 
@@ -122,7 +121,7 @@ def ip4_check(address: str) -> bool:
         return False
 
 
-def port_check(port: Union[str, int]) -> bool:
+def port_check(port: typing.Union[str, int]) -> bool:
     return 1 <= str2number(port) <= 65535
 
 
@@ -158,7 +157,7 @@ class BasicDataType(ctypes.Structure):
         ctypes.memmove(ctypes.addressof(self), cdata, size)
         return True
 
-    def set_cstr(self, offset: int, maxsize: int, data: Union[str, bytes]):
+    def set_cstr(self, offset: int, maxsize: int, data: typing.Union[str, bytes]):
         if data and offset + len(data) <= ctypes.sizeof(self):
             try:
                 ctypes.memmove(ctypes.addressof(self) + offset, data.encode(), min(len(data), maxsize))
@@ -220,6 +219,9 @@ class DynamicObject(object):
 
         return self.__dict__ == other.__dict__
 
+    def __bool__(self):
+        return len(self.__dict__) != 0
+
     def __len__(self):
         return len(self._properties)
 
@@ -254,11 +256,11 @@ class DynamicObject(object):
         )
 
     @classmethod
-    def properties(cls) -> List[str]:
+    def properties(cls) -> typing.List[str]:
         return list(cls._properties)
 
     @classmethod
-    def json_dump_sequence(cls) -> Tuple[str, ...]:
+    def json_dump_sequence(cls) -> typing.Tuple[str, ...]:
         return tuple(cls._json_dump_sequence)
 
     def xml(self, tag: str) -> XmlElementTree.Element:
@@ -329,14 +331,14 @@ class ComparableXml(XmlElementTree.Element):
         return not self.__eq__(other)
 
     @staticmethod
-    def string_strip(data: str) -> Union[str, None]:
+    def string_strip(data: str) -> typing.Union[str, None]:
         if not isinstance(data, str):
             return None
         
         return "".join([s.strip() for s in data.split("\n")])
 
     @staticmethod
-    def xml2string(xml: XmlElementTree.Element, encode="utf-8") -> Union[str, None]:
+    def xml2string(xml: XmlElementTree.Element, encode="utf-8") -> typing.Union[str, None]:
         """Xml to string with specified encode
 
         :param xml: xml Element object
@@ -352,7 +354,7 @@ class ComparableXml(XmlElementTree.Element):
         return ComparableXml.string_strip(data.decode())
 
     @staticmethod
-    def string2xml(data: str) -> Union[XmlElementTree.Element, None]:
+    def string2xml(data: str) -> typing.Union[XmlElementTree.Element, None]:
         """String to xml Element object
 
         :param data: string with xml element

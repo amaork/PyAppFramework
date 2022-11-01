@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import hashlib
 import typing
+import hashlib
 from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
@@ -13,6 +13,7 @@ from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from .msgbox import *
 from .button import RectButton
 from ..network.utility import *
+from ..network.discovery import ServiceDiscovery
 from ..protocol.serialport import SerialPort
 
 from ..misc.windpi import get_program_scale_factor
@@ -25,7 +26,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 __all__ = ['BasicDialog',
            'SimpleColorDialog',
            'SerialPortSettingDialog',
-           'ProgressDialog', 'PasswordDialog', 'OptionDialog',
+           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
@@ -361,6 +362,43 @@ class SerialPortSettingDialog(QDialog):
         dialog = cls(settings, parent)
         dialog.exec_()
         return dialog.getSerialSetting()
+
+
+class ServiceDiscoveryDialog(BasicDialog):
+    def __init__(self, service: str, port: int, network: str = get_default_network(), parent: Optional[QWidget] = None):
+        self._discovery = ServiceDiscovery(
+            service=service, port=port, network=network, found_callback=self.callbackUpdateAddress, auto_stop=False
+        )
+        super().__init__(parent)
+
+    def _initUi(self):
+        self.ui_address = QComboBox()
+        content = QHBoxLayout()
+        content.addWidget(QLabel(self.tr('Address')))
+        content.addWidget(self.ui_address)
+
+        layout = QVBoxLayout()
+        layout.addLayout(content)
+        layout.addWidget(QSplitter())
+        layout.addWidget(self.ui_buttons)
+        self.setLayout(layout)
+        self.setWindowTitle(self.tr('Please select'))
+
+    def pauseDiscovery(self):
+        self._discovery.pause()
+
+    def resumeDiscovery(self):
+        self.ui_address.clear()
+        self._discovery.resume()
+
+    def callbackUpdateAddress(self, _address: str):
+        self.ui_address.clear()
+        self.ui_address.addItems(self._discovery.device_list)
+
+    def getData(self) -> typing.Union[DynamicObject, dict, None]:
+        if not self.result():
+            return None
+        return DynamicObject(address=self.ui_address.currentText())
 
 
 class NetworkAddressSelectDialog(QDialog):
