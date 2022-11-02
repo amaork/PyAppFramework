@@ -7,8 +7,8 @@ from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
     QProgressDialog
-from PySide2.QtCore import Qt, Signal, QPoint, QLocale
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
+from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
 
 from .msgbox import *
 from .button import RectButton
@@ -373,8 +373,10 @@ class ServiceDiscoveryDialog(BasicDialog):
 
     def _initUi(self):
         self.ui_address = QComboBox()
+        label = QLabel(self.tr('Address'))
+        label.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
         content = QHBoxLayout()
-        content.addWidget(QLabel(self.tr('Address')))
+        content.addWidget(label)
         content.addWidget(self.ui_address)
 
         layout = QVBoxLayout()
@@ -383,6 +385,9 @@ class ServiceDiscoveryDialog(BasicDialog):
         layout.addWidget(self.ui_buttons)
         self.setLayout(layout)
         self.setWindowTitle(self.tr('Please select'))
+
+    def sizeHint(self) -> QSize:
+        return QSize(210, 80)
 
     def pauseDiscovery(self):
         self._discovery.pause()
@@ -394,6 +399,11 @@ class ServiceDiscoveryDialog(BasicDialog):
     def callbackUpdateAddress(self, _address: str):
         self.ui_address.clear()
         self.ui_address.addItems(self._discovery.device_list)
+
+    def getAddress(self) -> str:
+        self.exec_()
+        data = self.getData()
+        return data.address if data else ''
 
     def getData(self) -> typing.Union[DynamicObject, dict, None]:
         if not self.result():
