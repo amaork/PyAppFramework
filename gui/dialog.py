@@ -72,6 +72,8 @@ class BasicDialog(QDialog):
     @classmethod
     def getSettings(cls, parent: Optional[QWidget], **kwargs):
         dialog = cls(parent=parent, **kwargs)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getData()
 
@@ -322,6 +324,8 @@ class SerialPortSelectDialog(QDialog):
     def getSerialPort(cls, timeout: float = 0.04, title: str = DEF_TITLE,
                       parent: Optional[QWidget] = None) -> Union[str, None]:
         dialog = cls(timeout=timeout, title=title, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getPort()
 
@@ -360,6 +364,8 @@ class SerialPortSettingDialog(QDialog):
     @classmethod
     def getSetting(cls, parent: QWidget, settings: dict = SerialPortSettingWidget.DEFAULTS) -> Union[dict, None]:
         dialog = cls(settings, parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSerialSetting()
 
@@ -440,6 +446,8 @@ class NetworkAddressSelectDialog(QDialog):
     def getAddress(cls, port: int, timeout: float = 0.04,
                    title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> Union[str, None]:
         dialog = NetworkAddressSelectDialog(port=port, timeout=timeout, title=title, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedAddress()
 
@@ -486,6 +494,8 @@ class NetworkInterfaceSelectDialog(QDialog):
                    ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedInterfaceAddress()
 
@@ -495,6 +505,8 @@ class NetworkInterfaceSelectDialog(QDialog):
                      ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedNetworkInterface()
 
@@ -504,6 +516,8 @@ class NetworkInterfaceSelectDialog(QDialog):
                             ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
         dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
                                               ignore_loopback=ignore_loopback, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedInterfaceNetwork()
 
@@ -658,6 +672,8 @@ class BasicJsonSettingDialog(QDialog):
                 reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         # BasicJsonSettingDialog is abstract class derived class __init__ don't need widget_cls arg
         dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getJsonData()
 
@@ -678,6 +694,8 @@ class JsonSettingDialog(BasicJsonSettingDialog):
     def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
                     reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getJsonSettings()
 
@@ -720,6 +738,8 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
     def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
                     reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getJsonSettings()
 
@@ -832,6 +852,8 @@ class PasswordDialog(QDialog):
     def resetPassword(hash_function: PasswordHashFunction = lambda x: hashlib.md5(x).hexdigest(),
                       style: str = '', parent: Optional[QWidget] = None) -> str:
         dialog = PasswordDialog(hash_function=hash_function, style=style, parent=parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getNewPassword()
 
@@ -840,6 +862,8 @@ class PasswordDialog(QDialog):
                        hash_function: PasswordHashFunction = lambda x: hashlib.md5(x).hexdigest(),
                        style: str = '', parent: Optional[QWidget] = None) -> str:
         dialog = PasswordDialog(password, hash_function, style, parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getNewPassword()
 
@@ -888,12 +912,16 @@ class OptionDialog(QDialog):
     @classmethod
     def getOptionText(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> str:
         dialog = cls(options, title, parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectionText()
 
     @classmethod
     def getOptionIndex(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> int:
         dialog = cls(options, title, parent)
+        # For virtual keyboard
+        dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectionIndex()
 
