@@ -45,6 +45,15 @@ class JsonSettings(DynamicObject):
         return self.store(self, path)
 
     @classmethod
+    def get(cls):
+        try:
+            return cls.load()
+        except (json.JSONDecodeError, JsonSettingsDecodeError, FileNotFoundError):
+            settings = cls.default()
+            settings.save()
+            return settings
+
+    @classmethod
     def file_path(cls):
         return cls._default_path[:]
 

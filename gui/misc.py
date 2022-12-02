@@ -33,11 +33,13 @@ class SerialPortSelector(QtWidgets.QComboBox):
     # noinspection PyTypeChecker
     TIPS = QtWidgets.QApplication.translate("SerialPortSelector", "Please select serial port", None)
 
-    def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False, parent: Optional[QtWidgets.QWidget] = None):
+    def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False,
+                 flush_timeout: float = 0.4, parent: Optional[QtWidgets.QWidget] = None):
         """Select serial port
 
         :param text: selector text
         :param one_shot: only could select once
+        :param flush_timeout: flush raspberry websocket serial port timeout
         :param parent:
         """
         super(SerialPortSelector, self).__init__(parent)
@@ -45,11 +47,12 @@ class SerialPortSelector(QtWidgets.QComboBox):
         self.clear()
         self.__text = text
         self.__one_shot = one_shot
+        self.setProperty('format', 'text')
         self.__system = platform.system().lower()
         self.setToolTip(self.tr("Right click reset and refresh serial port"))
 
         # Flush current serial port list
-        self.flushSerialPort()
+        self.flushSerialPort(timeout=flush_timeout)
         self.currentIndexChanged.connect(self.slotPortSelected)
 
     def currentPort(self) -> str:
@@ -94,12 +97,13 @@ class SerialPortSelector(QtWidgets.QComboBox):
                 self.setItemData(self.count() - 1, device)
 
         # Scan LAN raspberry serial port
-        try:
-            for raspberry in scan_server(timeout):
-                for port in Query(raspberry).get_serial_list():
-                    self.addItem("{}/{}".format(raspberry, port.split("/")[-1]), (raspberry, port))
-        except (RaspiSocketError, TypeError, IndexError, ValueError, OSError, websocket.WebSocketTimeoutException):
-            pass
+        if timeout != 0.0:
+            try:
+                for raspberry in scan_server(timeout):
+                    for port in Query(raspberry).get_serial_list():
+                        self.addItem("{}/{}".format(raspberry, port.split("/")[-1]), (raspberry, port))
+            except (RaspiSocketError, TypeError, IndexError, ValueError, OSError, websocket.WebSocketTimeoutException):
+                pass
 
     def slotPortSelected(self, idx: int) -> bool:
         if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
