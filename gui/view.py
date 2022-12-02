@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import abc
-import sys
 import typing
 from PySide2.QtCore import Qt
 from PySide2 import QtCore, QtGui, QtWidgets
