@@ -36,21 +36,22 @@ class CanvasWidget(QtWidgets.QWidget):
                  cursor_size: int = 20,
                  default_text: str = '',
                  change_cursor: bool = True,
-                 big_img_shrink_factor: int = 3,
                  double_click_timeout: int = 200,
                  enable_double_click_event: bool = True,
                  paint_mode: PaintMode = None, select_color: Color = (0, 255, 0),
+                 big_img_shrink_filter: QtCore.QSize = QtCore.QSize(), big_img_shrink_factor: int = 2,
                  parent: QtWidgets.QWidget = None):
         """CanvasWidget
 
         @param cursor_size: define cursor size
         @param default_text: show default text when image not load yet
         @param change_cursor: enter/leave change cursor shape
-        @param big_img_shrink_factor: big image shrink factor
         @param double_click_timeout: double click timeout, unit millisecond
         @param enable_double_click_event: enable double click emit signalFitWidthRequest/signalFitWindowRequest
         @param paint_mode: paint mode
         @param select_color: selected position color
+        @param big_img_shrink_factor: big image shrink factor
+        @param big_img_shrink_filter: image bigger than this size will auto shrink by big_img_shrink_factor
         @param parent:
         """
         super(CanvasWidget, self).__init__(parent)
@@ -60,6 +61,7 @@ class CanvasWidget(QtWidgets.QWidget):
         self.__paint_mode = paint_mode
         self.__default_text = default_text
         self.__change_cursor = change_cursor
+        self.__big_img_shrink_filter = big_img_shrink_filter
         self.__big_img_shrink_factor = big_img_shrink_factor
 
         self.__paint_color = QtGui.QColor()
@@ -274,7 +276,8 @@ class CanvasWidget(QtWidgets.QWidget):
         reader = QtGui.QImageReader(path)
         reader.setAutoTransform(True)
         reader.setDecideFormatFromContent(True)
-        reader.setScaledSize(ImageWidget.scaleBigImage(reader.size(), factor=self.__big_img_shrink_factor))
+        rule = self.__big_img_shrink_filter if self.__big_img_shrink_filter.isValid() else reader.size()
+        reader.setScaledSize(ImageWidget.scaleBigImage(reader.size(), rule, factor=self.__big_img_shrink_factor))
 
         image = reader.read()
         if image.isNull():

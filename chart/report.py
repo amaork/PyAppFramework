@@ -89,14 +89,15 @@ class ReportlabGenerator:
         table.setStyle(style or self.TABLE_DEF_STYLE)
         self.append_story(table)
 
-    def append_plot_chart(self, xdata, ydata, attr: ChartAxesAttribute, **kwargs):
+    def append_plot_chart(self, name: str, xdata, ydata, attr: ChartAxesAttribute, **kwargs):
         canvas = CustomCanvas(**kwargs)
-        chart = canvas.generatePlotAndSave(xdata, ydata, os.path.join(self.tempdir, 'plot.png'), attr)
+        chart = canvas.generatePlotAndSave(xdata, ydata, os.path.join(self.tempdir, f'plot_{name}.png'), attr)
         self.append_story(Image(chart))
 
-    def append_pie_chart(self, values, ingredients: typing.Sequence[str], attr: ChartAxesAttribute, **kwargs):
+    def append_pie_chart(self, name: str,
+                         values, ingredients: typing.Sequence[str], attr: ChartAxesAttribute, **kwargs):
         canvas = CustomCanvas(**kwargs)
-        chart = canvas.generatePieAndSave(values, ingredients, os.path.join(self.tempdir, 'pie.png'), attr)
+        chart = canvas.generatePieAndSave(values, ingredients, os.path.join(self.tempdir, f'pie_{name}.png'), attr)
         self.append_story(Image(chart))
 
     def generate_report(self, path: str):

@@ -24,6 +24,20 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def item(self, _row: int, _column: int):
         return None
 
+    def getRowData(self, row: int, user: bool = False) -> typing.Sequence:
+        try:
+            src = self._user if user else self._table
+            return [src[row][column] for column in range(self.columnCount())]
+        except (IndexError, TypeError):
+            return []
+
+    def getColumnData(self, column: int, user: bool = False) -> typing.Sequence:
+        try:
+            src = self._user if user else self._table
+            return [src[row][column] for row in range(self.rowCount())]
+        except (IndexError, TypeError):
+            return []
+
     def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         return len(self._table)
 
