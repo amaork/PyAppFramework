@@ -45,6 +45,7 @@ from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 
+from ..misc.debug import LoggerWrap
 from ..misc.windpi import get_program_scale_factor
 
 from .misc import SerialPortSelector, NetworkInterfaceSelector
@@ -3161,33 +3162,11 @@ class LogMessageWidget(QTextEdit):
                  parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
 
+        self._logger = LoggerWrap(filename, log_format, level, propagate)
         self.setReadOnly(True)
-        self._logFilename = filename
         self._startTime = datetime.now()
         self._displayFilter = self.DISPLAY_ALL
         self.textChanged.connect(self.slotAutoScroll)
-
-        # Get logger and set level and propagate
-        self._logger = logging.getLogger(filename)
-        self._logger.propagate = propagate
-        self._logger.setLevel(level)
-
-        # Create a file handler
-        file_handler = logging.FileHandler(filename, encoding="utf-8")
-        file_handler.setLevel(level)
-
-        # Create a stream handler
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.ERROR)
-
-        # Create a formatter and add it to handlers
-        formatter = logging.Formatter(log_format)
-        file_handler.setFormatter(formatter)
-        stream_handler.setFormatter(formatter)
-
-        # Add handlers to logger
-        self._logger.addHandler(file_handler)
-        self._logger.addHandler(stream_handler)
 
         # Context menu
         self.ui_context_menu = QMenu(self)
@@ -3256,7 +3235,7 @@ class LogMessageWidget(QTextEdit):
             )
 
         # Write to log file if write_to_log set
-        write_to_log and self._logger.log(message.level, message.content)
+        write_to_log and self._logger.logging(message)
 
     @Slot(object)
     def filterLog(self, levels: List[int]):
@@ -3265,7 +3244,7 @@ class LogMessageWidget(QTextEdit):
 
         try:
             # First read all log to memory
-            with open(self._logFilename, encoding="utf-8") as fp:
+            with open(self._logger.filename, encoding="utf-8") as fp:
                 text = fp.read()
         except UnicodeDecodeError:
             # Loading failed delete log
