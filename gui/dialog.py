@@ -331,7 +331,8 @@ class SerialPortSelectDialog(QDialog):
 
 
 class SerialPortSettingDialog(QDialog):
-    def __init__(self, settings: dict = SerialPortSettingWidget.DEFAULTS, parent: Optional[QWidget] = None):
+    def __init__(self, settings: dict = SerialPortSettingWidget.DEFAULTS, flush_timeout: float = 0.04,
+                 parent: Optional[QWidget] = None):
         """Serial port configure dialog
 
         :param settings: serial port settings
@@ -341,7 +342,7 @@ class SerialPortSettingDialog(QDialog):
         super(SerialPortSettingDialog, self).__init__(parent)
 
         layout = QVBoxLayout()
-        self.__widget = SerialPortSettingWidget(settings)
+        self.__widget = SerialPortSettingWidget(settings, flush_timeout)
         button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
@@ -362,8 +363,11 @@ class SerialPortSettingDialog(QDialog):
         return self.__widget.getSetting()
 
     @classmethod
-    def getSetting(cls, parent: QWidget, settings: dict = SerialPortSettingWidget.DEFAULTS) -> Union[dict, None]:
-        dialog = cls(settings, parent)
+    def getSetting(cls,
+                   parent: QWidget,
+                   settings: dict = SerialPortSettingWidget.DEFAULTS,
+                   flush_timeout: float = 0.04) -> Union[dict, None]:
+        dialog = cls(settings=settings, flush_timeout=flush_timeout, parent=parent)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()

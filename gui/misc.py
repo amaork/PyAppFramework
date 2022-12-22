@@ -34,7 +34,7 @@ class SerialPortSelector(QtWidgets.QComboBox):
     TIPS = QtWidgets.QApplication.translate("SerialPortSelector", "Please select serial port", None)
 
     def __init__(self, text: Optional[str] = TIPS, one_shot: bool = False,
-                 flush_timeout: float = 0.4, parent: Optional[QtWidgets.QWidget] = None):
+                 flush_timeout: float = 0.04, parent: Optional[QtWidgets.QWidget] = None):
         """Select serial port
 
         :param text: selector text

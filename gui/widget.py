@@ -2185,7 +2185,7 @@ class SerialPortSettingWidget(QWidget):
     ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
     DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
 
-    def __init__(self, settings: Optional[dict] = None, parent: Optional[QWidget] = None):
+    def __init__(self, settings: Optional[dict] = None, flush_timeout: float = 0.04, parent: Optional[QWidget] = None):
         """Serial port configure dialog
 
         :param settings: serial port settings
@@ -2197,7 +2197,7 @@ class SerialPortSettingWidget(QWidget):
         layout = QGridLayout()
 
         # If specified port select it
-        port = SerialPortSelector()
+        port = SerialPortSelector(flush_timeout=flush_timeout)
         port.setProperty("name", "port")
         select_port = settings.get("port")
         if select_port is not None:
