@@ -102,7 +102,7 @@ class UARTTransmit(Transmit):
 
     def tx(self, data: bytes) -> bool:
         try:
-            header = ''
+            header = b''
             checksum = struct.pack("<H", self.__checksum(data))
             self.print_msg('tx: {0:03d} {1} {2}'.format(len(data), self.hex_convert(data), checksum.hex()))
 

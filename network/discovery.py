@@ -37,11 +37,14 @@ class DiscoveryEvent(CustomEvent):
 
 
 class ServiceDiscovery:
-    def __init__(self, service: str, port: int, network: str = get_default_network(),
+    def __init__(self, service: str, port: int,
+                 error_callback: typing.Callable,
+                 network: str = get_default_network(),
                  send_interval: int = 1, found_callback: typing.Callable[[str], None] = None, auto_stop: bool = False):
         self._exit = False
         self._auto_stop = auto_stop
-        self._callback = found_callback
+        self._error_callback = error_callback
+        self._found_callback = found_callback
         self._dev_list = ThreadLockAndDataWrap(set())
         self._msg = DiscoveryMsg(service=service, port=port)
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
@@ -64,8 +67,8 @@ class ServiceDiscovery:
         self._timer.resume()
 
     def foundCallback(self, address: str):
-        if callable(self._callback):
-            self._callback(address)
+        if callable(self._found_callback):
+            self._found_callback(address)
 
         self._dev_list.data.add(address)
 
@@ -77,7 +80,13 @@ class ServiceDiscovery:
     def threadReceiveResponse(self):
         enable_broadcast(self._sock)
         enable_multicast(self._sock, DEF_GROUP)
-        self._sock.bind(('', DEF_PORT))
+        try:
+            self._sock.bind(('', DEF_PORT))
+        except OSError as e:
+            print(f'{self.__class__.__name__}: {e}')
+            self._error_callback()
+            return
+
         while not self._exit:
             data, sender = self._sock.recvfrom(DiscoveryEvent.MaxSize)
 
@@ -95,8 +104,9 @@ class ServiceDiscovery:
 
 
 class ServiceResponse:
-    def __init__(self, service: str, port: int, network: str = get_default_network()):
+    def __init__(self, service: str, port: int, error_callback: typing.Callable, network: str = get_default_network()):
         self._exit = False
+        self._error_callback = error_callback
         self._msg = DiscoveryMsg(service=service, port=port)
         self._address = get_host_address(ipaddress.IPv4Network(network))[0]
         threading.Thread(target=self.threadResponse, name='ServiceDiscoveryClient', daemon=True).start()
@@ -106,7 +116,12 @@ class ServiceResponse:
 
     def threadResponse(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-        sock.bind(('', DEF_PORT))
+        try:
+            sock.bind(('', DEF_PORT))
+        except OSError as e:
+            print(f'{self.__class__.__name__}: {e}')
+            self._error_callback()
+            return
 
         while not self._exit:
             data, sender = sock.recvfrom(DiscoveryEvent.MaxSize)

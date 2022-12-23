@@ -375,11 +375,16 @@ class SerialPortSettingDialog(QDialog):
 
 
 class ServiceDiscoveryDialog(BasicDialog):
+    signalHasError = Signal()
+
     def __init__(self, service: str, port: int, network: str = get_default_network(), parent: Optional[QWidget] = None):
-        self._discovery = ServiceDiscovery(
-            service=service, port=port, network=network, found_callback=self.callbackUpdateAddress, auto_stop=False
-        )
         super().__init__(parent)
+        # Has error occupied, enabled address can be manual input
+        self.signalHasError.connect(lambda: self.ui_address.setEditable(True))
+        self._discovery = ServiceDiscovery(
+            service=service, port=port, network=network,
+            error_callback=self.signalHasError.emit, found_callback=self.callbackUpdateAddress, auto_stop=False
+        )
 
     def _initUi(self):
         self.ui_address = QComboBox()
