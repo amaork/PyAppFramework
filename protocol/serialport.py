@@ -203,7 +203,8 @@ class SerialTransferProtocol(object):
 
     @staticmethod
     def calc_package_size(data: bytes) -> int:
-        return len(data) // SerialTransferProtocol.PAYLOAD_SIZE
+        tail = len(data) % SerialTransferProtocol.PAYLOAD_SIZE
+        return len(data) // SerialTransferProtocol.PAYLOAD_SIZE + (1 if tail else 0)
 
     @staticmethod
     def get_package_data(idx: int, data: bytes) -> bytes:
@@ -268,18 +269,25 @@ class SerialTransferProtocol(object):
         else:
             raise SerialTransferError("Request message type error:'{0:s}'".format(req.__class__.__name__))
 
-        try:
-            self.__send(req.cdata())
-            data = self.__recv(ctypes.sizeof(ack))
-            success, error = ack.init_and_check(data)
-            if success:
-                if ack.ack != req.req:
-                    raise SerialTransferError(ErrorCode.get_desc(ack.arg))
-                return ack
-            else:
+        retry = 0
+        while retry < 10:
+            try:
+                self.__send(req.cdata())
+                data = self.__recv(ctypes.sizeof(ack))
+                success, error = ack.init_and_check(data)
+                if success:
+                    if ack.ack != req.req:
+                        if ack.arg in (ErrorCode.E_CRC, ErrorCode.E_LEN, ErrorCode.E_DATA):
+                            print(f'{ErrorCode.get_desc(ack.arg)} retry: {retry}')
+                            retry += 1
+                            continue
+
+                        raise SerialTransferError(ErrorCode.get_desc(ack.arg))
+                    return ack
+                else:
+                    raise SerialTransferError(error)
+            except serial.SerialException as error:
                 raise SerialTransferError(error)
-        except serial.SerialException as error:
-            raise SerialTransferError(error)
 
     def __r_init(self) -> Tuple[int, bytes]:
         """Launch a read transfer session

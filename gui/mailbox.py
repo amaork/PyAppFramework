@@ -163,12 +163,13 @@ class QuestionBoxMail(BaseUiMail):
 
 
 class ProgressBarMail(BaseUiMail):
-    def __init__(self, progress: int, content: str = '',
+    def __init__(self, progress: int, content: str = '', title: str = '',
                  closeable: bool = False, increase: int = 0, interval: float = 0.0):
         super(ProgressBarMail, self).__init__(content)
         self._increase = increase
         self._interval = interval
 
+        self.title = title
         self._progress = progress
         self._closeable = closeable
 
@@ -279,7 +280,8 @@ class UiMailBox(QObject):
         self.__bind_msg_boxs[tag] = msg_box
 
     def taskProgressAutoIncrease(self, mail: ProgressBarMail):
-        self.send(ProgressBarMail(self.__progress.value() + mail.increase, mail.content, mail.closeable))
+        self.send(ProgressBarMail(progress=self.__progress.value() + mail.increase,
+                                  content=mail.content, title=mail.title, closeable=mail.closeable))
 
     def findStatusWidget(self, type_, name: str):
         statusbar = self.__parent.findChild(QStatusBar)
@@ -352,6 +354,7 @@ class UiMailBox(QObject):
 
         elif isinstance(mail, ProgressBarMail):
             if mail.progress:
+                self.__progress.setWindowTitle(mail.title)
                 self.__progress.setLabelText(mail.content)
                 self.__progress.setProgress(mail.progress)
                 self.__progress.setCloseable(mail.closeable)
