@@ -270,8 +270,8 @@ class UiMailBox(QObject):
         self.__bind_msg_boxs = dict()
         self.__progress = ProgressDialog(parent=parent)
 
-        self.__pai_tid = ''
-        self.__sb_pai_tid = ''
+        self.__pai_task = Task.create_tid()
+        self.__sb_pai_task = Task.create_tid()
         self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
 
         self.hasNewMail.connect(self.mailProcess)
@@ -360,11 +360,11 @@ class UiMailBox(QObject):
                 self.__progress.setCloseable(mail.closeable)
 
                 if mail.autoIncreaseEnabled():
-                    self.__pai_tid, _ = self.__tasklet.add_task(
+                    self.__pai_task = self.__tasklet.add_task(
                         Task(func=self.taskProgressAutoIncrease, timeout=mail.interval, periodic=True, args=(mail,))
                     )
             else:
-                self.__tasklet.del_task(self.__pai_tid)
+                self.__tasklet.del_task(self.__pai_task.id)
                 self.__progress.slotHidden()
                 self.__progress.setCloseable(True)
         elif isinstance(mail, StatusBarProgressBarMail):
@@ -373,11 +373,11 @@ class UiMailBox(QObject):
                 pb.setValue(mail.progress)
                 if mail.progress >= pb.maximum():
                     pb.setHidden(True)
-                    self.__tasklet.del_task(self.__sb_pai_tid)
+                    self.__tasklet.del_task(self.__sb_pai_task.id)
                 elif mail.autoIncreaseEnabled():
                     mail.progress += mail.increase
-                    self.__tasklet.del_task(self.__sb_pai_tid)
-                    self.__sb_pai_tid, _ = self.__tasklet.add_task(Task(
+                    self.__tasklet.del_task(self.__sb_pai_task.id)
+                    self.__sb_pai_task = self.__tasklet.add_task(Task(
                         func=self.send, timeout=mail.interval, args=(mail,), id_ignore_args=False
                     ))
         # Appended a message on window title

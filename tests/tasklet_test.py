@@ -98,6 +98,27 @@ class CRC16Test(unittest.TestCase):
         self.assertEqual(tid2.result.wait(), 2)
         self.assertEqual(tid1.result.wait(1), None)
 
+    def testAddTask2(self):
+        tid1 = self.tasklet.add_task(Task(func=func, args=(1,), timeout=1, periodic=True))
+        tid2 = self.tasklet.add_task(Task(func=func, args=(2,), timeout=1, periodic=True))
+
+        time.sleep(3)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid1.id), True)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid2.id), True)
+
+        # Del
+        self.tasklet.del_task(tid1.id)
+        self.tasklet.del_task(tid2.id)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid1.id), False)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid2.id), False)
+
+        # Re-add
+        self.tasklet.add_task(tid1.task)
+        self.tasklet.add_task(tid2.task)
+        time.sleep(3)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid1.id), True)
+        self.assertEqual(self.tasklet.is_task_in_schedule(tid2.id), True)
+
     def testSchedule(self):
         t1 = Task(func=func, timeout=1, args=(1,), periodic=True)
         t2 = Task(func=lambda: time.sleep(3), timeout=1, periodic=True)

@@ -117,7 +117,7 @@ class Task(DynamicObject):
     TASK_KEYWORD = 'task'
     TASKLET_KEYWORD = 'tasklet'
     AUTO_ARGS = (TASK_KEYWORD, TASKLET_KEYWORD)
-    TID = collections.namedtuple('TID', ['id', 'result'])
+    TID = collections.namedtuple('TID', ['id', 'result', 'task'])
 
     _properties = {'func', 'args', 'timeout', 'periodic', 'result', 'runtime'}
 
@@ -142,6 +142,10 @@ class Task(DynamicObject):
         self.__lock = threading.Lock()
         self.__id_ignore_args = True if id_ignore_args else False
         self.__id_ignore_timeout = True if id_ignore_timeout else False
+
+    @staticmethod
+    def create_tid() -> TID:
+        return Task.TID('', False, None)
 
     def __eq__(self, other):
         return self.id() == other.id()
@@ -352,7 +356,7 @@ class Tasklet(SwTimer):
 
         task.attach(self)
         self.__tasks[tid] = task
-        result = Task.TID(tid, task.result)
+        result = Task.TID(tid, task.result, task)
 
         # If immediate set will run immediately
         if (immediate or task.is_timeout()) and self.__max_workers:
