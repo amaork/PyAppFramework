@@ -13,8 +13,8 @@ from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
 from .msgbox import *
 from .button import RectButton
 from ..network.utility import *
-from ..network.discovery import ServiceDiscovery
 from ..protocol.serialport import SerialPort
+from ..network.discovery import ServiceDiscovery, DiscoveryEvent
 
 from ..misc.windpi import get_program_scale_factor
 from ..misc.settings import UiLayout, Color, IndexColor
@@ -375,15 +375,13 @@ class SerialPortSettingDialog(QDialog):
 
 
 class ServiceDiscoveryDialog(BasicDialog):
-    signalHasError = Signal()
+    signalEvent = Signal(object)
 
     def __init__(self, service: str, port: int, network: str = get_default_network(), parent: Optional[QWidget] = None):
         super().__init__(parent)
-        # Has error occupied, enabled address can be manual input
-        self.signalHasError.connect(lambda: self.ui_address.setEditable(True))
+        self.signalEvent.connect(self.eventHandle)
         self._discovery = ServiceDiscovery(
-            service=service, port=port, network=network,
-            error_callback=self.signalHasError.emit, found_callback=self.callbackUpdateAddress, auto_stop=False
+            service=service, port=port, network=network, event_callback=self.signalEvent.emit, auto_stop=False
         )
 
     def _initUi(self):
@@ -404,6 +402,9 @@ class ServiceDiscoveryDialog(BasicDialog):
     def sizeHint(self) -> QSize:
         return QSize(210, 80)
 
+    def getDeviceList(self):
+        return [self.ui_address.itemText(x) for x in range(self.ui_address.count())]
+
     def pauseDiscovery(self):
         self._discovery.pause()
 
@@ -411,9 +412,16 @@ class ServiceDiscoveryDialog(BasicDialog):
         self.ui_address.clear()
         self._discovery.resume()
 
-    def callbackUpdateAddress(self, _address: str):
-        self.ui_address.clear()
-        self.ui_address.addItems(self._discovery.device_list)
+    def eventHandle(self, ev: DiscoveryEvent):
+        # Has error occupied, enabled address can be manual input
+        if ev.isEvent(DiscoveryEvent.Type.Error):
+            self.ui_address.setEditable(True)
+        if ev.isEvent(DiscoveryEvent.Type.Online):
+            if ev.data not in self.getDeviceList():
+                self.ui_address.addItem(ev.data)
+        elif ev.isEvent(DiscoveryEvent.Type.Offline):
+            if ev.data in self.getDeviceList():
+                self.ui_address.removeItem(self.getDeviceList().index(ev.data))
 
     def getAddress(self) -> str:
         self.exec_()
