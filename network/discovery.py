@@ -75,6 +75,8 @@ class ServiceDiscovery:
         self._tasklet.add_task(self._task_send_discovery.task)
 
     def foundCallback(self, address: str):
+        if not address:
+            return
         self._dev_list.data[address] = time.time()
         self._event_callback(DiscoveryEvent(type=DiscoveryEvent.Type.Online, data=address))
 
@@ -112,7 +114,9 @@ class ServiceDiscovery:
                     continue
 
                 if DiscoveryMsg(**json.loads(event.data)) == self._msg:
-                    self.foundCallback(event.source)
+                    # Just incase event.source is empty
+                    source = event.source or sender[0]
+                    self.foundCallback(source)
                     if self._auto_stop:
                         self.pause()
             except (TypeError, json.decoder.JSONDecodeError, DynamicObjectDecodeError):
