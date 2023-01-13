@@ -354,7 +354,8 @@ class UiMailBox(QObject):
 
         elif isinstance(mail, ProgressBarMail):
             if mail.progress:
-                self.__progress.setWindowTitle(mail.title)
+                if mail.title:
+                    self.__progress.setWindowTitle(mail.title)
                 self.__progress.setLabelText(mail.content)
                 self.__progress.setProgress(mail.progress)
                 self.__progress.setCloseable(mail.closeable)
