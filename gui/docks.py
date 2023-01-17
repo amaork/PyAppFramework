@@ -48,12 +48,15 @@ class BasicDock(QtWidgets.QDockWidget):
 class FilelistDock(QtWidgets.QDockWidget):
     signalImageAppend = QtCore.Signal(str)
     signalImageSelected = QtCore.Signal(str)
+    signalLeftKeyDoubleClicked = QtCore.Signal()
+    signalRightKeyDoubleClicked = QtCore.Signal()
 
     def __init__(self, title: str, parent: QtWidgets.QWidget = None):
         super(FilelistDock, self).__init__(parent)
         self.__files = list()
         self.ui_list = QtWidgets.QListWidget(parent)
         self.ui_search = QtWidgets.QLineEdit(parent)
+        self.ui_list.mouseDoubleClickEvent = self.mouseDoubleClickEvent
 
         widget = QtWidgets.QWidget(self)
         widget.setLayout(QtWidgets.QVBoxLayout())
@@ -117,6 +120,15 @@ class FilelistDock(QtWidgets.QDockWidget):
     def slotItemClicked(self, item: QtWidgets.QListWidgetItem):
         self.signalImageSelected.emit(item.text())
 
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
+        if not self.__files:
+            return
+
+        if event.button() == Qt.LeftButton:
+            self.signalLeftKeyDoubleClicked.emit()
+        elif event.button() == Qt.RightButton:
+            self.signalRightKeyDoubleClicked.emit()
+
 
 class ImagePreviewDock(QtWidgets.QDockWidget):
     signalRequestLoad = QtCore.Signal()
@@ -169,6 +181,8 @@ class ImagePreviewDock(QtWidgets.QDockWidget):
 
 class ImageIconPreviewDock(QtWidgets.QDockWidget):
     signalRequestSelectImage = QtCore.Signal(str)
+    signalLeftKeyDoubleClicked = QtCore.Signal()
+    signalRightKeyDoubleClicked = QtCore.Signal()
 
     def __init__(self,
                  title: str,
@@ -183,6 +197,7 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         self.ui_view.setViewMode(QtWidgets.QListView.IconMode)
         self.ui_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.ui_view.keyPressEvent = self.keyPressEvent
+        self.ui_view.mouseDoubleClickEvent = self.mouseDoubleClickEvent
 
         self.ui_model = QtGui.QStandardItemModel(1, 0, self)
         self.ui_view.setModel(self.ui_model)
@@ -243,3 +258,12 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         self.ui_view.scrollTo(index)
         self.ui_view.setCurrentIndex(index)
         self.signalRequestSelectImage.emit(self.images[row])
+
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
+        if not self.images:
+            return
+
+        if event.button() == Qt.LeftButton:
+            self.signalLeftKeyDoubleClicked.emit()
+        elif event.button() == Qt.RightButton:
+            self.signalRightKeyDoubleClicked.emit()
