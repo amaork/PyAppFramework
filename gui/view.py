@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import abc
 import typing
+import datetime
 from PySide2.QtCore import Qt
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -605,22 +606,34 @@ class SQliteQueryView(BasicWidget):
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float],
                  custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
+                 date_search_column: int = -1, precisely_search_columns: typing.Sequence[int] = None,
                  readonly: bool = False, without_search: bool = False, row_autoincrement_factor: float = 0.0,
+                 datetime_format: str = 'yyyy/MM/dd hh:mm:ss', search_box_min_width: int = 400,
                  parent: QtWidgets.QWidget = None):
         custom_content_menu = custom_content_menu or list()
         self._model = model
         self._is_readonly = readonly
+
         self._without_search = without_search
         self._stretch_factor = stretch_factor
+        self._search_box_min_width = search_box_min_width
+
+        self._datetime_format = datetime_format
+        self._date_search_column = date_search_column
+        self._precisely_search_columns = precisely_search_columns or list()
+
         self._custom_content_menu = list(custom_content_menu)
         self._row_autoincrement_factor = row_autoincrement_factor
         super(SQliteQueryView, self).__init__(parent)
+        self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
 
     def _initUi(self):
         self.ui_view = TableView(True, self)
         self.ui_page_num = PageNumberBox()
         self.ui_search_key = QtWidgets.QComboBox(self)
-        self.ui_search_value = QtWidgets.QLineEdit(self)
+        self.ui_start_date = QtWidgets.QDateEdit(self)
+        self.ui_end_date = QtWidgets.QDateEdit(self)
+        self.ui_search_value = QtWidgets.QComboBox(self)
         self.ui_end = QtWidgets.QPushButton(self.tr('End'))
         self.ui_home = QtWidgets.QPushButton(self.tr('Home'))
         self.ui_next = QtWidgets.QPushButton(self.tr('Next'))
@@ -633,6 +646,13 @@ class SQliteQueryView(BasicWidget):
         self.ui_action_del = QtWidgets.QAction(self.tr('Delete Record'), self.ui_content_menu)
         self.ui_action_clear = QtWidgets.QAction(self.tr('Clear All Records'), self.ui_content_menu)
 
+        # Date search layout
+        date_search_layout = QtWidgets.QHBoxLayout()
+        for item in (QtWidgets.QLabel(self.tr('Start Date')), self.ui_start_date,
+                     QtWidgets.QLabel(self.tr('End Date')), self.ui_end_date):
+            item.setProperty('tag', 'date')
+            date_search_layout.addWidget(item)
+
         if not self._is_readonly:
             self.ui_content_menu.addAction(self.ui_action_del)
             self.ui_content_menu.addAction(self.ui_action_clear)
@@ -642,10 +662,13 @@ class SQliteQueryView(BasicWidget):
             self.ui_content_menu.addActions(self._custom_content_menu)
 
         tools_layout = QtWidgets.QHBoxLayout()
-        for item in (self.ui_search_key, self.ui_search_value, self.ui_search, self.ui_clear_search,
+        for item in (self.ui_search_key, self.ui_search_value, date_search_layout, self.ui_search, self.ui_clear_search,
                      QtWidgets.QSplitter(), QtWidgets.QLabel(self.tr('Page Num')), self.ui_page_num,
                      self.ui_prev, self.ui_next, self.ui_home, self.ui_end):
-            tools_layout.addWidget(item)
+            if isinstance(item, QtWidgets.QLayout):
+                tools_layout.addLayout(item)
+            else:
+                tools_layout.addWidget(item)
         self.ui_tools_manager = ComponentManager(tools_layout)
 
         layout = QtWidgets.QVBoxLayout()
@@ -658,6 +681,11 @@ class SQliteQueryView(BasicWidget):
         self.ui_view.setModel(self._model)
         self.ui_page_num.setRange(1, self._model.total_page)
 
+        now = datetime.datetime.now()
+        today = QtCore.QDate(now.year, now.month, now.day)
+        self.ui_start_date.setDate(today)
+        self.ui_end_date.setDate(today)
+
         for key, name in zip(self._model.keys, self._model.column_header):
             self.ui_search_key.addItem(name, key)
 
@@ -665,6 +693,13 @@ class SQliteQueryView(BasicWidget):
             element.setProperty('tag', 'search')
 
     def _initStyle(self):
+        self.enableDateSearch(False)
+        self.ui_search_value.setEditable(True)
+        self.ui_search_value.setMinimumWidth(self._search_box_min_width)
+
+        self.ui_end_date.setCalendarPopup(True)
+        self.ui_start_date.setCalendarPopup(True)
+
         self.ui_view.setRowSelectMode()
         self.ui_view.hideRowHeader(True)
         self.ui_view.setAlternatingRowColors(True)
@@ -686,6 +721,9 @@ class SQliteQueryView(BasicWidget):
         self.ui_action_clear.triggered.connect(self.slotClear)
         self.ui_clear_search.clicked.connect(self.slotClearSearch)
         self.ui_page_num.valueChanged.connect(self.slotPageNumChanged)
+        self.ui_end_date.dateChanged.connect(self.slotUpdateDateRange)
+        self.ui_start_date.dateChanged.connect(self.slotUpdateDateRange)
+        self.ui_search_key.currentIndexChanged.connect(self.slotSearchKeyChanged)
         self.ui_view.customContextMenuRequested.connect(self.slotCustomContentMenu)
 
         self.ui_end.setShortcut(QtGui.QKeySequence(Qt.Key_End))
@@ -711,6 +749,12 @@ class SQliteQueryView(BasicWidget):
         if self._row_autoincrement_factor:
             self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
         super(SQliteQueryView, self).resizeEvent(event)
+
+    def enableDateSearch(self, enable: bool):
+        self.ui_search_value.setHidden(enable)
+        for element in self.ui_tools_manager.findValue('tag', 'date'):
+            if element.property('tag') == 'date':
+                element.setVisible(enable)
 
     def slotEnd(self):
         self.ui_page_num.setValue(self._model.total_page)
@@ -739,12 +783,30 @@ class SQliteQueryView(BasicWidget):
         return True
 
     def slotSearch(self):
-        value = self.ui_search_value.text()
+        value = self.ui_search_value.currentText()
         if not value:
             self._model.show_all()
         else:
             key = self.ui_search_key.currentData(QtCore.Qt.UserRole)
             self._model.search_record(key, value, self._enable_fuzzy_search(key))
+
+    def slotUpdateDateRange(self, _):
+        s = QtCore.QDateTime(self.ui_start_date.date(), QtCore.QTime(0, 0, 0)).toString(self._datetime_format)
+        e = QtCore.QDateTime(self.ui_end_date.date(), QtCore.QTime(23, 59, 59)).toString(self._datetime_format)
+        self.ui_search_value.setCurrentText(f'SELECT * from {self._model.tbl_name} WHERE date > "{s}" and date < "{e}"')
+
+    def slotSearchKeyChanged(self, idx: int):
+        if idx in self._precisely_search_columns:
+            self.enableDateSearch(False)
+            self.ui_search_value.clear()
+            self.ui_search_value.addItems(list(set(self._model.get_column_data(idx))))
+        else:
+            self.ui_search_value.clear()
+            self.ui_search_value.setCurrentText('')
+            self.enableDateSearch(idx == self._date_search_column)
+            # Update date search
+            if idx == self._date_search_column:
+                self.slotUpdateDateRange('')
 
     def slotDelete(self, without_confirm: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(

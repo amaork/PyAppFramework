@@ -208,6 +208,21 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         query = QtSql.QSqlQuery()
         return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {tbl};') and query.first() else 0
 
+    def get_column_data(self, column: int) -> typing.Sequence:
+        try:
+            column_name = self._columns[column]
+        except IndexError:
+            return []
+
+        column_data = list()
+        query = QtSql.QSqlQuery()
+        query.setForwardOnly(True)
+        if query.exec_(f'SELECT {column_name} FROM {self._tbl_name}') and query.isActive():
+            while query.next():
+                column_data.append(query.value(column_name))
+
+        return column_data
+
     def set_column_header(self):
         for column, name in enumerate(self.column_header):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
