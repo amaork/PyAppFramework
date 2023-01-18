@@ -7,6 +7,8 @@ from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
     QProgressDialog
+
+from PySide2 import QtWidgets, QtCore
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
 
@@ -25,7 +27,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 
 __all__ = ['BasicDialog',
            'SimpleColorDialog',
-           'SerialPortSettingDialog',
+           'SerialPortSettingDialog', 'FileDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
@@ -941,6 +943,61 @@ class OptionDialog(QDialog):
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectionIndex()
+
+
+class FileDialog(QtWidgets.QFileDialog):
+    def __init__(self, **kwargs):
+        """Refer: https://www.qtcentre.org/threads/43841-QFileDialog-to-select-files-AND-folders"""
+        self.__selectedFiles = list()
+        super(FileDialog, self).__init__(**kwargs)
+        self.setFileMode(QtWidgets.QFileDialog.Directory)
+        self.setOptions(QtWidgets.QFileDialog.DontResolveSymlinks)
+        self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        self.ui_list_view = self.findChild(QtWidgets.QListView, 'listView')
+
+        if isinstance(self.ui_list_view, QtWidgets.QListView):
+            self.ui_list_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        tree_view = self.findChild(QtWidgets.QTreeView)
+        if isinstance(tree_view, QtWidgets.QTreeView):
+            tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        # Find choose or open button install event filter and reconnect clicked signal
+        for btn in self.findChildren(QtWidgets.QPushButton):
+            if not isinstance(btn, QtWidgets.QPushButton):
+                continue
+
+            if any([x in btn.text().lower() for x in ('open', 'choose')]):
+                btn.installEventFilter(self)
+                btn.clicked.disconnect()
+                btn.clicked.connect(self.slotChooseClicked)
+
+    def slotChooseClicked(self):
+        if not self.ui_list_view:
+            self.reject()
+
+        for index in self.ui_list_view.selectionModel().selectedIndexes():
+            if index.column() == 0:
+                self.__selectedFiles.append(self.ui_list_view.model().filePath(index))
+
+        self.done(1)
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        if isinstance(watched, QPushButton) and event.type() == QtCore.QEvent.EnabledChange:
+            if not watched.isEnabled():
+                watched.setEnabled(True)
+
+        return super(FileDialog, self).eventFilter(watched, event)
+
+    def selectedFiles(self) -> typing.List:
+        return self.__selectedFiles[:]
+
+    @staticmethod
+    def getFilesAndDirs(title: str, **kwargs):
+        dialog = FileDialog(**kwargs)
+        dialog.setWindowTitle(title)
+        dialog.exec_()
+        return dialog.selectedFiles()
 
 
 # noinspection PyTypeChecker
