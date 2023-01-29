@@ -3221,6 +3221,15 @@ class LogMessageWidget(QTextEdit):
     def errorEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_ERROR
 
+    def info(self, msg: str):
+        self.logging(UiLogMessage.genDefaultInfoMessage(msg))
+
+    def debug(self, msg: str):
+        self.logging(UiLogMessage.genDefaultDebugMessage(msg))
+
+    def error(self, msg: str):
+        self.logging(UiLogMessage.genDefaultErrorMessage(msg))
+
     @Slot(object)
     def logging(self, message: UiLogMessage, write_to_log: bool = True):
         if not isinstance(message, UiLogMessage):
