@@ -2510,13 +2510,13 @@ class JsonSettingWidget(BasicJsonSettingWidget):
             return
         title = self.tr("Please select") + " {}".format(sender.property("title"))
         font_name, point_size, weight = UiFontInput.get_font(sender.property("private"))
-        font, selected = QFontDialog.getFont(QFont(font_name, point_size, weight), self, title)
+        selected, font = QFontDialog.getFont(QFont(font_name, point_size, weight), self, title)
         if not selected or not isinstance(font, QFont):
             return
 
         font_edit = self.ui_manager.getPrevSibling(sender)
         if isinstance(font_edit, QLineEdit):
-            font_setting = font.rawName(), font.pointSize(), font.weight()
+            font_setting = font.family(), font.pointSize(), font.weight()
             sender.setProperty("private", "{}".format(font_setting))
             font_edit.setText("{}".format(font_setting))
 
