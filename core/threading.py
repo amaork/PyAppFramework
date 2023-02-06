@@ -61,6 +61,23 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
         if not isinstance(value, bool):
             raise TypeError('value must be a bool')
         super(ThreadSafeBool, self).__init__(value)
+        self._preview_data = value
+
+    @property
+    def data(self) -> bool:
+        with self._lock:
+            return self._data
+
+    @data.setter
+    def data(self, data: bool):
+        with self._lock:
+            self._preview_data = self._data
+            self._data = data
+
+    @property
+    def previous_data(self) -> bool:
+        with self._lock:
+            return self._preview_data
 
     def set(self):
         self.data = True
@@ -75,6 +92,12 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
         with self._lock:
             self._data = not self._data
             return self._data
+
+    def is_rising_edge(self) -> bool:
+        return self.is_set() and not self._preview_data
+
+    def is_falling_edge(self) -> bool:
+        return not self.is_set() and self._preview_data
 
 
 class ThreadSafeInteger(ThreadLockAndDataWrap):
