@@ -8,6 +8,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 from .widget import ImageWidget
 from .canvas import ScalableCanvasWidget
+from ..misc.windpi import show_file_in_explorer
 __all__ = ['StretchFactor', 'BasicDock', 'FilelistDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
 StretchFactor = collections.namedtuple('StretchFactor', 'h v')
 
@@ -195,7 +196,9 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         self.ui_view.setWrapping(False)
         self.ui_view.setIconSize(icon_size)
         self.ui_view.setViewMode(QtWidgets.QListView.IconMode)
+        self.ui_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.ui_view.customContextMenuRequested.connect(self.slotCustomContextMenu)
         self.ui_view.keyPressEvent = self.keyPressEvent
         self.ui_view.mouseDoubleClickEvent = self.mouseDoubleClickEvent
 
@@ -239,6 +242,21 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
             self.ui_view.setCurrentIndex(self.ui_model.index(self.images.index(img), 0))
         except ValueError:
             pass
+
+    def slotCustomContextMenu(self, pos: QtCore.QPoint):
+        index = self.ui_view.indexAt(pos)
+        if index.isValid():
+            try:
+                image = self.images[index.row()]
+            except IndexError:
+                pass
+            else:
+                menu = QtWidgets.QMenu(self)
+                action = QtWidgets.QAction(self.tr('Open Image in Explorer'), menu)
+                action.triggered.connect(lambda: show_file_in_explorer(image))
+
+                menu.addAction(action)
+                menu.popup(self.ui_view.viewport().mapToGlobal(pos))
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         index = self.ui_view.currentIndex()
