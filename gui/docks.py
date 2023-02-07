@@ -191,15 +191,22 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
                  min_size: QtCore.QSize = QtCore.QSize(800, 125), parent: QtWidgets.QWidget = None):
         super(ImageIconPreviewDock, self).__init__(parent)
         self.__min_size = min_size
+        self.__latest_clicked_pos = QtCore.QPoint()
+
         self.images = list()
+        self.mouse_single_click_timer = QtCore.QTimer()
+        self.mouse_single_click_timer.setInterval(300)
+        self.mouse_single_click_timer.timeout.connect(self.slotSingleClicked)
+
         self.ui_view = QtWidgets.QListView(self)
         self.ui_view.setWrapping(False)
         self.ui_view.setIconSize(icon_size)
         self.ui_view.setViewMode(QtWidgets.QListView.IconMode)
-        self.ui_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.ui_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.ui_view.customContextMenuRequested.connect(self.slotCustomContextMenu)
+        # self.ui_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        # self.ui_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        # self.ui_view.customContextMenuRequested.connect(self.slotCustomContextMenu)
         self.ui_view.keyPressEvent = self.keyPressEvent
+        self.ui_view.mousePressEvent = self.mousePressEvent
         self.ui_view.mouseDoubleClickEvent = self.mouseDoubleClickEvent
 
         self.ui_model = QtGui.QStandardItemModel(1, 0, self)
@@ -243,6 +250,10 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         except ValueError:
             pass
 
+    def slotSingleClicked(self):
+        self.mouse_single_click_timer.stop()
+        self.slotCustomContextMenu(self.__latest_clicked_pos)
+
     def slotCustomContextMenu(self, pos: QtCore.QPoint):
         index = self.ui_view.indexAt(pos)
         if index.isValid():
@@ -277,7 +288,15 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         self.ui_view.setCurrentIndex(index)
         self.signalRequestSelectImage.emit(self.images[row])
 
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if event.button() == Qt.RightButton:
+            self.__latest_clicked_pos = event.localPos().toPoint()
+            self.mouse_single_click_timer.start()
+
+        super(QtWidgets.QListView, self.ui_view).mousePressEvent(event)
+
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
+        self.mouse_single_click_timer.stop()
         if not self.images:
             return
 
