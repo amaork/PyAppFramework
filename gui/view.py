@@ -796,6 +796,9 @@ class SQliteQueryView(BasicWidget):
         self.ui_search_value.setCurrentText(f'SELECT * from {self._model.tbl_name} WHERE date > "{s}" and date < "{e}"')
 
     def slotSearchKeyChanged(self, idx: int):
+        if self._without_search:
+            return
+
         if idx in self._precisely_search_columns:
             self.enableDateSearch(False)
             self.ui_search_value.clear()
