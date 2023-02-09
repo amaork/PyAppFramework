@@ -99,6 +99,24 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
     def is_falling_edge(self) -> bool:
         return not self.is_set() and self._preview_data
 
+    @contextlib.contextmanager
+    def rising_edge_contextmanager(self):
+        self.clear()
+        yield
+        self.set()
+
+    @contextlib.contextmanager
+    def falling_edge_contextmanager(self):
+        self.set()
+        yield
+        self.clear()
+
+    @contextlib.contextmanager
+    def custom_edge_contentmanager(self, level: bool):
+        self.assign(level)
+        yield
+        self.assign(not level)
+
 
 class ThreadSafeInteger(ThreadLockAndDataWrap):
     def __init__(self, value: int):
