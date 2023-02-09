@@ -48,6 +48,7 @@ class BasicDock(QtWidgets.QDockWidget):
 
 class FilelistDock(QtWidgets.QDockWidget):
     signalImageAppend = QtCore.Signal(str)
+    signalImageDeleted = QtCore.Signal(str)
     signalImageSelected = QtCore.Signal(str)
     signalLeftKeyDoubleClicked = QtCore.Signal()
     signalRightKeyDoubleClicked = QtCore.Signal()
@@ -64,8 +65,6 @@ class FilelistDock(QtWidgets.QDockWidget):
         widget.layout().addWidget(self.ui_search)
         widget.layout().addWidget(self.ui_list)
         widget.layout().setContentsMargins(0, 0, 0, 0)
-        # TODO: Support search
-        self.ui_search.setHidden(True)
 
         self.setWidget(widget)
         self.setWindowTitle(title)
@@ -88,7 +87,18 @@ class FilelistDock(QtWidgets.QDockWidget):
         self.ui_list.clear()
 
     def slotSearch(self, key: str):
-        pass
+        self.ui_list.clear()
+        self.ui_list.addItems([x for x in self.__files if key in x])
+
+    def slotDeleteFile(self, file: str):
+        try:
+            row = self.__files.index(file)
+        except ValueError:
+            return
+        else:
+            self.__files.remove(file)
+            self.ui_list.takeItem(row)
+            self.signalImageDeleted.emit(file)
 
     def slotAppendFile(self, file: str, last: bool = True):
         if file in self.__files:
@@ -182,15 +192,20 @@ class ImagePreviewDock(QtWidgets.QDockWidget):
 
 class ImageIconPreviewDock(QtWidgets.QDockWidget):
     signalRequestSelectImage = QtCore.Signal(str)
+    signalRequestDeleteImage = QtCore.Signal(str)
+    signalRequestDeleteAllImages = QtCore.Signal()
+
     signalLeftKeyDoubleClicked = QtCore.Signal()
     signalRightKeyDoubleClicked = QtCore.Signal()
 
-    def __init__(self,
-                 title: str,
+    def __init__(self, title: str,
                  icon_size: QtCore.QSize = QtCore.QSize(80, 60),
-                 min_size: QtCore.QSize = QtCore.QSize(800, 125), parent: QtWidgets.QWidget = None):
+                 min_size: QtCore.QSize = QtCore.QSize(800, 125),
+                 actions: typing.Sequence[typing.Tuple[str, typing.Callable[[str], None]]] = None,
+                 parent: QtWidgets.QWidget = None):
         super(ImageIconPreviewDock, self).__init__(parent)
         self.__min_size = min_size
+        self.__custom_actions = actions or list()
         self.__latest_clicked_pos = QtCore.QPoint()
 
         self.images = list()
@@ -202,9 +217,7 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
         self.ui_view.setWrapping(False)
         self.ui_view.setIconSize(icon_size)
         self.ui_view.setViewMode(QtWidgets.QListView.IconMode)
-        # self.ui_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        # self.ui_view.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        # self.ui_view.customContextMenuRequested.connect(self.slotCustomContextMenu)
+
         self.ui_view.keyPressEvent = self.keyPressEvent
         self.ui_view.mousePressEvent = self.mousePressEvent
         self.ui_view.mouseDoubleClickEvent = self.mouseDoubleClickEvent
@@ -225,6 +238,23 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
 
     def minimumSizeHint(self) -> QtCore.QSize:
         return self.__min_size
+
+    def slotDelImage(self, img: str):
+        try:
+            row = self.images.index(img)
+        except ValueError:
+            return
+        else:
+            self.images.remove(img)
+            self.ui_model.removeRow(row)
+            try:
+                index = self.ui_view.currentIndex()
+                self.signalRequestSelectImage.emit(self.images[index.row()])
+            except IndexError:
+                if self.images:
+                    image = self.images[-1]
+                    self.signalRequestSelectImage.emit(image)
+                    self.ui_view.setCurrentIndex(self.ui_model.index(self.images.index(image), 0))
 
     def slotAddImage(self, img: str):
         self.images.append(img)
@@ -263,10 +293,28 @@ class ImageIconPreviewDock(QtWidgets.QDockWidget):
                 pass
             else:
                 menu = QtWidgets.QMenu(self)
-                action = QtWidgets.QAction(self.tr('Open Image in Explorer'), menu)
-                action.triggered.connect(lambda: show_file_in_explorer(image))
+                action_select = QtWidgets.QAction(self.tr('Open Image in Explorer'), menu)
+                action_select.triggered.connect(lambda: show_file_in_explorer(image))
 
-                menu.addAction(action)
+                action_delete = QtWidgets.QAction(self.tr('Delete Image'), menu)
+                action_delete.triggered.connect(lambda: self.signalRequestDeleteImage.emit(image))
+
+                action_delete_all = QtWidgets.QAction(self.tr('Delete All Images'), menu)
+                action_delete_all.triggered.connect(self.signalRequestDeleteAllImages.emit)
+
+                menu.addAction(action_delete)
+                menu.addAction(action_delete_all)
+                menu.addSeparator()
+
+                menu.addAction(action_select)
+                menu.addSeparator()
+
+                if self.__custom_actions:
+                    menu.addSeparator()
+                    for text, callback in self.__custom_actions:
+                        action = QtWidgets.QAction(text, menu)
+                        action.triggered.connect(lambda: callback(image))
+                        menu.addAction(action)
                 menu.popup(self.ui_view.viewport().mapToGlobal(pos))
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
