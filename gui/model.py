@@ -179,6 +179,10 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return self.get_row_count(self._tbl_name)
 
     @property
+    def display_columns(self) -> str:
+        return self._query_columns
+
+    @property
     @abc.abstractmethod
     def column_header(self) -> typing.Tuple[str, ...]:
         pass

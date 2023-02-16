@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import typing
 import contextlib
+import matplotlib.axes
 import matplotlib.pyplot
 matplotlib.use('Qt5Agg')
 from matplotlib.figure import Figure
@@ -51,35 +52,39 @@ class CustomCanvas(FigureCanvas):
         self.figure.savefig(path, **kwargs)
         return path
 
-    def updateAxesAttribute(self, attribute: ChartAxesAttribute):
+    @staticmethod
+    def updateAxes(axes: matplotlib.axes.Axes, attribute: ChartAxesAttribute):
         if attribute.legend_kwargs:
-            self.axes.legend(**attribute.legend_kwargs)
+            axes.legend(**attribute.legend_kwargs)
 
         if attribute.x_label:
-            self.axes.set_xlabel(attribute.x_label)
+            axes.set_xlabel(attribute.x_label)
 
         if attribute.y_label:
-            self.axes.set_ylabel(attribute.y_label)
+            axes.set_ylabel(attribute.y_label)
 
         if attribute.x_ticks:
-            self.axes.set_xticks(attribute.x_ticks)
+            axes.set_xticks(attribute.x_ticks)
 
         if attribute.y_ticks:
-            self.axes.set_yticks(attribute.y_ticks)
+            axes.set_yticks(attribute.y_ticks)
 
         if attribute.title_kwargs:
-            self.axes.set_title(**attribute.title_kwargs)
+            axes.set_title(**attribute.title_kwargs)
 
         if attribute.hide_y_axis:
-            self.axes.get_yaxis().set_visible(False)
+            axes.get_yaxis().set_visible(False)
 
         if attribute.hide_x_axis:
-            self.axes.get_xaxis().set_visible(False)
+            axes.get_xaxis().set_visible(False)
 
-        self.axes.set_frame_on(attribute.show_frame)
+        axes.set_frame_on(attribute.show_frame)
 
         if attribute.show_grid:
-            self.axes.grid()
+            axes.grid()
+
+    def updateAxesAttribute(self, attribute: ChartAxesAttribute):
+        self.updateAxes(self.axes, attribute)
 
     def generatePlotAndSave(self, xdata, ydata, path: str, attr: ChartAxesAttribute):
         self.updateAxesAttribute(attr)
@@ -91,4 +96,3 @@ class CustomCanvas(FigureCanvas):
         wedges, _, _ = self.axes.pie(values, autopct=f'%1.2f%%', textprops=dict(color="w"), startangle=45)
         self.axes.legend(wedges, ingredients, loc='center left', bbox_to_anchor=(1, 0, 0.5, 1))
         return self.save(path)
-

@@ -606,7 +606,8 @@ class SQliteQueryView(BasicWidget):
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float],
                  custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
-                 date_search_column: int = -1, precisely_search_columns: typing.Sequence[int] = None,
+                 date_search_column: typing.Optional[typing.Sequence[int]] = None,
+                 precisely_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  readonly: bool = False, without_search: bool = False, row_autoincrement_factor: float = 0.0,
                  datetime_format: str = 'yyyy/MM/dd hh:mm:ss', search_box_min_width: int = 400,
                  parent: QtWidgets.QWidget = None):
@@ -619,7 +620,7 @@ class SQliteQueryView(BasicWidget):
         self._search_box_min_width = search_box_min_width
 
         self._datetime_format = datetime_format
-        self._date_search_column = date_search_column
+        self._date_search_column = date_search_column or [-1]
         self._precisely_search_columns = precisely_search_columns or list()
 
         self._custom_content_menu = list(custom_content_menu)
@@ -791,9 +792,12 @@ class SQliteQueryView(BasicWidget):
             self._model.search_record(key, value, self._enable_fuzzy_search(key))
 
     def slotUpdateDateRange(self, _):
+        k = self.ui_search_key.currentData(QtCore.Qt.UserRole)
         s = QtCore.QDateTime(self.ui_start_date.date(), QtCore.QTime(0, 0, 0)).toString(self._datetime_format)
         e = QtCore.QDateTime(self.ui_end_date.date(), QtCore.QTime(23, 59, 59)).toString(self._datetime_format)
-        self.ui_search_value.setCurrentText(f'SELECT * from {self._model.tbl_name} WHERE date > "{s}" and date < "{e}"')
+        self.ui_search_value.setCurrentText(
+            f'SELECT {self._model.display_columns} FROM {self._model.tbl_name} WHERE {k} > "{s}" and {k} < "{e}"'
+        )
 
     def slotSearchKeyChanged(self, idx: int):
         if self._without_search:
@@ -806,9 +810,9 @@ class SQliteQueryView(BasicWidget):
         else:
             self.ui_search_value.clear()
             self.ui_search_value.setCurrentText('')
-            self.enableDateSearch(idx == self._date_search_column)
+            self.enableDateSearch(idx in self._date_search_column)
             # Update date search
-            if idx == self._date_search_column:
+            if idx in self._date_search_column:
                 self.slotUpdateDateRange('')
 
     def slotDelete(self, without_confirm: bool = False) -> bool:
