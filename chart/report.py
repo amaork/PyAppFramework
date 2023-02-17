@@ -56,6 +56,12 @@ class ReportlabGenerator:
         except OSError as e:
             print(f'{self.__class__.__name__}.__del_tempdir: {e}')
 
+    def add_style(self, style: ParagraphStyle):
+        self.styles.add(style)
+
+    def get_style(self, name: str) -> ParagraphStyle:
+        return self.styles[name]
+
     def append_page_break(self):
         self.story.append(PageBreak())
 

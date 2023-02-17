@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+import os
 import platform
 import subprocess
 from typing import NamedTuple, Tuple
 __all__ = ['get_win_dpi', 'get_program_scale_factor', 'scale_x', 'scale_y', 'scale_size', 'DPI', 'ScaleFactor',
-           'show_file_in_explorer']
+           'system_open_file', 'show_file_in_explorer']
 
 Size = Tuple[int, int]
 DPI = NamedTuple('DPI', [('x', int), ('y', int)])
@@ -76,6 +77,10 @@ def scale_size(size: Size) -> Size:
     factor = get_program_scale_factor()
     width, height = size
     return int(factor.x * width), int(factor.y * height)
+
+
+def system_open_file(filepath: str):
+    os.system(rf'START {filepath}')
 
 
 def show_file_in_explorer(filepath: str):
