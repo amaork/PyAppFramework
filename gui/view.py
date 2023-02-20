@@ -806,6 +806,7 @@ class SQliteQueryView(BasicWidget):
         if idx in self._precisely_search_columns:
             self.enableDateSearch(False)
             self.ui_search_value.clear()
+            self.ui_search_value.setCurrentText('')
             self.ui_search_value.addItems(list(set(self._model.get_column_data(idx))))
         else:
             self.ui_search_value.clear()
