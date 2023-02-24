@@ -4,10 +4,11 @@ import typing
 import reprlib
 import inspect
 import logging
+import datetime
 import functools
 import contextlib
 from ..misc.settings import UiLogMessage
-__all__ = ['track_time', 'statistics_time', 'ExceptionHandle', 'LoggerWrap', 'LogAdapter']
+__all__ = ['track_time', 'statistics_time', 'get_debug_timestamp', 'ExceptionHandle', 'LoggerWrap', 'LogAdapter']
 
 
 def track_time(func):
@@ -39,6 +40,10 @@ def statistics_time(label: str = 'statistics_time'):
         yield
     finally:
         print(f'{label}: {time.perf_counter() - start}')
+
+
+def get_debug_timestamp() -> str:
+    return datetime.datetime.now().strftime('%H:%M:%S.%f')
 
 
 class ExceptionHandle:

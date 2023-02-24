@@ -1,83 +1,28 @@
 # -*- coding: utf-8 -*-
-import abc
 import time
 import queue
-import collections
+import typing
 from threading import Thread
 import google.protobuf.message as message
-from typing import Callable, Optional, Tuple, Any
+# from typing import Callable, Optional, Tuple, Any
 
 
 from ..misc.settings import UiLogMessage
 from ..core.timer import Task, Tasklet
-from ..core.datatype import CustomEvent, enum_property
+from .template import CommunicationEvent
 from .transmit import Transmit, TransmitWarning, TransmitException
-__all__ = ['CommunicationEvent', 'CommunicationEventHandle',
-           'ProtoBufSdk', 'ProtoBufSdkRequestCallback',
-           'ProtoBufHandle', 'ProtoBufHandleCallback']
+__all__ = ['ProtoBufSdk', 'ProtoBufSdkRequestCallback', 'ProtoBufHandle', 'ProtoBufHandleCallback']
 
 # callback(request message, response raw bytes)
-ProtoBufSdkRequestCallback = Callable[[message.Message, bytes], None]
+ProtoBufSdkRequestCallback = typing.Callable[[message.Message, bytes], None]
 
 # callback(request raw bytes) ->  response message
-ProtoBufHandleCallback = Callable[[bytes, Tuple[str, int]], Optional[message.Message]]
-
-
-class CommunicationEvent(CustomEvent):
-    Type = collections.namedtuple('Type', ['Timeout', 'Restore', 'Exception', 'Logging', 'Connected', 'Disconnect'])(*(
-        'timeout', 'restore', 'exception', 'logging', 'connect', 'disconnect'
-    ))
-
-    type = enum_property('type', Type)
-
-    def __init__(self, type_: Type, source: Tuple[str, int], data: Any = ''):
-        kwargs = dict(type=type_, data=data, source=source)
-        super(CommunicationEvent, self).__init__(**kwargs)
-
-
-class CommunicationEventHandle:
-    def __call__(self, event: CommunicationEvent):
-        handle = {
-            CommunicationEvent.Type.Logging: self.handleCommEventLogging,
-            CommunicationEvent.Type.Timeout: self.handleCommEventTimeout,
-            CommunicationEvent.Type.Restore: self.handleCommEventRestore,
-            CommunicationEvent.Type.Exception: self.handleCommEventException,
-            CommunicationEvent.Type.Connected: self.handleCommEventConnected,
-            CommunicationEvent.Type.Disconnect: self.handleCommEventDisconnect,
-        }.get(event.type)
-
-        if callable(handle):
-            handle(event.data)
-        else:
-            print(f'Unregistered type: {event.type}')
-
-    @abc.abstractmethod
-    def handleCommEventLogging(self, msg: UiLogMessage):
-        pass
-
-    @abc.abstractmethod
-    def handleCommEventTimeout(self, exp: Exception):
-        pass
-
-    @abc.abstractmethod
-    def handleCommEventRestore(self, arg: Any):
-        pass
-
-    @abc.abstractmethod
-    def handleCommEventException(self, exp: Exception):
-        pass
-
-    @abc.abstractmethod
-    def handleCommEventConnected(self, arg: Any):
-        pass
-
-    @abc.abstractmethod
-    def handleCommEventDisconnect(self, exp: Exception):
-        pass
+ProtoBufHandleCallback = typing.Callable[[bytes, typing.Tuple[str, int]], typing.Optional[message.Message]]
 
 
 class ProtoBufSdk(object):
-    def __init__(self, transmit: Transmit, max_msg_length: int, event_callback: Callable[[CommunicationEvent], None]):
+    def __init__(self, transmit: Transmit, max_msg_length: int,
+                 event_callback: typing.Callable[[CommunicationEvent], None]):
         """
         Init a protocol buffers sdk
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
@@ -107,7 +52,7 @@ class ProtoBufSdk(object):
         return self._transmit.connected
 
     @property
-    def address(self) -> Tuple[str, int]:
+    def address(self) -> typing.Tuple[str, int]:
         return self._transmit.address
 
     @property
@@ -118,7 +63,7 @@ class ProtoBufSdk(object):
     def isCommIdle(self, remain: int = 1) -> bool:
         return self._comm_queue.qsize() <= remain
 
-    def event_callback(self, type_: CommunicationEvent.Type, data: Any = ''):
+    def event_callback(self, type_: CommunicationEvent.Type, data: typing.Any = ''):
         self._event_callback(CommunicationEvent(type_=type_, source=self._transmit.address, data=data))
 
     def _loggingCallback(self, msg: UiLogMessage):
@@ -136,7 +81,7 @@ class ProtoBufSdk(object):
     def disconnect(self):
         self._transmit.disconnect()
 
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+    def connect(self, address: typing.Tuple[str, int], timeout: float) -> bool:
         """
         Init transmit
         :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baudrate)
@@ -150,8 +95,8 @@ class ProtoBufSdk(object):
 
     def sendRequestToQueue(self,
                            msg: message.Message,
-                           callback: Optional[ProtoBufSdkRequestCallback] = None,
-                           priority: Optional[int] = None, periodic: bool = False) -> bool:
+                           callback: typing.Optional[ProtoBufSdkRequestCallback] = None,
+                           priority: typing.Optional[int] = None, periodic: bool = False) -> bool:
         """
         Send request to queue
         :param msg: request message
@@ -220,7 +165,7 @@ class ProtoBufSdk(object):
                 except TransmitException as e:
                     self.disconnect()
                     self._errorLogging("Comm error: {}, disconnect".format(e))
-                    self.event_callback(CommunicationEvent.Type.Disconnect, e)
+                    self.event_callback(CommunicationEvent.Type.Disconnected, f'{e}')
                     break
                 except TransmitWarning as e:
                     # Periodic msg do not retry
@@ -245,7 +190,7 @@ class ProtoBufHandle(object):
                  transmit: Transmit,
                  max_msg_length: int,
                  handle_callback: ProtoBufHandleCallback,
-                 event_callback: Callable[[CommunicationEvent], None], verbose: bool = False):
+                 event_callback: typing.Callable[[CommunicationEvent], None], verbose: bool = False):
         """
         Init a protocol buffers handle for protocol buffer comm simulator
         :param transmit: Data transmit (TCPTransmit or UDPTransmit or self-defined TCPTransmit)
@@ -272,7 +217,7 @@ class ProtoBufHandle(object):
     def __del__(self):
         self._transmit.disconnect()
 
-    def event_callback(self, type_: CommunicationEvent.Type, data: Any = ''):
+    def event_callback(self, type_: CommunicationEvent.Type, data: typing.Any = ''):
         self._event_callback(CommunicationEvent(type_=type_, source=self._transmit.address, data=data))
 
     def _loggingCallback(self, msg: UiLogMessage):
@@ -298,7 +243,7 @@ class ProtoBufHandle(object):
     def disconnect(self):
         self._transmit.disconnect()
 
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+    def connect(self, address: typing.Tuple[str, int], timeout: float) -> bool:
         """
         Init transmit
         :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baudrate)
@@ -319,7 +264,7 @@ class ProtoBufHandle(object):
     def threadCommunicationHandle(self):
         while True:
             if not self.connected:
-                self.event_callback(CommunicationEvent.Type.Disconnect)
+                self.event_callback(CommunicationEvent.Type.Disconnected)
                 time.sleep(0.01)
                 continue
 
@@ -351,7 +296,7 @@ class ProtoBufHandle(object):
                 self._errorLogging("Decode msg error: {}".format(e))
                 continue
             except TransmitException as e:
-                self.event_callback(CommunicationEvent.Type.Disconnect, e)
+                self.event_callback(CommunicationEvent.Type.Disconnected, f'e')
                 self._tasklet.add_task(Task(func=self.taskDetectConnection, timeout=0.1))
                 self._errorLogging("Comm error: {}".format(e))
                 self._transmit.disconnect()
