@@ -25,7 +25,7 @@ class CommunicationEvent(CustomEvent):
 
     type = enum_property('type', Type)
 
-    def __init__(self, type_: Type, source: typing.Tuple[str, int] = ('', -1), data: typing.Any = ''):
+    def __init__(self, type_: Type, data: typing.Any = '', source: typing.Any = None):
         kwargs = dict(type=type_, data=data, source=source)
         super(CommunicationEvent, self).__init__(**kwargs)
 
@@ -41,7 +41,7 @@ class CommunicationEvent(CustomEvent):
     def error(cls, msg: str):
         return cls(cls.Type.Logging, data=UiLogMessage.genDefaultErrorMessage(msg))
 
-    @staticmethod
+    @classmethod
     def section_end(cls, sid: int, section: CommunicationSection):
         return cls(cls.Type.SectionEnd, data=DynamicObject(sid=sid, section=section))
 
@@ -100,6 +100,10 @@ class CommunicationEventHandle:
 
 
 class CommunicationObject:
+    @abc.abstractmethod
+    def print_log(self) -> bool:
+        pass
+
     @abc.abstractmethod
     def to_bytes(self) -> bytes:
         """Get binary data from obj"""
@@ -167,6 +171,10 @@ class CommunicationController:
     def _format_log(self, msg: str) -> str:
         return f'{get_debug_timestamp()} {msg}' if self._print_ts else msg
 
+    def _send_event(self, event: CommunicationEvent):
+        if callable(self._event_callback):
+            self._event_callback(event)
+
     def info_msg(self, msg: str):
         self._event_callback(self._event_cls.info(self._format_log(msg)))
 
@@ -223,7 +231,9 @@ class CommunicationController:
                 with self.section():
                     # Send request
                     self._serial.write(request.to_bytes())
-                    self.debug_msg(f'TX {"=" * 16}>: {request}')
+
+                    if request.print_log():
+                        self.debug_msg(f'TX {"=" * 16}>: {request}')
 
                     # Receive response
                     data = self._serial.read(self._response_max_length)
@@ -237,7 +247,8 @@ class CommunicationController:
                         self._serial.flush()
                         continue
                     else:
-                        self.debug_msg(f'RX <{"=" * 16}: {response}')
+                        if request.print_log():
+                            self.debug_msg(f'RX <{"=" * 16}: {response}')
 
                     if not self._section_check(request, response):
                         self.error_msg(f'Section check failed: {request!r} {response!r}')
