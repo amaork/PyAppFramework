@@ -11,7 +11,11 @@ from ..misc.settings import UiLogMessage
 from ..misc.debug import get_debug_timestamp
 from ..core.threading import ThreadSafeBool, ThreadSafeInteger
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
-__all__ = ['CommunicationEvent', 'CommunicationEventHandle', 'CommunicationObject', 'CommunicationController']
+__all__ = ['CommunicationEvent', 'CommunicationEventHandle',
+           'CommunicationObject', 'CommunicationController', 'CommunicationSection']
+
+
+CommunicationSection = collections.namedtuple('CommunicationSection', 'request response')
 
 
 class CommunicationEvent(CustomEvent):
@@ -38,8 +42,8 @@ class CommunicationEvent(CustomEvent):
         return cls(cls.Type.Logging, data=UiLogMessage.genDefaultErrorMessage(msg))
 
     @staticmethod
-    def section_end(cls, sid: int):
-        return cls(cls.Type.SectionEnd, data=sid)
+    def section_end(cls, sid: int, section: CommunicationSection):
+        return cls(cls.Type.SectionEnd, data=DynamicObject(sid=sid, section=section))
 
     @classmethod
     def section_start(cls, sid: int):
@@ -98,11 +102,13 @@ class CommunicationEventHandle:
 class CommunicationObject:
     @abc.abstractmethod
     def to_bytes(self) -> bytes:
+        """Get binary data from obj"""
         pass
 
     @classmethod
     @abc.abstractmethod
     def from_bytes(cls, obj, data: bytes):
+        """Get object from bytes"""
         pass
 
 
@@ -130,6 +136,7 @@ class CommunicationController:
         self._queue = queue.Queue()
         self._exit = ThreadSafeBool(False)
         self._section_seq = ThreadSafeInteger(0)
+        self._latest_section = CommunicationSection(None, None)
 
         self._event_cls = event_cls
         self._response_cls = response_cls
@@ -196,10 +203,10 @@ class CommunicationController:
 
     @contextlib.contextmanager
     def section(self):
-        self._event_callback(self._event_cls(CommunicationEvent.Type.SectionStart, data=self._section_seq.data))
+        self._event_callback(self._event_cls.section_start(self._section_seq.data))
         self.debug_msg(f'[Section: {self._section_seq.data: 07d}]')
         yield
-        self._event_callback(self._event_cls(CommunicationEvent.Type.SectionEnd, data=self._section_seq.data))
+        self._event_callback(self._event_cls.section_end(self._section_seq.data, self._latest_section))
         self.debug_msg('>>>\r\n')
         self._section_seq.increase()
 
@@ -237,6 +244,7 @@ class CommunicationController:
                         continue
 
                     self._response_handle(request, response)
+                    self._latest_section = CommunicationSection(request, response)
             except AttributeError as e:
                 self._event_callback(self._event_cls(type_=CommunicationEvent.Type.Exception, data=f'{e}'))
                 self.error_msg(f'Communication error: {e}')
