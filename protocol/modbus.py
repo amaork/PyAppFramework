@@ -134,7 +134,7 @@ class ModbusServer:
         self.regions = list()
         self.verbose = verbose
         self.callback = callback
-        self.transmit = UARTTransmit(ending_check=lambda x: crc16(x) == 0)
+        self.transmit = UARTTransmit(ending_check=lambda x: crc16(x) == 0, checksum=crc16)
 
         self.fc_handle = {
             FuncCode.ReadRegs: self.handleReadRegs,

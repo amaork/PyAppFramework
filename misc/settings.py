@@ -95,6 +95,10 @@ class JsonSettings(DynamicObject):
     def default(cls) -> DynamicObject:
         pass
 
+    @classmethod
+    def ui(cls) -> DynamicObject:
+        pass
+
 
 class CustomAction(DynamicObject):
     _properties = {'text', 'slot', 'shortcut', 'ks'}

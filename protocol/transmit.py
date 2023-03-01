@@ -2,10 +2,11 @@
 import abc
 import time
 import socket
+import typing
 import serial
 import struct
 import threading
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional
 from google.protobuf.message import Message, DecodeError
 
 
@@ -23,11 +24,13 @@ class TransmitException(Exception):
 
 
 class TransmitWarning(Exception):
-    pass
+    def is_timeout(self):
+        return 'timeout' in f'{self}'
 
 
 class Transmit(object):
     DEFAULT_TIMEOUT = 0.1
+    Address = typing.Tuple[str, int]
 
     def __init__(self):
         self._timeout = 0.0
@@ -48,7 +51,7 @@ class Transmit(object):
         return self._timeout
 
     @property
-    def address(self) -> Tuple[str, int]:
+    def address(self) -> Address:
         return self._address
 
     @property
@@ -63,15 +66,18 @@ class Transmit(object):
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
         pass
 
+    def flush(self):
+        pass
+
     @abc.abstractmethod
     def disconnect(self):
         pass
 
     @abc.abstractmethod
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+    def connect(self, address: Address, timeout: float) -> bool:
         pass
 
-    def _update(self, address: Tuple[str, int], timeout: float, connected: bool = False) -> bool:
+    def _update(self, address: Address, timeout: float, connected: bool = False) -> bool:
         self._address = address
         self._timeout = timeout
         self._connected.assign(connected)
@@ -94,17 +100,17 @@ class UARTTransmit(Transmit):
         :param verbose:  print verbose message
         """
         self.__serial = None
+        self.__checksum = checksum
         self.__length_fmt = length_fmt
         self.__ending_check = ending_check
         self.__verbose = verbose or UARTTransmit.VERBOSE
-        self.__checksum = checksum if callable(checksum) else crc16
         super(UARTTransmit, self).__init__()
 
     def tx(self, data: bytes) -> bool:
         try:
             header = b''
-            checksum = struct.pack("<H", self.__checksum(data))
-            self.print_msg('tx: {0:03d} {1} {2}'.format(len(data), self.hex_convert(data), checksum.hex()))
+            checksum = struct.pack("<H", self.__checksum(data)) if callable(self.__checksum) else b''
+            self.print_msg('tx: {0:03d} {1} (crc16:{2})'.format(len(data), self.hex_convert(data), checksum.hex()))
 
             if self.__length_fmt:
                 header = struct.pack(self.__length_fmt, len(data) + struct.calcsize(self.__length_fmt))
@@ -133,15 +139,18 @@ class UARTTransmit(Transmit):
                 raise TransmitWarning("Too short:{}".format(len(data)))
 
             # Check data checksum
-            if self.__checksum(data):
+            if callable(self.__checksum) and self.__checksum(data):
                 raise TransmitWarning("Crc16 verify failed")
 
             # Return payload
-            return data[0:-2]
+            return data[0:-2] if callable(self.__checksum) else data
         except serial.SerialTimeoutException as err:
             raise TransmitWarning(err)
         except (struct.error, serial.SerialException, MemoryError) as err:
             raise TransmitException(err)
+
+    def flush(self):
+        self.__serial.flush()
 
     def print_msg(self, msg: str):
         if self.__verbose:
@@ -155,7 +164,7 @@ class UARTTransmit(Transmit):
         except AttributeError:
             pass
 
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+    def connect(self, address: Transmit.Address, timeout: float) -> bool:
         """
         Open serial port
         :param address: (port name, baudrate)
@@ -236,7 +245,7 @@ class TCPSocketTransmit(Transmit):
         self._socket.close()
         self._connected.clear()
 
-    def connect(self, address: Tuple[str, int], timeout: float) -> bool:
+    def connect(self, address: Transmit.Address, timeout: float) -> bool:
         self._socket.settimeout(timeout)
         self._update(address, timeout, True)
         return True
@@ -261,10 +270,10 @@ class TCPClientTransmit(Transmit):
         self._socket.disconnect()
 
     @property
-    def server(self) -> Tuple[str, int]:
+    def server(self) -> Transmit.Address:
         return self._server_address
 
-    def connect(self, address: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT) -> bool:
+    def connect(self, address: Transmit.Address, timeout: float = DEFAULT_TIMEOUT) -> bool:
         """
         Connect tcp server
         :param address: (host, port)
@@ -292,7 +301,7 @@ class TCPServerTransmit(Transmit):
         self._socket.disconnect()
 
     @property
-    def client(self) -> Tuple[str, int]:
+    def client(self) -> Transmit.Address:
         return self._client_address
 
     def accept_handle(self, listen_socket: socket.socket):
@@ -308,7 +317,7 @@ class TCPServerTransmit(Transmit):
             while self._connected.is_set():
                 time.sleep(0.1)
 
-    def connect(self, address: Tuple[str, int], _timeout: float = 0.0) -> bool:
+    def connect(self, address: Transmit.Address, _timeout: float = 0.0) -> bool:
         try:
             listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
             listen_socket.bind(address)
@@ -343,7 +352,7 @@ class TCPServerTransmitHandle:
         self._stopped.set()
         self._listen_socket.close()
 
-    def start(self, address: Tuple[str, int], backlog: int = 1):
+    def start(self, address: Transmit.Address, backlog: int = 1):
         try:
             self._listen_socket.bind(address)
         except OSError as e:
@@ -376,7 +385,7 @@ class UartTransmitWithProtobufEndingCheck(UARTTransmit):
             raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
         self.__msg_cls = msg_cls
         self.__with_crc16 = with_crc16
-        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt)
+        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt, checksum=crc16 if with_crc16 else None)
 
     def ending_check(self, data: bytes) -> bool:
         try:
@@ -386,7 +395,7 @@ class UartTransmitWithProtobufEndingCheck(UARTTransmit):
             if self.__with_crc16 and crc16(data):
                 return False
 
-            self.__msg_cls.FromString(data[0:-2])
+            self.__msg_cls.FromString(data[:-2] if self.__with_crc16 else data)
             return True
         except DecodeError:
             return False
