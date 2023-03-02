@@ -258,7 +258,7 @@ class CommunicationController:
             self.debug_msg(f'[Section: {self._section_seq.data: 07d}]')
         try:
             yield
-        except (TransmitWarning, TransmitException) as e:
+        except Exception as e:
             # Exception CommunicationSection.response filled with exception
             self._latest_section = CommunicationSection(request, e)
             raise e
@@ -332,6 +332,7 @@ class CommunicationController:
                                 self._timeout.set()
                                 self._timeout_cnt.increase()
                                 type_ = CommunicationEvent.Type.Timeout
+                                self._latest_section = CommunicationSection(request, e)
 
                         self.send_event(self._event_cls(type_=type_, data=f'{e}'))
                         self.error_msg(f'Communication warning: {e}')
@@ -344,6 +345,7 @@ class CommunicationController:
                             self.send_event(self._event_cls(type_=CommunicationEvent.Type.Exception, data=msg))
                     except (AttributeError, TransmitException) as e:
                         self.send_event(self._event_cls(type_=CommunicationEvent.Type.Exception, data=f'{e}'))
+                        self._latest_section = CommunicationSection(request, e)
                         self.error_msg(f'Communication exception: {e}')
                         self.disconnect()
                         break
