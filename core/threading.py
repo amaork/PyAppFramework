@@ -55,6 +55,14 @@ class ThreadLockAndDataWrap(object):
     def equal(self, right: Any) -> bool:
         return self.data == right
 
+    def great(self, right: Any, equal: bool = False) -> bool:
+        with self._lock:
+            return self._data >= right if equal else self._data > right
+
+    def little(self, right: Any, equal: bool = False) -> bool:
+        with self._lock:
+            return self._data <= right if equal else self._data < right
+
 
 class ThreadSafeBool(ThreadLockAndDataWrap):
     def __init__(self, value: bool):

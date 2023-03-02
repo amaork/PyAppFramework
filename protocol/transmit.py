@@ -116,7 +116,9 @@ class UARTTransmit(Transmit):
                 header = struct.pack(self.__length_fmt, len(data) + struct.calcsize(self.__length_fmt))
 
             msg = header + data + checksum
-            return self.__serial.write(msg) == len(msg)
+            if self.__serial.write(msg) != len(msg):
+                raise TransmitException('tx error')
+            return True
         except serial.SerialException as err:
             raise TransmitException(err)
 
