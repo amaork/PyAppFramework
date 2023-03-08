@@ -17,9 +17,10 @@ class ChartAxesAttribute(DynamicObject):
     _properties = {'lines', 'title_kwargs',
                    'show_frame', 'show_grid',
                    'hide_x_axis', 'hide_y_axis',
-                   'x_ticks', 'y_ticks', 'x_label', 'y_label', 'legend_kwargs'}
+                   'x_ticks', 'y_ticks', 'x_label', 'y_label', 'legend_kwargs', 'style'}
 
     def __init__(self, **kwargs):
+        kwargs.setdefault('style', 'k-')
         kwargs.setdefault('lines', [])
         kwargs.setdefault('x_ticks', [])
         kwargs.setdefault('y_ticks', [])
@@ -88,7 +89,7 @@ class CustomCanvas(FigureCanvas):
 
     def generatePlotAndSave(self, xdata, ydata, path: str, attr: ChartAxesAttribute):
         self.updateAxesAttribute(attr)
-        self.axes.plot(xdata, ydata)
+        self.axes.plot(xdata, ydata, attr.style)
         return self.save(path)
 
     def generatePieAndSave(self, values, ingredients: typing.Sequence[str], path: str, attr: ChartAxesAttribute):
