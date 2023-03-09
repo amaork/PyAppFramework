@@ -4,13 +4,23 @@ import collections
 from PySide2 import QtWidgets
 
 from .canvas import ChartAxesAttribute
+from ..core.datatype import DynamicObject
 from .line import TimelineChartView, ChartLine
 __all__ = ['ControlChartView', 'CCResult', 'CCWarning', 'CCLineTag']
 
 
-CCResult = collections.namedtuple('EWMAOutput', 'v ucl lcl cl')
 CCWarning = collections.namedtuple('OVResult', 'v threshold tag pos')
 CCLineTag = collections.namedtuple('CCLineTag', 'V UCL LCL')(*'v ucl lcl'.split())
+
+
+class CCResult(DynamicObject):
+    _properties = {'v', 'ucl', 'lcl', 'cl'}
+
+    def __init__(self, v, ucl, lcl, cl=None):
+        super(CCResult, self).__init__(v=v, ucl=ucl, lcl=lcl, cl=cl)
+
+    def __getitem__(self, item):
+        return self.__dict__[item]
 
 
 class ControlChartView(TimelineChartView):

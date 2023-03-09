@@ -54,19 +54,19 @@ class TimelineChartView(BasicWidget):
 
         self._updateChartPostCallback()
 
-    def appendData(self, data: dict):
+    def appendData(self, data):
         self.cnt += 1
         self.xdata.append(self.cnt)
         for line in self._attribute.lines:
-            self.ydata[line.tag].append(data.get(line.tag))
+            self.ydata[line.tag].append(data[line.tag])
 
         self.updateChart()
 
-    def updateAllData(self, sequence: typing.Sequence[dict]):
+    def updateAllData(self, sequence: typing.Sequence):
         self.cnt = len(sequence)
         self.xdata = list(range(1, self.cnt + 1))
         for line in self._attribute.lines:
-            self.ydata[line.tag] = [data.get(line.tag) for data in sequence]
+            self.ydata[line.tag] = [data[line.tag] for data in sequence]
 
         self._updateAllDataCallback()
         self.updateChart()
