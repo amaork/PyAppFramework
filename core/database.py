@@ -27,6 +27,7 @@ class SQLiteDatabaseError(Exception):
 
 
 class SQLiteDatabase(object):
+    SpcSequenceTBLName = 'sqlite_sequence'
     TYPE_INTEGER, TYPE_REAL, TYPE_TEXT, TYPE_BLOB = list(range(4))
     TBL_CID, TBL_NAME, TBL_TYPE, TBL_REQUIRED, TBL_DEF, TBL_PK = list(range(6))
 
@@ -106,6 +107,13 @@ class SQLiteDatabase(object):
         else:
             return "UNKNOWN"
 
+    @staticmethod
+    def columns2str(columns: typing.Sequence[str]):
+        try:
+            return ', '.join(columns)
+        except TypeError:
+            return '*'
+
     def rawExecute(self, sql: str):
         try:
             self._cursor.execute(sql)
@@ -119,7 +127,9 @@ class SQLiteDatabase(object):
 
         :return: table name list (utf-8)
         """
-        self._cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
+        self._cursor.execute(
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name != \'{self.SpcSequenceTBLName}\';"
+        )
         tables = [i[0] for i in self._cursor.fetchall()]
         return tables
 
@@ -133,6 +143,10 @@ class SQLiteDatabase(object):
         table_info = self._cursor.fetchall()
         column_list = [x[self.TBL_NAME] for x in table_info]
         return dict(list(zip(column_list, table_info)))
+
+    def getColumnCount(self, name: str) -> int:
+        self._cursor.execute(f'SELECT COUNT(*) FROM {name};')
+        return self._cursor.fetchall()[0][0]
 
     def getColumnList(self, name: str) -> List[str]:
         """Get table column name list
@@ -178,6 +192,18 @@ class SQLiteDatabase(object):
         column_names = self.getColumnList(name)
         return [table_info.get(n)[self.TBL_DEF] for n in column_names]
 
+    def getLimitRowData(self, name: str, count: int, order: str,
+                        columns: typing.Sequence[str] = None, latest: bool = False) -> List[Tuple]:
+        columns = self.columns2str(columns)
+        orientation = "DESC" if latest else ""
+
+        try:
+            self._cursor.execute(f'SELECT {columns} FROM {name} ORDER BY {order} {orientation} LIMIT {count}')
+        except (TypeError, ValueError, sqlite3.DatabaseError) as error:
+            raise SQLiteDatabaseError("getLimitRowData error: {}".format(error))
+        else:
+            return self._cursor.fetchall()
+
     def getTablePrimaryKey(self, name: str) -> Tuple[int, str, type]:
         """Get table primary key column, don't have pk will return 0
 
@@ -192,9 +218,9 @@ class SQLiteDatabase(object):
         else:
             return 0, table_info[0][self.TBL_NAME], Any
 
-    def getTableData(self, name: str) -> list:
+    def getTableData(self, name: str, columns: typing.Sequence[str] = None) -> list:
         try:
-            self._cursor.execute("SELECT * from {}".format(name))
+            self._cursor.execute(f"SELECT {self.columns2str(columns)} from {name}")
             return self._cursor.fetchall()
         except sqlite3.DatabaseError:
             return list()
@@ -226,6 +252,22 @@ class SQLiteDatabase(object):
             self._conn.commit()
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
+
+    def getAutoincrementSeq(self, name: str) -> int:
+        return self.selectRecord(self.SpcSequenceTBLName, ['seq'], self.conditionFormat('name', name))[0][0]
+
+    def deleteRecord(self, name: str, condition: str):
+        """Delete records from table, when conditions matched
+
+        :param name: table name
+        :param condition: conditions
+        :return: error raise an exception
+        """
+        try:
+            self._cursor.execute("DELETE FROM {} WHERE {};".format(name, condition))
+            self._conn.commit()
+        except sqlite3.DatabaseError as error:
+            raise SQLiteDatabaseError("Delete error:{}".format(error))
 
     def insertRecord(self, name: str, record: Union[list, tuple]):
         """Insert a record to table
@@ -301,19 +343,6 @@ class SQLiteDatabase(object):
             self._conn.commit()
         except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
-
-    def deleteRecord(self, name: str, condition: str):
-        """Delete records from table, when conditions matched
-
-        :param name: table name
-        :param condition: conditions
-        :return: error raise an exception
-        """
-        try:
-            self._cursor.execute("DELETE FROM {} WHERE {};".format(name, condition))
-            self._conn.commit()
-        except sqlite3.DatabaseError as error:
-            raise SQLiteDatabaseError("Delete error:{}".format(error))
 
     def selectRecord(self, name: str, columns: Optional[List[str]] = None, condition: Optional[str] = None):
         """Select record from table and matches conditions
@@ -728,7 +757,9 @@ class SQLiteDatabaseCreator(object):
         return os.path.join(self._output_dir, "{}.h".format(name))
 
     def __is_table_exist(self, table_name: str) -> bool:
-        self._db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name != \'sqlite_sequence\';")
+        self._db_cursor.execute(
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name != \'{SQLiteDatabase.SpcSequenceTBLName}\';"
+        )
         tables = [i[0] for i in self._db_cursor.fetchall()]
         return table_name in tables
 
