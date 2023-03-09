@@ -17,7 +17,7 @@ class ChartAxesAttribute(DynamicObject):
     _properties = {'lines', 'title_kwargs',
                    'show_frame', 'show_grid',
                    'hide_x_axis', 'hide_y_axis',
-                   'x_ticks', 'y_ticks', 'x_label', 'y_label', 'legend_kwargs', 'style'}
+                   'x_ticks', 'y_ticks', 'x_label', 'y_label', 'legend_kwargs', 'style', 'with_toolbar'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault('style', 'k-')
@@ -30,6 +30,7 @@ class ChartAxesAttribute(DynamicObject):
         kwargs.setdefault('show_frame', True)
         kwargs.setdefault('hide_x_axis', False)
         kwargs.setdefault('hide_y_axis', False)
+        kwargs.setdefault('with_toolbar', False)
         kwargs.setdefault('title_kwargs', None)
         kwargs.setdefault('legend_kwargs', None)
         super(ChartAxesAttribute, self).__init__(**kwargs)
