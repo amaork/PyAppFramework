@@ -45,12 +45,12 @@ class JsonSettings(DynamicObject):
         return self.store(self, path)
 
     @classmethod
-    def get(cls):
+    def get(cls, path: str = None):
         try:
-            return cls.load()
+            return cls.load(path)
         except (json.JSONDecodeError, JsonSettingsDecodeError, FileNotFoundError):
             settings = cls.default()
-            settings.save()
+            settings.save(path)
             return settings
 
     @classmethod
@@ -62,7 +62,7 @@ class JsonSettings(DynamicObject):
         try:
             path = path or cls._default_path
             if not os.path.isfile(path):
-                cls.store(cls.default())
+                cls.store(cls.default(), path)
                 return cls.default()
 
             with codecs.open(path, "r", "utf-8") as fp:
