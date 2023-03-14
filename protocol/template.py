@@ -42,6 +42,10 @@ class CommunicationEvent(CustomEvent):
         return cls(cls.Type.Logging, data=UiLogMessage.genDefaultErrorMessage(msg))
 
     @classmethod
+    def exception(cls, msg: str):
+        return cls(cls.Type.Exception, data=msg)
+
+    @classmethod
     def section_end(cls, sid: int, section: CommunicationSection):
         return cls(cls.Type.SectionEnd, data=DynamicObject(sid=sid, section=section))
 
@@ -101,7 +105,7 @@ class CommunicationEventHandle:
 
 class CommunicationObject:
     def print_log(self) -> bool:
-        return True
+        return not self.is_periodic()
 
     def is_periodic(self) -> bool:
         return False
