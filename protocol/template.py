@@ -12,8 +12,8 @@ from ..core.threading import ThreadSafeBool, ThreadSafeInteger
 from .transmit import Transmit, TransmitException, TransmitWarning
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
 
-__all__ = ['CommunicationEvent', 'CommunicationEventHandle',
-           'CommunicationObject', 'CommunicationController', 'CommunicationSection']
+__all__ = ['CommunicationEvent', 'CommunicationEventHandle', 'CommunicationController',
+           'CommunicationObject', 'CommunicationObjectDecodeError', 'CommunicationSection']
 
 CommunicationSection = collections.namedtuple('CommunicationSection', 'request response')
 
@@ -120,6 +120,10 @@ class CommunicationObject:
     def from_bytes(cls, obj, data: bytes):
         """Get object from bytes"""
         pass
+
+
+class CommunicationObjectDecodeError(Exception):
+    pass
 
 
 class CommunicationController:
@@ -301,7 +305,7 @@ class CommunicationController:
                         # Decode and check response
                         try:
                             response = self._response_cls.from_bytes(request, data)
-                        except ValueError as e:
+                        except CommunicationObjectDecodeError as e:
                             raw = ' '.join([f'{x:02X}' for x in data])
                             self.error_msg(f'Decode {request} response error: {e}, (Raw: {raw})')
                             self._transmit.flush()
