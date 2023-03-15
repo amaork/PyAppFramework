@@ -186,7 +186,6 @@ class CommunicationController:
     def disconnect(self):
         self._exit.set()
         self._transmit.disconnect()
-        self.send_event(self._event_cls.disconnected('user cancel'))
 
     def reset_section(self, sid: int = 0):
         self._section_seq.assign(sid)

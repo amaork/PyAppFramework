@@ -2,7 +2,6 @@
 """
 Provide UI elements container
 """
-
 from PySide2.QtCore import *
 from PySide2.QtWidgets import QComboBox, QWidget, QDoubleSpinBox, QSpinBox, QLineEdit, QPlainTextEdit, QDateTimeEdit, \
     QDial, QRadioButton, QCheckBox, QPushButton, QLCDNumber, QLabel, QTextEdit, QLayout, QGridLayout, QLayoutItem
@@ -637,12 +636,18 @@ class ComponentManager(QObject):
 
         return True
 
-    def setEnabled(self, enabled: bool):
-        self.setDisabled(not enabled)
+    def setEnabled(self, enabled: bool, ignore_event: bool = True, exclude: Sequence[QWidget] = None):
+        self.setDisabled(not enabled, ignore_event=ignore_event, exclude=exclude)
 
-    def setDisabled(self, disable: bool):
+    def setDisabled(self, disable: bool, ignore_event: bool = True, exclude: Sequence[QWidget] = None):
         self.__disabled = disable
-        [self.__eventHandle.process(element, self.__disabled) for element in self.getAll()]
+        exclude = exclude if exclude else list()
+        elements = [x for x in self.getAll() if x not in exclude]
+
+        if ignore_event:
+            [self.__eventHandle.process(element, self.__disabled) for element in elements]
+        else:
+            [element.setDisabled(disable) for element in elements]
 
     def bindSpinBox(self, key: str, sender: Any, receiver: Any,
                     factor: Union[int, float], enable: bool = False) -> bool:
