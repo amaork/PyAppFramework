@@ -200,8 +200,8 @@ class RMIShellClient(object):
         return self.exec("chmod", ["a+x", script_path, "&&", script_path], timeout=timeout)
 
     def tftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
-                         network: Optional[ipaddress.IPv4Network] = None, random_port: bool = True,
-                         verbose: bool = False, verify_by_md5: bool = True, timeout: int = 60) -> bool:
+                         network: Optional[ipaddress.IPv4Network] = None, random_port: bool = True, timeout: int = 60,
+                         verbose: bool = False, verify_by_md5: bool = True, busybox: bool = True) -> bool:
         """
         Upload a local_file from local to remote
         :param local_file: file to upload
@@ -209,9 +209,10 @@ class RMIShellClient(object):
         :param remote_name: if is not empty will rename to this name
         :param network: tftp server network(ipaddress.IPv4Network)
         :param random_port: tftp using random port
+        :param timeout: tftp client download file timeout
         :param verbose: display verbose info
         :param verify_by_md5: if set compare local and remote file md5 else only compare file size
-        :param timeout: tftp client download file timeout
+        :param busybox: tftp is build from busybox
         :return: success return true, failed return false
         """
         def server_listen(server, address, port):
@@ -241,15 +242,25 @@ class RMIShellClient(object):
         time.sleep(1)
 
         # Download file
-        ret = self.exec(self.TFTP_CLIENT,
-                        ["-g", "-r", os.path.basename(local_file), "-l", remote_file, server_address, str(server_port)],
-                        verbose=verbose, timeout=timeout)
+        if busybox:
+            ret = self.exec(
+                self.TFTP_CLIENT,
+                ["-g", "-r", os.path.basename(local_file), "-l", remote_file, server_address, str(server_port)],
+                verbose=verbose, timeout=timeout
+            )
+        else:
+            ret = self.exec(
+                self.TFTP_CLIENT,
+                [f'{server_address} {server_port} << EOF\r\n', 'binary\r\n',
+                 f'get {os.path.basename(local_file)} {remote_file}\r\n', 'quit\r\n', 'EOF\r\n'],
+                verbose=verbose, timeout=timeout
+            )
 
         if self._verbose or verbose:
             print(ret)
 
         # Stop ftp server
-        tftp_listen_thread.join(30)
+        # tftp_listen_thread.join(timeout)
         tftp_server.stop(True)
         self.exec("sync")
 
