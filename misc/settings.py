@@ -84,7 +84,7 @@ class JsonSettings(DynamicObject):
             if not os.path.isdir(os.path.dirname(path)) and len(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
             with codecs.open(path, "w", "utf-8") as fp:
-                json.dump(settings.dict, fp, indent=4, ensure_ascii=False)
+                json.dump(settings.dict, fp, indent=4, ensure_ascii=False, cls=cls._json_decoder)
         except OSError as e:
             print("store settings to {}, failed: {}".format(path, e))
             return False

@@ -200,6 +200,7 @@ class DynamicObjectDecodeError(DynamicObjectError):
 class DynamicObject(object):
     _check = dict()
     _properties = set()
+    _json_decoder = None
     _json_dump_sequence = ()
 
     def __init__(self, **kwargs):
@@ -274,7 +275,7 @@ class DynamicObject(object):
 
         :return:
         """
-        return json.dumps(self.__dict__)
+        return json.dumps(self.__dict__, cls=self._json_decoder)
 
     def update(self, data):
         if not isinstance(data, (dict, DynamicObject)):

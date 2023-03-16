@@ -12,7 +12,8 @@ from ..core.threading import ThreadSafeBool, ThreadSafeInteger
 from .transmit import Transmit, TransmitException, TransmitWarning
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
 
-__all__ = ['CommunicationEvent', 'CommunicationEventHandle', 'CommunicationController',
+__all__ = ['CommunicationEvent', 'CommunicationEventHandle',
+           'CommunicationController', 'CommunicationControllerConnectError',
            'CommunicationObject', 'CommunicationObjectDecodeError', 'CommunicationSection']
 
 CommunicationSection = collections.namedtuple('CommunicationSection', 'request response')
@@ -122,6 +123,10 @@ class CommunicationObject:
         pass
 
 
+class CommunicationControllerConnectError(Exception):
+    pass
+
+
 class CommunicationObjectDecodeError(Exception):
     pass
 
@@ -130,7 +135,6 @@ class CommunicationController:
     def __init__(self,
                  event_cls,
                  response_cls,
-                 exception_cls,
                  transmit: Transmit,
                  response_max_length: int,
                  event_callback: typing.Callable[[CommunicationEvent], None], print_ts: bool = False, retry: int = 1):
@@ -142,9 +146,6 @@ class CommunicationController:
 
         if not issubclass(response_cls, CommunicationObject):
             raise TypeError(f"'response_cls' must be a subclass of {CommunicationObject.__name__}")
-
-        if not issubclass(exception_cls, Exception):
-            raise TypeError(f"'exception_cls' must be a subclass of {Exception.__name__}")
 
         if not callable(event_callback):
             raise TypeError("'event_callback must be callable'")
@@ -162,7 +163,6 @@ class CommunicationController:
 
         self._event_cls = event_cls
         self._response_cls = response_cls
-        self._exception_cls = exception_cls
         self._event_callback = event_callback
         self._response_max_length = response_max_length
 
@@ -200,7 +200,7 @@ class CommunicationController:
             self._transmit.connect(address, timeout)
         except Exception as e:
             self.send_event(self._event_cls(CommunicationEvent.Type.Exception, data=f'{e}'))
-            raise self._exception_cls(e)
+            raise CommunicationControllerConnectError(e)
         else:
             self._exit.clear()
             self._timeout.clear()
