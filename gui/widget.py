@@ -40,7 +40,7 @@ from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBox
     QComboBox, QTreeWidget, QListWidget, QSizePolicy, QTreeWidgetItem, QFileDialog, QColorDialog, QFontDialog, \
     QListWidgetItem, QGroupBox, QTabWidget, QTextEdit
 from datetime import datetime
-from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict
+from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict, Callable
 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
@@ -1101,7 +1101,8 @@ class TableWidget(QTableWidget):
             temp = QSpinBox() if isinstance(widget, QSpinBox) else QDoubleSpinBox()
             temp.setRange(widget.minimum(), widget.maximum())
             temp.setSingleStep(widget.singleStep())
-            temp.setDecimals(widget.decimals())
+            if isinstance(temp, QDoubleSpinBox):
+                temp.setDecimals(widget.decimals())
             temp.setEnabled(widget.isEnabled())
             temp.setValue(widget.value())
         elif isinstance(widget, QCheckBox):
@@ -1474,14 +1475,7 @@ class TableWidget(QTableWidget):
         self.selectColumn(dst)
         self.tableDataChanged.emit()
 
-    def addRow(self, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
-        """Add a row and set row property data
-
-        :param data: row data should be an iterable object
-        :param property_: row hidden property data
-        :return:
-        """
-
+    def setRow(self, row: int, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
             return False
@@ -1490,20 +1484,18 @@ class TableWidget(QTableWidget):
             print("Item length too much")
             return False
 
-        # Increase row count
-        row = self.rowCount()
-        self.setRowCount(row + 1)
-
-        # Add data to row
         for column, item_data in enumerate(data):
             try:
+                if isinstance(item_data, QTableWidgetItem):
+                    item = item_data
+                else:
+                    item = QTableWidgetItem("{}".format(item_data))
+                    if property_:
+                        try:
+                            item.setData(Qt.UserRole, property_[column])
+                        except (AttributeError, IndexError):
+                            pass
 
-                item = QTableWidgetItem("{}".format(item_data))
-                if property_:
-                    try:
-                        item.setData(Qt.UserRole, property_[column])
-                    except (AttributeError, IndexError):
-                        pass
                 self.setItem(row, column, item)
 
                 # Get column filters
@@ -1513,11 +1505,46 @@ class TableWidget(QTableWidget):
                     self.setItemData(row, column, item_data)
 
             except ValueError as e:
-                print("TableWidget addItem error: {}".format(e))
+                print("TableWidget setRow error: {}".format(e))
                 continue
+
+        return True
+
+    def addRow(self, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
+        """Add a row and set row property data
+
+        :param data: row data should be an iterable object
+        :param property_: row hidden property data
+        :return:
+        """
+        # Increase row count
+        row = self.rowCount()
+        self.setRowCount(row + 1)
+
+        # Add data to row
+        self.setRow(row, data, property_)
 
         # Select current item
         self.selectRow(row)
+
+    def insRow(self, row: int, data: Sequence[Any], property_: Optional[Sequence[Any]] = None) -> bool:
+        """Insert row and set item data
+
+        :param row: row to insert
+        :param data: row data
+        :param property_: row properties
+        :return:
+        """
+        self.insertRow(row)
+        return self.setRow(row, data, property_)
+
+    def insRowByOrder(self, key: Callable[[Sequence[str]], bool], data: Sequence[Any], property_: Sequence[Any] = None):
+        for row in range(self.rowCount()):
+            if key(self.getRowData(row)):
+                return self.insRow(row, data, property_)
+        else:
+            # Table is empty
+            return self.insRow(0, data, property_)
 
     def setRowBackgroundColor(self, row: int, color: QBrush):
         [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
