@@ -10,12 +10,14 @@ BaseButton
                 |------RoundButton
                             |------StateButton
 """
+import typing
 import os.path
-from typing import Optional, Union, Tuple, Sequence
 from PySide2.QtWidgets import QPushButton, QWidget
 from PySide2.QtCore import Signal, Qt, QSize, QRect
+from typing import Optional, Union, Tuple, Sequence
 from PySide2.QtGui import QKeySequence, QImageReader, QPixmap, QPainter, QFont, QColor, QBrush, QPen, QPaintEvent
 __all__ = ['TextButton', 'IconButton', 'RectButton', 'RoundButton', 'StateButton']
+StateColor = typing.Union[Qt.GlobalColor, QColor]
 
 
 class BaseButton(QPushButton):
@@ -207,6 +209,9 @@ class StateButton(RoundButton):
 
         # Internal state
         self.state = False
+
+    def toggle(self):
+        self.toggled.emit(not self.state)
 
     def getState(self) -> bool:
         return self.state
