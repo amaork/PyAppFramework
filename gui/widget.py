@@ -1041,8 +1041,8 @@ class TableWidget(QTableWidget):
                 (QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
                 (QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
 
-                (QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
-                (QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom())
+                (QAction(self.tr("Move to Top"), self), lambda: self.rowMove2Top()),
+                (QAction(self.tr("Move to Bottom"), self), lambda: self.rowMove2Bottom())
             ],
         }.items():
             for action, slot in actions:
@@ -1288,13 +1288,13 @@ class TableWidget(QTableWidget):
             return
         self.swapRow(row, row + 1)
 
-    def rowMoveTop(self):
+    def rowMove2Top(self):
         while self.currentRow() != 0:
             self.rowMoveUp()
 
         self.simulateSelectRow(0)
 
-    def rowMoveBottom(self):
+    def rowMove2Bottom(self):
         while self.currentRow() != self.rowCount() - 1:
             self.rowMoveDown()
 
@@ -1475,6 +1475,10 @@ class TableWidget(QTableWidget):
         self.selectColumn(dst)
         self.tableDataChanged.emit()
 
+    def delRow(self, row: int):
+        self.removeRow(row)
+        self.tableDataChanged.emit()
+
     def setRow(self, row: int, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
@@ -1508,6 +1512,7 @@ class TableWidget(QTableWidget):
                 print("TableWidget setRow error: {}".format(e))
                 continue
 
+        self.tableDataChanged.emit()
         return True
 
     def addRow(self, data: Sequence[Any], property_: Optional[Sequence[Any]] = None):
@@ -1684,6 +1689,7 @@ class TableWidget(QTableWidget):
                 else:
                     return False
 
+            self.tableDataChanged.emit()
             return True
 
         except Exception as e:

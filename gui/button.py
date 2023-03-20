@@ -209,6 +209,7 @@ class StateButton(RoundButton):
 
         # Internal state
         self.state = False
+        self.toggled.connect(self.slotChangeView)
 
     def toggle(self):
         self.toggled.emit(not self.state)
