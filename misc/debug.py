@@ -7,8 +7,9 @@ import logging
 import datetime
 import functools
 import contextlib
-from ..misc.settings import UiLogMessage
-__all__ = ['track_time', 'statistics_time', 'get_debug_timestamp', 'ExceptionHandle', 'LoggerWrap', 'LogAdapter']
+from ..misc.settings import UiLogMessage, JsonSettings
+__all__ = ['track_time', 'statistics_time', 'get_debug_timestamp',
+           'ExceptionHandle', 'LoggerWrap', 'LogAdapter', 'JsonSettingsWithDebugCode']
 
 
 def track_time(func):
@@ -127,3 +128,16 @@ class LogAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         kwargs['extra'] = self.extra
         return msg, kwargs
+
+
+class JsonSettingsWithDebugCode(JsonSettings):
+    _debug_kw = 'debug_code'
+
+    def is_debug_enabled(self, option: str) -> bool:
+        return option in self.debug_code
+
+    def get_debug_option(self, option: str) -> str:
+        if not self.is_debug_enabled(option):
+            return ''
+
+        return [x for x in self.debug_code.split() if option in x][0].split('#')[-1]

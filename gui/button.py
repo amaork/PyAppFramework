@@ -217,6 +217,10 @@ class StateButton(RoundButton):
     def getState(self) -> bool:
         return self.state
 
+    def setState(self, st: bool):
+        self.state = True if st else False
+        self.update()
+
     def turnOn(self):
         self.state = True
         self.stateChanged.emit(True)
