@@ -445,7 +445,11 @@ class NetworkAddressSelectDialog(QDialog):
         super(NetworkAddressSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._address_list = QComboBox(self)
-        self._address_list.addItems(scan_lan_port(port=port, network=network, timeout=timeout))
+        try:
+            self._address_list.addItems(scan_lan_port(port=port, network=network, timeout=timeout))
+        except OSError as e:
+            print(f'{self.__class__.__name__}: {e}')
+
         button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
@@ -462,9 +466,8 @@ class NetworkAddressSelectDialog(QDialog):
         return self._address_list.currentText() if self.result() else None
 
     @classmethod
-    def getAddress(cls, port: int, timeout: float = 0.04,
-                   title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> Union[str, None]:
-        dialog = NetworkAddressSelectDialog(port=port, timeout=timeout, title=title, parent=parent)
+    def getAddress(cls, **kwargs) -> Union[str, None]:
+        dialog = NetworkAddressSelectDialog(**kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()

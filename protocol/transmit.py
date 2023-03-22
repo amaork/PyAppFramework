@@ -220,7 +220,7 @@ class TCPSocketTransmit(Transmit):
         try:
             if self._with_length:
                 header = self._socket.recv(struct.calcsize(self.MSG_LEN_FMT))
-                # Peer disconnected
+                # Peer closed
                 if not header:
                     self.disconnect()
                     return header
@@ -231,7 +231,7 @@ class TCPSocketTransmit(Transmit):
             # Read payload data
             data = tcp_socket_recv_data(self._socket, size)
 
-            # Peer disconnected
+            # Peer closed
             if not data:
                 self.disconnect()
             return data

@@ -207,7 +207,7 @@ class CommunicationController:
             self._timeout_cnt.reset()
             self._section_seq.reset()
             threading.Thread(target=self.thread_comm_with_device, daemon=True).start()
-            self.info_msg(f'Serial port connected: {address}, timeout:{timeout}')
+            self.info_msg(f'Connected: {address}, timeout:{timeout}')
             self.send_event(self._event_cls.connected(address, timeout))
             return True
 
