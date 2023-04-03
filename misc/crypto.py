@@ -138,20 +138,22 @@ class DESCrypto(object):
 
 class AESCrypto(object):
     BLOCK_SIZE = 16
-    AES_CBC, AES_ECB = 'CBC', 'ECB'
+    AES_CBC, AES_ECB, AES_GCM, AES_CTR = 'CBC', 'ECB', 'GCM', 'CTR'
 
     AES_MODE = {
         AES_CBC: AES.MODE_CBC,
-        AES_ECB: AES.MODE_ECB
+        AES_ECB: AES.MODE_ECB,
+        AES_CTR: AES.MODE_CTR,
+        AES_GCM: AES.MODE_GCM
     }
 
-    def __init__(self, key: str, mode: str = AES_ECB, vi: bytes = bytes(range(BLOCK_SIZE))):
+    def __init__(self, key: bytes, mode: str = AES_ECB, vi: bytes = bytes(range(BLOCK_SIZE))):
         if mode not in self.AES_MODE:
             raise ValueError('Invalid mode: {!r} mode must be: {}'.format(mode, list(self.AES_MODE.keys())))
 
         self.__vi = vi
         self.__mode = mode
-        self.__key = self.pad(key).encode()
+        self.__key = self.pad(key)
 
     def cipher(self):
         if self.__mode == self.AES_ECB:
@@ -160,27 +162,30 @@ class AESCrypto(object):
             return AES.new(self.__key, self.AES_MODE.get(self.__mode), self.__vi)
 
     @staticmethod
-    def pad(data: str) -> str:
-        pl = (AESCrypto.BLOCK_SIZE - len(data) % AESCrypto.BLOCK_SIZE)
-        return data + chr(pl) * pl
+    def pad(data: bytes) -> bytes:
+        if not len(data) % AESCrypto.BLOCK_SIZE:
+            return data
+
+        pl = AESCrypto.BLOCK_SIZE - (len(data) % AESCrypto.BLOCK_SIZE)
+        return data + bytes([pl]) * pl
 
     @staticmethod
-    def unpad(data: str) -> str:
-        return data[:-ord(data[len(data) - 1])]
+    def unpad(data: bytes) -> bytes:
+        return data[:-data[-1]]
 
     @staticmethod
-    def check(msg: str, data: typing.Any):
+    def check(func: str, data: typing.Any):
         if not isinstance(data, bytes):
-            raise TypeError("{!r} data must be bytes".format(msg))
+            raise TypeError("{!r} data must be bytes".format(func))
 
         if not data:
-            raise ValueError('{!r} data is empty'.format(msg))
+            raise ValueError('{!r} data is empty'.format(func))
 
     def encrypt(self, data: bytes) -> bytes:
         self.check('encrypt', data)
-        data = base64.b64encode(data)
-        return self.cipher().encrypt(self.pad(data.decode()).encode())
+        return self.cipher().encrypt(self.pad(data))
 
-    def decrypt(self, data: bytes) -> bytes:
+    def decrypt(self, data: bytes, plaintext_len: int) -> bytes:
         self.check('decrypt', data)
-        return base64.b64decode(self.unpad(self.cipher().decrypt(data).decode()).encode())
+        plaintext = self.cipher().decrypt(data)
+        return self.unpad(plaintext) if plaintext_len % AESCrypto.BLOCK_SIZE else plaintext
