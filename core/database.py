@@ -18,12 +18,66 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem',
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'DBTable', 'DBColumn',
            'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme']
 
 
 class SQLiteDatabaseError(Exception):
     pass
+
+
+class DBColumn(DynamicObject):
+    _properties = {'name', 'type', 'attr', 'display', 'default_value', 'stretch', 'annotate'}
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('attr', '')
+        kwargs.setdefault('stretch', 0.0)
+        kwargs.setdefault('display', True)
+        kwargs.setdefault('default_value', '')
+        kwargs.setdefault('annotate', kwargs.get('name'))
+        super(DBColumn, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return ' '.join([self.name, self.type, self.attr])
+
+    def is_text(self) -> bool:
+        return self.type == 'TEXT'
+
+    def is_autoinc(self) -> bool:
+        return 'AUTOINCREMENT' in self.attr
+
+
+class DBTable:
+    def __init__(self, name: str, scheme: typing.Iterable[DBColumn], readonly: bool = False):
+        self.name = name
+        self.scheme = scheme
+        self.readonly = readonly
+
+    @property
+    def is_autoincrement(self) -> bool:
+        return any(x.is_autoinc() for x in self.scheme)
+
+    def columns_name(self) -> typing.Tuple[str, ...]:
+        return tuple([x.name for x in self.scheme if not x.is_autoinc()])
+
+    def columns_annotation(self) -> typing.Tuple[str, ...]:
+        return tuple([x.annotate for x in self.scheme if x.display])
+
+    def columns_stretch(self) -> typing.Tuple[float, ...]:
+        return tuple([x.stretch for x in self.scheme if x.display])
+
+    def display_columns(self) -> typing.Tuple[str, ...]:
+        return tuple([x.name for x in self.scheme if x.display])
+
+    def get_create_sentence(self) -> str:
+        return f'CREATE TABLE {self.name} ({", ".join([str(x) for x in self.scheme])});'
+
+    def get_placeholder_sentence(self) -> str:
+        return self.get_inert_sentence({x.name: x.default_value for x in self.scheme if not x.is_autoinc()})
+
+    def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
+        v = [f"{record.get(x.name)}" if x.is_text() else record.get(x.name) for x in self.scheme if not x.is_autoinc()]
+        return f'INSERT INTO {self.name} {self.columns_name()} VALUES{tuple(v)}'
 
 
 class SQLiteDatabase(object):

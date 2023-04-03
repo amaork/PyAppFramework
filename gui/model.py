@@ -3,8 +3,8 @@ import abc
 import typing
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
-from ..core.database import SQLiteDatabase
-__all__ = ['AbstractTableModel', 'SqliteQueryModel']
+from ..core.database import SQLiteDatabase, DBTable
+__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'SqliteQueryModelWrap']
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
@@ -307,3 +307,25 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         else:
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
             self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name} WHERE {condition};')
+
+
+class SqliteQueryModelWrap(SqliteQueryModel):
+    def __init__(self, db_name: str, db_tbl: DBTable, parent: QtCore.QObject = None):
+        self.tbl = db_tbl
+        super().__init__(
+            parent=parent,
+            db_name=db_name, tbl_name=self.tbl.name, columns=self.tbl.display_columns(),
+            is_autoincrement=self.tbl.is_autoincrement, placeholder=self.tbl.get_placeholder_sentence(),
+        )
+
+    @property
+    def readonly(self) -> bool:
+        return self.tbl.readonly
+
+    @property
+    def column_header(self) -> typing.Tuple[str, ...]:
+        return self.tbl.columns_annotation()
+
+    @property
+    def column_stretch(self) -> typing.Tuple[float, ...]:
+        return self.tbl.columns_stretch()
