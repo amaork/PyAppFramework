@@ -4,7 +4,7 @@ import typing
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
 from ..core.database import SQLiteDatabase, DBTable
-__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'SqliteQueryModelWrap']
+__all__ = ['AbstractTableModel', 'SqliteQueryModel']
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
@@ -131,30 +131,28 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
 
-    def __init__(self, db_name: str, tbl_name: str, columns: typing.Sequence[str], pk_name: str = 'id',
-                 is_autoincrement: bool = False, rows_per_page: int = 20, placeholder: str = '', verbose: bool = False,
-                 parent: QtCore.QObject = None):
+    def __init__(self, db_name: str, tbl: DBTable,
+                 rows_per_page: int = 20, verbose: bool = False, parent: QtCore.QObject = None):
         # Create placeholder
         need_clear = False
-        if not self.get_row_count(tbl_name):
+        self.tbl = tbl
+        if not self.get_row_count(tbl.name):
             need_clear = True
-            QtSql.QSqlQuery().exec_(placeholder)
+            QtSql.QSqlQuery().exec_(self.tbl.get_placeholder_sentence())
 
         self._cur_page = 0
         self._verbose = verbose
-        self._pk_name = pk_name
         self._db_name = db_name
-        self._tbl_name = tbl_name
         self._rows_per_page = int(rows_per_page)
-        self._is_autoincrement = is_autoincrement
+        columns = self.tbl.display_columns()
         self._query_columns = ', '.join(columns) or '*'
-        self._columns = list(columns) or list(SQLiteDatabase(self._db_name).getTableInfo(self._tbl_name).keys())
+        self._columns = list(columns) or list(SQLiteDatabase(self._db_name).getTableInfo(self.tbl.name).keys())
         super(SqliteQueryModel, self).__init__(parent)
         self.flush_page(self.cur_page)
         self.set_column_header()
 
         if need_clear:
-            self.clear_table()
+            self.clear_table(init=True)
 
     @property
     def keys(self) -> typing.List[str]:
@@ -162,7 +160,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def tbl_name(self) -> str:
-        return self._tbl_name[:]
+        return self.tbl.name
 
     @property
     def cur_page(self) -> int:
@@ -176,16 +174,23 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def record_count(self) -> int:
-        return self.get_row_count(self._tbl_name)
+        return self.get_row_count(self.tbl.name)
 
     @property
     def display_columns(self) -> str:
         return self._query_columns
 
     @property
-    @abc.abstractmethod
+    def readonly(self) -> bool:
+        return self.tbl.readonly
+
+    @property
     def column_header(self) -> typing.Tuple[str, ...]:
-        pass
+        return self.tbl.columns_annotation()
+
+    @property
+    def column_stretch(self) -> typing.Tuple[float, ...]:
+        return self.tbl.columns_stretch()
 
     @property
     def rows_per_page(self) -> int:
@@ -198,11 +203,11 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def autoincrement_id(self) -> int:
-        if not self._is_autoincrement:
+        if not self.tbl.is_autoincrement:
             return self.record_count
 
         query = QtSql.QSqlQuery()
-        if query.exec_(f'SELECT seq FROM {self.SQLITE_SEQ_TBL_NAME} WHERE name = "{self._tbl_name}"') and query.first():
+        if query.exec_(f'SELECT seq FROM {self.SQLITE_SEQ_TBL_NAME} WHERE name = "{self.tbl_name}"') and query.first():
             return query.value(0)
 
         return self.record_count
@@ -221,7 +226,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         column_data = list()
         query = QtSql.QSqlQuery()
         query.setForwardOnly(True)
-        if query.exec_(f'SELECT {column_name} FROM {self._tbl_name}') and query.isActive():
+        if query.exec_(f'SELECT {column_name} FROM {self.tbl_name}') and query.isActive():
             while query.next():
                 column_data.append(query.value(column_name))
 
@@ -232,20 +237,32 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
 
     def show_all(self):
-        self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name};')
+        self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name};')
 
     def set_query(self, query: str):
         if self._verbose:
             print(query)
         self.setQuery(query)
 
-    def clear_table(self) -> bool:
+    def exec_query(self, query: str) -> typing.Tuple[bool, QtSql.QSqlQuery]:
+        if self._verbose:
+            print(query)
+
+        query_obj = QtSql.QSqlQuery()
+        query_result = query_obj.exec_(query) and query_obj.isActive()
+
+        if self._verbose:
+            print(query_obj.lastError().text())
+
+        return query_result, query_obj
+
+    def clear_table(self, init: bool = False) -> bool:
         query = QtSql.QSqlQuery()
-        if query.exec_(f'DELETE FROM {self._tbl_name}'):
-            if not self._is_autoincrement:
+        if query.exec_(f'DELETE FROM {self.tbl_name}'):
+            if not self.tbl.is_autoincrement and init:
                 return True
 
-            if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self._tbl_name}";'):
+            if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self.tbl_name}";'):
                 # Reset current page
                 self.flush_page(0, force=True)
                 return True
@@ -257,12 +274,12 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self._cur_page = page
             start = page * self._rows_per_page
             limit = f'LIMIT {int(self._rows_per_page)} OFFSET {int(start)};'
-            self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name} {limit}')
+            self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} {limit}')
 
     def select_record(self, condition: str):
         record_value = list()
         query = QtSql.QSqlQuery()
-        if query.exec_(f'SELECT * FROM {self._tbl_name} WHERE {condition};'):
+        if query.exec_(f'SELECT * FROM {self.tbl_name} WHERE {condition};'):
             while query.next():
                 values = list()
                 record = query.record()
@@ -274,17 +291,17 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return record_value
 
     def delete_record(self, pk: typing.Any) -> bool:
-        query = QtSql.QSqlQuery()
-        if query.exec_(f'DELETE FROM {self._tbl_name} WHERE {self._pk_name} = {pk};'):
+        result, query = self.exec_query(f'DELETE FROM {self.tbl_name} WHERE {self.tbl.pk} = {pk};')
+        if result:
             self.flush_page(self.cur_page, force=True)
             return True
 
         return False
 
     def insert_record(self, record: typing.Tuple) -> bool:
-        query = QtSql.QSqlQuery()
-        keys = self._columns[1:] if self._is_autoincrement else self._columns[:]
-        if query.exec_(f'INSERT INTO {self._tbl_name} {tuple(keys)} VALUES{tuple(record)}'):
+        keys = self._columns[:]
+        result, query = self.exec_query(f'INSERT INTO {self.tbl_name} ({",".join(keys)}) VALUES({",".join(record)})')
+        if result:
             if self.rowCount() < self._rows_per_page:
                 self.flush_page(self.cur_page)
 
@@ -293,7 +310,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     def update_record(self, pk: typing.Any, kv: str) -> bool:
         query = QtSql.QSqlQuery()
-        if query.exec_(f'UPDATE {self._tbl_name} {kv} WHERE {self._pk_name} = {pk};'):
+        if query.exec_(f'UPDATE {self.tbl_name} {kv} WHERE {self.tbl.pk} = {pk};'):
             self.flush_page(self.cur_page)
             return True
 
@@ -306,26 +323,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self.set_query(value)
         else:
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
-            self.set_query(f'SELECT {self._query_columns} FROM {self._tbl_name} WHERE {condition};')
+            self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} WHERE {condition};')
 
-
-class SqliteQueryModelWrap(SqliteQueryModel):
-    def __init__(self, db_name: str, db_tbl: DBTable, parent: QtCore.QObject = None):
-        self.tbl = db_tbl
-        super().__init__(
-            parent=parent,
-            db_name=db_name, tbl_name=self.tbl.name, columns=self.tbl.display_columns(),
-            is_autoincrement=self.tbl.is_autoincrement, placeholder=self.tbl.get_placeholder_sentence(),
-        )
-
-    @property
-    def readonly(self) -> bool:
-        return self.tbl.readonly
-
-    @property
-    def column_header(self) -> typing.Tuple[str, ...]:
-        return self.tbl.columns_annotation()
-
-    @property
-    def column_stretch(self) -> typing.Tuple[float, ...]:
-        return self.tbl.columns_stretch()
+    def format_record(self, record: typing.Iterable) -> typing.Sequence[typing.Any]:
+        return [f'"{x}"' if self.tbl.scheme[c].is_text() else x
+                for c, x in enumerate(record) if not self.tbl.scheme[c].is_autoinc()]

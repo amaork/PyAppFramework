@@ -19,7 +19,7 @@ except ImportError:
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
            'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'DBTable', 'DBColumn',
-           'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme']
+           'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme', 'sqlite_create_tables']
 
 
 class SQLiteDatabaseError(Exception):
@@ -40,18 +40,39 @@ class DBColumn(DynamicObject):
     def __repr__(self):
         return ' '.join([self.name, self.type, self.attr])
 
+    def is_type(self, t: str) -> bool:
+        return t.upper() == self.type.upper()
+
+    def hasattr(self, attr: str) -> bool:
+        return attr.upper() in self.attr.upper()
+
+    def is_pk(self) -> bool:
+        return self.hasattr('PRIMARY KEY')
+
     def is_text(self) -> bool:
-        return self.type == 'TEXT'
+        return self.is_type('TEXT')
+
+    def is_unique(self) -> bool:
+        return self.hasattr('UNIQUE')
 
     def is_autoinc(self) -> bool:
-        return 'AUTOINCREMENT' in self.attr
+        return self.hasattr('AUTOINCREMENT')
 
 
 class DBTable:
-    def __init__(self, name: str, scheme: typing.Iterable[DBColumn], readonly: bool = False):
+    def __init__(self, name: str, scheme: typing.Sequence[DBColumn],
+                 readonly: bool = False, init_records: typing.Sequence[typing.Dict[str, typing.Any]] = None):
         self.name = name
         self.scheme = scheme
         self.readonly = readonly
+        self.init_records = init_records or list()
+
+    @property
+    def pk(self) -> str:
+        try:
+            return [x.name for x in self.scheme if x.is_pk()][0]
+        except IndexError:
+            return ''
 
     @property
     def is_autoincrement(self) -> bool:
@@ -75,9 +96,16 @@ class DBTable:
     def get_placeholder_sentence(self) -> str:
         return self.get_inert_sentence({x.name: x.default_value for x in self.scheme if not x.is_autoinc()})
 
+    def get_column_from_name(self, name: str) -> typing.Optional[DBColumn]:
+        try:
+            return [x for x in self.scheme if x.name == name][0]
+        except IndexError:
+            return None
+
     def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
-        v = [f"{record.get(x.name)}" if x.is_text() else record.get(x.name) for x in self.scheme if not x.is_autoinc()]
-        return f'INSERT INTO {self.name} {self.columns_name()} VALUES{tuple(v)}'
+        v = [f'"{record.get(x.name)}"' if x.is_text() else record.get(x.name)
+             for x in self.scheme if x.name in record and not x.is_autoinc()]
+        return f'INSERT INTO {self.name} ({",".join(self.columns_name())}) VALUES({",".join(v)})'
 
 
 class SQLiteDatabase(object):
@@ -1096,3 +1124,26 @@ class SQLiteDatabaseCreator(object):
             data.append('"{}{}"'.format(table_name, i + 1))
             data = ", ".join(tuple(map(str, data)))
             self._db_cursor.execute("INSERT INTO {} VALUES({})".format(table_name, data))
+
+
+def sqlite_create_tables(db_name: str, tables: typing.Sequence[DBTable]) -> bool:
+    error = None
+    db_conn = sqlite3.connect(db_name)
+    db_cursor = db_conn.cursor()
+
+    try:
+        for tbl in tables:
+            db_cursor.execute(tbl.get_create_sentence())
+            for record in tbl.init_records:
+                db_cursor.execute(tbl.get_inert_sentence(record))
+    except sqlite3.OperationalError as e:
+        error = e
+    finally:
+        db_conn.commit()
+        db_conn.close()
+        if error:
+            os.unlink(db_name)
+            print(f'create_tables error =========> {error}')
+            return False
+
+        return True
