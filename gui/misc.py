@@ -20,7 +20,7 @@ __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'DateTimeEdit',
            'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
-           'ThreadSafeLabel', 'HyperlinkLabel',
+           'ThreadSafeLabel', 'HyperlinkLabel', 'Separator',
            'updateFilterMenu']
 
 
@@ -789,3 +789,12 @@ class DateTimeEdit(QtWidgets.QLineEdit):
 
     def timerEvent(self, event: QtCore.QTimerEvent) -> None:
         self.setText(self.getDateTimeStr())
+
+
+class Separator(QtWidgets.QFrame):
+    def __init__(self,
+                 shape: QtWidgets.QFrame.Shape = QtWidgets.QFrame.VLine,
+                 shadow: QtWidgets.QFrame.Shadow = QtWidgets.QFrame.Sunken, parent: QtWidgets.QWidget = None):
+        super(Separator, self).__init__(parent)
+        self.setFrameShape(shape)
+        self.setFrameShadow(shadow)
