@@ -133,13 +133,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     def __init__(self, db_name: str, tbl: DBTable,
                  rows_per_page: int = 20, verbose: bool = False, parent: QtCore.QObject = None):
-        # Create placeholder
-        need_clear = False
         self.tbl = tbl
-        if not self.get_row_count(tbl.name):
-            need_clear = True
-            QtSql.QSqlQuery().exec_(self.tbl.get_placeholder_sentence())
-
         self._cur_page = 0
         self._verbose = verbose
         self._db_name = db_name
@@ -148,6 +142,13 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         self._query_columns = ', '.join(columns) or '*'
         self._columns = list(columns) or list(SQLiteDatabase(self._db_name).getTableInfo(self.tbl.name).keys())
         super(SqliteQueryModel, self).__init__(parent)
+
+        # Create placeholder
+        need_clear = False
+        if not self.get_row_count(tbl.name):
+            need_clear = True
+            self.set_query(self.tbl.get_placeholder_sentence())
+
         self.flush_page(self.cur_page)
         self.set_column_header()
 
@@ -325,6 +326,11 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
             self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} WHERE {condition};')
 
-    def format_record(self, record: typing.Iterable) -> typing.Sequence[typing.Any]:
-        return [f'"{x}"' if self.tbl.scheme[c].is_text() else x
-                for c, x in enumerate(record) if not self.tbl.scheme[c].is_autoinc()]
+    def insert_dict_record(self, record: typing.Dict[str, typing.Any]) -> bool:
+        result, query = self.exec_query(self.tbl.get_inert_sentence(record))
+        if result:
+            if self.rowCount() < self._rows_per_page:
+                self.flush_page(self.cur_page)
+
+            return True
+        return False

@@ -212,6 +212,8 @@ class ComponentManager(QObject):
     dataChanged = Signal()
     dataChangedDetail = Signal(str, object)
 
+    TextFormat = 'text'
+    FormatPropertyKey = 'format'
     DefaultObjectNameKey = 'data'
     QPushButtonPrivateDataKey = 'private'
 

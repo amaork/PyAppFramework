@@ -1581,7 +1581,7 @@ class TableWidget(QTableWidget):
 
         self.hideRowHeader(False)
 
-    def setColumnHeader(self, data: Sequence[str]):
+    def setColumnHeader(self, data: Sequence[str], align: Qt.Alignment = Qt.AlignCenter):
         if not hasattr(data, "__iter__"):
             print("TypeError: item should a iterable")
             return False
@@ -1595,6 +1595,7 @@ class TableWidget(QTableWidget):
                 continue
             self.takeHorizontalHeaderItem(column)
             header = QTableWidgetItem(self.tr(text))
+            header.setTextAlignment(align)
             self.setHorizontalHeaderItem(column, header)
 
         self.hideColumnHeader(False)

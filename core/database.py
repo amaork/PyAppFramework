@@ -7,7 +7,7 @@ import typing
 import shutil
 import sqlite3
 import hashlib
-
+import collections
 from .datatype import DynamicObject, str2float, str2number, DynamicObjectError
 from typing import Any, Optional, Union, List, Tuple, Sequence, Dict, Callable
 from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
@@ -18,12 +18,15 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'DBTable', 'DBColumn',
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'DBItemType', 'DBTable', 'DBColumn',
            'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme', 'sqlite_create_tables']
 
 
 class SQLiteDatabaseError(Exception):
     pass
+
+
+DBItemType = collections.namedtuple('DBItemType', 'int real text blob')(*'INTEGER REAL TEXT BLOB'.split())
 
 
 class DBColumn(DynamicObject):
@@ -33,7 +36,7 @@ class DBColumn(DynamicObject):
         kwargs.setdefault('attr', '')
         kwargs.setdefault('stretch', 0.0)
         kwargs.setdefault('display', True)
-        kwargs.setdefault('default_value', '')
+        kwargs.setdefault('default_value', None)
         kwargs.setdefault('annotate', kwargs.get('name'))
         super(DBColumn, self).__init__(**kwargs)
 
@@ -49,14 +52,34 @@ class DBColumn(DynamicObject):
     def is_pk(self) -> bool:
         return self.hasattr('PRIMARY KEY')
 
+    def is_int(self) -> bool:
+        return self.is_type(DBItemType.int)
+
     def is_text(self) -> bool:
-        return self.is_type('TEXT')
+        return self.is_type(DBItemType.text)
+
+    def is_real(self) -> bool:
+        return self.is_type(DBItemType.real)
+
+    def is_blob(self) -> bool:
+        return self.is_type(DBItemType.blob)
 
     def is_unique(self) -> bool:
         return self.hasattr('UNIQUE')
 
     def is_autoinc(self) -> bool:
         return self.hasattr('AUTOINCREMENT')
+
+    def get_default_value(self) -> typing.Any:
+        if self.default_value is not None:
+            return self.default_value
+
+        return {
+            DBItemType.int: 0,
+            DBItemType.text: '',
+            DBItemType.real: 0.0,
+            DBItemType.blob: '""',
+        }.get(self.type.upper(), '')
 
 
 class DBTable:
@@ -90,11 +113,14 @@ class DBTable:
     def display_columns(self) -> typing.Tuple[str, ...]:
         return tuple([x.name for x in self.scheme if x.display])
 
+    def default_values(self) -> typing.Dict[str, typing.Any]:
+        return {x.name: x.get_default_value() for x in self.scheme if not x.is_autoinc()}
+
     def get_create_sentence(self) -> str:
         return f'CREATE TABLE {self.name} ({", ".join([str(x) for x in self.scheme])});'
 
     def get_placeholder_sentence(self) -> str:
-        return self.get_inert_sentence({x.name: x.default_value for x in self.scheme if not x.is_autoinc()})
+        return self.get_inert_sentence(self.default_values())
 
     def get_column_from_name(self, name: str) -> typing.Optional[DBColumn]:
         try:
@@ -103,9 +129,9 @@ class DBTable:
             return None
 
     def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
-        v = [f'"{record.get(x.name)}"' if x.is_text() else record.get(x.name)
+        v = [f'"{record.get(x.name)}"' if x.is_text() else f'{record.get(x.name)}'
              for x in self.scheme if x.name in record and not x.is_autoinc()]
-        return f'INSERT INTO {self.name} ({",".join(self.columns_name())}) VALUES({",".join(v)})'
+        return f'INSERT INTO {self.name} ({", ".join(self.columns_name())}) VALUES({", ".join(v)})'
 
 
 class SQLiteDatabase(object):
