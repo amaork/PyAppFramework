@@ -259,14 +259,15 @@ class SimpleColorDialog(QDialog):
             return self.__color
 
     @classmethod
-    def getColor(cls, parent: QWidget, color: Union[QColor, Qt.GlobalColor] = Qt.red) -> QColor:
-        panel = cls(color=color, parent=parent)
+    def getColor(cls, *args, **kwargs) -> QColor:
+        panel = cls(*args, **kwargs)
         panel.exec_()
         return panel.getSelectColor()
 
     @classmethod
-    def getBasicColor(cls, parent: QWidget, color: Union[QColor, Qt.GlobalColor] = Qt.red) -> QColor:
-        panel = cls(True, color, False, parent)
+    def getBasicColor(cls, *args, **kwargs) -> QColor:
+        kwargs['basic'] = True
+        panel = cls(*args, **kwargs)
         panel.exec_()
         return panel.getSelectColor()
 
@@ -323,9 +324,8 @@ class SerialPortSelectDialog(QDialog):
         return self._ports.currentText() if self.result() else None
 
     @classmethod
-    def getSerialPort(cls, timeout: float = 0.04, title: str = DEF_TITLE,
-                      parent: Optional[QWidget] = None) -> Union[str, None]:
-        dialog = cls(timeout=timeout, title=title, parent=parent)
+    def getSerialPort(cls, *args, **kwargs) -> Union[str, None]:
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -365,11 +365,8 @@ class SerialPortSettingDialog(QDialog):
         return self.__widget.getSetting()
 
     @classmethod
-    def getSetting(cls,
-                   parent: QWidget,
-                   settings: dict = SerialPortSettingWidget.DEFAULTS,
-                   flush_timeout: float = 0.04) -> Union[dict, None]:
-        dialog = cls(settings=settings, flush_timeout=flush_timeout, parent=parent)
+    def getSetting(cls, *args, **kwargs) -> Union[dict, None]:
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -466,8 +463,8 @@ class NetworkAddressSelectDialog(QDialog):
         return self._address_list.currentText() if self.result() else None
 
     @classmethod
-    def getAddress(cls, **kwargs) -> Union[str, None]:
-        dialog = NetworkAddressSelectDialog(**kwargs)
+    def getAddress(cls, *args, **kwargs) -> Union[str, None]:
+        dialog = NetworkAddressSelectDialog(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -511,33 +508,24 @@ class NetworkInterfaceSelectDialog(QDialog):
         return self._nic_list.currentText() if self.result() else ""
 
     @classmethod
-    def getAddress(cls, name: str = "",
-                   address: str = "", network: str = "",
-                   ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
-        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
-                                              ignore_loopback=ignore_loopback, parent=parent)
+    def getAddress(cls, *args, **kwargs) -> str:
+        dialog = NetworkInterfaceSelectDialog(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedInterfaceAddress()
 
     @classmethod
-    def getInterface(cls, name: str = "",
-                     address: str = "", network: str = "",
-                     ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
-        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
-                                              ignore_loopback=ignore_loopback, parent=parent)
+    def getInterface(cls, *args, **kwargs) -> str:
+        dialog = NetworkInterfaceSelectDialog(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectedNetworkInterface()
 
     @classmethod
-    def getInterfaceNetwork(cls, name: str = "",
-                            address: str = "", network: str = "",
-                            ignore_loopback: bool = True, parent: Optional[QWidget] = None) -> str:
-        dialog = NetworkInterfaceSelectDialog(name=name, address=address, network=network,
-                                              ignore_loopback=ignore_loopback, parent=parent)
+    def getInterfaceNetwork(cls, *args, **kwargs) -> str:
+        dialog = NetworkInterfaceSelectDialog(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -690,10 +678,9 @@ class BasicJsonSettingDialog(QDialog):
         return self.ui_widget.setData(data)
 
     @classmethod
-    def getData(cls, settings: DynamicObject, data: Optional[dict] = None,
-                reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
+    def getData(cls, *args, **kwargs):
         # BasicJsonSettingDialog is abstract class derived class __init__ don't need widget_cls arg
-        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -713,9 +700,8 @@ class JsonSettingDialog(BasicJsonSettingDialog):
         return self.ui_widget.getSettings()
 
     @classmethod
-    def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
-                    reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
-        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+    def getSettings(cls, *args, **kwargs):
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -757,9 +743,8 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
         return self.ui_widget.insertCustomTabWidget(name, widget, position)
 
     @classmethod
-    def getSettings(cls, settings: DynamicObject, data: Optional[dict] = None,
-                    reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
-        dialog = cls(settings=settings, data=data, reset=reset, apply=apply, parent=parent)
+    def getSettings(cls, *args, **kwargs):
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
@@ -932,16 +917,16 @@ class OptionDialog(QDialog):
             return -1
 
     @classmethod
-    def getOptionText(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> str:
-        dialog = cls(options, title, parent)
+    def getOptionText(cls, *args, **kwargs) -> str:
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
         return dialog.getSelectionText()
 
     @classmethod
-    def getOptionIndex(cls, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None) -> int:
-        dialog = cls(options, title, parent)
+    def getOptionIndex(cls, *args, **kwargs) -> int:
+        dialog = cls(*args, **kwargs)
         # For virtual keyboard
         dialog.setWindowModality(Qt.WindowModal)
         dialog.exec_()
