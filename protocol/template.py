@@ -199,7 +199,6 @@ class CommunicationController:
             self._enable_sim = enable_sim
             self._transmit.connect(address, timeout)
         except Exception as e:
-            self.send_event(self._event_cls(CommunicationEvent.Type.Exception, data=f'{e}'))
             raise CommunicationControllerConnectError(e)
         else:
             self._exit.clear()
@@ -278,7 +277,7 @@ class CommunicationController:
     def thread_comm_with_device(self):
         while not self._exit:
             try:
-                _, request = self._queue.get()
+                _, request = self._queue.get(timeout=0.1)
             except (queue.Empty, TypeError):
                 continue
 
@@ -291,7 +290,7 @@ class CommunicationController:
             retry = 0
             max_retry_times = 1 if request.is_periodic() else self._retry_times
             with self.section(request):
-                while retry < max_retry_times:
+                while retry < max_retry_times and not self._exit:
                     try:
                         # Send request
                         self._transmit.tx(request.to_bytes())
@@ -349,12 +348,11 @@ class CommunicationController:
                             msg = 'The number of timeouts exceeds the upper limit'
                             self.error_msg(msg)
                             self.send_event(self._event_cls.disconnected(msg))
-                            self.send_event(self._event_cls(type_=CommunicationEvent.Type.Exception, data=msg))
                     except (AttributeError, TransmitException) as e:
-                        self.send_event(self._event_cls(type_=CommunicationEvent.Type.Exception, data=f'{e}'))
-                        self._latest_section = CommunicationSection(request, e)
-                        self.send_event(self._event_cls.disconnected(f'{e}'))
+                        self.disconnect()
                         self.error_msg(f'Communication exception: {e}')
+                        self._latest_section = CommunicationSection(request, e)
+                        self.send_event(self._event_cls.exception(f'Communication exception：{e}'))
                         break
 
         print(f'[{self.__class__.__name__}]: thread_comm_with_device exit({self._exit.is_set()})!!!')
