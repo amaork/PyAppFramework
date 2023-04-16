@@ -17,7 +17,8 @@ __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network'
            'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
            'connect_device', 'scan_lan_port', 'scan_lan_alive',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
-           'create_socket_and_connect', 'wait_device_reboot', 'tcp_socket_send_data', 'tcp_socket_recv_data',
+           'create_socket_and_connect', 'wait_device_reboot',
+           'tcp_socket_send_data', 'tcp_socket_recv_data', 'tcp_t_section',
            'SocketSingleInstanceLock', 'NicInfo']
 
 
@@ -240,9 +241,17 @@ def scan_lan_alive(network: Union[ipaddress.IPv4Network, str] = "",
     return [str(x) for x, r in zip(network.hosts(), result) if r.result() is not None]
 
 
-def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes) -> List[int]:
+def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes, header: str = '') -> List[int]:
+    """Send data to peer
+
+    :param tcp_socket: tcp socket to send data
+    :param data: data to send
+    :param header: send data with length header
+    :return: send data length list
+    """
     total_send = 0
     send_length = list()
+    data = struct.pack(header, len(data)) + data if header else data
 
     while total_send < len(data):
         send = tcp_socket.send(data[total_send:])
@@ -255,14 +264,23 @@ def tcp_socket_send_data(tcp_socket: socket.socket, data: bytes) -> List[int]:
     return send_length
 
 
-def tcp_socket_recv_data(tcp_socket: socket.socket, length: int) -> bytes:
+def tcp_socket_recv_data(tcp_socket: socket.socket, length: int, header: str = '') -> bytes:
     """Receive #length specified bytes data until to timeout or peer closed (raise BrokenPipeError)
 
     :param tcp_socket: tcp socket to receive data
-    :param length: receive data length
+    :param length: expect receive data length
+    :param header: receive data with length header
     :return: receive data
     """
     recv_data = bytes()
+
+    # Specified header fmt or length is zero means read length from header
+    if header or not length:
+        try:
+            length = struct.unpack(header, tcp_socket.recv(struct.calcsize(header)))[0]
+        except (struct.error, IndexError) as e:
+            print(f'tcp_socket_recv_data: {e}(header: {header}, len: {length})')
+            return bytes()
 
     while len(recv_data) < length:
         try:
@@ -307,6 +325,42 @@ def create_socket_and_connect(address: str, port: int, timeout: Union[float, Non
             continue
 
     raise RuntimeError("Connect to {}:{} failed".format(address, port))
+
+
+def tcp_t_section(server: str, data: bytes, expect_len: int, header: str = '>L') -> bytes:
+    """connect server send data and recv data then disconnect
+
+    :param server: server <address>:<port>:[timeout in ms] such as "192.168.1.1:1234:3000"
+    :param data: data to send
+    :param expect_len: expect recv length
+    :param header: tx/rx data header format
+    :return: receive data
+    """
+    timeout = 3000
+
+    try:
+        address, port, timeout = server.strip().split(':')
+    except ValueError:
+        address, port = server.strip().split(':')
+
+    try:
+        sock = create_socket_and_connect(address, int(port), float(timeout / 1e3))
+    except RuntimeError as e:
+        print(f'tcp_t_section, connect error: {e}')
+        return bytes()
+
+    if sum(tcp_socket_send_data(sock, data, header)) != len(data) + struct.calcsize(header):
+        print(f'tcp_t_section, tx error: {server} error')
+        sock.close()
+        return bytes()
+
+    try:
+        return tcp_socket_recv_data(sock, expect_len, header)
+    except OSError as e:
+        print(f'tcp_t_section, rx error: {e}')
+        return bytes()
+    finally:
+        sock.close()
 
 
 class SocketSingleInstanceLock(object):
