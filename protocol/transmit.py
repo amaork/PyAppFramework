@@ -232,8 +232,9 @@ class TCPSocketTransmit(Transmit):
             data = tcp_socket_recv_data(self._socket, size)
 
             # Peer closed
-            if not data:
+            if not self._with_length and not data:
                 self.disconnect()
+                
             return data
         except socket.timeout as err:
             raise TransmitWarning(err)
