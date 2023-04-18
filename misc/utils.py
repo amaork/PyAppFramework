@@ -3,15 +3,17 @@ import os
 import time
 import typing
 import shutil
+import pathlib
 import tempfile
 import datetime
 import contextlib
 from xml.dom import minidom
 from typing import List, Dict
+from .debug import track_time
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
 __all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search',
-           'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date']
+           'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after']
 
 
 def awk_query(cmd: str, keyword: str, position: int) -> str:
@@ -84,6 +86,37 @@ def get_today_date(hexadecimal: bool = False) -> int:
 def get_timestamp_str(ts: float, fmt: str = '%Y/%m/%d %H:%M:%S', fs_valid: bool = False) -> str:
     data_str = datetime.datetime.fromtimestamp(ts).strftime(fmt)
     return data_str.replace('/', '-').replace(' ', '_').replace(':', '') if fs_valid else data_str
+
+
+def get_newest_file_after(watch_dir: str, watch_suffix: str, timestamp: float) -> typing.Sequence[str]:
+    watch = pathlib.Path(watch_dir)
+    return [f'{x}' for x in watch.iterdir() if x.suffix == watch_suffix and x.lstat().st_ctime > timestamp]
+
+
+@track_time
+def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
+                 desc: str, exception_cls: typing.Type = RuntimeError, interval: float = 0.1):
+    if condition():
+        return True
+
+    end = time.perf_counter() + timeout
+    interval = (timeout + 0.01) if interval >= timeout else interval
+    while time.perf_counter() <= end:
+        if condition():
+            return True
+
+        time.sleep(interval)
+
+    if condition():
+        return True
+
+    try:
+        if exception_cls is not None and issubclass(exception_cls, Exception):
+            raise exception_cls(f'{desc} timeout({timeout}s)')
+    except TypeError:
+        return False
+
+    return False
 
 
 @contextlib.contextmanager
