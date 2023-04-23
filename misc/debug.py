@@ -7,8 +7,9 @@ import logging
 import datetime
 import functools
 import contextlib
+from ..core.datatype import DynamicObject
 from ..misc.settings import UiLogMessage, JsonSettings
-__all__ = ['track_time', 'statistics_time', 'get_debug_timestamp',
+__all__ = ['track_time', 'statistics_time', 'get_debug_timestamp', 'get_stack_info',
            'ExceptionHandle', 'LoggerWrap', 'LogAdapter', 'JsonSettingsWithDebugCode']
 
 
@@ -45,6 +46,12 @@ def statistics_time(label: str = 'statistics_time'):
 
 def get_debug_timestamp() -> str:
     return datetime.datetime.now().strftime('%H:%M:%S.%f')
+
+
+def get_stack_info() -> DynamicObject:
+    frame = inspect.stack()[1][0]
+    info = inspect.getframeinfo(frame)
+    return DynamicObject(filename=info.filename, function=info.function, lineno=info.lineno)
 
 
 class ExceptionHandle:
