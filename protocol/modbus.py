@@ -1,28 +1,74 @@
 # -*- coding: utf-8 -*-
 import time
+import ping3
+import queue
 import struct
 import typing
 import threading
 import collections
+import pyModbusTCP.client as modbus_client
 
 from .crc16 import crc16
-from ..core.datatype import DynamicObject, CustomEvent
+from ..core.timer import Task, Tasklet
+from .template import CommunicationEvent, CommunicationSection
+from ..core.threading import ThreadSafeBool, ThreadLockAndDataWrap
+from ..core.datatype import DynamicObject, CustomEvent, enum_property
 from .transmit import UARTTransmit, TransmitWarning, TransmitException
-
-__all__ = ['FuncCode', 'ExceptionCode', 'Region', 'ModbusServer',
-           'helper_data2bits', 'helper_bits2data', 'helper_get_bytesize']
+__all__ = ['FuncCode', 'ExceptionCode', 'DataTypeFuncCode',
+           'Region', 'Address', 'Table',
+           'WriteRequest', 'ReadRequest', 'ReadResponse',
+           'ReadDataWatchRequest', 'ReadDataWatchResponse',
+           'DataType', 'DataFormat', 'DataPresent', 'DataConvert',
+           'ModbusServer', 'ModbusTCPClientEvent', 'ModbusTCPClient',
+           'helper_data2bits', 'helper_bits2data', 'helper_get_bytesize', 'helper_get_func_code']
 
 FuncCode = collections.namedtuple(
     'FuncCode', 'ReadCoils WriteSingleCoil WriteMultipleCoils ReadRegs WriteSingleReg WriteMultipleRegs'
 )(*(1, 5, 15, 3, 6, 16))
 
+
 ExceptionCode = collections.namedtuple(
     'ExceptionCode', 'IllegalFunction IllegalDataAddress IllegalDataValue SlaveDeviceFailure SlaveDeviceBusy'
 )(*(0x1, 0x2, 0x3, 0x4, 0x6))
 
+# Bit means register sub bit
+DataType = collections.namedtuple('DataType', 'Coil Register Bit')(*'coil register bit'.split())
+
+DataFormat = collections.namedtuple('DataFormat', 'float uint16 uint32 bit')(*'float uint16 uint32 bit'.split())
+
+DataPresent = collections.namedtuple('DataPresent', 'auto btn checkbox')(*'auto btn checkbox'.split())
+
+# Read, write, multiple-write
+DataTypeFuncCode = collections.namedtuple('DataTypeFuncCode', 'rd wr mwr')
+
+# Write request: data type(register/coil/bit), address, write data
+WriteRequest = collections.namedtuple('WriteRequest', 'type address data')
+
+# Read request: start address, read count
+ReadRequest = collections.namedtuple('ReadRequest', 'start count event')
+
+# Read response: read request, response data
+ReadResponse = collections.namedtuple('ReadResponse', 'request data')
+
+# Read data watch: type, read request, tag
+ReadDataWatchResponse = collections.namedtuple('ReadDataWatchResponse', 'name type address data tag')
+
+
+class Table(DynamicObject):
+    _properties = {'name', 'type', 'endian', 'auto_flush', 'address_list'}
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('endian', '>>')
+        kwargs.setdefault('auto_flush', 0)
+        kwargs.setdefault('address_list', collections.OrderedDict())
+        super().__init__(**kwargs)
+
+
+class Address(DynamicObject):
+    _properties = {'ma', 'ro', 'format', 'present', 'name', 'annotate'}
+
 
 class Region(DynamicObject):
-    Type = collections.namedtuple('Type', 'Coil Register')(*range(2))
     CoilState = collections.namedtuple('CoilState', 'ON OFF')(*(0xff00, 0x0000))
 
     _properties = {'type', 'list', 'setter', 'getter', 'callback'}
@@ -30,7 +76,7 @@ class Region(DynamicObject):
         'setter': callable,
         'getter': callable,
         'callback': callable,
-        'type': lambda x: x in Region.Type,
+        'type': lambda x: x in DataType,
         'list': lambda x: isinstance(x, dict) and all([isinstance(k, int) for k in x])
     }
 
@@ -42,7 +88,7 @@ class Region(DynamicObject):
         self.__lock = threading.Lock()
 
     def __repr__(self):
-        type_name = {v: k for k, v in self.Type._asdict().items()}.get(self.type)
+        type_name = {v: k for k, v in DataType._asdict().items()}.get(self.type)
         with self.__lock:
             return f'{type_name}: {self.list}'
 
@@ -64,19 +110,19 @@ class Region(DynamicObject):
             data = self.setter(value)
             self.list[address] = data
             # If it's coil convert state to true/false
-            data = self.is_on(data) if self.type == self.Type.Coil else data
+            data = self.is_on(data) if self.type == DataType.Coil else data
 
         callable(self.callback) and self.callback(self, address, data)
         return True
 
     @classmethod
     def create_regs(cls, **kwargs):
-        kwargs.setdefault('type', cls.Type.Register)
+        kwargs.setdefault('type', DataType.Register)
         return Region(**kwargs)
 
     @classmethod
     def create_coils(cls, **kwargs):
-        kwargs.setdefault('type', cls.Type.Coil)
+        kwargs.setdefault('type', DataType.Coil)
         return Region(**kwargs)
 
     @staticmethod
@@ -103,6 +149,22 @@ class ModbusException(Exception):
         return struct.pack('>BBB', self.dev_id, self.fc + 0x80, self.code)
 
 
+def helper_get_func_code(t: DataType) -> DataTypeFuncCode:
+    return {
+        DataType.Coil: DataTypeFuncCode(
+            rd=FuncCode.ReadCoils, wr=FuncCode.WriteSingleCoil, mwr=FuncCode.WriteMultipleCoils
+        ),
+
+        DataType.Register: DataTypeFuncCode(
+            rd=FuncCode.ReadRegs, wr=FuncCode.WriteSingleReg, mwr=FuncCode.WriteMultipleRegs
+        ),
+
+        DataType.Bit: DataTypeFuncCode(
+            rd=FuncCode.ReadRegs, wr=FuncCode.WriteSingleReg, mwr=FuncCode.WriteMultipleRegs
+        )
+    }.get(t)
+
+
 def helper_get_bytesize(count: int) -> int:
     return count // 8 + (1 if count % 8 else 0)
 
@@ -126,6 +188,82 @@ def helper_bits2data(bits: bytes, msb_first: bool = True) -> typing.Sequence[int
             data.append(True if (value & (1 << offset)) else False)
 
     return data
+
+
+class DataConvert:
+    def __init__(self, endian: str):
+        if not isinstance(endian, str):
+            raise TypeError(f"endian required 'str' not {endian.__class__.__name__!r}")
+
+        if len(endian) != 2:
+            raise ValueError(f"endian length be 2")
+
+        if any(x not in '><!@=' for x in endian):
+            raise ValueError(f"invalid endian format: {endian!r}")
+
+        self.__endian = endian
+
+    def get_plc_float_format(self) -> typing.Tuple[str, str]:
+        return self.__endian[0], self.__endian[1]
+
+    def remap_int2list(self, i: int) -> typing.Tuple[int, ...]:
+        pf, uf = self.get_plc_float_format()
+        return struct.unpack(f'{uf}2H', struct.pack(f'{pf}I', i))
+
+    def remap_list2int(self, i: typing.Tuple[int, ...]) -> int:
+        pf, uf = self.get_plc_float_format()
+        return struct.unpack(f'{pf}I', struct.pack(f'{uf}2H', *i))[0]
+
+    def remap_float2list(self, f: float) -> typing.Tuple[int, ...]:
+        pf, uf = self.get_plc_float_format()
+        return struct.unpack(f'{uf}2H', struct.pack(f'{pf}f', f))
+
+    def remap_list2float(self, i: typing.Tuple[int, ...]) -> float:
+        pf, uf = self.get_plc_float_format()
+        return struct.unpack(f'{pf}f', struct.pack(f'{uf}2H', *i))[0]
+
+    def python2plc(self, data: typing.Union[int, float], fmt: str) -> typing.Union[int, typing.Tuple[int, ...]]:
+        return {
+            DataFormat.uint32: self.remap_int2list,
+            DataFormat.float: self.remap_float2list
+        }.get(fmt, lambda x: x)(data)
+
+    def plc2python(self, data: typing.Tuple[int, ...], fmt: str) -> typing.Union[float, int]:
+        return {
+            DataFormat.uint32: self.remap_list2int,
+            DataFormat.float: self.remap_list2float,
+        }.get(fmt, lambda x: x[0])(data)
+
+    @classmethod
+    def get_format_size(cls, fmt: DataFormat) -> int:
+        return {
+            DataFormat.bit: 1,
+            DataFormat.float: 2,
+            DataFormat.uint16: 1,
+            DataFormat.uint32: 2,
+        }.get(fmt, 1)
+
+    @classmethod
+    def merge_read_request(cls, address_list: typing.Sequence[DynamicObject]) -> typing.List[ReadRequest]:
+        start = 0
+        count = 0
+        latest = 0
+        request_list = list()
+        for address in address_list:
+            if not count:
+                start = address.ma
+                count = cls.get_format_size(address.format)
+            elif latest + 1 == address.ma:
+                count += cls.get_format_size(address.format)
+            else:
+                request_list.append(ReadRequest(start=start, count=count, event=None))
+                start = address.ma
+                count = cls.get_format_size(address.format)
+
+            latest = address.ma
+
+        request_list.append(ReadRequest(start=start, count=count, event=None))
+        return request_list
 
 
 class ModbusServer:
@@ -160,12 +298,12 @@ class ModbusServer:
         return self.transmit.connect((port, baudrate), timeout)
 
     def find_reg(self, address: int) -> typing.Optional[Region]:
-        return self.find_region(Region.Type.Register, address)
+        return self.find_region(DataType.Register, address)
 
     def find_coil(self, address: int) -> typing.Optional[Region]:
-        return self.find_region(Region.Type.Coil, address)
+        return self.find_region(DataType.Coil, address)
 
-    def find_region(self, t: int, address: int) -> typing.Optional[Region]:
+    def find_region(self, t: DataType, address: int) -> typing.Optional[Region]:
         for region in self.regions:
             if region.type == t and region.contains(address):
                 return region
@@ -274,3 +412,119 @@ class ModbusServer:
                 continue
             except ModbusException as err:
                 self.transmit.tx(err.bytes())
+
+
+class ReadDataWatchRequest(DynamicObject):
+    _properties = {'name', 'type', 'rd', 'tag'}
+    _fc_filter = {DataType.Coil: FuncCode.ReadCoils, DataType.Register: FuncCode.ReadRegs}
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('tag', None)
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def read_request_to_set(req: ReadRequest) -> typing.Set[int]:
+        return {x for x in range(req.start, req.start + req.count)}
+
+    def is_matched(self, name: str, fc: FuncCode, request: ReadRequest) -> typing.Tuple[int, int]:
+        if self.name != name:
+            return -1, 0
+
+        if self._fc_filter.get(self.type) != fc:
+            return -1, 0
+
+        needle = self.read_request_to_set(self.rd)
+        haystack = self.read_request_to_set(request)
+        found = haystack.intersection(needle)
+        if not found:
+            return -1, 0
+
+        count = len(found)
+        first = found.pop()
+        return list(haystack).index(first), count
+
+    def gen_response(self, address: int, data: typing.Sequence[int]) -> ReadDataWatchResponse:
+        return ReadDataWatchResponse(name=self.name, type=self.type, address=address, data=data, tag=self.tag)
+
+
+class ModbusTCPClientEvent(CommunicationEvent):
+    ExtendType = collections.namedtuple('ExtendType', 'RDWatchChanged')(*'rd_watch'.split())
+    type = enum_property('type', CommunicationEvent.Type + ExtendType)
+
+    @classmethod
+    def watch_notify(cls, response: ReadDataWatchResponse):
+        return cls(cls.ExtendType.RDWatchChanged, data=response)
+
+
+class ModbusTCPClient:
+    def __init__(self, host: str, event_callback: typing.Callable[[ModbusTCPClientEvent], None], **kwargs):
+        self.queue = queue.Queue()
+        self.event_callback = event_callback
+        self.is_alive = ThreadSafeBool(False)
+        self.tasklet = Tasklet(schedule_interval=1)
+        self.rd_watch_list = ThreadLockAndDataWrap(list())
+        self.modbus_client = modbus_client.ModbusClient(host=host, **kwargs)
+        threading.Thread(target=self.thread_comm_with_plc, daemon=True).start()
+        self.tasklet.add_task(Task(self.task_check_connection, timeout=1.0, periodic=True))
+
+    def send_request(self, *args):
+        if not self.is_alive:
+            return
+
+        self.queue.put(args)
+        name, fc, requests = args
+        if fc not in (FuncCode.ReadCoils, FuncCode.ReadRegs):
+            self.event_callback(ModbusTCPClientEvent.debug(f'TX:[{name}] >>> {requests}'))
+
+    def add_rd_watch(self, lst: typing.Sequence[ReadDataWatchRequest]):
+        self.rd_watch_list.data.extend(lst)
+
+    def task_check_connection(self):
+        host = self.modbus_client.host
+        self.is_alive.assign(ping3.ping(host) is not None)
+        if self.is_alive and self.modbus_client.open():
+            self.event_callback(ModbusTCPClientEvent.connected(
+                (host, self.modbus_client.port), self.modbus_client.timeout)
+            )
+        else:
+            self.event_callback(ModbusTCPClientEvent.disconnected('not alive or not opened'))
+
+    def thread_comm_with_plc(self):
+        functions = {
+            FuncCode.ReadCoils: self.modbus_client.read_coils,
+            FuncCode.WriteSingleCoil: self.modbus_client.write_single_coil,
+            FuncCode.WriteMultipleCoils: self.modbus_client.write_multiple_coils,
+
+            FuncCode.ReadRegs: self.modbus_client.read_holding_registers,
+            FuncCode.WriteSingleReg: self.modbus_client.write_single_register,
+            FuncCode.WriteMultipleRegs: self.modbus_client.write_multiple_registers
+        }
+
+        while True:
+            if not self.is_alive or not self.modbus_client.is_open:
+                time.sleep(0.1)
+                continue
+
+            name, fc, request = self.queue.get()
+            func = functions.get(fc)
+            if not callable(func):
+                self.event_callback(ModbusTCPClientEvent.error('invalid function code'))
+                continue
+
+            # print(name, fc, request)
+            if isinstance(request, WriteRequest):
+                func(request.address, request.data)
+            elif isinstance(request, list):
+                for req in request:
+                    data = func(req.start, req.count)
+                    if data is None:
+                        continue
+
+                    for watch in self.rd_watch_list.data:
+                        index, length = watch.is_matched(name, fc, req)
+                        if 0 <= index < len(data) and length:
+                            response = watch.gen_response(req.start + index, data[index: index + length])
+                            self.event_callback(ModbusTCPClientEvent.watch_notify(response))
+
+                    section = CommunicationSection(req, data)
+                    self.event_callback(ModbusTCPClientEvent.section_end(name, section))

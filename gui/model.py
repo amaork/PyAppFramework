@@ -116,7 +116,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def getDisplay(self, index: QtCore.QModelIndex) -> typing.Any:
         return self._table[index.row()][index.column()] if index.isValid() else False
 
-    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> bool:
+    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any, flush: bool = True) -> bool:
         if index.isValid():
             self._table[index.row()][index.column()] = value
             return True

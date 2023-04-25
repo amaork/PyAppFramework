@@ -38,7 +38,7 @@ from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBox
     QSpinBox, QDoubleSpinBox, QTableWidget, QHeaderView, QSplitter, QLabel, QMenu, QAction, QRadioButton, \
     QCheckBox, QPushButton, QLineEdit, QProgressBar, QDateTimeEdit, QAbstractItemView, QTableWidgetItem, \
     QComboBox, QTreeWidget, QListWidget, QSizePolicy, QTreeWidgetItem, QFileDialog, QColorDialog, QFontDialog, \
-    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit
+    QListWidgetItem, QGroupBox, QTabWidget, QTextEdit, QMainWindow
 from datetime import datetime
 from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict, Callable
 
@@ -54,7 +54,7 @@ from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput,
     UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput
 
 
-__all__ = ['BasicWidget', 'PaintWidget',
+__all__ = ['BasicWidget', 'BasicWindow', 'PaintWidget',
            'ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'TreeWidget',
            'SerialPortSettingWidget', 'LogMessageWidget',
@@ -71,8 +71,8 @@ class BasicWidget(QWidget):
         self._initUi()
         self._initData()
         self._initStyle()
-        self._initThreadAndTimer()
         self._initSignalAndSlots()
+        self._initThreadAndTimer()
 
     def _initUi(self):
         pass
@@ -138,6 +138,37 @@ class BasicWidget(QWidget):
         group.button(0).setChecked(True)
 
         return label, layout, group
+
+
+class BasicWindow(QMainWindow):
+    def __init__(self, ui_cls):
+        QMainWindow.__init__(self, None)
+        self.ui = ui_cls()
+        self.ui.setupUi(self)
+
+        self._initUi()
+        self._initData()
+        self._initStyle()
+        self._initSignalAndSlots()
+        self._initThreadAndTimer()
+
+    def _initUi(self):
+        pass
+
+    def _initData(self):
+        pass
+
+    def _initStyle(self):
+        pass
+
+    def _initThreadAndTimer(self):
+        pass
+
+    def _initSignalAndSlots(self):
+        pass
+
+    def initStyle(self):
+        self._initStyle()
 
 
 class PaintWidget(QWidget):

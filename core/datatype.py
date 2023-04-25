@@ -10,7 +10,8 @@ import collections
 import collections.abc
 import xml.etree.ElementTree as XmlElementTree
 __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent', 'FrozenJSON',
-           'DynamicObject', 'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
+           'DynamicObject', 'DynamicObjectEncoder',
+           'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
            'str2float', 'str2number', 'resolve_number', 'ip4_check', 'port_check',
            'convert_property', 'float_property', 'integer_property', 'enum_property']
 
@@ -295,6 +296,14 @@ class DynamicObject(object):
                 raise DynamicObjectEncodeError("Key {!r} new value {!r} check failed".format(k, v))
 
             self.__dict__[k] = v
+
+
+class DynamicObjectEncoder(json.JSONEncoder):
+    def default(self, o: typing.Any) -> typing.Any:
+        if isinstance(o, DynamicObject):
+            return o.dict
+
+        return super().default(o)
 
 
 class FrozenJSON:
