@@ -9,8 +9,8 @@ from .view import TableView, TableViewDelegate
 from ..core.datatype import DynamicObject, str2number
 from ..misc.settings import UiCheckBoxInput, UiIntegerInput, UiDoubleInput
 
-from ..protocol.modbus import DataType, DataConvert, DataFormat, DataPresent, \
-    WriteRequest, ReadResponse, Address, Table, FuncCode, helper_get_func_code
+from ..protocol.modbus import DataType, DataConvert, DataFormat, WatchEventRequest, WatchEventResponse, \
+    WriteRequest, ReadRequest, ReadResponse, Address, Table, FuncCode, helper_get_func_code
 __all__ = ['ModbusAddressModel', 'ModbusAddressView', 'ModbusWriteRequest']
 ModbusWriteRequest = collections.namedtuple('ModbusWriteRequest', 'name fc request')
 
@@ -111,6 +111,9 @@ class ModbusAddressModel(AbstractTableModel):
 
 
 class ModbusAddressView(QtWidgets.QTabWidget):
+    # Signal request add watch
+    signalRequestWatch = QtCore.Signal(object)
+
     # Table name, function code, ReadRequest list
     signalReadRequest = QtCore.Signal(object, object, object)
 
@@ -126,16 +129,24 @@ class ModbusAddressView(QtWidgets.QTabWidget):
     def getModel(self, name: str) -> typing.Optional[ModbusAddressModel]:
         return self.models.get(name)
 
+    def registerWatchRequest(self):
+        for model in self.models.values():
+            if model.table.type == DataType.Bit:
+                self.signalRequestWatch.emit(WatchEventRequest(
+                    name=model.table.name, type=DataType.Register,
+                    rd=ReadRequest(start=model.table.base_reg, count=1, event=None)
+                ))
+
     def initAddressTables(self, tables: typing.Iterable[Table]):
         for table in tables:
             model = ModbusAddressModel(table, self)
+            delegate = TableViewDelegate()
             view = TableView(parent=self)
 
             view.setModel(model)
             view.setNoSelection()
             view.setColumnStretchFactor((0.25, 0.12, 0.12, 0.1))
 
-            delegate = TableViewDelegate()
             if table.type in (DataType.Bit, DataType.Coil):
                 delegate.setColumnDelegate({ModbusAddressModel.Column.State: UiCheckBoxInput(table.type)})
                 view.setItemDelegate(delegate)
@@ -167,12 +178,31 @@ class ModbusAddressView(QtWidgets.QTabWidget):
             self.models[table.name] = model
             self.addTab(view, table.name)
 
+        for model in self.models.values():
+            model.signalWriteRequest.connect(self.slotHandleWriteRequest)
+
+    def slotUpdateBitValues(self, response: WatchEventResponse):
+        for name, model in self.models.items():
+            if model.table.type != DataType.Bit:
+                continue
+
+            if model.table.base_reg != response.address:
+                continue
+
+            for row in range(model.rowCount()):
+                address = model.getModbusAddress(model.index(row, 0))
+                reg_address, bit = Address.unpack_bit_address(address.ma)
+                if reg_address != response.address:
+                    continue
+
+                model.setData(model.index(row, ModbusAddressModel.Column.State), response.data[0] & (1 << bit))
+
     def slotHandleWriteRequest(self, table: str, fc: FuncCode, request: WriteRequest):
         if request.type != DataType.Bit:
             self.signalWriteRequest.emit(table, fc, request)
         else:
-            reg_address, bit = [int(x) for x in request.address.split('/')]
-            for model in self.ui_tab.models.values():
+            reg_address, bit = Address.unpack_bit_address(request.address)
+            for name, model in self.models.items():
                 index, reg_value = model.getValueByAddress(reg_address)
                 if reg_value is not None:
                     if request.data:
@@ -182,6 +212,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
 
                     request = WriteRequest(type=DataType.Register, address=reg_address, data=reg_value)
                     model.setData(index, reg_value)
+                    self.signalWriteRequest.emit(name, fc, request)
 
     def timerEvent(self, event: QtCore.QTimerEvent) -> None:
         if self.isHidden():

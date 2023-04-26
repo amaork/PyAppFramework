@@ -12,12 +12,12 @@ from .crc16 import crc16
 from ..core.timer import Task, Tasklet
 from .template import CommunicationEvent, CommunicationSection
 from ..core.threading import ThreadSafeBool, ThreadLockAndDataWrap
-from ..core.datatype import DynamicObject, CustomEvent, enum_property
 from .transmit import UARTTransmit, TransmitWarning, TransmitException
+from ..core.datatype import DynamicObject, CustomEvent, enum_property, str2number
 __all__ = ['FuncCode', 'ExceptionCode', 'DataTypeFuncCode',
            'Region', 'Address', 'Table',
            'WriteRequest', 'ReadRequest', 'ReadResponse',
-           'ReadDataWatchRequest', 'ReadDataWatchResponse',
+           'WatchEventRequest', 'WatchEventResponse',
            'DataType', 'DataFormat', 'DataPresent', 'DataConvert',
            'ModbusServer', 'ModbusTCPClientEvent', 'ModbusTCPClient',
            'helper_data2bits', 'helper_bits2data', 'helper_get_bytesize', 'helper_get_func_code']
@@ -50,22 +50,32 @@ ReadRequest = collections.namedtuple('ReadRequest', 'start count event')
 # Read response: read request, response data
 ReadResponse = collections.namedtuple('ReadResponse', 'request data')
 
-# Read data watch: type, read request, tag
-ReadDataWatchResponse = collections.namedtuple('ReadDataWatchResponse', 'name type address data tag')
+# Read data watch: name, type, read request
+WatchEventResponse = collections.namedtuple('ReadDataWatchResponse', 'name type address data event')
 
 
 class Table(DynamicObject):
-    _properties = {'name', 'type', 'endian', 'auto_flush', 'address_list'}
+    _properties = {'name', 'type', 'endian', 'auto_flush', 'base_reg', 'address_list'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault('endian', '>>')
         kwargs.setdefault('auto_flush', 0)
+        kwargs.setdefault('base_reg', None)
         kwargs.setdefault('address_list', collections.OrderedDict())
         super().__init__(**kwargs)
 
 
 class Address(DynamicObject):
     _properties = {'ma', 'ro', 'format', 'present', 'name', 'annotate'}
+
+    @staticmethod
+    def pack_bit_address(base_reg: int, bit: int) -> str:
+        return f'{base_reg}/{bit}' if bit < 16 else f'invalid bit: {bit}'
+
+    @staticmethod
+    def unpack_bit_address(bit_address: str) -> typing.Tuple[int, int]:
+        temp = bit_address.split('/')
+        return str2number(temp[0]), str2number(temp[1])
 
 
 class Region(DynamicObject):
@@ -414,22 +424,18 @@ class ModbusServer:
                 self.transmit.tx(err.bytes())
 
 
-class ReadDataWatchRequest(DynamicObject):
-    _properties = {'name', 'type', 'rd', 'tag'}
+class WatchEventRequest(DynamicObject):
+    _properties = {'name', 'type', 'rd'}
     _fc_filter = {DataType.Coil: FuncCode.ReadCoils, DataType.Register: FuncCode.ReadRegs}
 
-    def __init__(self, **kwargs):
-        kwargs.setdefault('tag', None)
-        super().__init__(**kwargs)
+    def __hash__(self):
+        return sum(self.read_request_to_set(self.rd))
 
     @staticmethod
     def read_request_to_set(req: ReadRequest) -> typing.Set[int]:
         return {x for x in range(req.start, req.start + req.count)}
 
-    def is_matched(self, name: str, fc: FuncCode, request: ReadRequest) -> typing.Tuple[int, int]:
-        if self.name != name:
-            return -1, 0
-
+    def is_matched(self, fc: FuncCode, request: ReadRequest) -> typing.Tuple[int, int]:
         if self._fc_filter.get(self.type) != fc:
             return -1, 0
 
@@ -443,17 +449,17 @@ class ReadDataWatchRequest(DynamicObject):
         first = found.pop()
         return list(haystack).index(first), count
 
-    def gen_response(self, address: int, data: typing.Sequence[int]) -> ReadDataWatchResponse:
-        return ReadDataWatchResponse(name=self.name, type=self.type, address=address, data=data, tag=self.tag)
+    def gen_response(self, address: int, data: typing.Sequence[int]) -> WatchEventResponse:
+        return WatchEventResponse(name=self.name, type=self.type, address=address, data=data, event=self.rd.event)
 
 
 class ModbusTCPClientEvent(CommunicationEvent):
-    ExtendType = collections.namedtuple('ExtendType', 'RDWatchChanged')(*'rd_watch'.split())
+    ExtendType = collections.namedtuple('ExtendType', 'WatchEventOccurred')(*'watch_event_occurred'.split())
     type = enum_property('type', CommunicationEvent.Type + ExtendType)
 
     @classmethod
-    def watch_notify(cls, response: ReadDataWatchResponse):
-        return cls(cls.ExtendType.RDWatchChanged, data=response)
+    def watch_event_occurred(cls, response: WatchEventResponse):
+        return cls(cls.ExtendType.WatchEventOccurred, data=response)
 
 
 class ModbusTCPClient:
@@ -462,7 +468,7 @@ class ModbusTCPClient:
         self.event_callback = event_callback
         self.is_alive = ThreadSafeBool(False)
         self.tasklet = Tasklet(schedule_interval=1)
-        self.rd_watch_list = ThreadLockAndDataWrap(list())
+        self.rd_watch_list = ThreadLockAndDataWrap(set())
         self.modbus_client = modbus_client.ModbusClient(host=host, **kwargs)
         threading.Thread(target=self.thread_comm_with_plc, daemon=True).start()
         self.tasklet.add_task(Task(self.task_check_connection, timeout=1.0, periodic=True))
@@ -476,8 +482,8 @@ class ModbusTCPClient:
         if fc not in (FuncCode.ReadCoils, FuncCode.ReadRegs):
             self.event_callback(ModbusTCPClientEvent.debug(f'TX:[{name}] >>> {requests}'))
 
-    def add_rd_watch(self, lst: typing.Sequence[ReadDataWatchRequest]):
-        self.rd_watch_list.data.extend(lst)
+    def request_watch(self, watch: WatchEventRequest):
+        self.rd_watch_list.data.add(watch)
 
     def task_check_connection(self):
         host = self.modbus_client.host
@@ -521,10 +527,10 @@ class ModbusTCPClient:
                         continue
 
                     for watch in self.rd_watch_list.data:
-                        index, length = watch.is_matched(name, fc, req)
+                        index, length = watch.is_matched(fc, req)
                         if 0 <= index < len(data) and length:
                             response = watch.gen_response(req.start + index, data[index: index + length])
-                            self.event_callback(ModbusTCPClientEvent.watch_notify(response))
+                            self.event_callback(ModbusTCPClientEvent.watch_event_occurred(response))
 
                     section = CommunicationSection(req, data)
                     self.event_callback(ModbusTCPClientEvent.section_end(name, section))
