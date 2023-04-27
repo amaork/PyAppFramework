@@ -521,10 +521,11 @@ class TableView(QtWidgets.QTableView):
 
 
 class TableViewDelegate(QtWidgets.QItemDelegate):
-    dataChanged = QtCore.Signal(QtCore.QModelIndex, object)
+    dataChanged = QtCore.Signal(QtCore.QModelIndex, object, object)
 
-    def __init__(self, parent: typing.Optional[QtWidgets.QWidget] = None):
+    def __init__(self, private: typing.Any = None, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableViewDelegate, self).__init__(parent)
+        self._private_data = private
         self._itemDelegateSettings = dict()
         self._columnDelegateSettings = dict()
 
@@ -592,7 +593,7 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
         data = ComponentManager.getComponentData(editor)
         if model.data(index) != data:
             model.setData(index, data, Qt.EditRole)
-            self.dataChanged.emit(index, data)
+            self.dataChanged.emit(index, data, self._private_data)
 
     def updateEditorGeometry(self, editor: QtWidgets.QWidget,
                              option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex):

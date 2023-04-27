@@ -10,14 +10,12 @@ from ..core.datatype import DynamicObject, str2number
 from ..misc.settings import UiCheckBoxInput, UiIntegerInput, UiDoubleInput
 
 from ..protocol.modbus import DataType, DataConvert, DataFormat, WatchEventRequest, WatchEventResponse, \
-    WriteRequest, ReadRequest, ReadResponse, Address, Table, FuncCode, helper_get_func_code
+    WriteRequest, ReadRequest, ReadResponse, Address, Table, helper_get_func_code
 __all__ = ['ModbusAddressModel', 'ModbusAddressView', 'ModbusWriteRequest']
 ModbusWriteRequest = collections.namedtuple('ModbusWriteRequest', 'name fc request')
 
 
 class ModbusAddressModel(AbstractTableModel):
-    # Table name, function code, ModbusWriteRequest
-    signalWriteRequest = QtCore.Signal(object, object, object)
     Column = collections.namedtuple('Column', 'Name Address Type State Desc')(*range(5))
 
     def __init__(self, table: Table, parent: QtWidgets.QWidget = None):
@@ -89,24 +87,11 @@ class ModbusAddressModel(AbstractTableModel):
         if not index.isValid():
             return False
 
-        attr = self.getModbusAddress(index)
-        if not isinstance(attr, DynamicObject):
+        address = self.getModbusAddress(index)
+        if not isinstance(address, DynamicObject):
             return False
 
-        self._table[index.row()][index.column()] = f'{value:.4f}' if attr.format == DataFormat.float else value
-
-        if not self.isReadonly(index) and index.column() == self.Column.State:
-            data = self.dc.python2plc(value, attr.format)
-            function_code = self.fc.wr if value == data else self.fc.mwr
-            address = str(self.data(self.index(index.row(), self.Column.Address)))
-
-            if self.table.type != DataType.Bit:
-                address = int(address)
-
-            if flush:
-                self.signalWriteRequest.emit(
-                    self.table.name, function_code, WriteRequest(self.table.type, address, data)
-                )
+        self._table[index.row()][index.column()] = f'{value:.4f}' if address.format == DataFormat.float else value
         return True
 
 
@@ -140,7 +125,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
     def initAddressTables(self, tables: typing.Iterable[Table]):
         for table in tables:
             model = ModbusAddressModel(table, self)
-            delegate = TableViewDelegate()
+            delegate = TableViewDelegate(model)
             view = TableView(parent=self)
 
             view.setModel(model)
@@ -152,8 +137,6 @@ class ModbusAddressView(QtWidgets.QTabWidget):
                 view.setItemDelegate(delegate)
 
                 for row in range(model.rowCount()):
-                    # if model.isReadonly(model.index(row, model.Column.STATE)):
-                    #     continue
                     view.openPersistentEditor(model.index(row, ModbusAddressModel.Column.State))
 
                 for row in range(model.rowCount()):
@@ -170,7 +153,6 @@ class ModbusAddressView(QtWidgets.QTabWidget):
                     else:
                         input_ = UiDoubleInput(table.type, -999999999.0, 999999999.0, decimals=4)
                     filter_[(row, ModbusAddressModel.Column.State)] = input_
-                    # view.openPersistentEditor(model.index(row, ModbusAddressModel.Column.STATE))
 
                 delegate.setItemDelegate(filter_)
                 view.setItemDelegate(delegate)
@@ -178,8 +160,8 @@ class ModbusAddressView(QtWidgets.QTabWidget):
             self.models[table.name] = model
             self.addTab(view, table.name)
 
-        for model in self.models.values():
-            model.signalWriteRequest.connect(self.slotHandleWriteRequest)
+        for index in range(self.count()):
+            self.widget(index).itemDelegate().dataChanged.connect(self.slotRequestWrite)
 
     def slotUpdateBitValues(self, response: WatchEventResponse):
         for name, model in self.models.items():
@@ -197,9 +179,23 @@ class ModbusAddressView(QtWidgets.QTabWidget):
 
                 model.setData(model.index(row, ModbusAddressModel.Column.State), response.data[0] & (1 << bit))
 
-    def slotHandleWriteRequest(self, table: str, fc: FuncCode, request: WriteRequest):
-        if request.type != DataType.Bit:
-            self.signalWriteRequest.emit(table, fc, request)
+    def slotRequestWrite(self, index: QtCore.QModelIndex, value: typing.Any, model: ModbusAddressModel):
+        if not index.isValid():
+            return
+
+        table = model.table.name
+        address = model.getModbusAddress(index)
+        data = model.dc.python2plc(value, address.format)
+        function_code = model.fc.wr if value == data else model.fc.mwr
+        modbus_address = str(model.data(model.index(index.row(), model.Column.Address)))
+
+        if model.table.type != DataType.Bit:
+            modbus_address = int(modbus_address)
+
+        request = WriteRequest(type=model.table.type, address=modbus_address, data=data)
+
+        if model.table.type != DataType.Bit:
+            self.signalWriteRequest.emit(table, function_code, request)
         else:
             reg_address, bit = Address.unpack_bit_address(request.address)
             for name, model in self.models.items():
@@ -212,7 +208,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
 
                     request = WriteRequest(type=DataType.Register, address=reg_address, data=reg_value)
                     model.setData(index, reg_value)
-                    self.signalWriteRequest.emit(name, fc, request)
+                    self.signalWriteRequest.emit(name, function_code, request)
 
     def timerEvent(self, event: QtCore.QTimerEvent) -> None:
         if self.isHidden():
