@@ -54,7 +54,7 @@ from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput,
     UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput
 
 
-__all__ = ['BasicWidget', 'BasicWindow', 'PaintWidget',
+__all__ = ['BasicWidget', 'BasicWindow', 'BasicGroupBox', 'PaintWidget',
            'ColorWidget', 'CursorWidget', 'RgbWidget', 'LumWidget', 'ImageWidget',
            'TableWidget', 'ListWidget', 'TreeWidget',
            'SerialPortSettingWidget', 'LogMessageWidget',
@@ -169,6 +169,82 @@ class BasicWindow(QMainWindow):
 
     def initStyle(self):
         self._initStyle()
+
+
+class BasicGroupBox(QGroupBox):
+    def __init__(self, parent: Optional[QWidget] = None):
+        super(BasicGroupBox, self).__init__(parent)
+
+        self._initUi()
+        self._initData()
+        self._initStyle()
+        self._initSignalAndSlots()
+        self._initThreadAndTimer()
+
+    def _initUi(self):
+        pass
+
+    def _initData(self):
+        pass
+
+    def _initStyle(self):
+        pass
+
+    def _initThreadAndTimer(self):
+        pass
+
+    def _initSignalAndSlots(self):
+        pass
+
+    def initStyle(self):
+        self._initStyle()
+
+    @staticmethod
+    def createInputWithLabel(label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
+        input_ = input_cls()
+        label = QLabel(label)
+        input_.setProperty("name", key)
+        label.setProperty("name", "{}_label".format(key))
+        return label, input_
+
+    @staticmethod
+    def createMultiInputWithLabel(texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
+        layout = QGridLayout()
+        for row, text in enumerate(texts):
+            label, key = text
+            text = input_cls()
+            label = QLabel(label)
+            text.setProperty("name", key)
+            label.setProperty("name", "{}_label".format(key))
+            layout.addWidget(label, row, 0)
+            layout.addWidget(text, row, 1)
+        return layout
+
+    @staticmethod
+    def createButtonGroup(key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
+        """Create button group and set button id
+
+        :param key: button group key name
+        :param names: button text
+        :param title: Radio button title
+        :return: button group, and layout
+        """
+        label = QLabel(title)
+        group = QButtonGroup()
+        layout = QHBoxLayout()
+        group.setProperty("name", key)
+        for bid, name in enumerate(names):
+            button = QRadioButton(name)
+            button.setProperty("name", name)
+            group.addButton(button)
+            group.setId(button, bid)
+            layout.addWidget(button)
+
+        # Select first
+        layout.addWidget(QSplitter())
+        group.button(0).setChecked(True)
+
+        return label, layout, group
 
 
 class PaintWidget(QWidget):
