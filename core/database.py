@@ -18,7 +18,8 @@ except ImportError:
     import sqlite3 as sqlcipher
 
 __all__ = ['SQLiteDatabase', 'SQLCipherDatabase', 'SQLiteUserPasswordDatabase', 'SQLiteDatabaseError',
-           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem', 'DBItemType', 'DBTable', 'DBColumn',
+           'SQLiteDatabaseCreator', 'SQLiteGeneralSettingsItem',
+           'DBItemType', 'DBItemSearchAttr', 'DBTable', 'DBColumn',
            'SQLiteUIElementScheme', 'SQLiteUITableScheme', 'SQLiteUIScheme', 'sqlite_create_tables']
 
 
@@ -27,10 +28,11 @@ class SQLiteDatabaseError(Exception):
 
 
 DBItemType = collections.namedtuple('DBItemType', 'int real text blob')(*'INTEGER REAL TEXT BLOB'.split())
+DBItemSearchAttr = collections.namedtuple('DBItemSubtype', 'Normal Timestamp Enum Fuzzy')(*(0x1, 0x2, 0x4, 0x8))
 
 
 class DBColumn(DynamicObject):
-    _properties = {'name', 'type', 'attr', 'display', 'default_value', 'stretch', 'annotate'}
+    _properties = {'name', 'type', 'attr', 'display', 'default_value', 'stretch', 'annotate', 'search_attr'}
 
     def __init__(self, **kwargs):
         kwargs.setdefault('attr', '')
@@ -38,10 +40,11 @@ class DBColumn(DynamicObject):
         kwargs.setdefault('display', True)
         kwargs.setdefault('default_value', None)
         kwargs.setdefault('annotate', kwargs.get('name'))
+        kwargs.setdefault('search_attr', DBItemSearchAttr.Normal)
         super(DBColumn, self).__init__(**kwargs)
 
     def __repr__(self):
-        return ' '.join([self.name, self.type, self.attr])
+        return ' '.join([self.name, self.type, self.attr]).strip()
 
     def is_type(self, t: str) -> bool:
         return t.upper() == self.type.upper()
@@ -127,6 +130,21 @@ class DBTable:
             return [x for x in self.scheme if x.name == name][0]
         except IndexError:
             return None
+
+    def get_column_index_from_name(self, name: str) -> int:
+        try:
+            return self.scheme.index(self.get_column_from_name(name))
+        except ValueError:
+            return -1
+
+    def get_enumeration_columns(self) -> typing.List[int]:
+        return [i for i, c in enumerate(self.scheme) if c.search_attr & DBItemSearchAttr.Enum]
+
+    def get_timestamp_columns(self) -> typing.List[int]:
+        return [i for i, c in enumerate(self.scheme) if c.search_attr & DBItemSearchAttr.Timestamp]
+
+    def get_fuzzy_columns(self) -> typing.List[int]:
+        return [i for i, c in enumerate(self.scheme) if c.search_attr & DBItemSearchAttr.Fuzzy]
 
     def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
         v = [f'"{record.get(x.name)}"' if x.is_text() else f'{record.get(x.name)}'
@@ -1152,16 +1170,25 @@ class SQLiteDatabaseCreator(object):
             self._db_cursor.execute("INSERT INTO {} VALUES({})".format(table_name, data))
 
 
-def sqlite_create_tables(db_name: str, tables: typing.Sequence[DBTable]) -> bool:
+def sqlite_create_tables(db_name: str, tables: typing.Sequence[DBTable], verbose: bool = False) -> bool:
     error = None
     db_conn = sqlite3.connect(db_name)
     db_cursor = db_conn.cursor()
 
     try:
         for tbl in tables:
-            db_cursor.execute(tbl.get_create_sentence())
+            create_sentence = tbl.get_create_sentence()
+            if verbose:
+                print(create_sentence)
+
+            db_cursor.execute(create_sentence)
+
             for record in tbl.init_records:
-                db_cursor.execute(tbl.get_inert_sentence(record))
+                insert_sentence = tbl.get_inert_sentence(record)
+                if verbose:
+                    print(insert_sentence)
+
+                db_cursor.execute(insert_sentence)
     except sqlite3.OperationalError as e:
         error = e
     finally:

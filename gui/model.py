@@ -194,6 +194,14 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return self.tbl.columns_stretch()
 
     @property
+    def date_search_columns(self) -> typing.List[int]:
+        return self.tbl.get_timestamp_columns()
+
+    @property
+    def precisely_search_columns(self) -> typing.List[int]:
+        return self.tbl.get_enumeration_columns()
+
+    @property
     def rows_per_page(self) -> int:
         return self._rows_per_page
 
@@ -217,6 +225,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def get_row_count(tbl: str) -> int:
         query = QtSql.QSqlQuery()
         return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {tbl};') and query.first() else 0
+
+    def is_support_fuzzy_search(self, key: str) -> bool:
+        return self.tbl.get_column_index_from_name(key) in self.tbl.get_fuzzy_columns()
 
     def get_column_data(self, column: int) -> typing.Sequence:
         try:

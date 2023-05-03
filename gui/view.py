@@ -607,7 +607,7 @@ class SQliteQueryView(BasicWidget):
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float],
                  custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
-                 date_search_column: typing.Optional[typing.Sequence[int]] = None,
+                 date_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  precisely_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  readonly: bool = False, without_search: bool = False, row_autoincrement_factor: float = 0.0,
                  datetime_format: str = 'yyyy/MM/dd hh:mm:ss', search_box_min_width: int = 400,
@@ -621,7 +621,7 @@ class SQliteQueryView(BasicWidget):
         self._search_box_min_width = search_box_min_width
 
         self._datetime_format = datetime_format
-        self._date_search_column = date_search_column or [-1]
+        self._date_search_columns = date_search_columns or [-1]
         self._precisely_search_columns = precisely_search_columns or list()
 
         self._custom_content_menu = list(custom_content_menu)
@@ -739,9 +739,8 @@ class SQliteQueryView(BasicWidget):
     def _get_pk_from_row(self, row: int) -> typing.Any:
         pass
 
-    @abc.abstractmethod
     def _enable_fuzzy_search(self, key: str) -> bool:
-        pass
+        return self._model.is_support_fuzzy_search(key)
 
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
@@ -812,9 +811,9 @@ class SQliteQueryView(BasicWidget):
         else:
             self.ui_search_value.clear()
             self.ui_search_value.setCurrentText('')
-            self.enableDateSearch(idx in self._date_search_column)
+            self.enableDateSearch(idx in self._date_search_columns)
             # Update date search
-            if idx in self._date_search_column:
+            if idx in self._date_search_columns:
                 self.slotUpdateDateRange('')
 
     def slotDelete(self, without_confirm: bool = False) -> bool:
