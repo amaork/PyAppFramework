@@ -2418,7 +2418,7 @@ class BasicJsonSettingWidget(QWidget):
         except (json.JSONDecodeError, DynamicObjectDecodeError):
             raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
-    def createLayout(self) -> QGridLayout:
+    def createLayout(self, row_stretch_mode: bool = False) -> QGridLayout:
         layout = QGridLayout()
         _, h, v = tuple(self.layout.get_spaces())
         layout.setVerticalSpacing(v)
@@ -2426,7 +2426,10 @@ class BasicJsonSettingWidget(QWidget):
         layout.setContentsMargins(*tuple(self.layout.get_margins()))
         if any(self.layout.get_stretch()):
             for column, stretch in enumerate(self.layout.get_stretch()):
-                layout.setColumnStretch(column, stretch)
+                if row_stretch_mode:
+                    layout.setRowStretch(column, stretch)
+                else:
+                    layout.setColumnStretch(column, stretch)
         return layout
 
     def getData(self) -> Any:
@@ -3073,7 +3076,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
 
     def __initUi(self):
         row = 0
-        widget_layout = self.createLayout()
+        widget_layout = self.createLayout(row_stretch_mode=True)
         for groups in self.items_name:
             column = 0
             for group in groups:
