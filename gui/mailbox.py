@@ -24,6 +24,10 @@ class BaseUiMail(object):
     def content(self) -> str:
         return self.__content
 
+    @content.setter
+    def content(self, content: str):
+        self.__content = content
+
 
 class StatusBarMail(BaseUiMail):
     def __init__(self, color: typing.Union[QColor, Qt.GlobalColor], content: str, timeout: int = 0):
@@ -257,7 +261,7 @@ class StatusBarProgressBarMail(StatusBarWidgetMail):
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
 
-    def __init__(self, parent: QWidget):
+    def __init__(self, parent: QWidget, msg_content_format: typing.Callable[[str], str] = lambda x: x):
         """UiMail box using send and receive ui display message in thread
 
         :return:
@@ -272,6 +276,7 @@ class UiMailBox(QObject):
 
         self.__pai_task = Task.create_tid()
         self.__sb_pai_task = Task.create_tid()
+        self.__msg_content_format = msg_content_format
         self.__tasklet = Tasklet(schedule_interval=0.1, name=self.__class__.__name__)
 
         self.hasNewMail.connect(self.mailProcess)
@@ -298,6 +303,9 @@ class UiMailBox(QObject):
         """
         if not isinstance(mail, BaseUiMail):
             return False
+
+        if isinstance(mail, (MessageBoxMail, QuestionBoxMail)):
+            mail.content = self.__msg_content_format(mail.content)
 
         try:
             self.hasNewMail.emit(mail)
