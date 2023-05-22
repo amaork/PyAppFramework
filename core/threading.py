@@ -65,11 +65,16 @@ class ThreadLockAndDataWrap(object):
 
 
 class ThreadSafeBool(ThreadLockAndDataWrap):
-    def __init__(self, value: bool):
+    def __init__(self, value: bool, name: str = ''):
         if not isinstance(value, bool):
             raise TypeError('value must be a bool')
         super(ThreadSafeBool, self).__init__(value)
-        self._preview_data = value
+        self._name = name
+        self._p_data = value
+        self._pp_data = value
+
+    def __repr__(self):
+        return f'{self._name}: ' + ''.join([f'{x:b}' for x in [self._pp_data, self._p_data, self._data]])
 
     @property
     def data(self) -> bool:
@@ -79,13 +84,15 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
     @data.setter
     def data(self, data: bool):
         with self._lock:
-            self._preview_data = self._data
-            self._data = data
+            if data != self._data:
+                self._pp_data = self._p_data
+                self._p_data = self._data
+            self._data = True if data else False
 
     @property
     def previous_data(self) -> bool:
         with self._lock:
-            return self._preview_data
+            return self._p_data
 
     def set(self):
         self.data = True
@@ -101,11 +108,21 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
             self._data = not self._data
             return self._data
 
+    def is_p_pulse(self) -> bool:
+        with self._lock:
+            return ''.join(f'{x:b}' for x in [self._pp_data, self._p_data, self._data]) == '010'
+
+    def is_n_pulse(self) -> bool:
+        with self._lock:
+            return ''.join(f'{x:b}' for x in [self._pp_data, self._p_data, self._data]) == '101'
+
     def is_rising_edge(self) -> bool:
-        return self.is_set() and not self._preview_data
+        with self._lock:
+            return ''.join(f'{x:b}' for x in [self._p_data, self._data]) == '01'
 
     def is_falling_edge(self) -> bool:
-        return not self.is_set() and self._preview_data
+        with self._lock:
+            return ''.join(f'{x:b}' for x in [self._p_data, self._data]) == '10'
 
     @contextlib.contextmanager
     def rising_edge_contextmanager(self):
