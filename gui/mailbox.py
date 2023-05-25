@@ -261,7 +261,8 @@ class StatusBarProgressBarMail(StatusBarWidgetMail):
 class UiMailBox(QObject):
     hasNewMail = Signal(object)
 
-    def __init__(self, parent: QWidget, msg_content_format: typing.Callable[[str], str] = lambda x: x):
+    def __init__(self, parent: QWidget,
+                 msg_content_format: typing.Callable[[str], str] = lambda x: x, **process_bar_kwargs):
         """UiMail box using send and receive ui display message in thread
 
         :return:
@@ -272,7 +273,7 @@ class UiMailBox(QObject):
 
         self.__parent = parent
         self.__bind_msg_boxs = dict()
-        self.__progress = ProgressDialog(parent=parent)
+        self.__progress = ProgressDialog(parent=parent, **process_bar_kwargs)
 
         self.__pai_task = Task.create_tid()
         self.__sb_pai_task = Task.create_tid()
