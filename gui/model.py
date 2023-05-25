@@ -337,6 +337,14 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
             self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} WHERE {condition};')
 
+    def update_dict_record(self, pk: typing.Any, record: typing.Dict[str, typing.Any]) -> bool:
+        result, query = self.exec_query(self.tbl.get_update_sentence(record, f'{self.tbl.pk} = {pk}'))
+        if result:
+            self.flush_page(self.cur_page)
+            return True
+
+        return False
+
     def insert_dict_record(self, record: typing.Dict[str, typing.Any]) -> bool:
         result, query = self.exec_query(self.tbl.get_inert_sentence(record))
         if result:

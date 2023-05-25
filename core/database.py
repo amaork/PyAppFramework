@@ -151,6 +151,11 @@ class DBTable:
              for x in self.scheme if x.name in record and not x.is_autoinc()]
         return f'INSERT INTO {self.name} ({", ".join(self.columns_name())}) VALUES({", ".join(v)})'
 
+    def get_update_sentence(self, record: typing.Dict[str, typing.Any], cond: str) -> str:
+        v = [f'{x.name} = "{record.get(x.name)}"' if x.is_text() else f'{x.name} = {record.get(x.name)}'
+             for x in self.scheme if x.name in record and not x.is_autoinc()]
+        return f'UPDATE {self.name} SET {", ".join(v)} WHERE {cond}'
+
 
 class SQLiteDatabase(object):
     SpcSequenceTBLName = 'sqlite_sequence'
