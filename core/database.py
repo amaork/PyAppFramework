@@ -119,17 +119,17 @@ class DBTable:
     def default_values(self) -> typing.Dict[str, typing.Any]:
         return {x.name: x.get_default_value() for x in self.scheme if not x.is_autoinc()}
 
-    def get_create_sentence(self) -> str:
-        return f'CREATE TABLE {self.name} ({", ".join([str(x) for x in self.scheme])});'
-
-    def get_placeholder_sentence(self) -> str:
-        return self.get_inert_sentence(self.default_values())
-
     def get_column_from_name(self, name: str) -> typing.Optional[DBColumn]:
         try:
             return [x for x in self.scheme if x.name == name][0]
         except IndexError:
             return None
+
+    def get_column_annotate_from_name(self, name: str) -> str:
+        try:
+            return self.get_column_from_name(name).annotate
+        except AttributeError:
+            return ''
 
     def get_column_index_from_name(self, name: str) -> int:
         try:
@@ -145,6 +145,12 @@ class DBTable:
 
     def get_fuzzy_columns(self) -> typing.List[int]:
         return [i for i, c in enumerate(self.scheme) if c.search_attr & DBItemSearchAttr.Fuzzy]
+
+    def get_create_sentence(self) -> str:
+        return f'CREATE TABLE {self.name} ({", ".join([str(x) for x in self.scheme])});'
+
+    def get_placeholder_sentence(self) -> str:
+        return self.get_inert_sentence(self.default_values())
 
     def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
         v = [f'"{record.get(x.name)}"' if x.is_text() else f'{record.get(x.name)}'

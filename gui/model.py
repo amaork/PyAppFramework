@@ -3,7 +3,8 @@ import abc
 import typing
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
-from ..core.database import SQLiteDatabase, DBTable
+
+from ..core.database import DBTable
 __all__ = ['AbstractTableModel', 'SqliteQueryModel']
 
 
@@ -132,15 +133,16 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
 
     def __init__(self, db_name: str, tbl: DBTable,
+                 display_columns: typing.Sequence[str] = None, condition: str = '',
                  rows_per_page: int = 20, verbose: bool = False, parent: QtCore.QObject = None):
         self.tbl = tbl
         self._cur_page = 0
         self._verbose = verbose
         self._db_name = db_name
         self._rows_per_page = int(rows_per_page)
-        columns = self.tbl.display_columns()
-        self._query_columns = ', '.join(columns) or '*'
-        self._columns = list(columns) or list(SQLiteDatabase(self._db_name).getTableInfo(self.tbl.name).keys())
+
+        self._columns = display_columns or self.tbl.display_columns()
+        self._condition = condition
         super(SqliteQueryModel, self).__init__(parent)
 
         # Create placeholder
@@ -158,6 +160,16 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     @property
     def keys(self) -> typing.List[str]:
         return self._columns[:]
+
+    @keys.setter
+    def keys(self, keys: typing.Sequence[str]):
+        try:
+            self._columns = [k for k in keys if k in self.tbl.display_columns()]
+        except TypeError:
+            pass
+        else:
+            self.set_column_header()
+            self.show_all()
 
     @property
     def tbl_name(self) -> str:
@@ -178,8 +190,17 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return self.get_row_count(self.tbl.name)
 
     @property
-    def display_columns(self) -> str:
-        return self._query_columns
+    def query_condition(self) -> str:
+        return self._condition
+
+    @query_condition.setter
+    def query_condition(self, condition: str):
+        self._condition = condition
+        self.show_all()
+
+    @property
+    def columns_str(self) -> str:
+        return ', '.join(self._columns)
 
     @property
     def readonly(self) -> bool:
@@ -187,11 +208,11 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def column_header(self) -> typing.Tuple[str, ...]:
-        return self.tbl.columns_annotation()
+        return tuple([self.tbl.get_column_annotate_from_name(x) for x in self._columns])
 
     @property
     def column_stretch(self) -> typing.Tuple[float, ...]:
-        return self.tbl.columns_stretch()
+        return tuple([self.tbl.get_column_from_name(x).stretch for x in self._columns])
 
     @property
     def date_search_columns(self) -> typing.List[int]:
@@ -249,7 +270,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self.setHeaderData(column, QtCore.Qt.Horizontal, name)
 
     def show_all(self):
-        self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name};')
+        cond = f' WHERE {self._condition}' if self._condition else ''
+        self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name}{cond};')
 
     def set_query(self, query: str):
         if self._verbose:
@@ -286,7 +308,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self._cur_page = page
             start = page * self._rows_per_page
             limit = f'LIMIT {int(self._rows_per_page)} OFFSET {int(start)};'
-            self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} {limit}')
+            condition = f' WHERE {self._condition}' if self._condition else ''
+            self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name}{condition} {limit}')
 
     def select_record(self, condition: str):
         record_value = list()
@@ -334,8 +357,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         if 'select' in value.lower():
             self.set_query(value)
         else:
+            q = f' and {self._condition}' if self._condition else ''
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
-            self.set_query(f'SELECT {self._query_columns} FROM {self.tbl_name} WHERE {condition};')
+            self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name} WHERE {condition}{q};')
 
     def update_dict_record(self, pk: typing.Any, record: typing.Dict[str, typing.Any]) -> bool:
         result, query = self.exec_query(self.tbl.get_update_sentence(record, f'{self.tbl.pk} = {pk}'))
