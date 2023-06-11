@@ -90,7 +90,8 @@ def get_timestamp_str(ts: float, fmt: str = '%Y/%m/%d %H:%M:%S', fs_valid: bool 
 
 def get_newest_file_after(watch_dir: str, watch_suffix: str, timestamp: float) -> typing.Sequence[str]:
     watch = pathlib.Path(watch_dir)
-    return [f'{x}' for x in watch.iterdir() if x.suffix == watch_suffix and x.lstat().st_ctime > timestamp]
+    files = [f'{x}' for x in watch.iterdir() if x.suffix == watch_suffix and x.lstat().st_ctime > timestamp]
+    return sorted(files, key=lambda x: os.path.getctime(x))
 
 
 @track_time

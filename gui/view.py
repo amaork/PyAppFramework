@@ -765,10 +765,24 @@ class SQliteQueryView(BasicWidget):
         # noinspection PyTypeChecker
         return QtWidgets.QApplication.translate("SQliteQueryView", text, None)
 
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        # Without page turn ctrl always show all records
+        if self._without_pt_ctrl:
+            self._model.show_all()
+        super().showEvent(event)
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         if self._row_autoincrement_factor:
             self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
+
+        # Without page turn ctrl always show all records
+        if self._without_pt_ctrl:
+            self._model.show_all()
+
         super(SQliteQueryView, self).resizeEvent(event)
+
+    def getPKFromRow(self, row) -> typing.Any:
+        return self._get_pk_from_row(row)
 
     def enableDateSearch(self, enable: bool):
         self.ui_search_value.setHidden(enable)
