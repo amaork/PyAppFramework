@@ -766,9 +766,12 @@ class SQliteQueryView(BasicWidget):
         return QtWidgets.QApplication.translate("SQliteQueryView", text, None)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
+        self.slotFlush()
+
         # Without page turn ctrl always show all records
         if self._without_pt_ctrl:
             self._model.show_all()
+
         super().showEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
@@ -807,6 +810,10 @@ class SQliteQueryView(BasicWidget):
     def slotNext(self):
         if self.ui_page_num.value() < self._model.total_page:
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
+
+    def slotFlush(self):
+        self.slotUpdatePageNum()
+        self.model.flush_page(self.ui_page_num.value() - 1, True)
 
     def slotClear(self, without_confirm: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(
