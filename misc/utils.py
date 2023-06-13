@@ -9,7 +9,6 @@ import datetime
 import contextlib
 from xml.dom import minidom
 from typing import List, Dict
-from .debug import track_time
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
 __all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search',
@@ -94,7 +93,6 @@ def get_newest_file_after(watch_dir: str, watch_suffix: str, timestamp: float) -
     return sorted(files, key=lambda x: os.path.getctime(x))
 
 
-@track_time
 def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
                  desc: str, exception_cls: typing.Type = RuntimeError, interval: float = 0.1):
     if condition():

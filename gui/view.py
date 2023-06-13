@@ -784,6 +784,9 @@ class SQliteQueryView(BasicWidget):
 
         super(SQliteQueryView, self).resizeEvent(event)
 
+    def rowCount(self) -> int:
+        return self._model.record_count
+
     def getPKFromRow(self, row) -> typing.Any:
         return self._get_pk_from_row(row)
 
@@ -811,9 +814,11 @@ class SQliteQueryView(BasicWidget):
         if self.ui_page_num.value() < self._model.total_page:
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
 
-    def slotFlush(self):
+    def slotFlush(self, scroll_to_end: bool = False):
         self.slotUpdatePageNum()
         self.model.flush_page(self.ui_page_num.value() - 1, True)
+        if scroll_to_end:
+            self.ui_view.scrollToBottom()
 
     def slotClear(self, without_confirm: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(
@@ -826,6 +831,17 @@ class SQliteQueryView(BasicWidget):
             self.slotUpdatePageNum()
 
         return True
+
+    def slotUpdate(self, pk: typing.Any, data: dict):
+        if self.model.update_dict_record(pk, data):
+            self.slotFlush()
+
+    def slotAppend(self, record: dict, scroll_to_end: bool = True):
+        if self._model.insert_dict_record(record):
+            if self._without_pt_ctrl:
+                self.slotFlush(scroll_to_end)
+            else:
+                self.slotUpdatePageNum(scroll_to_end)
 
     def slotSearch(self):
         value = self.ui_search_value.currentText()
@@ -886,6 +902,7 @@ class SQliteQueryView(BasicWidget):
 
         if scroll_to_end and self.ui_page_num.value() != self._model.total_page:
             self.slotNext()
+            self.ui_view.scrollToBottom()
 
     def slotPageNumChanged(self, page):
         self._model.flush_page(page - 1)
