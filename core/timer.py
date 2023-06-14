@@ -9,7 +9,7 @@ from typing import Optional, Callable, Any, Tuple
 
 from .datatype import DynamicObject
 from .utils import util_check_arguments, util_auto_kwargs
-from .threading import ThreadLockAndDataWrap, ThreadConditionWrap
+from .threading import ThreadLockAndDataWrap, ThreadConditionWrap, ThreadSafeBool
 __all__ = ['SwTimer', 'Tasklet', 'Task']
 
 
@@ -140,6 +140,7 @@ class Task(DynamicObject):
         kwargs = dict(func=func, args=args, timeout=float(timeout), periodic=periodic, result=result, runtime=runtime)
         super(Task, self).__init__(**kwargs)
         self.__lock = threading.Lock()
+        self.__paused = ThreadSafeBool(False)
         self.__id_ignore_args = True if id_ignore_args else False
         self.__id_ignore_timeout = True if id_ignore_timeout else False
 
@@ -157,7 +158,7 @@ class Task(DynamicObject):
 
     def __repr__(self):
         dict_ = {k: v for k, v in self.dict.items() if k not in ('result',) and not k.startswith('_Task__')}
-        dict_.update(func=self.func.__name__)
+        dict_.update(func=self.func.__name__, paused=self.__paused.is_set())
         return f'{dict_}'
 
     def id(self) -> str:
@@ -188,7 +189,6 @@ class Task(DynamicObject):
                 self.delete()
 
     def detach(self):
-        """"""
         self.reload()
         self.runtime.tasklet = None
 
@@ -205,6 +205,12 @@ class Task(DynamicObject):
         if self.is_attached():
             self.runtime.timeout -= self.runtime.tasklet.tick
 
+    def pause(self):
+        self.__paused.set()
+
+    def resume(self):
+        self.__paused.clear()
+
     def reload(self):
         self.runtime.update(dict(timeout=self.timeout))
 
@@ -218,7 +224,10 @@ class Task(DynamicObject):
         else:
             print("Error: {} is not attached, please add task to tasklet first".format(self))
 
-    def is_delayed(self):
+    def is_paused(self) -> bool:
+        return self.__paused.is_set()
+
+    def is_delayed(self) -> bool:
         """
         Return true, if a task the latest running time is out of tasklet schedule time (only works for periodic task)
         """
@@ -227,17 +236,17 @@ class Task(DynamicObject):
 
         return False
 
-    def is_timeout(self):
+    def is_timeout(self) -> bool:
         """Return true is a time is timeout, timeout means it's need to be scheduled"""
         return self.runtime.timeout <= 0.0
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return self.__lock.locked()
 
-    def is_attached(self):
+    def is_attached(self) -> bool:
         return isinstance(self.runtime.tasklet, Tasklet)
 
-    def running_times(self):
+    def running_times(self) -> int:
         return self.runtime.cnt
 
 
@@ -296,6 +305,12 @@ class Tasklet(SwTimer):
             if task is None:
                 break
 
+            # Paused, wait next schedule
+            if task.is_paused():
+                time.sleep(task.timeout)
+                self.__queue.put(task)
+                continue
+
             self.__error_handle(task.run())
 
     def __schedule(self):
@@ -304,6 +319,9 @@ class Tasklet(SwTimer):
 
         # Find out timeout task, if task is delayed and has enabled workers put to worker thread
         for task in [x for x in self.__tasks.values() if x.is_timeout()]:
+            if task.is_paused():
+                continue
+
             if task.is_delayed() and self.__max_workers:
                 if not task.is_running():
                     self.__queue.put(task)
@@ -345,7 +363,19 @@ class Tasklet(SwTimer):
             task.detach()
             self.__dump()
 
-    def add_task(self, task: Task, immediate: bool = False) -> Task.TID:
+    def pause_task(self, tid: str):
+        try:
+            self.__tasks[tid].pause()
+        except KeyError:
+            print(f'Do not found task: {tid}')
+
+    def resume_task(self, tid: str):
+        try:
+            self.__tasks[tid].resume()
+        except KeyError:
+            print(f'Do not found task: {tid}')
+
+    def add_task(self, task: Task, immediate: bool = False, paused: bool = False) -> Task.TID:
         """Insert task to tasklet, same id task will detach old task, add new task"""
         tid = task.id()
 
@@ -357,6 +387,9 @@ class Tasklet(SwTimer):
         task.attach(self)
         self.__tasks[tid] = task
         result = Task.TID(tid, task.result, task)
+
+        if paused:
+            task.pause()
 
         # If immediate set will run immediately
         if (immediate or task.is_timeout()) and self.__max_workers:

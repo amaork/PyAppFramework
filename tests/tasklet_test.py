@@ -8,7 +8,7 @@ def func(x):
     return x
 
 
-class CRC16Test(unittest.TestCase):
+class TaskletTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tasklet = Tasklet(max_workers=3)
 
@@ -142,6 +142,45 @@ class CRC16Test(unittest.TestCase):
         self.assertEqual(t4.is_attached(), False)
         time.sleep(10)
         self.assertEqual(self.tasklet.is_idle(), (True, True))
+
+    def testPauseResume(self):
+        t1 = Task(func=func, timeout=1, args=(1,), periodic=True, id_ignore_args=False)
+        t2 = Task(func=func, timeout=1, args=(2,), periodic=True, id_ignore_args=False)
+
+        self.tasklet.add_task(t1, paused=True)
+        self.tasklet.add_task(t2, paused=True, immediate=True)
+
+        self.assertEqual(t1.is_attached(), True)
+        self.assertEqual(t2.is_attached(), True)
+
+        self.assertEqual(t1.is_paused(), True)
+        self.assertEqual(t2.is_paused(), True)
+
+        self.assertEqual(t1.running_times(), 0)
+        self.assertEqual(t2.running_times(), 0)
+
+        t1.resume()
+        self.tasklet.resume_task(t2.id())
+
+        self.assertEqual(t1.is_paused(), False)
+        self.assertEqual(t2.is_paused(), False)
+
+        time.sleep(6)
+        self.assertGreaterEqual(t1.running_times(), 5)
+        self.assertGreaterEqual(t2.running_times(), 5)
+
+        t2.pause()
+        self.tasklet.pause_task(t1.id())
+
+        self.assertEqual(t1.is_paused(), True)
+        self.assertEqual(t2.is_paused(), True)
+
+        t1_cnt = t1.running_times()
+        t2_cnt = t2.running_times()
+
+        time.sleep(5)
+        self.assertEqual(t1.running_times(), t1_cnt)
+        self.assertEqual(t2.running_times(), t2_cnt)
 
 
 if __name__ == "__main__":
