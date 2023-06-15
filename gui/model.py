@@ -155,7 +155,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         self.set_column_header()
 
         if need_clear:
-            self.clear_table(init=True)
+            self.clear_table()
 
     @property
     def keys(self) -> typing.List[str]:
@@ -181,6 +181,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
     @property
     def total_page(self) -> int:
+        if not self._rows_per_page:
+            return 1
+
         row_count = self.record_count
         ext_page = 1 if row_count % self._rows_per_page else 0
         return self.record_count // self._rows_per_page + ext_page
@@ -290,15 +293,12 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
 
         return query_result, query_obj
 
-    def clear_table(self, init: bool = False) -> bool:
+    def clear_table(self) -> bool:
         query = QtSql.QSqlQuery()
         if query.exec_(f'DELETE FROM {self.tbl_name}'):
-            if not self.tbl.is_autoincrement and init:
-                return True
-
             if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self.tbl_name}";'):
                 # Reset current page
-                self.flush_page(0, force=True)
+                self._cur_page = 0
                 return True
 
         return False
@@ -306,10 +306,14 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def flush_page(self, page: int, force: bool = False):
         if page < self.total_page or force:
             self._cur_page = page
-            start = page * self._rows_per_page
-            limit = f'LIMIT {int(self._rows_per_page)} OFFSET {int(start)};'
-            condition = f' WHERE {self._condition}' if self._condition else ''
-            self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name}{condition} {limit}')
+
+            if not self._rows_per_page:
+                self.show_all()
+            else:
+                start = page * self._rows_per_page
+                limit = f' LIMIT {int(self._rows_per_page)} OFFSET {int(start)};'
+                condition = f' WHERE {self._condition}' if self._condition else ''
+                self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name}{condition}{limit}')
 
     def select_record(self, condition: str):
         record_value = list()
@@ -326,31 +330,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         return record_value
 
     def delete_record(self, pk: typing.Any) -> bool:
-        result, query = self.exec_query(f'DELETE FROM {self.tbl_name} WHERE {self.tbl.pk} = {pk};')
-        if result:
-            self.flush_page(self.cur_page, force=True)
-            return True
-
-        return False
-
-    def insert_record(self, record: typing.Tuple) -> bool:
-        keys = self._columns[:]
-        result, query = self.exec_query(f'INSERT INTO {self.tbl_name} ({",".join(keys)}) VALUES({",".join(record)})')
-        if result:
-            if self.rowCount() < self._rows_per_page:
-                self.flush_page(self.cur_page)
-
-            return True
-        return False
-
-    def update_record(self, pk: typing.Any, kv: str) -> bool:
-        query = QtSql.QSqlQuery()
-        if query.exec_(f'UPDATE {self.tbl_name} {kv} WHERE {self.tbl.pk} = {pk};'):
-            self.flush_page(self.cur_page)
-            return True
-
-        print(query.lastError().text())
-        return False
+        return self.exec_query(f'DELETE FROM {self.tbl_name} WHERE {self.tbl.pk} = {pk};')[0]
 
     def search_record(self, key: str, value: str, like: bool = False):
         # Sql sentence select
@@ -361,19 +341,13 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             condition = f'{key} like "%{value}%"' if like else f'{key} = "{value}"'
             self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name} WHERE {condition}{q};')
 
-    def update_dict_record(self, pk: typing.Any, record: typing.Dict[str, typing.Any]) -> bool:
+    def insert_record(self, record: typing.Dict[str, typing.Any]) -> bool:
+        return self.exec_query(self.tbl.get_inert_sentence(record))[0]
+
+    def update_record(self, pk: typing.Any, record: typing.Dict[str, typing.Any]) -> bool:
         result, query = self.exec_query(self.tbl.get_update_sentence(record, f'{self.tbl.pk} = {pk}'))
         if result:
-            self.flush_page(self.cur_page)
+            self.flush_page(self.cur_page, force=True)
             return True
 
-        return False
-
-    def insert_dict_record(self, record: typing.Dict[str, typing.Any]) -> bool:
-        result, query = self.exec_query(self.tbl.get_inert_sentence(record))
-        if result:
-            if self.rowCount() < self._rows_per_page:
-                self.flush_page(self.cur_page)
-
-            return True
         return False

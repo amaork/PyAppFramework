@@ -734,9 +734,9 @@ class SQliteQueryView(BasicWidget):
         self.ui_prev.clicked.connect(self.slotPrev)
         self.ui_next.clicked.connect(self.slotNext)
         self.ui_search.clicked.connect(self.slotSearch)
+        self.ui_clear_search.clicked.connect(self.slotFlush)
         self.ui_action_del.triggered.connect(self.slotDelete)
         self.ui_action_clear.triggered.connect(self.slotClear)
-        self.ui_clear_search.clicked.connect(self.slotClearSearch)
         self.ui_page_num.valueChanged.connect(self.slotPageNumChanged)
         self.ui_end_date.dateChanged.connect(self.slotUpdateDateRange)
         self.ui_start_date.dateChanged.connect(self.slotUpdateDateRange)
@@ -767,20 +767,12 @@ class SQliteQueryView(BasicWidget):
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         self.slotFlush()
-
-        # Without page turn ctrl always show all records
-        if self._without_pt_ctrl:
-            self._model.show_all()
-
         super().showEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
-        if self._row_autoincrement_factor:
+        if not self._without_pt_ctrl and self._row_autoincrement_factor:
+            self.ui_page_num.setRange(1, self._model.total_page)
             self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
-
-        # Without page turn ctrl always show all records
-        if self._without_pt_ctrl:
-            self._model.show_all()
 
         super(SQliteQueryView, self).resizeEvent(event)
 
@@ -815,9 +807,17 @@ class SQliteQueryView(BasicWidget):
             self.ui_page_num.setValue(self.ui_page_num.value() + 1)
 
     def slotFlush(self, scroll_to_end: bool = False):
-        self.slotUpdatePageNum()
-        self.model.flush_page(self.ui_page_num.value() - 1, True)
+        if self._without_pt_ctrl:
+            # Without page turn ctrl always show all records
+            self._model.show_all()
+        else:
+            self.ui_page_num.setRange(1, self._model.total_page)
+            self.slotPageNumChanged(self.ui_page_num.value(), force=True)
+
         if scroll_to_end:
+            if self.ui_page_num.value() != self._model.total_page:
+                self.slotNext()
+
             self.ui_view.scrollToBottom()
 
     def slotClear(self, without_confirm: bool = False) -> bool:
@@ -828,20 +828,15 @@ class SQliteQueryView(BasicWidget):
 
         if self._model.clear_table():
             self.signalRecordsCleared.emit()
-            self.slotUpdatePageNum()
-
-        return True
-
-    def slotUpdate(self, pk: typing.Any, data: dict):
-        if self.model.update_dict_record(pk, data):
             self.slotFlush()
 
+    def slotUpdate(self, pk: typing.Any, data: dict):
+        self._model.update_record(pk, data)
+
     def slotAppend(self, record: dict, scroll_to_end: bool = True):
-        if self._model.insert_dict_record(record):
-            if self._without_pt_ctrl:
-                self.slotFlush(scroll_to_end)
-            else:
-                self.slotUpdatePageNum(scroll_to_end)
+        if self._model.insert_record(record):
+            self.slotFlush(scroll_to_end)
+            self.ui_view.selectRow(self._model.rowCount() - 1)
 
     def slotSearch(self):
         value = self.ui_search_value.currentText()
@@ -887,25 +882,11 @@ class SQliteQueryView(BasicWidget):
         primary_key = self._get_pk_from_row(row)
         if self._model.delete_record(primary_key):
             self.signalRecordDeleted.emit(primary_key)
-            self.slotUpdatePageNum()
+            self.slotFlush()
+            self.ui_view.selectRow(self._model.rowCount() - 1)
 
-        return True
-
-    def slotClearSearch(self):
-        self._model.flush_page(self._model.cur_page)
-
-    def slotUpdatePageNum(self, scroll_to_end: bool = False):
-        self.ui_page_num.setRange(1, self._model.total_page)
-        if self._model.record_count == 1:
-            self._model.set_column_header()
-            self.ui_view.setColumnStretchFactor(self._stretch_factor)
-
-        if scroll_to_end and self.ui_page_num.value() != self._model.total_page:
-            self.slotNext()
-            self.ui_view.scrollToBottom()
-
-    def slotPageNumChanged(self, page):
-        self._model.flush_page(page - 1)
+    def slotPageNumChanged(self, page, force: bool = False):
+        self._model.flush_page(page - 1, force)
 
     def slotCustomContentMenu(self, pos: QtCore.QPoint):
         if not self._model.record_count:
