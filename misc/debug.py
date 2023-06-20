@@ -59,16 +59,20 @@ class ExceptionHandle:
 
     def __init__(self, param: typing.Any,
                  callback: typing.Callable[[typing.Any, str], None],
-                 release: bool = True, debug_info: str = ''):
+                 release: bool = True, debug_info: str = '', ignore_exceptions: typing.Sequence = None):
         self.__param = param
         self.__callback = callback
         self.__debug_info = debug_info
+        self.__ignore_exceptions = ignore_exceptions or list()
         self.__exception_handled = release and ExceptionHandle.RELEASE
 
     def __enter__(self):
         pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type in self.__ignore_exceptions:
+            return False
+
         if exc_type and callable(self.__callback):
             frame = inspect.stack()[1][0]
             info = inspect.getframeinfo(frame)
