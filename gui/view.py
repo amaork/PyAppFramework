@@ -13,6 +13,7 @@ from .container import ComponentManager
 from .widget import JsonSettingWidget, BasicWidget
 
 from ..misc.settings import *
+from ..core.timer import Task, Tasklet
 from ..gui.model import SqliteQueryModel
 from ..core.datatype import DynamicObject
 from ..misc.windpi import get_program_scale_factor
@@ -604,6 +605,8 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
 class SQliteQueryView(BasicWidget):
     Group = 'group'
     signalRecordsCleared = QtCore.Signal()
+    signalRequestScrollToTop = QtCore.Signal()
+    signalRequestScrollToBottom = QtCore.Signal()
     signalRecordDeleted = QtCore.Signal(object)
     ToolGroups = collections.namedtuple('ToolGroups', 'Date Search PageTurnCtrl')(*'date search pt_ctrl'.split())
 
@@ -630,6 +633,7 @@ class SQliteQueryView(BasicWidget):
 
         self._custom_content_menu = list(custom_content_menu)
         self._row_autoincrement_factor = row_autoincrement_factor
+        self._tasklet = Tasklet(name=self.__class__.__name__)
         super(SQliteQueryView, self).__init__(parent)
         self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
 
@@ -750,6 +754,9 @@ class SQliteQueryView(BasicWidget):
         self.ui_search.setShortcut(QtGui.QKeySequence(Qt.Key_Return))
         self.ui_clear_search.setShortcut(QtGui.QKeySequence(Qt.Key_Escape))
 
+        self.signalRequestScrollToTop.connect(self.ui_view.scrollToTop)
+        self.signalRequestScrollToBottom.connect(self.ui_view.scrollToBottom)
+
     @property
     def model(self) -> SqliteQueryModel:
         return self._model
@@ -818,7 +825,9 @@ class SQliteQueryView(BasicWidget):
             if self.ui_page_num.value() != self._model.total_page:
                 self.slotNext()
 
-            self.ui_view.scrollToBottom()
+            self._tasklet.add_task(Task(lambda: self.signalRequestScrollToBottom.emit(), timeout=1.0))
+        else:
+            self._tasklet.add_task(Task(lambda: self.signalRequestScrollToTop.emit(), timeout=1.0))
 
     def slotClear(self, without_confirm: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(
