@@ -786,6 +786,9 @@ class SQliteQueryView(BasicWidget):
     def rowCount(self) -> int:
         return self._model.record_count
 
+    def getTableData(self):
+        return self._model.get_table_data()
+
     def getPKFromRow(self, row) -> typing.Any:
         return self._get_pk_from_row(row)
 

@@ -351,3 +351,9 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             return True
 
         return False
+
+    def get_table_data(self) -> typing.List[typing.List]:
+        return [
+            [self.data(self.index(r, c), QtCore.Qt.DisplayRole) for c in range(self.columnCount())]
+            for r in range(self.rowCount())
+        ]
