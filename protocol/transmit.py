@@ -320,16 +320,16 @@ class TCPServerTransmit(Transmit):
             while self._connected.is_set():
                 time.sleep(0.1)
 
-    def connect(self, address: Transmit.Address, _timeout: float = 0.0) -> bool:
+    def connect(self, address: Transmit.Address, backlog: int = 1) -> bool:
         try:
             listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
             listen_socket.bind(address)
         except OSError as e:
             raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
         else:
-            listen_socket.listen(1)
+            listen_socket.listen(backlog)
             threading.Thread(target=self.accept_handle, args=(listen_socket,), daemon=True).start()
-            return self._update(address, _timeout, False)
+            return self._update(address, 0.0, False)
 
     def disconnect(self):
         self._connected.clear()
