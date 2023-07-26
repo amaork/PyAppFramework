@@ -2,6 +2,7 @@
 """
 Provide UI elements container
 """
+import collections
 from PySide2.QtCore import *
 from PySide2.QtWidgets import QComboBox, QWidget, QDoubleSpinBox, QSpinBox, QLineEdit, QPlainTextEdit, QDateTimeEdit, \
     QDial, QRadioButton, QCheckBox, QPushButton, QLCDNumber, QLabel, QTextEdit, QLayout, QGridLayout, QLayoutItem
@@ -212,10 +213,10 @@ class ComponentManager(QObject):
     dataChanged = Signal()
     dataChangedDetail = Signal(str, object)
 
-    TextFormat = 'text'
     FormatPropertyKey = 'format'
     DefaultObjectNameKey = 'data'
     QPushButtonPrivateDataKey = 'private'
+    DataFormat = collections.namedtuple('DataFormat', 'Text Integer Float')(*'text int float'.split())
 
     def __init__(self, layout: QLayout, parent: Optional[QWidget] = None):
         super(ComponentManager, self).__init__(parent)
@@ -290,16 +291,19 @@ class ComponentManager(QObject):
         elif isinstance(component, NetworkInterfaceSelector):
             return component.currentSelect()
         elif isinstance(component, QComboBox):
-            return component.currentText() if component.property("format") == "text" else component.currentIndex()
+            if component.property(ComponentManager.FormatPropertyKey) == ComponentManager.DataFormat.Text:
+                return component.currentText()
+            else:
+                return component.currentIndex()
         elif isinstance(component, QCheckBox):
             return component.isChecked()
         elif isinstance(component, QRadioButton):
             return component.isChecked()
         elif isinstance(component, QLineEdit):
             return {
-                "int": str2number(component.text()),
-                "float": str2float(component.text())
-            }.get(component.property("format"), component.text())
+                ComponentManager.DataFormat.Float: str2float(component.text()),
+                ComponentManager.DataFormat.Integer: str2number(component.text())
+            }.get(component.property(ComponentManager.FormatPropertyKey), component.text())
         elif isinstance(component, QTextEdit):
             return component.toPlainText()
         elif isinstance(component, QPlainTextEdit):

@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import math
-from PySide2.QtWidgets import QLineEdit, QWidget, QRadioButton, QDialog, QGridLayout, QPushButton, \
-    QSizePolicy, QVBoxLayout
-from PySide2.QtCore import QPoint, Qt, Signal, QRect, QEvent, QSize, QRectF, QTimerEvent
-from PySide2.QtGui import QColor, QFont, QPen, QBrush, QPainter, QIntValidator, QFontMetrics
-from PySide2.QtGui import QPaintEvent, QResizeEvent, QMouseEvent
+import typing
+import collections
+from PySide2 import QtWidgets, QtGui
 from typing import Union, Optional, Tuple
+from PySide2.QtCore import QPoint, Qt, Signal, QRect, QEvent, QSize, QRectF, QTimerEvent
 
 from ..core.datatype import *
 from ..misc.settings import *
@@ -14,16 +13,16 @@ from ..gui.container import ComponentManager
 __all__ = ['SampleSelectInput', 'VirtualNumberKeyboard', 'VirtualNumberInput', 'VolumeSelectInput']
 
 
-class SampleSelectInput(QWidget):
+class SampleSelectInput(QtWidgets.QWidget):
     MARGIN = 5
     DEFAULT_FONT = "Times New Roman"
     DEFAULT_OVER_COLOR = Qt.lightGray
-    DEFAULT_BG_COLOR = QColor(0x5d, 0x4e, 0x60)
+    DEFAULT_BG_COLOR = QtGui.QColor(0x5d, 0x4e, 0x60)
 
     sampleSelected = Signal(object)
 
     def __init__(self, diameter: int = 400, numbers: int = 12,
-                 font_name: str = DEFAULT_FONT, parent: Optional[QWidget] = None):
+                 font_name: str = DEFAULT_FONT, parent: Optional[QtWidgets.QWidget] = None):
         super(SampleSelectInput, self).__init__(parent)
 
         self.state = ""
@@ -75,8 +74,8 @@ class SampleSelectInput(QWidget):
     def getState(self) -> str:
         return self.state
 
-    def setThemeColor(self, color: QColor):
-        if not isinstance(color, QColor):
+    def setThemeColor(self, color: QtGui.QColor):
+        if not isinstance(color, QtGui.QColor):
             return
 
         self.bg_color = color
@@ -97,27 +96,27 @@ class SampleSelectInput(QWidget):
 
         return -1
 
-    def paintEvent(self, ev: QPaintEvent):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        font = QFont(self.font_name, int(self.get_font_size(self.sample_diameter, self.numbers)))
+    def paintEvent(self, ev: QtGui.QPaintEvent):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        font = QtGui.QFont(self.font_name, int(self.get_font_size(self.sample_diameter, self.numbers)))
 
         # Draw outer ring
-        painter.setPen(QPen(Qt.NoPen))
-        painter.setBrush(QBrush(self.bg_color, Qt.SolidPattern))
+        painter.setPen(QtGui.QPen(Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(self.bg_color, Qt.SolidPattern))
         painter.drawEllipse(self.MARGIN, self.MARGIN, self.outer_ring_diameter, self.outer_ring_diameter)
 
         # Draw inner-ring
-        painter.setPen(QPen(Qt.NoPen))
-        painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
+        painter.setPen(QtGui.QPen(Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(Qt.white, Qt.SolidPattern))
         painter.drawEllipse(self.center, self.inner_ring_radius, self.inner_ring_radius)
 
         if self.state:
-            fm = QFontMetrics(font)
+            fm = QtGui.QFontMetrics(font)
             painter.setPen(self.bg_color)
             painter.setFont(font)
-            painter.drawText(self.MARGIN + self.outer_ring_diameter / 2 - fm.width(self.state) / 2,
-                             self.MARGIN + self.outer_ring_diameter / 2 + fm.height() / 3,
+            painter.drawText(self.MARGIN + self.outer_ring_diameter // 2 - fm.width(self.state) // 2,
+                             self.MARGIN + self.outer_ring_diameter // 2 + fm.height() // 3,
                              self.tr(self.state))
 
         # Draw sample
@@ -143,7 +142,7 @@ class SampleSelectInput(QWidget):
             # rg.setColorAt(0.2, Qt.green)
             # rg.setColorAt(0.8, Qt.gray)
             # painter.setBrush(QBrush(rg))
-            painter.setBrush(QBrush(color, Qt.SolidPattern))
+            painter.setBrush(QtGui.QBrush(color, Qt.SolidPattern))
             painter.drawEllipse(x, y, self.sample_diameter, self.sample_diameter)
 
             # Draw sample text
@@ -151,16 +150,16 @@ class SampleSelectInput(QWidget):
             painter.setFont(font)
             painter.drawText(x, y, self.sample_diameter, self.sample_diameter, Qt.AlignCenter, "{}".format(idx + 1))
 
-    def resizeEvent(self, ev: QResizeEvent):
+    def resizeEvent(self, ev: QtGui.QResizeEvent):
         width = ev.size().width()
         height = ev.size().height()
         self.__updatePanelDiameter(min(width, height))
 
-    def mouseMoveEvent(self, ev: QMouseEvent):
+    def mouseMoveEvent(self, ev: QtGui.QMouseEvent):
         self.move_over_idx = self.getSelectedNumber(ev.pos())
         self.update()
 
-    def mouseReleaseEvent(self, ev: QMouseEvent):
+    def mouseReleaseEvent(self, ev: QtGui.QMouseEvent):
         if ev.button() != Qt.LeftButton:
             return
 
@@ -180,12 +179,12 @@ class SampleSelectInput(QWidget):
         self.update()
 
 
-class VolumeSelectInput(QRadioButton):
+class VolumeSelectInput(QtWidgets.QRadioButton):
     DEFAULT_FG_COLOR = Qt.lightGray
-    DEFAULT_BG_COLOR = QColor(0x5d, 0x4e, 0x60)
+    DEFAULT_BG_COLOR = QtGui.QColor(0x5d, 0x4e, 0x60)
 
     def __init__(self, text: str, width: int = 60, height: int = 150,
-                 cap_height: int = 25, parent: Optional[QWidget] = None):
+                 cap_height: int = 25, parent: Optional[QtWidgets.QWidget] = None):
         super(VolumeSelectInput, self).__init__(parent)
         self.clicked.connect(self.slotChecked)
 
@@ -208,33 +207,33 @@ class VolumeSelectInput(QRadioButton):
         self.__neck_y_start = self.__neck_height
         self.update()
 
-    def paintEvent(self, ev: QPaintEvent):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+    def paintEvent(self, ev: QtGui.QPaintEvent):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
         if self.isChecked():
             bg, fg = self.__bg_color, self.__fg_color
         else:
             bg, fg = self.__fg_color, self.__bg_color
 
-        painter.setPen(QPen(Qt.NoPen))
-        painter.setBrush(QBrush(bg, Qt.SolidPattern))
+        painter.setPen(QtGui.QPen(Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(bg, Qt.SolidPattern))
         painter.drawRoundedRect(0, 0, self.__width, self.__cap_height, 5.0, 5.0)
         painter.drawRoundedRect(self.__width // 5, self.__cap_height - 10,
                                 self.__width // 5 * 3, self.__neck_height * 2, 5.0, 5.0)
         painter.drawRoundedRect(QRectF(0.0, self.__cap_height * 1.5, self.__width, self.__height), 5.0, 5.0)
 
-        painter.setPen(QPen(QColor(fg)))
-        painter.setFont(QFont("Times New Roman", int(self.__width / 3 / self.__scale_factor)))
+        painter.setPen(QtGui.QPen(QtGui.QColor(fg)))
+        painter.setFont(QtGui.QFont("Times New Roman", int(self.__width / 3 / self.__scale_factor)))
         painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, self.text)
 
     def slotChecked(self):
         self.setChecked(True)
 
-    def mousePressEvent(self, ev: QMouseEvent):
+    def mousePressEvent(self, ev: QtGui.QMouseEvent):
         self.clicked.emit()
 
-    def setThemeColor(self, color: QColor):
-        if not isinstance(color, QColor):
+    def setThemeColor(self, color: QtGui.QColor):
+        if not isinstance(color, QtGui.QColor):
             return
 
         self.__bg_color = color
@@ -245,60 +244,67 @@ class VolumeSelectInput(QRadioButton):
     #     self.__updateSize(ev.size().width(), ev.size().height())
 
 
-class VirtualNumberInput(QLineEdit):
+class VirtualNumberInput(QtWidgets.QLineEdit):
     numberChanged = Signal(object)
-    __themeColor = QColor(93, 78, 96)
-    __textColor = QColor(255, 255, 255)
-    __hoverColor = QColor(0x96, 0xf7, 0x51)
+    ThemeColor = QtGui.QColor(93, 78, 96)
+    TextColor = QtGui.QColor(255, 255, 255)
+    HoverColor = QtGui.QColor(0x96, 0xf7, 0x51)
+    SpecialProperties = collections.namedtuple('SpecialProperties', 'Min Max Decimals')(*'min max decimals'.split())
 
     def __init__(self, initial_value: Union[int, float] = 0,
                  min_: Union[int, float] = 0, max_: Union[int, float] = 9999, decimals: int = 0,
-                 parent: Optional[QWidget] = None):
+                 theme: QtGui.QColor = ThemeColor, text: QtGui.QColor = TextColor, hover: QtGui.QColor = HoverColor,
+                 parent: Optional[QtWidgets.QWidget] = None):
         super(VirtualNumberInput, self).__init__(parent)
         self.setReadOnly(True)
-        self.setValidator(QIntValidator(min_, max_))
+
+        self.setTextColor(text)
+        self.setThemeColor(theme)
+        self.setHoverColor(hover)
+
+        self.setRange(min_, max_)
+        self.setDecimals(decimals)
+
+        self.setValidator(QtGui.QIntValidator(min_, max_))
         self.setText("{}".format(initial_value))
-        self.setProperty("min", min_)
-        self.setProperty("max", max_)
-        self.setProperty("decimals", decimals)
-        self.setStyleSheet("VirtualNumberInput:hover{{{}}}".format(self.hoverStylesheet()))
+        # self.setStyleSheet("VirtualNumberInput:hover{{{}}}".format(self.hoverStylesheet()))
 
     @classmethod
     def getTextColor(cls):
-        return cls.__textColor
+        return cls.TextColor
 
     @classmethod
     def getHoverColor(cls):
-        return cls.__hoverColor
+        return cls.HoverColor
 
     @classmethod
     def getThemeColor(cls):
-        return cls.__themeColor
+        return cls.ThemeColor
 
     @classmethod
-    def setThemeColor(cls, color: QColor):
-        if not isinstance(color, QColor):
+    def setThemeColor(cls, color: QtGui.QColor):
+        if not isinstance(color, QtGui.QColor):
             return
 
-        cls.__themeColor = color
+        cls.ThemeColor = color
 
     @classmethod
-    def setTextColor(cls, color: QColor):
-        if not isinstance(color, QColor):
+    def setTextColor(cls, color: QtGui.QColor):
+        if not isinstance(color, QtGui.QColor):
             return
 
-        cls.__textColor = color
+        cls.TextColor = color
 
     @classmethod
-    def setHoverColor(cls, color: QColor):
-        if not isinstance(color, QColor):
+    def setHoverColor(cls, color: QtGui.QColor):
+        if not isinstance(color, QtGui.QColor):
             return
 
-        cls.__hoverColor = color
+        cls.HoverColor = color
 
     @staticmethod
-    def color2Tuple(color: QColor) -> Color:
-        if not isinstance(color, QColor):
+    def color2Tuple(color: QtGui.QColor) -> Color:
+        if not isinstance(color, QtGui.QColor):
             return 0, 0, 0
 
         return color.red(), color.green(), color.blue()
@@ -308,22 +314,40 @@ class VirtualNumberInput(QLineEdit):
         return UiColorInput.get_color_stylesheet(cls.color2Tuple(cls.getHoverColor())) +\
                UiColorInput.get_bg_color_stylesheet(cls.color2Tuple(cls.getThemeColor()))
 
+    def value(self) -> typing.Union[int, float]:
+        decimals = self.property(self.SpecialProperties.Decimals)
+        return str2float(self.text()) if decimals else str2number(self.text())
+
     def showKeyboard(self):
-        input_min = self.property("min")
-        input_max = self.property("max")
-        input_decimals = self.property("decimals")
-        if not input_decimals:
-            value = VirtualNumberKeyboard.getInt(min_=input_min, max_=input_max, parent=self)
+        input_min = self.property(self.SpecialProperties.Min)
+        input_max = self.property(self.SpecialProperties.Max)
+        decimals = self.property(self.SpecialProperties.Decimals)
+        if not decimals:
+            value = VirtualNumberKeyboard.getInt(
+                initial_value=str2number(self.text()), min_=input_min, max_=input_max, parent=self
+            )
         else:
-            value = VirtualNumberKeyboard.getDouble(min_=input_min, max_=input_max,
-                                                    decimals=input_decimals, parent=self)
+            value = VirtualNumberKeyboard.getDouble(
+                initial_value=str2float(self.text()), min_=input_min, max_=input_max, decimals=decimals, parent=self
+            )
         if value is not None:
             self.setText(str(value))
             self.numberChanged.emit(value)
 
+    def setDecimals(self, decimals: int):
+        self.setProperty(self.SpecialProperties.Decimals, decimals)
+        self.setProperty(
+            ComponentManager.FormatPropertyKey,
+            ComponentManager.DataFormat.Float if decimals else ComponentManager.DataFormat.Integer
+        )
+
     def setValue(self, value: Union[int, float]):
-        number_decimals = self.property('decimals')
+        number_decimals = self.property(self.SpecialProperties.Decimals)
         self.setText("{0:.{1}f}".format(value, number_decimals) if number_decimals else str(value))
+
+    def setRange(self, min_: typing.Union[int, float], max_: typing.Union[int,float]):
+        self.setProperty(self.SpecialProperties.Min, min_)
+        self.setProperty(self.SpecialProperties.Max, max_)
 
     def mousePressEvent(self, ev):
         if ev.button() != Qt.LeftButton:
@@ -332,11 +356,11 @@ class VirtualNumberInput(QLineEdit):
         self.showKeyboard()
 
 
-class VirtualKeyboard(QDialog):
+class VirtualKeyboard(QtWidgets.QDialog):
     KEY_MAP = ()
     KeyPressed = Signal(object)
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: Optional[QtWidgets.QWidget] = None):
         super(VirtualKeyboard, self).__init__(parent)
 
 
@@ -370,8 +394,9 @@ class VirtualNumberKeyboard(VirtualKeyboard):
     def __init__(self,
                  min_: Union[int, float] = 0,
                  max_: Union[int, float] = 100,
+                 title: str = '', password_mode: bool = False,
                  initial_value: Union[int, float] = 0, decimals: int = 0,
-                 key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None):
+                 key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QtWidgets.QWidget] = None):
         super(VirtualNumberKeyboard, self).__init__(parent)
 
         self.timer_cnt = 0
@@ -384,6 +409,7 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.current_display = ""
         self.overflow_flag = False
         self.initial_value = initial_value
+        self.__password_mode = password_mode
         self.__scale_factor = max(dpi.get_program_scale_factor())
 
         try:
@@ -391,9 +417,9 @@ class VirtualNumberKeyboard(VirtualKeyboard):
             self.rg_color = VirtualNumberInput.color2Tuple(VirtualNumberInput.getHoverColor())
             self.bg_color = VirtualNumberInput.color2Tuple(VirtualNumberInput.getThemeColor())
         except AttributeError:
-            self.fg_color = (255, 255, 255)
-            self.rg_color = (0x96, 0xf7, 0x51)
-            self.bg_color = (93, 78, 96)
+            self.fg_color = VirtualNumberInput.TextColor
+            self.rg_color = VirtualNumberInput.HoverColor
+            self.bg_color = VirtualNumberInput.ThemeColor
 
         self.rg_color = UiColorInput.get_color_stylesheet(self.rg_color)
         self.fg_color = UiColorInput.get_color_stylesheet(self.fg_color)
@@ -405,27 +431,30 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.__initStyle()
         self.__initSignalAndSlots()
         self.clrOverflow()
-        self.startTimer(600)
+        self.startTimer(100)
+
+        if title:
+            self.ui_display.setText(title)
 
     def __initUi(self):
-        self.ui_display = QLineEdit()
+        self.ui_display = QtWidgets.QLineEdit()
 
-        key_layout = QGridLayout()
+        key_layout = QtWidgets.QGridLayout()
         for row, row_keys in enumerate(self.key_map):
             for column, key in enumerate(row_keys):
                 key = {
                     self.OK_KEY: self.tr("OK"),
                     self.CANCEL_KEY: self.tr("Cancel")
                 }.get(key, key)
-                btn = QPushButton(key)
+                btn = QtWidgets.QPushButton(key)
                 btn.clicked.connect(self.slotNumberClicked)
                 btn.setProperty("name", key)
                 btn.setProperty("value", key)
-                btn.setMinimumHeight(50 * self.__scale_factor)
-                btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+                btn.setMinimumHeight(int(50 * self.__scale_factor))
+                btn.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
                 key_layout.addWidget(btn, row, column)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.ui_display)
         layout.addLayout(key_layout)
         self.setLayout(layout)
@@ -433,33 +462,31 @@ class VirtualNumberKeyboard(VirtualKeyboard):
 
     def __initData(self):
         self.ui_display.setText(self.__numStr(self.initial_value))
-        self.ui_min = self.ui_manager.getByValue("name", self.MIN_KEY, QPushButton)
-        self.ui_max = self.ui_manager.getByValue("name", self.MAX_KEY, QPushButton)
+        self.ui_min = self.ui_manager.getByValue("name", self.MIN_KEY, QtWidgets.QPushButton)
+        self.ui_max = self.ui_manager.getByValue("name", self.MAX_KEY, QtWidgets.QPushButton)
         self.ui_min.setText(self.__minStr())
         self.ui_max.setText(self.__maxStr())
 
     def __initStyle(self):
         self.ui_display.setReadOnly(True)
         self.ui_display.setAlignment(Qt.AlignRight)
-        self.ui_display.setMinimumHeight(self.FONT_BASE_SIZE * 4 * self.__scale_factor)
+        self.ui_display.setMinimumHeight(int(self.FONT_BASE_SIZE * 4 * self.__scale_factor))
         self.ui_display.setMaxLength(len("{}".format(self.max_number)) + self.number_decimals + 1)
 
-        meter = QFontMetrics(QFont("等线 Light", int(self.DISPLAY_FONT_SIZE * self.__scale_factor)))
-        self.ui_display.setMinimumWidth(meter.width("0" * self.ui_display.maxLength() + "-."))
+        meter = QtGui.QFontMetrics(QtGui.QFont("等线 Light", int(self.DISPLAY_FONT_SIZE * self.__scale_factor)))
+        self.ui_display.setMinimumWidth(meter.width("0" * self.ui_display.maxLength() + "-.") * 3)
 
         [item.setStyleSheet(self.rg_color) for item in (self.ui_min, self.ui_max)]
+        # self.setStyleSheet('QWidget{{{}}} QPushButton{{{}}} QPushButton:hover{{{}}}'.format(
+        #     self.bg_color + 'font: {}pt "宋体"'.format(self.FONT_BASE_SIZE),
+        #     self.bg_color + self.fg_color, self.rg_color,
+        # ))
 
-        self.setStyleSheet('QWidget{{{}}} QPushButton{{{}}} QPushButton:hover{{{}}}'.format(
-            self.bg_color + 'font: {}pt "宋体"'.format(self.FONT_BASE_SIZE),
-            self.bg_color + self.fg_color, self.rg_color,
-        ))
-
-        # self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
 
     def __initSignalAndSlots(self):
-        ok = self.ui_manager.getByValue("name", self.tr(self.OK_KEY), QPushButton)
-        cancel = self.ui_manager.getByValue("name", self.tr(self.CANCEL_KEY), QPushButton)
+        ok = self.ui_manager.getByValue("name", self.tr(self.OK_KEY), QtWidgets.QPushButton)
+        cancel = self.ui_manager.getByValue("name", self.tr(self.CANCEL_KEY), QtWidgets.QPushButton)
         ok.clicked.connect(self.accept)
         cancel.clicked.connect(self.reject)
 
@@ -478,10 +505,10 @@ class VirtualNumberKeyboard(VirtualKeyboard):
     def __checkValue(self) -> bool:
         return self.min_number <= str2float(self.current_display) <= self.max_number
 
-    def sizeHint(self) -> QSize:
-        meter = QFontMetrics(QFont(self.DEF_FONT_NAME, self.FONT_BASE_SIZE))
-        width = meter.width(str(self.min_number) + str(self.max_number) + "  C  ")
-        return QSize(width * self.__scale_factor, meter.height() * len(self.key_map) * self.__scale_factor)
+    # def sizeHint(self) -> QSize:
+    #     meter = QtGui.QFontMetrics(QtGui.QFont(self.DEF_FONT_NAME, self.FONT_BASE_SIZE))
+    #     width = meter.width(str(self.min_number) + str(self.max_number) + "  C  ")
+    #     return QSize(int(width * self.__scale_factor), int(meter.height() * len(self.key_map) * self.__scale_factor))
 
     def setOverflow(self):
         self.overflow_flag = True
@@ -507,6 +534,14 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         key = self.sender()
         value = key.property("value")
         new_value = self.current_display
+
+        # Backup old display
+        if not self.current_display:
+            self.old_display = self.ui_display.text()
+
+            if self.__password_mode:
+                self.ui_display.setEchoMode(QtWidgets.QLineEdit.Password)
+
         if value in map(str, range(0, 10)):
             if value == "0" and self.current_display == "0":
                 return
@@ -552,8 +587,6 @@ class VirtualNumberKeyboard(VirtualKeyboard):
             return
 
         self.current_display = new_value
-        if self.__checkValue():
-            self.old_display = self.current_display
 
         self.__flush()
 
@@ -574,9 +607,8 @@ class VirtualNumberKeyboard(VirtualKeyboard):
         self.timer_cnt += 1
 
         if self.overflow_flag:
-            self.clrOverflow()
-            self.current_display = self.old_display
-            self.__flush()
+            if self.__checkValue():
+                self.clrOverflow()
             return
 
         if self.timer_cnt % 2 == 0:
@@ -587,15 +619,15 @@ class VirtualNumberKeyboard(VirtualKeyboard):
                 return
 
     @classmethod
-    def getInt(cls, min_: int = 0, max_: int = 3600, initial_value: int = 0,
-               key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None) -> int:
-        dialog = cls(min_, max_, initial_value, 0, key_map, parent)
+    def getInt(cls, **kwargs) -> int:
+        kwargs['decimals'] = 0
+        dialog = cls(**kwargs)
         dialog.exec_()
         return dialog.getIntValue()
 
     @classmethod
-    def getDouble(cls, min_: float = 0.0, max_: float = 100.0, decimals: int = 1, initial_value: float = 0.0,
-                  key_map: Union[list, tuple] = KEY_MAP, parent: Optional[QWidget] = None) -> float:
-        dialog = cls(min_, max_, initial_value, decimals, key_map, parent)
+    def getDouble(cls, **kwargs) -> float:
+        kwargs.setdefault('decimals', 1)
+        dialog = cls(**kwargs)
         dialog.exec_()
         return dialog.getDoubleValue()
