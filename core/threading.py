@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 import threading
 import contextlib
+import multiprocessing
 from typing import Any, Optional
 __all__ = ['ThreadConditionWrap', 'ThreadLockAndDataWrap', 'ThreadSafeBool', 'ThreadSafeInteger', 'ThreadLockWithOwner']
 
 
 class ThreadConditionWrap(object):
-    def __init__(self):
+    def __init__(self, processing: bool = False):
         self.__result = None
         self.__finished = False
-        self.__condition = threading.Condition()
+        self.__condition = multiprocessing.Condition() if processing else threading.Condition()
 
     def wait(self, timeout: Optional[float] = None) -> Any:
         with self.__condition:
@@ -32,9 +33,9 @@ class ThreadConditionWrap(object):
 
 
 class ThreadLockAndDataWrap(object):
-    def __init__(self, data: Any):
+    def __init__(self, data: Any, processing: bool = False):
         self._data = data
-        self._lock = threading.Lock()
+        self._lock = multiprocessing.Lock() if processing else threading.Lock()
 
     def __bool__(self):
         return bool(self.data)
@@ -65,10 +66,10 @@ class ThreadLockAndDataWrap(object):
 
 
 class ThreadSafeBool(ThreadLockAndDataWrap):
-    def __init__(self, value: bool, name: str = ''):
+    def __init__(self, value: bool, name: str = '', processing: bool = False):
         if not isinstance(value, bool):
             raise TypeError('value must be a bool')
-        super(ThreadSafeBool, self).__init__(value)
+        super(ThreadSafeBool, self).__init__(value, processing)
         self._name = name
         self._p_data = value
         self._pp_data = value
@@ -144,10 +145,10 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
 
 
 class ThreadSafeInteger(ThreadLockAndDataWrap):
-    def __init__(self, value: int):
+    def __init__(self, value: int, processing: bool = False):
         if not isinstance(value, int):
             raise TypeError('value must be an integer')
-        super(ThreadSafeInteger, self).__init__(value)
+        super(ThreadSafeInteger, self).__init__(value, processing)
 
     def reset(self):
         self.data = 0
@@ -164,10 +165,10 @@ class ThreadSafeInteger(ThreadLockAndDataWrap):
 
 
 class ThreadLockWithOwner(object):
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, processing: bool = False):
         self.__verbose = verbose
-        self.__lock = threading.Lock()
-        self.__owner = ThreadLockAndDataWrap(None)
+        self.__owner = ThreadLockAndDataWrap(None, processing)
+        self.__lock = multiprocessing.Lock() if processing else threading.Lock()
 
     @property
     def owner(self) -> Any:

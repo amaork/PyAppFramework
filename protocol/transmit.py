@@ -6,12 +6,14 @@ import typing
 import serial
 import struct
 import threading
+import multiprocessing
 from typing import Callable, List, Optional
 from google.protobuf.message import Message, DecodeError
 
 
 from .crc16 import crc16
 from .serialport import SerialPort
+from ..misc.debug import get_stack_info
 from ..core.threading import ThreadSafeBool
 from ..network.utility import create_socket_and_connect, set_keepalive, tcp_socket_recv_data, tcp_socket_send_data
 __all__ = ['Transmit', 'TransmitWarning', 'TransmitException',
@@ -32,10 +34,10 @@ class Transmit(object):
     DEFAULT_TIMEOUT = 0.1
     Address = typing.Tuple[str, int]
 
-    def __init__(self):
+    def __init__(self, processing: bool = False):
         self._timeout = 0.0
         self._address = ('', 0)
-        self._connected = ThreadSafeBool(False)
+        self._connected = ThreadSafeBool(False, processing=processing)
 
     def __del__(self):
         self.disconnect()
@@ -91,7 +93,8 @@ class UARTTransmit(Transmit):
 
     def __init__(self, length_fmt: str = '',
                  checksum: Optional[Callable[[bytes], int]] = None,
-                 ending_check: Optional[Callable[[bytes], bool]] = None, verbose: bool = False):
+                 ending_check: Optional[Callable[[bytes], bool]] = None,
+                 verbose: bool = False, processing: bool = False):
         """
         UARTTransmit
         :param length_fmt: msg header length struct pack format
@@ -104,7 +107,7 @@ class UARTTransmit(Transmit):
         self.__length_fmt = length_fmt
         self.__ending_check = ending_check
         self.__verbose = verbose or UARTTransmit.VERBOSE
-        super(UARTTransmit, self).__init__()
+        super(UARTTransmit, self).__init__(processing)
 
     def tx(self, data: bytes) -> bool:
         try:
@@ -192,9 +195,11 @@ class UARTTransmit(Transmit):
 class TCPSocketTransmit(Transmit):
     MSG_LEN_FMT = '>L'
 
-    def __init__(self, sock: socket.socket, with_length: bool = False, disconnect_callback: Optional[Callable] = None):
-        super(TCPSocketTransmit, self).__init__()
+    def __init__(self, sock: socket.socket, address: Transmit.Address = ('', -1),
+                 with_length: bool = False, processing: bool = False, disconnect_callback: Optional[Callable] = None):
+        super(TCPSocketTransmit, self).__init__(processing)
         self._socket = sock
+        self._address = address
         self._with_length = with_length
         self._disconnect_callback = disconnect_callback
 
@@ -238,6 +243,8 @@ class TCPSocketTransmit(Transmit):
             return data
         except socket.timeout as err:
             raise TransmitWarning(err)
+        except BlockingIOError as err:
+            raise TransmitWarning(err)
         except (socket.error, IndexError, struct.error, MemoryError, ConnectionError) as err:
             raise TransmitException(err)
 
@@ -257,10 +264,12 @@ class TCPSocketTransmit(Transmit):
 class TCPClientTransmit(Transmit):
     DEFAULT_TIMEOUT = 0.1
 
-    def __init__(self, with_length: bool = False):
-        super(TCPClientTransmit, self).__init__()
+    def __init__(self, with_length: bool = False, processing: bool = False):
+        super(TCPClientTransmit, self).__init__(processing)
         self._server_address = ('', -1)
-        self._socket = TCPSocketTransmit(socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length)
+        self._socket = TCPSocketTransmit(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length, processing=processing
+        )
 
     def tx(self, data: bytes) -> bool:
         return self._socket.tx(data)
@@ -293,11 +302,13 @@ class TCPClientTransmit(Transmit):
 
 
 class TCPServerTransmit(Transmit):
-    def __init__(self, with_length: bool = False):
-        super(TCPServerTransmit, self).__init__()
+    def __init__(self, with_length: bool = False, processing: bool = False):
+        super(TCPServerTransmit, self).__init__(processing)
         self._client_address = ('', -1)
-        self._stopped = threading.Event()
-        self._socket = TCPSocketTransmit(socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length)
+        self._stopped = multiprocessing.Event() if processing else threading.Event()
+        self._socket = TCPSocketTransmit(
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length, processing=processing
+        )
 
     def __del__(self):
         self._stopped.set()
@@ -306,6 +317,9 @@ class TCPServerTransmit(Transmit):
     @property
     def client(self) -> Transmit.Address:
         return self._client_address
+
+    def stop(self):
+        self._stopped.set()
 
     def accept_handle(self, listen_socket: socket.socket):
         while not self._stopped.is_set():
@@ -343,43 +357,66 @@ class TCPServerTransmit(Transmit):
 
 
 class TCPServerTransmitHandle:
-    def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit], None],
-                 timeout: float = 0.3, with_length: bool = False):
+    def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit, typing.Any], None],
+                 timeout: float = 0.3, with_length: bool = False, processing: bool = False, verbose: bool = False):
         self._timeout = timeout
+        self._verbose = verbose
+        self._processing = processing
         self._with_length = with_length
-        self._stopped = threading.Event()
         self._new_connection_callback = new_connection_callback
         self._listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        self._stopped = multiprocessing.Event() if processing else threading.Event()
 
     def __del__(self):
         self._stopped.set()
         self._listen_socket.close()
 
-    def start(self, address: Transmit.Address, backlog: int = 1):
+    def stop(self):
+        self._stopped.set()
+
+    def is_running(self) -> bool:
+        return not self._stopped.is_set()
+
+    def wait_stop(self, timeout: float = None):
+        self._stopped.wait(timeout)
+
+    def print_debug_msg(self, msg: str, force: bool = False):
+        if self._verbose or force:
+            print(f'{get_stack_info()}: {msg}')
+
+    def start(self, address: Transmit.Address, backlog: int = 1, args: typing.Any = None):
         try:
             self._listen_socket.bind(address)
         except OSError as e:
             raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
         else:
             self._listen_socket.listen(backlog)
-            threading.Thread(target=self.accept_handle, args=(self._listen_socket,), daemon=True).start()
+            threading.Thread(target=self.accept_handle, args=(self._listen_socket, args), daemon=True).start()
 
-    def accept_handle(self, listen_socket: socket.socket):
+    def accept_handle(self, listen_socket: socket.socket, args: typing.Any):
         while not self._stopped.is_set():
             try:
+                self.print_debug_msg('Before')
                 client_socket, client_address = listen_socket.accept()
-            except OSError:
+            except OSError as e:
+                self.print_debug_msg(f'{e}', force=True)
                 break
+            else:
+                self.print_debug_msg(f'After: {client_address}')
 
             # Set keepalive to detect client lost connection
-            set_keepalive(client_socket, after_idle_sec=1, interval_sec=1, max_fails=3)
             client_socket.setblocking(True)
+            set_keepalive(client_socket, after_idle_sec=1, interval_sec=1, max_fails=3)
 
-            # Create TCPSocketTransmit and call callback
-            transmit = TCPSocketTransmit(client_socket, with_length=self._with_length)
-            transmit.connect(client_address, self._timeout)
+            # Create TCPSocketTransmit
+            transmit = TCPSocketTransmit(
+                client_socket, client_address, with_length=bool(self._with_length), processing=bool(self._processing)
+            )
 
-            self._new_connection_callback(transmit)
+            # Callback with TCPSocketTransmit and custom args
+            self._new_connection_callback(transmit, args)
+
+        self.print_debug_msg('Sopped, exit', force=True)
 
 
 class UartTransmitWithProtobufEndingCheck(UARTTransmit):
