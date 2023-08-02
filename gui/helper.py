@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+import time
 import typing
+import threading
 
 from .msgbox import *
+from ..misc.utils import wait_timeout
 from ..misc.debug import ExceptionHandle
 from ..core.threading import ThreadConditionWrap
 from .mailbox import UiMailBox, MessageBoxMail, QuestionBoxMail, ProgressBarMail
@@ -20,7 +23,7 @@ class ExceptionHandleMsgBox(ExceptionHandle):
 class ProgressBarContextManager:
     def __init__(self, mailbox: UiMailBox,
                  content: str, title: str = '',
-                 init: int = 1, increase: int = 1, interval: float = 1.0,
+                 init: int = 1, increase: int = 1, interval: float = 1.0, timeout: int = 0xffffffff,
                  ignore_exceptions: bool = False, catch_exceptions: typing.Sequence[typing.Type[Exception]] = None):
         self.__init = init
         self.__title = title
@@ -28,8 +31,18 @@ class ProgressBarContextManager:
         self.__content = content
         self.__increase = increase
         self.__interval = interval
+        self.__max_timeout = timeout
+        self.__operation_finish = threading.Event()
         self.__ignore_exceptions = ignore_exceptions
         self.__catch_exceptions = catch_exceptions or list()
+
+    def __timeoutDetection(self):
+        try:
+            wait_timeout(self.__operation_finish.is_set, timeout=self.__max_timeout, desc=self.__content)
+        except RuntimeError:
+            self.set_closeable()
+            self.__sendProgressBarMail(0)
+            self.__mailbox.send(MessageBoxMail(MB_TYPE_ERR, '操作超时，请检查', f'{self.__title}超时'))
 
     def __sendProgressBarMail(self, progress: int, closeable: bool = False):
         self.__mailbox.send(ProgressBarMail(
@@ -45,9 +58,11 @@ class ProgressBarContextManager:
 
     def __enter__(self):
         self.__sendProgressBarMail(self.__init)
+        threading.Thread(target=self.__timeoutDetection, daemon=True).start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__operation_finish.set()
         self.__sendProgressBarMail(0)
         if exc_type in self.__catch_exceptions:
             self.__mailbox.send(MessageBoxMail(MB_TYPE_ERR, f'{exc_val}', f'{self.__title}失败'))
