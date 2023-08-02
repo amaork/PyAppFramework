@@ -285,6 +285,9 @@ class UiMailBox(QObject):
     def bindMsgBox(self, msg_box: QMessageBox, tag: str):
         self.__bind_msg_boxs[tag] = msg_box
 
+    def getProgressValue(self) -> int:
+        return self.__progress.value()
+
     def taskProgressAutoIncrease(self, mail: ProgressBarMail):
         self.send(ProgressBarMail(progress=self.__progress.value() + mail.increase,
                                   content=mail.content, title=mail.title, closeable=mail.closeable))
