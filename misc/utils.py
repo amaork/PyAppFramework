@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import random
 import typing
 import shutil
 import pathlib
@@ -11,7 +12,7 @@ from xml.dom import minidom
 from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
-__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search',
+__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'simulate_value',
            'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after']
 
 
@@ -93,6 +94,15 @@ def get_newest_file_after(watch_dir: str, watch_suffix: str, timestamp: float) -
     return sorted(files, key=lambda x: os.path.getctime(x))
 
 
+def simulate_value(sv: int, rv: int, ss: typing.Tuple[int, int], increase: bool = True, env_sv: int = 0):
+    v = random.randint(*ss)
+
+    if increase:
+        return rv + v if rv <= sv else rv - v
+    else:
+        return rv - v if rv >= env_sv else rv + v
+
+
 def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
                  desc: str, exception_cls: typing.Type = RuntimeError, interval: float = 0.1):
     if condition():
@@ -111,7 +121,7 @@ def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
 
     try:
         if exception_cls is not None and issubclass(exception_cls, Exception):
-            raise exception_cls(f'{desc} timeout({timeout}s)')
+            raise exception_cls(desc)
     except TypeError:
         return False
 

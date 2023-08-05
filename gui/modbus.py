@@ -62,11 +62,11 @@ class ModbusAddressModel(AbstractTableModel):
 
         if DataConvert.get_format_size(address.format) == 2:
             value = self.dc.plc2python(response.data, address.format)
-            self.setDisplay(self.index(row, self.Column.State), value, flush=False)
+            self.setDisplay(self.index(row, self.Column.State), value)
         else:
             for i in range(response.request.count):
                 try:
-                    self.setDisplay(self.index(row + i, self.Column.State), response.data[i], flush=False)
+                    self.setDisplay(self.index(row + i, self.Column.State), response.data[i])
                 except (ValueError, IndexError, AttributeError):
                     continue
 
@@ -83,7 +83,7 @@ class ModbusAddressModel(AbstractTableModel):
     def getDisplay(self, index: QtCore.QModelIndex) -> typing.Any:
         return self._table[index.row()][index.column()] if index.isValid() else False
 
-    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any, flush: bool = True) -> bool:
+    def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> bool:
         if not index.isValid():
             return False
 
