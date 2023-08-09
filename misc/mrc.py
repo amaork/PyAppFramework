@@ -289,8 +289,8 @@ class MachineCode(object):
 
 
 class RegistrationCode(object):
-    def __init__(self, rsa_private_key: str):
-        self.__private_key = RSAPrivateKeyHandle(rsa_private_key)
+    def __init__(self, rsa_private_key: str, cipher: str = None):
+        self.__private_key = RSAPrivateKeyHandle(rsa_private_key, cipher)
 
     def get_raw_machine_code(self, machine_code: bytes) -> bytes:
         if not isinstance(machine_code, bytes):

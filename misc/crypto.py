@@ -2,15 +2,15 @@
 import os
 import pyDes
 import typing
-import base64
 import Crypto
 import binascii
 from Crypto import Random
-from Crypto.Hash import SHA
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_v1_5 as PKCS1_cipher
 from Crypto.Signature import PKCS1_v1_5 as PKCS1_signature
+from Crypto.Hash import SHA1, SHA, SHA224, SHA256, SHA384, SHA512, SHA3_224, SHA3_256, SHA3_384, SHA3_512, \
+    MD5, RIPEMD160, RIPEMD
 from ..core.datatype import DynamicObject
 __all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'RSAKeyPair', 'DESCrypto', 'AESCrypto']
 
@@ -26,8 +26,8 @@ class RSAKeyPair(DynamicObject):
 class RSAKeyHandle(object):
     KEYWORDS = ('',)
 
-    def __init__(self, key: str):
-        self._key = RSA.importKey(str(key))
+    def __init__(self, key: str, pwd: str = None):
+        self._key = RSA.importKey(str(key), passphrase=pwd)
         if not self.check():
             raise ValueError("Invalid format")
 
@@ -44,12 +44,11 @@ class RSAKeyHandle(object):
             result += cipher.encrypt(message[:max_length])
             message = message[max_length:]
 
-        return base64.b64encode(result)
+        return result
 
     def decrypt(self, message: bytes) -> bytes:
         try:
             result = bytes()
-            message = base64.b64decode(message)
             cipher = PKCS1_cipher.new(self._key)
             max_length = self.get_max_length(False)
 
@@ -67,6 +66,33 @@ class RSAKeyHandle(object):
         if not encrypt:
             reserve_size = 0
         return block_size - reserve_size
+
+    @classmethod
+    def load_from_file(cls, file: str, **kwargs):
+        with open(file) as fp:
+            return cls(fp.read(), **kwargs)
+
+    @staticmethod
+    def get_hash_algo_from_str(hash_algo: str):
+        return {
+            'MD5': MD5,
+
+            'SHA': SHA,
+            'SHA1': SHA1,
+
+            'SHA224': SHA224,
+            'SHA256': SHA256,
+            'SHA384': SHA384,
+            'SHA512': SHA512,
+
+            'SHA3_224': SHA3_224,
+            'SHA3_256': SHA3_256,
+            'SHA3_384': SHA3_384,
+            'SHA3_512': SHA3_512,
+
+            'RIPEMD': RIPEMD,
+            'RIPEMD160': RIPEMD160
+        }.get(hash_algo)
 
     @staticmethod
     def generate_key_pair(bits: int = 2048) -> RSAKeyPair:
@@ -104,10 +130,10 @@ class RSAPublicKeyHandle(RSAKeyHandle):
     def __init__(self, key: str):
         super(RSAPublicKeyHandle, self).__init__(key)
 
-    def verify(self, message: bytes, signature):
+    def verify(self, message: bytes, signature, hash_algo: str = 'SHA'):
         try:
             verifier = PKCS1_signature.new(self._key)
-            return verifier.verify(SHA.new(message), base64.b64decode(signature))
+            return verifier.verify(self.get_hash_algo_from_str(hash_algo).new(message), signature)
         except binascii.Error:
             return False
 
@@ -115,12 +141,12 @@ class RSAPublicKeyHandle(RSAKeyHandle):
 class RSAPrivateKeyHandle(RSAKeyHandle):
     KEYWORDS = ('BEGIN RSA PRIVATE KEY', 'END RSA PRIVATE KEY')
 
-    def __init__(self, key: str):
-        super(RSAPrivateKeyHandle, self).__init__(key)
+    def __init__(self, key: str, pwd: str = None):
+        super(RSAPrivateKeyHandle, self).__init__(key, pwd)
 
-    def sign(self, message: bytes) -> bytes:
+    def sign(self, message: bytes, hash_algo: str = 'SHA') -> bytes:
         singer = PKCS1_signature.new(self._key)
-        return base64.b64encode(singer.sign(SHA.new(message)))
+        return singer.sign(self.get_hash_algo_from_str(hash_algo).new(message))
 
 
 class DESCrypto(object):
@@ -130,10 +156,10 @@ class DESCrypto(object):
         self._des = pyDes.des(self._key, pyDes.CBC, self._iv, pad=None, padmode=pyDes.PAD_PKCS5)
 
     def encrypt(self, data: bytes) -> bytes:
-        return base64.b64encode(self._des.encrypt(data))
+        return self._des.encrypt(data)
 
     def decrypt(self, data: bytes) -> bytes:
-        return self._des.decrypt(base64.b64decode(data))
+        return self._des.decrypt(data)
 
 
 class AESCrypto(object):

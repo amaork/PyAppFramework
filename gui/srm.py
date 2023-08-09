@@ -2,10 +2,7 @@
 import os
 import time
 import threading
-from PySide2.QtGui import *
-from PySide2.QtCore import *
-from PySide2.QtWidgets import QWidget, QApplication, QPushButton, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, \
-    QDialog, QDialogButtonBox
+from PySide2 import QtWidgets, QtCore
 from typing import Optional, Callable, Dict
 
 from .msgbox import *
@@ -16,7 +13,7 @@ from ..misc.qrcode import qrcode_generate, qrcode_decode
 from ..core.threading import ThreadLockAndDataWrap
 
 from .widget import BasicWidget, ImageWidget
-from .dialog import showFileImportDialog, showFileExportDialog
+from .dialog import showFileImportDialog, showFileExportDialog, BasicDialog
 __all__ = ['SoftwareRegistrationDialog', 'SoftwareRegistrationMachineWidget']
 
 
@@ -24,19 +21,19 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
     QR_CODE_FORMAT = 'png'
     QR_CODE_FS_FMT = "PNG(*.png)"
     QR_CODE_WIDTH, QR_CODE_HEIGHT = 500, 500
-    RSA_PRIVATE_KEY_FMT = "RSA Private Key(*.txt *.bin)"
+    RSA_PRIVATE_KEY_FMT = "RSA Private Key(*.txt *.bin, *.key)"
 
-    signalMsgBox = Signal(str, str)
-    signalMachineCodeDecoded = Signal(bytes)
-    signalRegistrationCodeGenerated = Signal(bytes)
+    signalMsgBox = QtCore.Signal(str, str)
+    signalMachineCodeDecoded = QtCore.Signal(bytes)
+    signalRegistrationCodeGenerated = QtCore.Signal(bytes)
 
-    def __init__(self, rsa_private_key: str = "",
-                 decrypt: Optional[Callable[[bytes], str]] = None, parent: Optional[QWidget] = None):
+    def __init__(self, rsa_private_key: str = "", cipher: str = None,
+                 decrypt: Optional[Callable[[bytes], str]] = None, parent: Optional[QtWidgets.QWidget] = None):
 
         self.__decrypt = decrypt
 
         try:
-            self.__registration_machine = RegistrationCode(self.__getRawRSAPrivateKey(rsa_private_key.encode()))
+            self.__registration_machine = RegistrationCode(self.__getRawRSAPrivateKey(rsa_private_key.encode()), cipher)
             self.ui_load_key_done.setChecked(True)
         except (ValueError, AttributeError):
             self.__registration_machine = None
@@ -50,7 +47,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
 
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
-        return QApplication.translate("SoftwareRegistrationMachineWidget", text, None)
+        return QtWidgets.QApplication.translate("SoftwareRegistrationMachineWidget", text, None)
 
     def _initUi(self):
         style = dict(background=(240, 240, 240), withBox=False)
@@ -58,42 +55,42 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         self.ui_save_rc_done = CheckBox(stylesheet=style)
         self.ui_load_key_done = CheckBox(stylesheet=style)
 
-        self.ui_load_mc = QPushButton(self.tr("Load Machine Code"))
-        self.ui_save_rc = QPushButton(self.tr("Save Registration Code"))
-        self.ui_load_key = QPushButton(self.tr("Load Registration Machine RSA Signature Private Key"))
+        self.ui_load_mc = QtWidgets.QPushButton(self.tr("Load Machine Code"))
+        self.ui_save_rc = QtWidgets.QPushButton(self.tr("Save Registration Code"))
+        self.ui_load_key = QtWidgets.QPushButton(self.tr("Load Registration Machine RSA Signature Private Key"))
 
         self.ui_mc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
         self.ui_rc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
 
-        mc_layout = QVBoxLayout()
+        mc_layout = QtWidgets.QVBoxLayout()
         mc_layout.addWidget(self.ui_mc_image)
         mc_layout.addWidget(self.ui_load_mc)
 
-        rc_layout = QVBoxLayout()
+        rc_layout = QtWidgets.QVBoxLayout()
         rc_layout.addWidget(self.ui_rc_image)
         rc_layout.addWidget(self.ui_save_rc)
 
-        preview_layout = QHBoxLayout()
+        preview_layout = QtWidgets.QHBoxLayout()
         preview_layout.addLayout(mc_layout)
         preview_layout.addLayout(rc_layout)
 
-        instruction_layout = QHBoxLayout()
-        instruction_layout.addWidget(QLabel("1." + self.ui_load_key.text()))
+        instruction_layout = QtWidgets.QHBoxLayout()
+        instruction_layout.addWidget(QtWidgets.QLabel("1." + self.ui_load_key.text()))
         instruction_layout.addWidget(self.ui_load_key_done)
-        instruction_layout.addWidget(QSplitter())
+        instruction_layout.addWidget(QtWidgets.QSplitter())
 
-        instruction_layout.addWidget(QLabel("2." + self.ui_load_mc.text()))
+        instruction_layout.addWidget(QtWidgets.QLabel("2." + self.ui_load_mc.text()))
         instruction_layout.addWidget(self.ui_load_mc_done)
-        instruction_layout.addWidget(QSplitter())
+        instruction_layout.addWidget(QtWidgets.QSplitter())
 
-        instruction_layout.addWidget(QLabel("3." + self.ui_save_rc.text()))
+        instruction_layout.addWidget(QtWidgets.QLabel("3." + self.ui_save_rc.text()))
         instruction_layout.addWidget(self.ui_save_rc_done)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addLayout(instruction_layout)
-        layout.addWidget(QSplitter())
+        layout.addWidget(QtWidgets.QSplitter())
         layout.addLayout(preview_layout)
-        layout.addWidget(QSplitter())
+        layout.addWidget(QtWidgets.QSplitter())
         layout.addWidget(self.ui_load_key)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Software Registration Machine"))
@@ -121,8 +118,9 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
 
     def slotLoadMachineCode(self):
         if not isinstance(self.__registration_machine, RegistrationCode):
-            return showMessageBox(self, MB_TYPE_WARN,
-                                  self.tr("Please load registration machine 'RSA private key' first"))
+            return showMessageBox(
+                self, MB_TYPE_WARN, self.tr("Please load registration machine 'RSA private key' first")
+            )
 
         from .dialog import showFileImportDialog
         path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT, title=self.tr("Please select machine code"))
@@ -134,30 +132,45 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         th.setDaemon(True)
         th.start()
 
-    def slotLoadRSAPrivateKey(self):
+    def slotLoadRSAPrivateKey(self, path: str = '', cipher: str = None):
         if isinstance(self.__registration_machine, RegistrationCode):
             if not showQuestionBox(self, self.tr("RSA private key already loaded, confirm replace it ?")):
                 return
 
-        from .dialog import showFileImportDialog
-        path = showFileImportDialog(self, fmt=self.RSA_PRIVATE_KEY_FMT, title=self.tr("Please select RSA private key"))
-
         if not os.path.isfile(path):
-            return
+            from .dialog import showFileImportDialog
+            path = showFileImportDialog(
+                self, fmt=self.RSA_PRIVATE_KEY_FMT, title=self.tr("Please select RSA private key")
+            )
+
+            if not os.path.isfile(path):
+                return
 
         try:
             with open(path, 'rb') as fp:
-                self.__registration_machine = RegistrationCode(rsa_private_key=self.__getRawRSAPrivateKey(fp.read()))
+                self.__registration_machine = RegistrationCode(self.__getRawRSAPrivateKey(fp.read()), cipher)
             self.ui_load_key_done.setChecked(True)
             return showMessageBox(self, MB_TYPE_INFO, self.tr("RSA private key load succeed, please load machine code"))
         except (ValueError, OSError) as e:
-            return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
+            # Private key in encrypted, ask input cipher
+            if 'encrypted' in f'{e}':
+                cipher, ret = QtWidgets.QInputDialog.getText(
+                    self, self.tr('Please input private key cipher'),
+                    self.tr('Cipher') + ' ' * 50, QtWidgets.QLineEdit.EchoMode.Password,
+                )
+
+                if ret and cipher:
+                    self.slotLoadRSAPrivateKey(path=path, cipher=cipher)
+                else:
+                    return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
+            else:
+                return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
 
     def slotSaveRegistrationCode(self):
         if not self.__mc_code:
             return showMessageBox(self, MB_TYPE_WARN, self.tr("Please load machine code first"))
 
-        if not self.__rc_code or self.ui_save_rc_done.checkState() != Qt.Checked:
+        if not self.__rc_code or self.ui_save_rc_done.checkState() != QtCore.Qt.Checked:
             return showMessageBox(self, MB_TYPE_WARN, self.tr("Please wait, registration code is generating"))
 
         from .dialog import showFileExportDialog
@@ -210,56 +223,55 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
             self.signalRegistrationCodeGenerated.emit(qrcode_generate(registration_code, fmt=self.QR_CODE_FORMAT))
 
 
-class SoftwareRegistrationDialog(QDialog):
+class SoftwareRegistrationDialog(BasicDialog):
     QR_CODE_FORMAT = 'png'
     QR_CODE_FS_FMT = "PNG(*.png)"
     QR_CODE_WIDTH, QR_CODE_HEIGHT = 500, 500
 
-    signalMsgBox = Signal(str, str)
-    signalMachineCodeGenerated = Signal(bytes)
-    signalVerifyRegistrationCode = Signal(bool)
+    signalMsgBox = QtCore.Signal(str, str)
+    signalMachineCodeGenerated = QtCore.Signal(bytes)
+    signalVerifyRegistrationCode = QtCore.Signal(bool)
 
     def __init__(self, rsa_public_key: str, register_file: str,
-                 machine_code_opt: Optional[Dict[str, bool]] = None, parent: Optional[QWidget] = None):
-        super(SoftwareRegistrationDialog, self).__init__(parent)
+                 machine_code_opt: Optional[Dict[str, bool]] = None, parent: Optional[QtWidgets.QWidget] = None):
         self.__mc_qr_image = bytes()
         self.__rc_qr_image = bytes()
         self.__registered = ThreadLockAndDataWrap(False)
-        self.__machine = MachineCode(rsa_public_key=rsa_public_key,
-                                     register_file=register_file, options=machine_code_opt)
+        self.__machine = MachineCode(
+            rsa_public_key=rsa_public_key, register_file=register_file, options=machine_code_opt
+        )
+        super(SoftwareRegistrationDialog, self).__init__(parent)
 
-        self.__initUi()
-        self.__initData()
-        self.__initSignalAndSlot()
-
-    def __initUi(self):
-        self.ui_save_mc = QPushButton(self.tr("Save Machine Code"))
-        self.ui_load_rc = QPushButton(self.tr("Load Registration Code"))
+    def _initUi(self):
+        self.ui_save_mc = QtWidgets.QPushButton(self.tr("Save Machine Code"))
+        self.ui_load_rc = QtWidgets.QPushButton(self.tr("Load Registration Code"))
         self.ui_mc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
         self.ui_rc_image = ImageWidget(width=self.QR_CODE_WIDTH, height=self.QR_CODE_HEIGHT, parent=self)
-        self.ui_tool_btn = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
-        self.ui_backup_rc = self.ui_tool_btn.addButton(self.tr("Backup Registration Code"), QDialogButtonBox.ResetRole)
+        self.ui_tool_btn = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        self.ui_backup_rc = self.ui_tool_btn.addButton(
+            self.tr("Backup Registration Code"), QtWidgets.QDialogButtonBox.ResetRole
+        )
 
-        mc_layout = QVBoxLayout()
+        mc_layout = QtWidgets.QVBoxLayout()
         mc_layout.addWidget(self.ui_mc_image)
         mc_layout.addWidget(self.ui_save_mc)
 
-        rc_layout = QVBoxLayout()
+        rc_layout = QtWidgets.QVBoxLayout()
         rc_layout.addWidget(self.ui_rc_image)
         rc_layout.addWidget(self.ui_load_rc)
 
-        preview_layout = QHBoxLayout()
+        preview_layout = QtWidgets.QHBoxLayout()
         preview_layout.addLayout(mc_layout)
         preview_layout.addLayout(rc_layout)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addLayout(preview_layout)
-        layout.addWidget(QSplitter())
+        layout.addWidget(QtWidgets.QSplitter())
         layout.addWidget(self.ui_tool_btn)
         self.setLayout(layout)
-        self.setWindowTitle(self.tr("Software Register"))
+        self.setWindowTitle(self.tr("Software Registration"))
 
-    def __initData(self):
+    def _initData(self):
         self.ui_save_mc.setHidden(True)
         self.ui_load_rc.setHidden(True)
         self.ui_backup_rc.setHidden(True)
@@ -276,7 +288,7 @@ class SoftwareRegistrationDialog(QDialog):
         th.setDaemon(True)
         th.start()
 
-    def __initSignalAndSlot(self):
+    def _initSignalAndSlots(self):
         self.ui_tool_btn.accepted.connect(self.accept)
         self.ui_tool_btn.rejected.connect(self.reject)
         self.ui_save_mc.clicked.connect(self.slotSaveMachineCode)
@@ -328,8 +340,9 @@ class SoftwareRegistrationDialog(QDialog):
             with open(path, "wb") as fp:
                 fp.write(self.__rc_qr_image)
 
-            self.signalMsgBox.emit(MB_TYPE_INFO,
-                                   self.tr("Software registration code backup success") + "\n{!r}".format(path))
+            self.signalMsgBox.emit(
+                MB_TYPE_INFO, self.tr("Software registration code backup success") + "\n{!r}".format(path)
+            )
         except OSError as e:
             self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Software registration code backup failed") + ": {}".format(e))
 
@@ -376,7 +389,7 @@ class SoftwareRegistrationDialog(QDialog):
     @staticmethod
     def isSoftwareRegistered(rsa_public_key: str, register_file: str,
                              machine_code_opt: Optional[Dict[str, bool]] = None,
-                             parent: Optional[QWidget] = None) -> bool:
+                             parent: Optional[QtWidgets.QWidget] = None) -> bool:
         dialog = SoftwareRegistrationDialog(rsa_public_key=rsa_public_key,
                                             register_file=register_file,
                                             machine_code_opt=machine_code_opt, parent=parent)
