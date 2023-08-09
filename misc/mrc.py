@@ -13,7 +13,7 @@ from ..core.datatype import DynamicObject, str2number
 __all__ = ['MachineInfo', 'MachineCode', 'RegistrationCode']
 
 _RAW_MC_LEN = 64
-_RSA_MSG_LEN = 344
+_RSA_MSG_LEN = 384
 
 """
 Logic:
@@ -207,6 +207,9 @@ class MachineCode(object):
 
         if set([self._options.get(x) for x in (self.CPU_KEY, self.DISK_KEY, self.NETWORK_KEY)]) == {False}:
             raise ValueError("'options' required one of {!r} set")
+
+        if not self._register_file:
+            raise RuntimeError('please specified register file')
 
     def raw_fingerprint(self) -> bytes:
         if platform.system().lower() == "windows":

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import time
+import base64
 import threading
 from PySide2 import QtWidgets, QtCore
 from typing import Optional, Callable, Dict
@@ -208,7 +209,8 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
 
         # Check machine code validity
         try:
-            if not self.__registration_machine.get_raw_machine_code(machine_code):
+            raw_machine_code = base64.b64decode(machine_code)
+            if not self.__registration_machine.get_raw_machine_code(raw_machine_code):
                 return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Invalid machine code or invalid RSA private key"))
             else:
                 self.signalMachineCodeDecoded.emit(qrcode_generate(machine_code, fmt=self.QR_CODE_FORMAT))
@@ -216,7 +218,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
             return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
 
         # Second get registration code from machine code
-        registration_code = self.__registration_machine.get_registration_code(machine_code)
+        registration_code = base64.b64encode(self.__registration_machine.get_registration_code(raw_machine_code))
         if not registration_code:
             return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Registration code generate failed, please check"))
         else:
@@ -303,8 +305,10 @@ class SoftwareRegistrationDialog(BasicDialog):
         return self.__registered.data
 
     def slotSaveMachineCode(self):
-        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="machine_code.png",
-                                    title=self.tr("Please select machine code save path"))
+        path = showFileExportDialog(
+            self, fmt=self.QR_CODE_FS_FMT, name="machine_code.png",
+            title=self.tr("Please select machine code save path")
+        )
         if not path:
             return
 
@@ -320,8 +324,9 @@ class SoftwareRegistrationDialog(BasicDialog):
         if self.__registered:
             return showMessageBox(self, MB_TYPE_INFO, self.tr("Software registered"))
 
-        path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT,
-                                    title=self.tr("Please select registration code"))
+        path = showFileImportDialog(
+            self, fmt=self.QR_CODE_FS_FMT, title=self.tr("Please select registration code")
+        )
         if not os.path.isfile(path):
             return
 
@@ -331,8 +336,11 @@ class SoftwareRegistrationDialog(BasicDialog):
         th.start()
 
     def slotBackupRegistrationCode(self):
-        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="registration_code.png",
-                                    title=self.tr("Please select registration code backup path"))
+        path = showFileExportDialog(
+            self, fmt=self.QR_CODE_FS_FMT, name="registration_code.png",
+            title=self.tr("Please select registration code backup path")
+        )
+
         if not path:
             return
 
@@ -358,7 +366,10 @@ class SoftwareRegistrationDialog(BasicDialog):
         self.__registered.data = verify
 
         if not verify:
-            return showMessageBox(self, MB_TYPE_ERR, self.tr("Invalid software registration code"))
+            self.ui_rc_image.drawFromText(self.tr('Verify failed'))
+            return showMessageBox(
+                self, MB_TYPE_ERR, self.tr("Invalid software registration code"), self.tr('Verify failed')
+            )
 
         self.__rc_qr_image = qrcode_generate(self.__machine.get_registration_code(), fmt=self.QR_CODE_FORMAT)
         self.ui_rc_image.drawFromMem(self.__rc_qr_image, self.QR_CODE_FORMAT)
@@ -369,13 +380,13 @@ class SoftwareRegistrationDialog(BasicDialog):
 
     def threadGenerateMachineCode(self):
         try:
-            self.signalMachineCodeGenerated.emit(qrcode_generate(self.__machine.get_machine_code()))
+            self.signalMachineCodeGenerated.emit(qrcode_generate(base64.b64encode(self.__machine.get_machine_code())))
         except Exception as e:
             self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Generate machine code error") + ": {}".format(e))
 
     def threadVerifyRegistrationCode(self, path: str):
         try:
-            self.signalVerifyRegistrationCode.emit(self.__machine.register(qrcode_decode(path)))
+            self.signalVerifyRegistrationCode.emit(self.__machine.register(base64.b64decode(qrcode_decode(path))))
         except (OSError, ValueError, IndexError, TypeError):
             self.signalVerifyRegistrationCode.emit(False)
 
