@@ -25,6 +25,16 @@ class RSAKeyPair(DynamicObject):
 
 class RSAKeyHandle(object):
     KEYWORDS = ('',)
+    Protections = (
+        'None',
+        'PBKDF2WithHMAC-SHA1AndAES128-CBC',
+        'PBKDF2WithHMAC-SHA1AndAES192-CBC',
+        'PBKDF2WithHMAC-SHA1AndAES256-CBC',
+        'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC',
+        'scryptAndAES128-CBC',
+        'scryptAndAES192-CBC',
+        'scryptAndAES256-CBC'
+    )
 
     def __init__(self, key: str, pwd: str = None):
         self._key = RSA.importKey(str(key), passphrase=pwd)
@@ -95,27 +105,35 @@ class RSAKeyHandle(object):
         }.get(hash_algo)
 
     @staticmethod
-    def generate_key_pair(bits: int = 2048) -> RSAKeyPair:
+    def generate_key_pair(bits: int = 3072, **kwargs) -> RSAKeyPair:
         random_generator = Random.new().read
         rsa = RSA.generate(bits, random_generator)
 
-        private_key = rsa.exportKey()
+        private_key = rsa.exportKey(**kwargs)
         public_key = rsa.publickey().exportKey()
         return RSAKeyPair(public_key=public_key.decode(), private_key=private_key.decode())
 
     @staticmethod
-    def generate_key_pair_and_save(path: str = "", binary: bool = False, bits: int = 2048) -> bool:
-        key = RSAKeyHandle.generate_key_pair(bits)
+    def get_key_pair_name(prefix: str = '', binary: bool = False) -> typing.Tuple[str, str]:
+        prefix = f'{prefix}_' if prefix else ''
+        extension = '.bin' if binary else '.txt'
+        return f'{prefix}public_key' + extension, f'{prefix}private_key' + extension
+
+    @staticmethod
+    def generate_key_pair_and_save(path: str = "", prefix: str = '',
+                                   binary: bool = False, bits: int = 3072,  **kwargs) -> bool:
+        key = RSAKeyHandle.generate_key_pair(bits, **kwargs)
         if not isinstance(key, RSAKeyPair):
             return False
 
         try:
             mode = 'wb' if binary else 'w'
-            extension = '.bin' if binary else '.txt'
-            with open(os.path.join(path, 'private_key' + extension), mode) as fp:
+            public_key, private_key = RSAKeyHandle.get_key_pair_name(prefix, binary)
+
+            with open(os.path.join(path, private_key), mode) as fp:
                 fp.write(key.private_key.encode()) if binary else fp.write(key.private_key)
 
-            with open(os.path.join(path, 'public_key' + extension), mode) as fp:
+            with open(os.path.join(path, public_key), mode) as fp:
                 fp.write(key.public_key.encode()) if binary else fp.write(key.public_key)
 
             return True

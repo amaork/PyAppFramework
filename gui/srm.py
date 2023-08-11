@@ -150,7 +150,9 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         try:
             with open(path, 'rb') as fp:
                 self.__registration_machine = RegistrationCode(self.__getRawRSAPrivateKey(fp.read()), cipher)
+            self._initData()
             self.ui_load_key_done.setChecked(True)
+            self.ui_mc_image.drawFromText(self.tr("Load Machine Code"))
             return showMessageBox(self, MB_TYPE_INFO, self.tr("RSA private key load succeed, please load machine code"))
         except (ValueError, OSError) as e:
             # Private key in encrypted, ask input cipher
