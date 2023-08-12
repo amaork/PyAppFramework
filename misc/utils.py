@@ -104,7 +104,7 @@ def simulate_value(sv: int, rv: int, ss: typing.Tuple[int, int], increase: bool 
 
 
 def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
-                 desc: str, exception_cls: typing.Type = RuntimeError, interval: float = 0.1):
+                 desc: str, exception_cls: typing.Optional[typing.Type] = RuntimeError, interval: float = 0.1):
     if condition():
         return True
 

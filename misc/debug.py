@@ -76,9 +76,10 @@ class ExceptionHandle:
         if exc_type and callable(self.__callback):
             frame = inspect.stack()[1][0]
             info = inspect.getframeinfo(frame)
-            stack_info = f'filename: {info.filename}, function: {info.function}, lineno: {info.lineno}'
+            stack_info = f'filename: {info.filename}\rlineno: {info.lineno}\nfunction: {info.function}\n'
             self.__callback(
-                self.__param, f'{exc_type} {exc_val} {exc_tb}\nStack: {stack_info}, debug_info: {self.__debug_info}'
+                self.__param,
+                f'Exception:\n{exc_type} {exc_val} {exc_tb}\n\nStack:\n{stack_info}\nDebug info:\n{self.__debug_info}'
             )
         return self.__exception_handled
 
