@@ -3,11 +3,13 @@ import os
 import time
 import base64
 import threading
-from PySide2 import QtWidgets, QtCore
+import collections
 from typing import Optional, Callable, Dict
+from PySide2 import QtWidgets, QtCore, QtGui
 
 from .msgbox import *
 from .checkbox import CheckBox
+from ..misc.utils import qt_file_fmt_convert
 from ..misc.mrc import MachineCode, RegistrationCode
 from ..misc.qrcode import qrcode_generate, qrcode_decode
 
@@ -22,7 +24,10 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
     QR_CODE_FORMAT = 'png'
     QR_CODE_FS_FMT = "PNG(*.png)"
     QR_CODE_WIDTH, QR_CODE_HEIGHT = 500, 500
-    RSA_PRIVATE_KEY_FMT = "RSA Private Key(*.txt *.bin, *.key)"
+    ACCEPT_MC_FMT = "Image(*.png *.bmp *.jpg *.jpeg)"
+    RSA_PRIVATE_KEY_FMT = "RSA Private Key(*.txt *.bin *.key)"
+    DropData = collections.namedtuple('DropData', 'file action')
+    DropAction = collections.namedtuple('DropAction', 'LoadPK LoadMC')(*range(2))
 
     signalMsgBox = QtCore.Signal(str, str)
     signalMachineCodeDecoded = QtCore.Signal(bytes)
@@ -41,6 +46,8 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
 
         self.__mc_code = bytes()
         self.__rc_code = bytes()
+        self.__mc_file_path = ''
+        self.__drop_data = self.DropData('', -1)
         super(SoftwareRegistrationMachineWidget, self).__init__(parent)
 
     def __getRawRSAPrivateKey(self, key: bytes) -> str:
@@ -56,6 +63,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         self.ui_save_rc_done = CheckBox(stylesheet=style)
         self.ui_load_key_done = CheckBox(stylesheet=style)
 
+        self.ui_extend = QtWidgets.QPushButton(self.tr('Customize/Extend'))
         self.ui_load_mc = QtWidgets.QPushButton(self.tr("Load Machine Code"))
         self.ui_save_rc = QtWidgets.QPushButton(self.tr("Save Registration Code"))
         self.ui_load_key = QtWidgets.QPushButton(self.tr("Load Registration Machine RSA Signature Private Key"))
@@ -93,10 +101,14 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         layout.addLayout(preview_layout)
         layout.addWidget(QtWidgets.QSplitter())
         layout.addWidget(self.ui_load_key)
+        layout.addWidget(self.ui_extend)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Software Registration Machine"))
 
     def _initData(self):
+        self.setAcceptDrops(True)
+        self.setMouseTracking(True)
+        self.ui_extend.setHidden(True)
         self.ui_load_mc_done.setDisabled(True)
         self.ui_save_rc_done.setDisabled(True)
         self.ui_load_key_done.setDisabled(True)
@@ -117,14 +129,41 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         self.signalRegistrationCodeGenerated.connect(self.slotShowRegistrationCode)
         self.signalMsgBox.connect(lambda t, c: showMessageBox(self, msg_type=t, content=c))
 
-    def slotLoadMachineCode(self):
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:
+        if len(event.mimeData().urls()) > 1:
+            showMessageBox(self, MB_TYPE_WARN, self.tr('Once only accept one file'))
+            return
+
+        file = event.mimeData().urls()[0].toLocalFile()
+        extension = os.path.splitext(file)[-1]
+        if extension in qt_file_fmt_convert(self.RSA_PRIVATE_KEY_FMT)[-1]:
+            self.__drop_data = self.DropData(file=file, action=self.DropAction.LoadPK)
+            event.accept()
+        elif extension in qt_file_fmt_convert(self.ACCEPT_MC_FMT)[-1]:
+            self.__drop_data = self.DropData(file=file, action=self.DropAction.LoadMC)
+            event.accept()
+
+    def dragLeaveEvent(self, event: QtGui.QDragLeaveEvent) -> None:
+        print('Leave')
+
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:
+        if not os.path.isfile(self.__drop_data.file) or self.__drop_data.action not in self.DropAction:
+            return
+
+        if self.__drop_data.action == self.DropAction.LoadPK:
+            self.slotLoadRSAPrivateKey(path=self.__drop_data.file)
+        elif self.__drop_data.action == self.DropAction.LoadMC:
+            self.slotLoadMachineCode(path=self.__drop_data.file)
+
+    def slotLoadMachineCode(self, path: str = ''):
         if not isinstance(self.__registration_machine, RegistrationCode):
             return showMessageBox(
                 self, MB_TYPE_WARN, self.tr("Please load registration machine 'RSA private key' first")
             )
 
-        from .dialog import showFileImportDialog
-        path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT, title=self.tr("Please select machine code"))
+        if not os.path.isfile(path):
+            from .dialog import showFileImportDialog
+            path = showFileImportDialog(self, fmt=self.QR_CODE_FS_FMT, title=self.tr("Please select machine code"))
 
         if not os.path.isfile(path):
             return
@@ -177,7 +216,8 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
             return showMessageBox(self, MB_TYPE_WARN, self.tr("Please wait, registration code is generating"))
 
         from .dialog import showFileExportDialog
-        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT, name="registration_code.png",
+        path = showFileExportDialog(self, fmt=self.QR_CODE_FS_FMT,
+                                    name=os.path.join(os.path.dirname(self.__mc_file_path), "registration_code.png"),
                                     title=self.tr("Please select registration code save path"))
         if not path:
             return False
@@ -216,7 +256,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
                 return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Invalid machine code or invalid RSA private key"))
             else:
                 self.signalMachineCodeDecoded.emit(qrcode_generate(machine_code, fmt=self.QR_CODE_FORMAT))
-        except TypeError as e:
+        except (ValueError, TypeError) as e:
             return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Invalid RSA private key") + ": {}".format(e))
 
         # Second get registration code from machine code
@@ -224,6 +264,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         if not registration_code:
             return self.signalMsgBox.emit(MB_TYPE_ERR, self.tr("Registration code generate failed, please check"))
         else:
+            self.__mc_file_path = path
             self.signalRegistrationCodeGenerated.emit(qrcode_generate(registration_code, fmt=self.QR_CODE_FORMAT))
 
 

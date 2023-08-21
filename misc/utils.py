@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import time
 import random
 import typing
@@ -12,7 +13,7 @@ from xml.dom import minidom
 from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
-__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'simulate_value',
+__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
            'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after']
 
 
@@ -39,6 +40,15 @@ def xml_format(element: XmlElement, with_version: bool = True) -> str:
     rough_string = XmlElementTree.tostring(element, 'utf-8')
     re_parsed = minidom.parseString(rough_string)
     return re_parsed.toprettyxml(indent="\t", newl="\n")[0 if with_version else 23:]
+
+
+def qt_file_fmt_convert(fmt: str) -> typing.Tuple[str, str]:
+    """
+    Convert Qt file format convert
+    "Image(*.png *.bmp *.jpg *.jpeg)" ===> (Image, *.png *.bmp *.jpg *.jpeg)
+    """
+    pattern = r'\(.*?\)'
+    return re.sub(pattern, '', fmt), re.search(pattern, fmt)[0][1:-1]
 
 
 def qt_rcc_generate(res: Dict[str, List[str]]) -> str:
