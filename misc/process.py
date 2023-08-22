@@ -9,7 +9,7 @@ import platform
 import threading
 import subprocess
 from typing import List
-__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info_without_console']
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info', 'launch_program']
 
 
 class ProcessManager(object):
@@ -184,11 +184,32 @@ class SubprocessWithTimeoutRead(object):
                 break
 
 
-def subprocess_startup_info_without_console():
+def subprocess_startup_info(console_mode: bool = False):
     if platform.system().lower() == 'windows':
         startup_info = subprocess.STARTUPINFO
         startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         startup_info.wShowWindow = subprocess.SW_HIDE
-        return startup_info
+        return None if console_mode else startup_info
     else:
         return None
+
+
+def get_subprocess_si(console_mode: bool):
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    return None if console_mode else si
+
+
+def launch_program(launch_cmd: str, program_path: str, console_mode: bool):
+    cwd = os.getcwd()
+    path, program = os.path.split(program_path)
+    os.system(f'taskkill /IM "{program}" /F')
+    time.sleep(1)
+
+    subprocess.Popen(
+        launch_cmd.format(program), cwd=path, shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=get_subprocess_si(console_mode)
+    )
+
+    os.chdir(cwd)
+    print(launch_cmd.format(program), path, os.getcwd())

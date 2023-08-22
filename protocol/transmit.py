@@ -358,8 +358,7 @@ class TCPServerTransmit(Transmit):
 
 class TCPServerTransmitHandle:
     def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit, typing.Any], None],
-                 timeout: float = 0.3, with_length: bool = False, processing: bool = False, verbose: bool = False):
-        self._timeout = timeout
+                 with_length: bool = False, processing: bool = False, verbose: bool = False):
         self._verbose = verbose
         self._processing = processing
         self._with_length = with_length
@@ -384,16 +383,16 @@ class TCPServerTransmitHandle:
         if self._verbose or force:
             print(f'{get_stack_info()}: {msg}')
 
-    def start(self, address: Transmit.Address, backlog: int = 1, args: typing.Any = None):
+    def start(self, address: Transmit.Address, backlog: int = 1, kwargs: dict = None):
         try:
             self._listen_socket.bind(address)
         except OSError as e:
             raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
         else:
             self._listen_socket.listen(backlog)
-            threading.Thread(target=self.accept_handle, args=(self._listen_socket, args), daemon=True).start()
+            threading.Thread(target=self.accept_handle, args=(self._listen_socket, kwargs), daemon=True).start()
 
-    def accept_handle(self, listen_socket: socket.socket, args: typing.Any):
+    def accept_handle(self, listen_socket: socket.socket, kwargs: dict):
         while not self._stopped.is_set():
             try:
                 self.print_debug_msg('Before')
@@ -414,7 +413,7 @@ class TCPServerTransmitHandle:
             )
 
             # Callback with TCPSocketTransmit and custom args
-            self._new_connection_callback(transmit, args)
+            self._new_connection_callback(transmit, **kwargs)
 
         self.print_debug_msg('Sopped, exit', force=True)
 
