@@ -283,7 +283,7 @@ class Tasklet(SwTimer):
         self.__queue = queue.Queue()
         self.__name = str(name) or str(id(self))
         self.__schedule_interval = schedule_interval
-        self.__max_workers = min(max_workers, 4) if isinstance(max_workers, int) else 0
+        self.__max_workers = max_workers if isinstance(max_workers, int) else 0
         super(Tasklet, self).__init__(base=schedule_interval, callback=self.__schedule, auto_start=True)
 
         for i in range(self.__max_workers):

@@ -121,7 +121,7 @@ def send_msg_to_server(msg: SRPCMessage, server: TCPClientTransmit.Address, time
     if result.type == SRPCMessage.Type.Result:
         return json.loads(result.data)
     else:
-        raise RuntimeError(result.data)
+        raise SRPCException(result.data)
 
 
 def _handle_client(client: TCPSocketTransmit, version: str, stop_flag: multiprocessing.Event,

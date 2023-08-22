@@ -85,9 +85,8 @@ class ThreadSafeBool(ThreadLockAndDataWrap):
     @data.setter
     def data(self, data: bool):
         with self._lock:
-            if data != self._data:
-                self._pp_data = self._p_data
-                self._p_data = self._data
+            self._pp_data = self._p_data
+            self._p_data = self._data
             self._data = True if data else False
 
     @property
