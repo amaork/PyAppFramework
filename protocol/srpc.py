@@ -104,7 +104,7 @@ def send_msg_to_client(client: TCPSocketTransmit, msg: SRPCMessage, error: typin
     try:
         _print_msg(client, msg.dumps(), True)
         client.tx(msg.dumps().encode())
-    except Exception as e:
+    except (TransmitException, TransmitWarning) as e:
         error(f'send_msg_to_client: {e}({client.address}, {msg})')
 
 
@@ -120,7 +120,7 @@ def send_msg_to_server(msg: SRPCMessage, server: TCPClientTransmit.Address, time
     try:
         client.tx(f'{msg}'.encode())
         result = DynamicObject(**json.loads(client.rx(0).decode()))
-    except TransmitException as e:
+    except (TransmitException, TransmitWarning) as e:
         raise SRPCException(e)
 
     if result.type == SRPCMessage.Type.Result:
