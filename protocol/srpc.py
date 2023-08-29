@@ -11,6 +11,7 @@ from ..core.datatype import CustomEvent, FrozenJSON, DynamicObject, DynamicObjec
 from .transmit import TCPSocketTransmit, TCPClientTransmit, TransmitException, TransmitWarning, TCPServerTransmitHandle
 __all__ = ['SRPCMessage', 'SRPCAPIWrap', 'SRPCSettings', 'SRPCException', 'SRPCServer',
            'send_msg_to_client', 'send_msg_to_server', 'start_srpc_server']
+HandleType = typing.Tuple[typing.Callable, bool]
 
 
 class SRPCException(Exception):
@@ -22,6 +23,10 @@ class SRPCMessage(CustomEvent):
     Type = collections.namedtuple('Type', 'Query Error Echo Result Exit')(
         *'query error echo result exit'.split()
     )
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('data', dict())
+        super(SRPCMessage, self).__init__(**kwargs)
 
     @classmethod
     def exit(cls):
@@ -124,8 +129,9 @@ def send_msg_to_server(msg: SRPCMessage, server: TCPClientTransmit.Address, time
         raise SRPCException(result.data)
 
 
-def _handle_client(client: TCPSocketTransmit, version: str, stop_flag: multiprocessing.Event,
-                   msg_cls: typing.Type[SRPCMessage], register_handle: typing.Dict[str, typing.Callable]):
+def _handle_client(client: TCPSocketTransmit, version: str,
+                   stop_flag: multiprocessing.Event, msg_cls: typing.Type[SRPCMessage],
+                   register_handle: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any]):
     while True:
         try:
             req = client.rx(0)
@@ -154,12 +160,16 @@ def _handle_client(client: TCPSocketTransmit, version: str, stop_flag: multiproc
                 send_msg_to_client(client, msg_cls.result(version))
             else:
                 # User defined handle
-                handle = register_handle.get(msg.type)
+                handle, required_extra_arg = register_handle.get(msg.type)
 
                 if not callable(handle):
                     send_msg_to_client(client, msg_cls.error(f'invalid msg: {msg}'))
                     client.disconnect()
                 else:
+                    if required_extra_arg and extra_arg and len(extra_arg) == 2:
+                        extra_arg_name, extra_arg_value = extra_arg
+                        msg.data.update({extra_arg_name: extra_arg_value})
+
                     handle(msg.data, client)
         except TransmitWarning as warning:
             _print_msg(client, f'warning:{warning}')
@@ -168,12 +178,14 @@ def _handle_client(client: TCPSocketTransmit, version: str, stop_flag: multiproc
             break
 
 
-def _handle_new_connection(client: TCPSocketTransmit, version: str, stop_flag: multiprocessing.Event,
-                           msg_cls: typing.Type[SRPCMessage], register_handle: typing.Dict[str, typing.Callable]):
+def _handle_new_connection(client: TCPSocketTransmit, version: str,
+                           stop_flag: multiprocessing.Event, msg_cls: typing.Type[SRPCMessage],
+                           handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any]):
     multiprocessing.Process(
         target=_handle_client,
         kwargs=dict(
-            client=client, version=version, stop_flag=stop_flag, msg_cls=msg_cls, register_handle=register_handle
+            client=client, version=version, stop_flag=stop_flag,
+            msg_cls=msg_cls, register_handle=handles, extra_arg=extra_arg
         ), daemon=True
     ).start()
 
@@ -185,8 +197,9 @@ class SRPCServer(TCPServerTransmitHandle):
 
 def start_srpc_server(address: TCPSocketTransmit.Address,
                       max_concurrent: int, version: str, msg_cls: typing.Type[SRPCMessage],
-                      handles: typing.Dict[str, typing.Callable], wait_forever: bool = True,
-                      verbose: bool = False) -> typing.Tuple[SRPCServer, multiprocessing.Event]:
+                      handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any] = None,
+                      wait_forever: bool = True, verbose: bool = False
+                      ) -> typing.Tuple[SRPCServer, multiprocessing.Event]:
     """Start a simple RPC server
 
     :param address: server listen host and port
@@ -194,6 +207,7 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
     :param version: server version string
     :param msg_cls: rpc message class
     :param handles: rpc message handles
+    :param extra_arg: handle extra arg, (arg name, arg value)
     :param wait_forever: wait forever set this as true
     :param verbose: server enable verbose print
     :return: SRPCServer instance and stop server flag
@@ -204,7 +218,9 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
     try:
         server.start(
             address, max_concurrent,
-            kwargs=dict(stop_flag=stop_flag, msg_cls=msg_cls, register_handle=handles, version=version)
+            kwargs=dict(
+                stop_flag=stop_flag, msg_cls=msg_cls, version=version, handles=handles, extra_arg=extra_arg
+            )
         )
     except Exception as e:
         stop_flag.set()
