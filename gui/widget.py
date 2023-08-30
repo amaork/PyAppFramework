@@ -965,7 +965,7 @@ class ImageWidget(PaintWidget):
         if img_size.width() <= rule.width() and img_size.height() <= rule.height():
             return img_size
         else:
-            return ImageWidget.scaleBigImage(img_size / factor)
+            return ImageWidget.scaleBigImage(img_size / factor, rule, factor)
 
     @Slot(str)
     def drawFromFs(self, filePath: str) -> bool:

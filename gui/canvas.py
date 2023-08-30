@@ -56,8 +56,12 @@ class CanvasWidget(QtWidgets.QWidget):
         """
         super(CanvasWidget, self).__init__(parent)
         self.__line_width = cursor_size // 2
+
+        # For zoom in/out
         self.__scale_factor = 1.0
-        self.__image_scale_factor = 1
+        # For load image from fs
+        self.__image_scale_factor = 1.0
+
         self.__paint_mode = paint_mode
         self.__default_text = default_text
         self.__change_cursor = change_cursor
@@ -231,7 +235,9 @@ class CanvasWidget(QtWidgets.QWidget):
 
     def remap2CanvasPos(self, image_pos: QtCore.QPoint) -> QtCore.QPoint:
         """Remap image position to canvas position"""
-        return QtCore.QPoint(image_pos.x() // self.__image_scale_factor, image_pos.y() // self.__image_scale_factor)
+        return QtCore.QPoint(
+            int(image_pos.x() / self.__image_scale_factor), int(image_pos.y() / self.__image_scale_factor)
+        )
 
     def remap2CanvasLine(self, line: QtCore.QLine) -> QtCore.QLine:
         return QtCore.QLine(self.remap2CanvasPos(line.p1()), self.remap2CanvasPos(line.p2()))
@@ -290,7 +296,11 @@ class CanvasWidget(QtWidgets.QWidget):
 
         self.__current_image_name = path
         self.__pixmap = QtGui.QPixmap.fromImage(image)
-        self.__image_scale_factor = 1 if self.__pixmap.width() == self.__image.size[0] else self.__big_img_shrink_factor
+
+        if self.__pixmap.width() == self.__image.size[0]:
+            self.__image_scale_factor = 1.0
+        else:
+            self.__image_scale_factor = self.__image.size[0] / self.__pixmap.width()
 
         if fit_window:
             self.signalFitWindowRequest.emit()
