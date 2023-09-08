@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import abc
+import json
 import typing
+import itertools
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
 
@@ -24,6 +26,9 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
     def item(self, _row: int, _column: int):
         return None
+
+    def getLastIndex(self, column: int = 0) -> QtCore.QModelIndex:
+        return self.index(self.rowCount() - 1, column)
 
     def getRowData(self, row: int, user: bool = False) -> typing.Sequence:
         try:
@@ -89,6 +94,15 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
                 return super(AbstractTableModel, self).setData(index, value, role)
 
         return False
+
+    def appendRow(self, data: typing.Sequence[str], user: typing.Sequence[typing.Any] = None):
+        self.insertRow(self.rowCount())
+        row = self.rowCount() - 1
+        user = user or list()
+
+        for column, item in enumerate(itertools.zip_longest(data, user)):
+            self.setData(self.index(row, column), item[0])
+            self.setData(self.index(row, column), item[1], Qt.UserRole)
 
     def insertRows(self, row: int, count: int, parent: QtCore.QModelIndex = ...) -> bool:
         self.beginInsertRows(QtCore.QModelIndex(), row, row + count - 1)
@@ -249,6 +263,10 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
     def get_row_count(tbl: str) -> int:
         query = QtSql.QSqlQuery()
         return query.value(0) if query.exec_(f'SELECT COUNT(*) FROM {tbl};') and query.first() else 0
+
+    @staticmethod
+    def format_blob_data(data: typing.Any) -> str:
+        return f"'{json.dumps(data, ensure_ascii=False)}'"
 
     def is_support_fuzzy_search(self, key: str) -> bool:
         return self.tbl.get_column_index_from_name(key) in self.tbl.get_fuzzy_columns()
