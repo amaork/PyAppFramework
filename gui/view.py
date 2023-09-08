@@ -612,13 +612,14 @@ class SQliteQueryView(BasicWidget):
 
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float],
-                 custom_content_menu: typing.Optional[typing.Sequence[QtWidgets.QAction]] = None,
+                 custom_content_menu: typing.Dict[
+                     QtWidgets.QAction, typing.Callable[[QtCore.QModelIndex], bool]
+                 ] = None,
                  date_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  precisely_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  readonly: bool = False, without_search: bool = False, without_pt_ctrl: bool = False,
                  row_autoincrement_factor: float = 0.0, datetime_format: str = 'yyyy/MM/dd hh:mm:ss',
                  search_box_min_width: int = 400, parent: QtWidgets.QWidget = None):
-        custom_content_menu = custom_content_menu or list()
         self._model = model
         self._is_readonly = readonly
 
@@ -631,8 +632,8 @@ class SQliteQueryView(BasicWidget):
         self._date_search_columns = date_search_columns or [-1]
         self._precisely_search_columns = precisely_search_columns or list()
 
-        self._custom_content_menu = list(custom_content_menu)
         self._row_autoincrement_factor = row_autoincrement_factor
+        self._custom_content_menu = collections.OrderedDict(custom_content_menu or dict())
         self._tasklet = Tasklet(name=self.__class__.__name__)
         super(SQliteQueryView, self).__init__(parent)
         self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
@@ -654,9 +655,8 @@ class SQliteQueryView(BasicWidget):
         self.ui_clear_search = QtWidgets.QPushButton(self.tr('Clear Search'))
 
         # Custom content menu
-        self.ui_content_menu = QtWidgets.QMenu(self)
-        self.ui_action_del = QtWidgets.QAction(self.tr('Delete Record'), self.ui_content_menu)
-        self.ui_action_clear = QtWidgets.QAction(self.tr('Clear All Records'), self.ui_content_menu)
+        self.ui_action_del = QtWidgets.QAction(self.tr('Delete Record'))
+        self.ui_action_clear = QtWidgets.QAction(self.tr('Clear All Records'))
 
         # Date search layout
         date_search_layout = QtWidgets.QHBoxLayout()
@@ -669,14 +669,6 @@ class SQliteQueryView(BasicWidget):
         for item in (self.ui_splitter, self.ui_page_num_label,
                      self.ui_page_num, self.ui_prev, self.ui_next, self.ui_home, self.ui_end):
             item.setProperty(self.Group, self.ToolGroups.PageTurnCtrl)
-
-        if not self._is_readonly:
-            self.ui_content_menu.addAction(self.ui_action_del)
-            self.ui_content_menu.addAction(self.ui_action_clear)
-
-        if self._custom_content_menu:
-            self.ui_content_menu.addSeparator()
-            self.ui_content_menu.addActions(self._custom_content_menu)
 
         tools_layout = QtWidgets.QHBoxLayout()
         for item in (self.ui_search_key, self.ui_search_value, date_search_layout, self.ui_search, self.ui_clear_search,
@@ -904,7 +896,19 @@ class SQliteQueryView(BasicWidget):
         if not self._model.record_count:
             return
 
-        if not self.ui_content_menu.size():
+        if self._is_readonly and not self._custom_content_menu:
             return
 
-        self.ui_content_menu.popup(self.ui_view.viewport().mapToGlobal(pos))
+        menu = QtWidgets.QMenu(self)
+        if not self._is_readonly:
+            menu.addAction(self.ui_action_del)
+            menu.addAction(self.ui_action_clear)
+
+        index = self.ui_view.indexAt(pos)
+        custom_content_menu = [action for action, filter_ in self._custom_content_menu.items() if filter_(index)]
+
+        if custom_content_menu:
+            menu.addSeparator()
+            menu.addActions(custom_content_menu)
+
+        menu.popup(self.ui_view.viewport().mapToGlobal(pos))
