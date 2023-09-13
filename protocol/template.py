@@ -341,7 +341,7 @@ class CommunicationController:
                                 self._latest_section = CommunicationSection(request, e)
 
                         self.send_event(self._event_cls(type_=type_, data=f'{e}'))
-                        self.error_msg(f'Communication warning: {e}')
+                        self.error_msg(f'[{self.__class__.__name__}] Communication warning: {e}({request})')
                         self._transmit.flush()
 
                         if self._timeout_cnt.great(3, equal=True):
@@ -350,7 +350,7 @@ class CommunicationController:
                             self.send_event(self._event_cls.disconnected(msg))
                     except (AttributeError, TransmitException) as e:
                         self.disconnect()
-                        self.error_msg(f'Communication exception: {e}')
+                        self.error_msg(f'[{self.__class__.__name__}] Communication exception: {e}({request})')
                         self._latest_section = CommunicationSection(request, e)
                         self.send_event(self._event_cls.exception(f'Communication exception：{e}'))
                         break

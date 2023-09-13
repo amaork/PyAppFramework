@@ -218,9 +218,7 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
     try:
         server.start(
             address, max_concurrent,
-            kwargs=dict(
-                stop_flag=stop_flag, msg_cls=msg_cls, version=version, handles=handles, extra_arg=extra_arg
-            )
+            kwargs=dict(stop_flag=stop_flag, msg_cls=msg_cls, version=version, handles=handles, extra_arg=extra_arg)
         )
     except Exception as e:
         stop_flag.set()

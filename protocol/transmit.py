@@ -383,16 +383,17 @@ class TCPServerTransmitHandle:
         if self._verbose or force:
             print(f'{get_stack_info()}: {msg}')
 
-    def start(self, address: Transmit.Address, backlog: int = 1, kwargs: dict = None):
+    def start(self, address: Transmit.Address, backlog: int = 1, timeout: float = None, kwargs: dict = None):
         try:
             self._listen_socket.bind(address)
         except OSError as e:
             raise TransmitException(f'{self.__class__.__name__}.connect error: {e}')
         else:
             self._listen_socket.listen(backlog)
-            threading.Thread(target=self.accept_handle, args=(self._listen_socket, kwargs), daemon=True).start()
+            args = (self._listen_socket, timeout, kwargs or dict())
+            threading.Thread(target=self.accept_handle, args=args, daemon=True).start()
 
-    def accept_handle(self, listen_socket: socket.socket, kwargs: dict):
+    def accept_handle(self, listen_socket: socket.socket, timeout: typing.Optional[float], kwargs: dict):
         while not self._stopped.is_set():
             try:
                 self.print_debug_msg('Before')
@@ -411,6 +412,8 @@ class TCPServerTransmitHandle:
             transmit = TCPSocketTransmit(
                 client_socket, client_address, with_length=bool(self._with_length), processing=bool(self._processing)
             )
+            # Mark TCPSocketTransmit is connected and set timeout
+            transmit.connect(client_address, timeout)
 
             # Callback with TCPSocketTransmit and custom args
             self._new_connection_callback(transmit, **kwargs)
