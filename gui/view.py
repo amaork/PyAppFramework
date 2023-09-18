@@ -611,7 +611,7 @@ class SQliteQueryView(BasicWidget):
     ToolGroups = collections.namedtuple('ToolGroups', 'Date Search PageTurnCtrl')(*'date search pt_ctrl'.split())
 
     def __init__(self, model: SqliteQueryModel,
-                 stretch_factor: typing.Sequence[float],
+                 stretch_factor: typing.Sequence[float] = None,
                  custom_content_menu: typing.Dict[
                      QtWidgets.QAction, typing.Callable[[QtCore.QModelIndex], bool]
                  ] = None,
@@ -619,22 +619,44 @@ class SQliteQueryView(BasicWidget):
                  precisely_search_columns: typing.Optional[typing.Sequence[int]] = None,
                  readonly: bool = False, without_search: bool = False, without_pt_ctrl: bool = False,
                  row_autoincrement_factor: float = 0.0, datetime_format: str = 'yyyy/MM/dd hh:mm:ss',
-                 search_box_min_width: int = 400, parent: QtWidgets.QWidget = None):
+                 search_box_min_width: int = 400, auto_init: bool = False, parent: QtWidgets.QWidget = None):
+        """SQliteQueryView
+
+        :param model: SqliteQueryModel instance
+        :param stretch_factor:  column display stretch factor
+        :param custom_content_menu: customize content menu action
+        :param date_search_columns: which columns support data search
+        :param precisely_search_columns:  which columns support precisely search
+        :param readonly: is table is readonly
+        :param without_search: hidden search toolbar
+        :param without_pt_ctrl: hidden page control toolbar using scrollbar
+        :param row_autoincrement_factor: row autoincrement factor
+        :param datetime_format: datetime format date search using this
+        :param search_box_min_width: search box minimum width
+        :param auto_init: if set this stretch_factor/date_search_columns/precisely_search_columns will get from model
+        :param parent: parent widget
+        """
+        date_search_columns = date_search_columns or [-1]
+        precisely_search_columns = precisely_search_columns or list()
+        stretch_factor = stretch_factor or [1 / model.columnCount()] * model.columnCount()
+
         self._model = model
-        self._is_readonly = readonly
+        self._tasklet = Tasklet(name=self.__class__.__name__)
 
         self._without_search = without_search
-        self._stretch_factor = stretch_factor
         self._without_pt_ctrl = without_pt_ctrl
-        self._search_box_min_width = search_box_min_width
 
         self._datetime_format = datetime_format
-        self._date_search_columns = date_search_columns or [-1]
-        self._precisely_search_columns = precisely_search_columns or list()
-
+        self._search_box_min_width = search_box_min_width
         self._row_autoincrement_factor = row_autoincrement_factor
         self._custom_content_menu = collections.OrderedDict(custom_content_menu or dict())
-        self._tasklet = Tasklet(name=self.__class__.__name__)
+
+        # Auto load from SqliteQueryModel
+        self._is_readonly = model.readonly if auto_init else readonly
+        self._stretch_factor = model.column_stretch if auto_init else stretch_factor
+        self._date_search_columns = model.date_search_columns if auto_init else date_search_columns
+        self._precisely_search_columns = model.precisely_search_columns if auto_init else precisely_search_columns
+
         super(SQliteQueryView, self).__init__(parent)
         self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
 
