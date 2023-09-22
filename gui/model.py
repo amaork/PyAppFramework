@@ -3,11 +3,23 @@ import abc
 import json
 import typing
 import itertools
+import collections
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
 
 from ..core.database import DBTable
-__all__ = ['AbstractTableModel', 'SqliteQueryModel']
+__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'Rect', 'q2r', 'r2q']
+
+
+Rect = collections.namedtuple('Rect', 'x y width height')
+
+
+def q2r(q: QtCore.QRect) -> Rect:
+    return Rect(q.x(), q.y(), q.width(), q.height())
+
+
+def r2q(r: Rect) -> QtCore.QRect:
+    return QtCore.QRect(*r)
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
