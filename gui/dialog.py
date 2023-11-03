@@ -8,14 +8,16 @@ from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBox
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
     QProgressDialog
 
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
 
 from .msgbox import *
 from .button import RectButton
+from .misc import CustomSpinBox
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
+from .canvas import ScalableCanvasWidget, canvas_init_helper
 from ..network.discovery import ServiceDiscovery, DiscoveryEvent
 
 from ..misc.windpi import get_program_scale_factor
@@ -27,7 +29,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 
 __all__ = ['BasicDialog',
            'SimpleColorDialog',
-           'SerialPortSettingDialog', 'FileDialog',
+           'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
@@ -986,6 +988,62 @@ class FileDialog(QtWidgets.QFileDialog):
         dialog.setWindowTitle(title)
         dialog.exec_()
         return dialog.selectedFiles()
+
+
+class ScalableCanvasImageDialog(BasicDialog):
+    def __init__(self, image_path: str, default_text: str = '',
+                 hidden_toolbar: bool = False, parent: QtWidgets.QWidget = None):
+        """ScalableCanvasImageDialog
+
+        :param image_path: display image file path
+        :param default_text: if nothing to display will display default text
+        :param hidden_toolbar: hidden zoom fit_width, fix window tool buttons
+        :param parent:
+        """
+        self._image_path = image_path
+        self._default_text = default_text
+        self._hidden_toolbar = hidden_toolbar
+        super(ScalableCanvasImageDialog, self).__init__(parent)
+
+    def _initUi(self):
+        tool_bar = QtWidgets.QToolBar(self)
+        tool_bar.setHidden(self._hidden_toolbar)
+
+        self.ui_zoom = CustomSpinBox(maximum=300, suffix=' %')
+        self.action_capture = QtWidgets.QAction(self.tr('Capture'))
+        self.action_fit_width = QtWidgets.QAction(self.tr('Fit Width'))
+        self.action_fit_window = QtWidgets.QAction(self.tr('Fit Window'))
+        self.ui_preview = ScalableCanvasWidget(default_text=self._default_text, change_cursor=False, parent=self)
+
+        for item in (self.ui_zoom, self.action_fit_width, self.action_fit_window, QtWidgets.QSplitter()):
+            if isinstance(item, QtWidgets.QWidget):
+                tool_bar.addWidget(item)
+            else:
+                tool_bar.addAction(item)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(tool_bar)
+        layout.addWidget(self.ui_preview)
+
+        self.setLayout(layout)
+        self.setWindowTitle(self.tr('Image Preview'))
+
+    def _initData(self):
+        self.ui_preview.slotLoadImage(self._image_path)
+        self.ui_preview.slotPaintCanvas(int(self.ui_preview.scaleFitWindow() * 100))
+
+    def _initSignalAndSlots(self):
+        canvas_init_helper(self, self.ui_preview, self.ui_zoom, self.action_fit_width, self.action_fit_window)
+
+    def accept(self) -> None:
+        super().accept()
+        self.ui_preview.slotClearImage()
+
+    def sizeHint(self) -> QtCore.QSize:
+        return QSize(1024, 768)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        self.ui_preview.slotPaintCanvas(int(self.ui_preview.scaleFitWindow() * 100))
 
 
 # noinspection PyTypeChecker
