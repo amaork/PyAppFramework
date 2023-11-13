@@ -193,14 +193,22 @@ class UARTTransmit(Transmit):
 
 
 class TCPSocketTransmit(Transmit):
-    MSG_LEN_FMT = '>L'
+    DefaultLengthFormat = '>L'
 
     def __init__(self, sock: socket.socket, address: Transmit.Address = ('', -1),
-                 with_length: bool = False, processing: bool = False, disconnect_callback: Optional[Callable] = None):
+                 length_fmt: str = '', processing: bool = False, disconnect_callback: Optional[Callable] = None):
+        """
+        TCPSocketTransmit
+        :param sock: socket instance
+        :param address: self address
+        :param length_fmt: msg header length struct pack format
+        :param processing: is multiple processing env
+        :param disconnect_callback: disconnect callback
+        """
         super(TCPSocketTransmit, self).__init__(processing)
         self._socket = sock
         self._address = address
-        self._with_length = with_length
+        self._length_fmt = length_fmt
         self._disconnect_callback = disconnect_callback
 
     @property
@@ -214,7 +222,7 @@ class TCPSocketTransmit(Transmit):
 
     def tx(self, data: bytes) -> bool:
         try:
-            msg = struct.pack(self.MSG_LEN_FMT, len(data)) + data if self._with_length else data
+            msg = struct.pack(self._length_fmt, len(data)) + data if self._length_fmt else data
             return sum(tcp_socket_send_data(self._socket, msg)) == len(msg)
         except socket.timeout as err:
             raise TransmitWarning(err)
@@ -223,21 +231,21 @@ class TCPSocketTransmit(Transmit):
 
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
         try:
-            if self._with_length:
-                header = self._socket.recv(struct.calcsize(self.MSG_LEN_FMT))
+            if self._length_fmt:
+                header = self._socket.recv(struct.calcsize(self._length_fmt))
                 # Peer closed
                 if not header:
                     self.disconnect()
                     return header
 
                 # Get message length first
-                size = struct.unpack(self.MSG_LEN_FMT, header)[0]
+                size = struct.unpack(self._length_fmt, header)[0]
 
             # Read payload data
             data = tcp_socket_recv_data(self._socket, size)
 
             # Peer closed
-            if not self._with_length and not data:
+            if not self._length_fmt and not data:
                 self.disconnect()
                 
             return data
@@ -264,11 +272,11 @@ class TCPSocketTransmit(Transmit):
 class TCPClientTransmit(Transmit):
     DEFAULT_TIMEOUT = 0.1
 
-    def __init__(self, with_length: bool = False, processing: bool = False):
+    def __init__(self, length_fmt: str = '', processing: bool = False):
         super(TCPClientTransmit, self).__init__(processing)
         self._server_address = ('', -1)
         self._socket = TCPSocketTransmit(
-            socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length, processing=processing
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM), length_fmt=length_fmt, processing=processing
         )
 
     def tx(self, data: bytes) -> bool:
@@ -302,12 +310,12 @@ class TCPClientTransmit(Transmit):
 
 
 class TCPServerTransmit(Transmit):
-    def __init__(self, with_length: bool = False, processing: bool = False):
+    def __init__(self, length_fmt: str = '', processing: bool = False):
         super(TCPServerTransmit, self).__init__(processing)
         self._client_address = ('', -1)
         self._stopped = multiprocessing.Event() if processing else threading.Event()
         self._socket = TCPSocketTransmit(
-            socket.socket(socket.AF_INET, socket.SOCK_STREAM), with_length=with_length, processing=processing
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM), length_fmt=length_fmt, processing=processing
         )
 
     def __del__(self):
@@ -358,10 +366,10 @@ class TCPServerTransmit(Transmit):
 
 class TCPServerTransmitHandle:
     def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit, typing.Any], None],
-                 with_length: bool = False, processing: bool = False, verbose: bool = False):
+                 length_fmt: str = '', processing: bool = False, verbose: bool = False):
         self._verbose = verbose
         self._processing = processing
-        self._with_length = with_length
+        self._length_fmt = length_fmt
         self._new_connection_callback = new_connection_callback
         self._listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         self._stopped = multiprocessing.Event() if processing else threading.Event()
@@ -410,7 +418,7 @@ class TCPServerTransmitHandle:
 
             # Create TCPSocketTransmit
             transmit = TCPSocketTransmit(
-                client_socket, client_address, with_length=bool(self._with_length), processing=bool(self._processing)
+                client_socket, client_address, length_fmt=self._length_fmt, processing=bool(self._processing)
             )
             # Mark TCPSocketTransmit is connected and set timeout
             transmit.connect(client_address, timeout)

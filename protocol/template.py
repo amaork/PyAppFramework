@@ -253,7 +253,7 @@ class CommunicationController:
         pass
 
     @abc.abstractmethod
-    def _section_check(self, request: CommunicationObject, response: CommunicationObject) -> bool:
+    def _section_check(self, request: CommunicationObject, response: CommunicationObject, cost_time: float) -> bool:
         """Check if section is valid"""
         pass
 
@@ -293,6 +293,7 @@ class CommunicationController:
                 while retry < max_retry_times and not self._exit:
                     try:
                         # Send request
+                        start_time = time.perf_counter()
                         self._transmit.tx(request.to_bytes())
 
                         if request.print_log():
@@ -300,6 +301,7 @@ class CommunicationController:
 
                         # Receive response
                         data = self._transmit.rx(self._response_max_length)
+                        cost_time = time.perf_counter() - start_time
 
                         # Decode and check response
                         try:
@@ -313,7 +315,7 @@ class CommunicationController:
                             if request.print_log():
                                 self.debug_msg(f'RX <{"=" * 16}: {response}')
 
-                            if not self._section_check(request, response):
+                            if not self._section_check(request, response, cost_time):
                                 self.error_msg(f'Section check failed: {request!r} {response!r}')
                                 continue
 

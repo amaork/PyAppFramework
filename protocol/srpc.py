@@ -110,7 +110,7 @@ def send_msg_to_client(client: TCPSocketTransmit, msg: SRPCMessage, error: typin
 
 def send_msg_to_server(msg: SRPCMessage, server: TCPClientTransmit.Address, timeout: float) -> typing.Any:
     """Send message to server and get result, otherwise raise RuntimeError"""
-    client = TCPClientTransmit(with_length=True)
+    client = TCPClientTransmit(length_fmt=TCPSocketTransmit.DefaultLengthFormat)
 
     try:
         client.connect(server, timeout=timeout)
@@ -192,7 +192,9 @@ def _handle_new_connection(client: TCPSocketTransmit, version: str,
 
 class SRPCServer(TCPServerTransmitHandle):
     def __init__(self, verbose: bool = False):
-        super(SRPCServer, self).__init__(_handle_new_connection, with_length=True, processing=True, verbose=verbose)
+        super(SRPCServer, self).__init__(
+            _handle_new_connection, length_fmt=TCPSocketTransmit.DefaultLengthFormat, processing=True, verbose=verbose
+        )
 
 
 def start_srpc_server(address: TCPSocketTransmit.Address,
