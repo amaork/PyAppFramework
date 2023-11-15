@@ -3,6 +3,7 @@ import abc
 import time
 import queue
 import typing
+import logging
 import threading
 import contextlib
 import collections
@@ -31,16 +32,16 @@ class CommunicationEvent(CustomEvent):
         super(CommunicationEvent, self).__init__(**kwargs)
 
     @classmethod
-    def info(cls, msg: str):
-        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultInfoMessage(msg))
+    def info(cls, msg: str, color: str = ''):
+        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultInfoMessage(msg, color))
 
     @classmethod
-    def debug(cls, msg: str):
-        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultDebugMessage(msg))
+    def debug(cls, msg: str, color: str = ''):
+        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultDebugMessage(msg, color))
 
     @classmethod
-    def error(cls, msg: str):
-        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultErrorMessage(msg))
+    def error(cls, msg: str, color: str = ''):
+        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultErrorMessage(msg, color))
 
     @classmethod
     def exception(cls, msg: str):
@@ -213,13 +214,13 @@ class CommunicationController:
             return True
 
     def info_msg(self, msg: str):
-        self.send_event(self._event_cls.info(self._format_log(msg)))
+        self.send_event(self._event_cls.info(self._format_log(msg), self._log_color(logging.INFO)))
 
     def error_msg(self, msg: str):
-        self.send_event(self._event_cls.error(self._format_log(msg)))
+        self.send_event(self._event_cls.error(self._format_log(msg), self._log_color(logging.ERROR)))
 
     def debug_msg(self, msg: str):
-        self.send_event(self._event_cls.debug(self._format_log(msg)))
+        self.send_event(self._event_cls.debug(self._format_log(msg), self._log_color(logging.DEBUG)))
 
     def send_event(self, event: CommunicationEvent):
         if callable(self._event_callback):
@@ -243,6 +244,9 @@ class CommunicationController:
 
     def _format_log(self, msg: str) -> str:
         return f'{get_debug_timestamp()} {msg}' if self._print_ts else msg
+
+    def _log_color(self, level: int) -> str:
+        return ''
 
     @abc.abstractmethod
     def _simulate_handle(self, request: CommunicationObject) -> bool:

@@ -624,6 +624,7 @@ T = TypeVar('T', bound='UiLogMessage')
 
 class UiLogMessage(DynamicObject):
     _properties = {'level', 'color', 'font_size', 'content'}
+    DefaultColor = collections.namedtuple('DefaultColor', 'Info Debug Error')(*'#000000 #0000FF #FF0000'.split())
 
     def __init__(self, **kwargs):
         # Default is info level color is black size is 3
@@ -642,16 +643,16 @@ class UiLogMessage(DynamicObject):
         }.get(level, UiLogMessage.genDefaultInfoMessage)(content)
 
     @staticmethod
-    def genDefaultInfoMessage(content: str) -> T:
-        return UiLogMessage(content=content, level=logging.INFO, color="#000000")
+    def genDefaultInfoMessage(content: str, color: str = DefaultColor.Info) -> T:
+        return UiLogMessage(content=content, level=logging.INFO, color=color or UiLogMessage.DefaultColor.Info)
 
     @staticmethod
-    def genDefaultDebugMessage(content) -> T:
-        return UiLogMessage(content=content, level=logging.DEBUG, color="#0000FF")
+    def genDefaultDebugMessage(content, color: str = DefaultColor.Debug) -> T:
+        return UiLogMessage(content=content, level=logging.DEBUG, color=color or UiLogMessage.DefaultColor.Debug)
 
     @staticmethod
-    def genDefaultErrorMessage(content) -> T:
-        return UiLogMessage(content=content, level=logging.ERROR, color="#FF0000")
+    def genDefaultErrorMessage(content, color: str = DefaultColor.Error) -> T:
+        return UiLogMessage(content=content, level=logging.ERROR, color=color or UiLogMessage.DefaultColor.Error)
 
 
 LoggingMsgCallback = Callable[[UiLogMessage], None]
