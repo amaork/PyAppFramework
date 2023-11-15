@@ -11,13 +11,12 @@ from typing import Callable, List, Optional
 from google.protobuf.message import Message, DecodeError
 
 
-from .crc16 import crc16
 from .serialport import SerialPort
 from ..misc.debug import get_stack_info
 from ..core.threading import ThreadSafeBool
 from ..network.utility import create_socket_and_connect, set_keepalive, tcp_socket_recv_data, tcp_socket_send_data
 __all__ = ['Transmit', 'TransmitWarning', 'TransmitException',
-           'UARTTransmit', 'UartTransmitWithProtobufEndingCheck',
+           'UARTTransmit', 'UartTransmitCustomize', 'UartTransmitWithProtobufEndingCheck',
            'TCPClientTransmit', 'TCPServerTransmit', 'TCPSocketTransmit', 'TCPServerTransmitHandle']
 
 
@@ -127,7 +126,7 @@ class UARTTransmit(Transmit):
 
     def rx(self, size: int, timeout: float = 0) -> bytes:
         try:
-            # Receive length first
+            # Receive length first, without ending check
             if self.__length_fmt:
                 header = self.__serial.read(struct.calcsize(self.__length_fmt))
                 if not header:
@@ -429,23 +428,53 @@ class TCPServerTransmitHandle:
         self.print_debug_msg('Sopped, exit', force=True)
 
 
-class UartTransmitWithProtobufEndingCheck(UARTTransmit):
-    def __init__(self, msg_cls, with_crc16: bool = False, length_fmt: str = ''):
-        if not issubclass(msg_cls, Message):
-            raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
-        self.__msg_cls = msg_cls
-        self.__with_crc16 = with_crc16
-        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt, checksum=crc16 if with_crc16 else None)
+class UartTransmitCustomize(UARTTransmit):
+    def __init__(self, length_fmt: str = '',
+                 msg_check: Optional[Callable[[bytes], bool]] = None,
+                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None):
+        """UartTransmitCustomize
+
+        :param length_fmt: msg header length struct format
+        :param msg_check:  check if msg is complete
+        :param checksum: msg tail checksum
+        :param checksum_len: checksum length
+        """
+
+        self.__msg_check = msg_check
+        self.__checksum = checksum
+        self.__checksum_len = checksum_len
+        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt, checksum=checksum)
 
     def ending_check(self, data: bytes) -> bool:
         try:
             if not data:
                 return False
 
-            if self.__with_crc16 and crc16(data):
+            if callable(self.__checksum) and self.__checksum(data):
                 return False
 
-            self.__msg_cls.FromString(data[:-2] if self.__with_crc16 else data)
+            payload = data[:-self.__checksum_len] if callable(self.__checksum) and self.__checksum_len else data
+            if callable(self.__msg_check) and not self.__msg_check(payload):
+                return False
+
             return True
+        except TypeError:
+            return False
+
+
+class UartTransmitWithProtobufEndingCheck(UartTransmitCustomize):
+    def __init__(self, msg_cls, length_fmt: str = '',
+                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None):
+        if not issubclass(msg_cls, Message):
+            raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
+
+        self.__msg_cls = msg_cls
+        super().__init__(msg_check=self.msg_check, length_fmt=length_fmt, checksum=checksum, checksum_len=checksum_len)
+
+    def msg_check(self, data: bytes) -> bool:
+        try:
+            self.__msg_cls.FromString(data)
         except DecodeError:
             return False
+        else:
+            return True

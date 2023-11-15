@@ -154,7 +154,7 @@ class CommunicationController:
         self._print_ts = print_ts
         self._retry_times = retry
         self._enable_sim = False
-        self._queue = queue.Queue()
+        self._queue = queue.PriorityQueue()
         self._exit = ThreadSafeBool(False)
         self._timeout = ThreadSafeBool(False)
         self._timeout_cnt = ThreadSafeInteger(0)
@@ -190,6 +190,8 @@ class CommunicationController:
     def disconnect(self):
         self._exit.set()
         self._transmit.disconnect()
+        while self._queue.qsize():
+            self._queue.get()
 
     def reset_section(self, sid: int = 0):
         self._section_seq.assign(sid)
