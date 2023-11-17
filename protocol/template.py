@@ -193,6 +193,7 @@ class CommunicationController:
         self._transmit.disconnect()
         while self._queue.qsize():
             self._queue.get()
+        self.send_event(self._event_cls.disconnected('active disconnect'))
 
     def reset_section(self, sid: int = 0):
         self._section_seq.assign(sid)
