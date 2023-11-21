@@ -2,6 +2,7 @@
 import abc
 import typing
 import datetime
+import contextlib
 import collections
 from PySide2.QtCore import Qt
 from PySide2 import QtCore, QtGui, QtWidgets
@@ -9,19 +10,26 @@ from PySide2 import QtCore, QtGui, QtWidgets
 from .msgbox import *
 from .checkbox import CheckBox
 from .misc import PageNumberBox
+# from ..misc.debug import track_time
 from .container import ComponentManager
 from .widget import JsonSettingWidget, BasicWidget
 
 from ..misc.settings import *
 from ..core.timer import Task, Tasklet
-from ..gui.model import SqliteQueryModel
 from ..core.datatype import DynamicObject
 from ..misc.windpi import get_program_scale_factor
+from ..gui.model import SqliteQueryModel, AbstractTableModel
 __all__ = ['TableView', 'TableViewDelegate', 'SQliteQueryView']
 
 
 class TableView(QtWidgets.QTableView):
     tableDataChanged = QtCore.Signal()
+
+    # Custom menu signals
+    signalRequestRowMoveUp = QtCore.Signal(int)
+    signalRequestRowMoveDown = QtCore.Signal(int)
+    signalRequestRowMoveToTop = QtCore.Signal(int)
+    signalRequestRowMoveToBottom = QtCore.Signal(int)
 
     ALL_ACTION = 0x7
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
@@ -41,11 +49,25 @@ class TableView(QtWidgets.QTableView):
             ],
 
             self.MOVE_ACTION: [
-                (QtWidgets.QAction(self.tr("Move Up"), self), lambda: self.rowMoveUp()),
-                (QtWidgets.QAction(self.tr("Move Down"), self), lambda: self.rowMoveDown()),
+                (
+                        QtWidgets.QAction(self.tr("Move Up"), self),
+                        lambda: self.signalRequestRowMoveUp.emit(self.getCurrentRow())
+                ),
 
-                (QtWidgets.QAction(self.tr("Move Top"), self), lambda: self.rowMoveTop()),
-                (QtWidgets.QAction(self.tr("Move Bottom"), self), lambda: self.rowMoveBottom()),
+                (
+                        QtWidgets.QAction(self.tr("Move Down"), self),
+                        lambda: self.signalRequestRowMoveDown.emit(self.getCurrentRow())
+                ),
+
+                (
+                        QtWidgets.QAction(self.tr("Move Top"), self),
+                        lambda: self.signalRequestRowMoveToTop.emit(self.getCurrentRow())
+                ),
+
+                (
+                        QtWidgets.QAction(self.tr("Move Bottom"), self),
+                        lambda: self.signalRequestRowMoveToBottom.emit(self.getCurrentRow())
+                ),
             ],
         }.items():
             for action, slot in actions:
@@ -87,6 +109,39 @@ class TableView(QtWidgets.QTableView):
                     action.setVisible(enabled)
 
         self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+
+    def setModel(self, model: QtCore.QAbstractItemModel):
+        if isinstance(model, AbstractTableModel):
+            def rowMoveUp(row: int):
+                with self.autoScrollContextManager():
+                    if model.rowMoveUp(row):
+                        self.setCurrentRow(row - 1)
+                        self.tableDataChanged.emit()
+
+            def rowMoveDown(row: int):
+                with self.autoScrollContextManager():
+                    if model.rowMoveDown(row):
+                        self.setCurrentRow(row + 1)
+                        self.tableDataChanged.emit()
+
+            def rowMoveToTop(row: int):
+                with self.autoScrollContextManager():
+                    if model.rowMoveToTop(row):
+                        self.setCurrentRow(0)
+                        self.tableDataChanged.emit()
+
+            def rowMoveToBottom(row: int):
+                with self.autoScrollContextManager():
+                    if model.rowMoveToBottom(row):
+                        self.setCurrentRow(self.rowCount() - 1)
+                        self.tableDataChanged.emit()
+
+            self.signalRequestRowMoveUp.connect(rowMoveUp)
+            self.signalRequestRowMoveDown.connect(rowMoveDown)
+            self.signalRequestRowMoveToTop.connect(rowMoveToTop)
+            self.signalRequestRowMoveToBottom.connect(rowMoveToBottom)
+
+        super().setModel(model)
 
     def setContentMenuMask(self, mask: int):
         for group in self.SUPPORT_ACTIONS:
@@ -292,6 +347,11 @@ class TableView(QtWidgets.QTableView):
         # noinspection PyTypeChecker
         return self.setCurrentIndex(model.index(row, 0, QtCore.QModelIndex()))
 
+    def simulateSelectRow(self, row: int):
+        self.selectRow(row)
+        self.setFocus(Qt.MouseFocusReason)
+        self.scrollTo(self.model().index(row, 0))
+
     def setRowCount(self, count: int):
         if isinstance(self.model(), QtCore.QAbstractItemModel):
             self.model().setRowCount(count)
@@ -412,78 +472,16 @@ class TableView(QtWidgets.QTableView):
 
         return True
 
-    def swapItem(self, src_row: int, src_column: int, dst_row: int, dst_column: int) -> bool:
-        if not self.__checkRow(src_row) or not self.__checkRow(dst_row):
-            return False
+    @contextlib.contextmanager
+    def autoScrollContextManager(self):
+        auto_scroll_enabled = self.hasAutoScroll()
 
-        if not self.__checkColumn(src_column) or not self.__checkColumn(dst_column):
-            return False
-
-        src_data = self.getItemData(src_row, src_column)
-        dst_data = self.getItemData(dst_row, dst_column)
-        self.setItemData(src_row, src_column, dst_data)
-        self.setItemData(dst_row, dst_column, src_data)
-        return True
-
-    def swapRow(self, src: int, dst: int):
-        for column in range(self.columnCount()):
-            self.swapItem(src, column, dst, column)
-
-            # Select dst row
-        self.selectRow(dst)
-        self.tableDataChanged.emit()
-
-    def swapColumn(self, src: int, dst: int):
-        for row in range(self.rowCount()):
-            self.swapItem(row, src, row, dst)
-
-        # Select destination column
-        self.selectColumn(dst)
-        self.tableDataChanged.emit()
-
-    def rowMoveUp(self) -> bool:
-        row = self.getCurrentRow()
-        if row == 0:
-            return False
-
-        self.swapRow(row, row - 1)
-        return True
-
-    def rowMoveDown(self) -> bool:
-        row = self.getCurrentRow()
-        if row == self.rowCount() - 1:
-            return False
-
-        self.swapRow(row, row + 1)
-        return True
-
-    def rowMoveTop(self):
-        while self.getCurrentRow() != 0:
-            self.rowMoveUp()
-
-        self.setCurrentRow(0)
-
-    def rowMoveBottom(self):
-        while self.getCurrentRow() != self.rowCount() - 1:
-            self.rowMoveDown()
-
-        self.setCurrentRow(self.rowCount() - 1)
-
-    def columnMoveLeft(self) -> bool:
-        column = self.getCurrentColumn()
-        if column == 0:
-            return False
-
-        self.swapColumn(column, column - 1)
-        return True
-
-    def columnMoveRight(self) -> bool:
-        column = self.getCurrentColumn()
-        if column == self.columnCount() - 1:
-            return False
-
-        self.swapColumn(column, column + 1)
-        return True
+        if auto_scroll_enabled:
+            yield
+        else:
+            self.setAutoScroll(True)
+            yield
+            self.setAutoScroll(False)
 
     def setItemBackground(self, row: int, column: int, background: QtGui.QBrush) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QtGui.QBrush):
@@ -578,7 +576,9 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
         else:
             widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
             widget.setFocus()
-            ComponentManager.connectComponentSignalAndSlot(widget, lambda _: self.commitData.emit(widget))
+            ComponentManager.connectComponentSignalAndSlot(
+                widget, lambda data: self.commitAndCloseEditor(widget, data, index)
+            )
             return widget
 
     def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
@@ -600,6 +600,10 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
     def updateEditorGeometry(self, editor: QtWidgets.QWidget,
                              option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex):
         editor.setGeometry(option.rect)
+
+    def commitAndCloseEditor(self, editor: QtWidgets.QWidget, data: typing.Any, index: QtCore.QModelIndex):
+        self.commitData.emit(editor)
+        self.dataChanged.emit(index, data, self._private_data)
 
 
 class SQliteQueryView(BasicWidget):

@@ -29,6 +29,18 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         self._table = list()
         self._header = tuple()
 
+    def _checkRow(self, row: int) -> bool:
+        return 0 <= row < self.rowCount()
+
+    def _checkColumn(self, column: int) -> bool:
+        return 0 <= column < self.columnCount()
+
+    def _checkRowMoveUp(self, row: int) -> bool:
+        return self._checkRow(row) and row
+
+    def _checkRowMoveDown(self, row: int) -> bool:
+        return self._checkRow(row) and row != self.rowCount()
+
     def clearAll(self):
         c = self.rowCount()
         self._user.clear()
@@ -38,6 +50,48 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
     def item(self, _row: int, _column: int):
         return None
+
+    def rowMoveUp(self, row: int) -> bool:
+        if not self._checkRowMoveUp(row):
+            return False
+
+        return self.swapRow(row, row -1)
+
+    def rowMoveDown(self, row: int) -> bool:
+        if not self._checkRowMoveDown(row):
+            return False
+
+        return self.swapRow(row, row + 1)
+
+    def rowMoveToTop(self, row: int) -> bool:
+        if not self._checkRowMoveUp(row):
+            return False
+
+        self._user.insert(0, self._user.pop(row))
+        self._table.insert(0, self._table.pop(row))
+        self.dataChanged.emit(self.index(-1, -1), self.index(-1, -1), [Qt.UserRole, Qt.DisplayRole])
+        return True
+
+    def rowMoveToBottom(self, row: int) -> bool:
+        if not self._checkRowMoveDown(row):
+            return False
+
+        self._user.append(self._user.pop(row))
+        self._table.append(self._table.pop(row))
+        self.dataChanged.emit(self.index(-1, -1), self.index(-1, -1), [Qt.UserRole, Qt.DisplayRole])
+        return True
+
+    def swapRow(self, src_row: int, dst_row: int) -> bool:
+        if not self._checkRow(src_row) or not self._checkRow(dst_row):
+            return False
+
+        self._user[src_row], self._user[dst_row] = self._user[dst_row], self._user[src_row]
+        self._table[src_row], self._table[dst_row] = self._table[dst_row], self._table[src_row]
+        self.dataChanged.emit(
+            self.index(min(src_row, dst_row), 0),
+            self.index(max(src_row, dst_row), self.columnCount()),  [Qt.UserRole, Qt.DisplayRole]
+        )
+        return True
 
     def getLastIndex(self, column: int = 0) -> QtCore.QModelIndex:
         return self.index(self.rowCount() - 1, column)
