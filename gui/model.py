@@ -98,8 +98,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
     def getRowData(self, row: int, user: bool = False) -> typing.Sequence:
         try:
-            src = self._user if user else self._table
-            return [src[row][column] for column in range(self.columnCount())]
+            return self._user[row] if user else self._table[row]
         except (IndexError, TypeError):
             return []
 

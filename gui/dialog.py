@@ -598,13 +598,15 @@ class ProgressDialog(QProgressDialog):
         self.setWhatsThis(text)
         super(ProgressDialog, self).setLabelText(text)
 
-    def setProgress(self, value: int):
+    def setProgress(self, value: int, force: bool = False):
         self.setValue(value)
         if value != self.maximum():
             self.show()
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
         self.move(QPoint(x, y))
+        if force:
+            QtWidgets.QApplication.processEvents()
 
 
 class BasicJsonSettingDialog(QDialog):

@@ -234,47 +234,6 @@ class TableView(QtWidgets.QTableView):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def setRowAlignment(self, row: int, alignment: Qt.AlignmentFlag) -> bool:
-        if not isinstance(alignment, Qt.AlignmentFlag):
-            return False
-
-        if not self.__checkRow(row):
-            return False
-
-        for column in range(self.columnCount()):
-            try:
-                item = self.item(row, column)
-                # noinspection PyTypeChecker
-                item.setTextAlignment(alignment)
-            except AttributeError:
-                continue
-
-        return True
-
-    def setColumnAlignment(self, column: int, alignment: Qt.AlignmentFlag) -> bool:
-        if not isinstance(alignment, Qt.AlignmentFlag):
-            return False
-
-        if not self.__checkColumn(column):
-            return False
-
-        for row in range(self.rowCount()):
-            try:
-                item = self.item(row, column)
-                # noinspection PyTypeChecker
-                item.setTextAlignment(alignment)
-            except AttributeError:
-                continue
-
-        return True
-
-    def setTableAlignment(self, alignment: Qt.AlignmentFlag) -> bool:
-        for row in range(self.rowCount()):
-            if not self.setRowAlignment(row, alignment):
-                return False
-
-        return True
-
     def setRowHeader(self, headers: typing.Sequence[str]) -> bool:
         if not isinstance(headers, (list, tuple)) or not self.__checkModel():
             return False
@@ -326,15 +285,13 @@ class TableView(QtWidgets.QTableView):
             self.setColumnWidth(column, width * factor)
 
     def getCurrentRow(self) -> int:
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
+        if not self.__checkModel():
             return 0
 
         return self.currentIndex().row()
 
     def getCurrentColumn(self) -> int:
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
+        if not self.__checkModel():
             return 0
 
         return self.currentIndex().column()
@@ -352,80 +309,26 @@ class TableView(QtWidgets.QTableView):
         self.setFocus(Qt.MouseFocusReason)
         self.scrollTo(self.model().index(row, 0))
 
-    def setRowCount(self, count: int):
-        if isinstance(self.model(), QtCore.QAbstractItemModel):
-            self.model().setRowCount(count)
+    def frozenTable(self, frozen: bool) -> bool:
+        for row in range(self.rowCount()):
+            if not self.frozenRow(row, frozen):
+                return False
 
-    def getTableData(self, role: Qt.ItemDataRole = Qt.DisplayRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return list()
-        return [self.getRowData(row, role) for row in range(model.rowCount())]
+        return True
 
-    def setTableData(self, data: typing.List[typing.Any], role: Qt.ItemDataRole = Qt.EditRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return False
+    def frozenRow(self, row: int, frozen: bool) -> bool:
+        for column in range(self.columnCount()):
+            if not self.frozenItem(row, column, frozen):
+                return False
 
-        if not isinstance(data, list) or len(data) != model.rowCount():
-            return False
+        return True
 
-        return sum([self.setRowData(row, data[row], role) for row in range(model.rowCount())]) == len(data)
+    def frozenColumn(self, column: int, frozen: bool) -> bool:
+        for row in range(self.rowCount()):
+            if not self.frozenItem(row, column, frozen):
+                return False
 
-    def getRowData(self, row: int, role: Qt.ItemDataRole = Qt.DisplayRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return list()
-
-        return [self.getItemData(row, column, role) for column in range(model.columnCount())]
-
-    def setRowData(self, row: int, data: typing.Sequence[typing.Any], role: Qt.ItemIsEditable = Qt.EditRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return False
-
-        if not isinstance(data, (list, tuple)) or len(data) != model.columnCount():
-            return False
-
-        return sum([self.setItemData(row, column, data[column], role)
-                    for column in range(model.columnCount())]) == len(data)
-
-    def getColumnData(self, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return list()
-
-        return [self.getItemData(row, column, role) for row in range(model.rowCount())]
-
-    def setColumnData(self, column: int, data: typing.Sequence[typing.Any], role: Qt.ItemDataRole = Qt.EditRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return False
-
-        if not isinstance(data, (list, tuple)) or len(data) != model.rowCount():
-            return False
-
-        return sum([self.setItemData(row, column, data[row], role)
-                    for row in range(model.rowCount())]) == len(data)
-
-    def getItemData(self, row: int, column: int, role: Qt.ItemDataRole = Qt.DisplayRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return ""
-
-        widget = self.indexWidget(self.model().index(row, column))
-        if isinstance(widget, QtWidgets.QWidget):
-            return ComponentManager.getComponentData(widget)
-        else:
-            return model.itemData(model.index(row, column, QtCore.QModelIndex())).get(role)
-
-    def setItemData(self, row: int, column: int, data: typing.Any, role: Qt.ItemDataRole = Qt.EditRole):
-        model = self.model()
-        if not isinstance(model, QtCore.QAbstractItemModel):
-            return False
-
-        # noinspection PyTypeChecker
-        return model.setData(model.index(row, column, QtCore.QModelIndex()), data, role)
+        return True
 
     def frozenItem(self, row: int, column: int, frozen: bool) -> bool:
         if not self.__checkRow(row) or not self.__checkColumn(column):
@@ -451,27 +354,6 @@ class TableView(QtWidgets.QTableView):
 
         return True
 
-    def frozenTable(self, frozen: bool) -> bool:
-        for row in range(self.rowCount()):
-            if not self.frozenRow(row, frozen):
-                return False
-
-        return True
-
-    def frozenRow(self, row: int, frozen: bool) -> bool:
-        for column in range(self.columnCount()):
-            if not self.frozenItem(row, column, frozen):
-                return False
-
-        return True
-
-    def frozenColumn(self, column: int, frozen: bool) -> bool:
-        for row in range(self.rowCount()):
-            if not self.frozenItem(row, column, frozen):
-                return False
-
-        return True
-
     @contextlib.contextmanager
     def autoScrollContextManager(self):
         auto_scroll_enabled = self.hasAutoScroll()
@@ -482,42 +364,6 @@ class TableView(QtWidgets.QTableView):
             self.setAutoScroll(True)
             yield
             self.setAutoScroll(False)
-
-    def setItemBackground(self, row: int, column: int, background: QtGui.QBrush) -> bool:
-        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(background, QtGui.QBrush):
-            return False
-
-        try:
-            item = self.item(row, column)
-            item.setBackground(background)
-        except AttributeError:
-            return False
-
-        return True
-
-    def setItemForeground(self, row: int, column: int, foreground: QtGui.QBrush) -> bool:
-        if not self.__checkRow(row) or not self.__checkColumn(column) or not isinstance(foreground, QtGui.QBrush):
-            return False
-
-        try:
-            item = self.item(row, column)
-            item.setForeground(foreground)
-        except AttributeError:
-            return False
-
-        return True
-
-    def setRowBackgroundColor(self, row: int, color: QtGui.QBrush):
-        [self.setItemBackground(row, column, color) for column in range(self.columnCount())]
-
-    def setRowForegroundColor(self, row: int, color: QtGui.QBrush):
-        [self.setItemForeground(row, column, color) for column in range(self.columnCount())]
-
-    def setColumnBackgroundColor(self, column: int, color: QtGui.QBrush):
-        [self.setItemBackground(row, column, color) for row in range(self.rowCount())]
-
-    def setColumnForegroundColor(self, column: int, color: QtGui.QBrush):
-        [self.setItemForeground(row, column, color) for row in range(self.rowCount())]
 
 
 class TableViewDelegate(QtWidgets.QItemDelegate):
