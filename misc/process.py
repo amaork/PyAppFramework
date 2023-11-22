@@ -186,7 +186,7 @@ class SubprocessWithTimeoutRead(object):
 
 def subprocess_startup_info(console_mode: bool = False):
     if platform.system().lower() == 'windows':
-        startup_info = subprocess.STARTUPINFO
+        startup_info = subprocess.STARTUPINFO()
         startup_info.dwFlags = subprocess.STARTF_USESHOWWINDOW
         startup_info.wShowWindow = subprocess.SW_HIDE
         return None if console_mode else startup_info
