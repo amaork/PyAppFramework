@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import abc
 import json
 import typing
@@ -7,8 +8,8 @@ import collections
 from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
 
-from ..core.database import DBTable
-__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'Rect', 'q2r', 'r2q']
+from ..core.database import DBTable, sqlite_create_tables
+__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'Rect', 'q2r', 'r2q', 'create_or_open_sqlite_db']
 
 
 Rect = collections.namedtuple('Rect', 'x y width height')
@@ -20,6 +21,23 @@ def q2r(q: QtCore.QRect) -> Rect:
 
 def r2q(r: Rect) -> QtCore.QRect:
     return QtCore.QRect(*r)
+
+
+def create_or_open_sqlite_db(db_name: str, tables: typing.Sequence[DBTable], verbose: bool = False) -> bool:
+    # Exist open it
+    if os.path.isfile(db_name):
+        db = QtSql.QSqlDatabase.addDatabase('QSQLITE')
+        db.setDatabaseName(db_name)
+        return db.open()
+
+    # Create database
+    if not sqlite_create_tables(db_name, tables, verbose):
+        return False
+
+    # Openit
+    db = QtSql.QSqlDatabase.addDatabase('QSQLITE')
+    db.setDatabaseName(db_name)
+    return db.open()
 
 
 class AbstractTableModel(QtCore.QAbstractTableModel):
@@ -55,7 +73,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         if not self._checkRowMoveUp(row):
             return False
 
-        return self.swapRow(row, row -1)
+        return self.swapRow(row, row - 1)
 
     def rowMoveDown(self, row: int) -> bool:
         if not self._checkRowMoveDown(row):
