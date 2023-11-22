@@ -650,7 +650,7 @@ class SQliteQueryView(BasicWidget):
     def rowCount(self) -> int:
         return self._model.record_count
 
-    def getTableData(self):
+    def getTableData(self) -> typing.List:
         return self._model.get_table_data()
 
     def getPKFromRow(self, row) -> typing.Any:
@@ -705,14 +705,20 @@ class SQliteQueryView(BasicWidget):
         if self._model.clear_table():
             self.signalRecordsCleared.emit()
             self.slotFlush()
+            return True
 
-    def slotUpdate(self, pk: typing.Any, data: dict):
-        self._model.update_record(pk, data)
+        return False
 
-    def slotAppend(self, record: dict, scroll_to_end: bool = True):
+    def slotUpdate(self, pk: typing.Any, data: dict) -> bool:
+        return self._model.update_record(pk, data)
+
+    def slotAppend(self, record: dict, scroll_to_end: bool = True) -> bool:
         if self._model.insert_record(record):
             self.slotFlush(scroll_to_end)
             self.ui_view.selectRow(self._model.rowCount() - 1)
+            return True
+
+        return False
 
     def slotSearch(self):
         value = self.ui_search_value.currentText()
@@ -760,6 +766,9 @@ class SQliteQueryView(BasicWidget):
             self.signalRecordDeleted.emit(primary_key)
             self.slotFlush()
             self.ui_view.selectRow(self._model.rowCount() - 1)
+            return True
+
+        return False
 
     def slotPageNumChanged(self, page, force: bool = False):
         self._model.flush_page(page - 1, force)
