@@ -31,9 +31,8 @@ class TableView(QtWidgets.QTableView):
     signalRequestRowMoveToTop = QtCore.Signal(int)
     signalRequestRowMoveToBottom = QtCore.Signal(int)
 
-    ALL_ACTION = 0x7
-    SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
-    COMM_ACTION, MOVE_ACTION, FROZEN_ACTION, CUSTOM_ACTION = SUPPORT_ACTIONS
+    ALL_ACTION = 0xf
+    Action = collections.namedtuple('Action', ['COMM', 'MOVE', 'FROZEN', 'CUSTOM'])(*(0x1, 0x2, 0x4, 0x8))
 
     def __init__(self, disable_custom_content_menu: bool = True, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableView, self).__init__(parent)
@@ -44,11 +43,11 @@ class TableView(QtWidgets.QTableView):
         self.__scale_x, self.__scale_y = get_program_scale_factor()
 
         for group, actions in {
-            self.COMM_ACTION: [
+            self.Action.COMM: [
                 (QtWidgets.QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
             ],
 
-            self.MOVE_ACTION: [
+            self.Action.MOVE: [
                 (
                         QtWidgets.QAction(self.tr("Move Up"), self),
                         lambda: self.signalRequestRowMoveUp.emit(self.getCurrentRow())
@@ -102,7 +101,7 @@ class TableView(QtWidgets.QTableView):
         return True
 
     def __slotShowContentMenu(self, pos: QtCore.QPoint):
-        for group in self.SUPPORT_ACTIONS:
+        for group in self.Action:
             enabled = group & self.__contentMenuEnableMask
             for action in self.__contentMenu.actions():
                 if action.property("group") == group:
@@ -144,7 +143,7 @@ class TableView(QtWidgets.QTableView):
         super().setModel(model)
 
     def setContentMenuMask(self, mask: int):
-        for group in self.SUPPORT_ACTIONS:
+        for group in self.Action:
             if mask & group:
                 self.__contentMenuEnableMask |= group
             else:
@@ -160,10 +159,12 @@ class TableView(QtWidgets.QTableView):
             if not isinstance(action, QtWidgets.QAction):
                 continue
 
-            action.setProperty("group", self.CUSTOM_ACTION)
+            action.setProperty("group", self.Action.CUSTOM)
             self.__contentMenu.addAction(action)
 
-        self.__contentMenu.addSeparator()
+        if menu:
+            self.__contentMenu.addSeparator()
+            self.setContentMenuMask(self.Action.CUSTOM)
 
     def item(self, row: int, column: int) -> typing.Union[QtWidgets.QTableWidgetItem, None]:
         if not self.__checkRow(row) or not self.__checkColumn(column):

@@ -188,12 +188,14 @@ class CommunicationController:
     def is_comm_idle(self, remain: int = 1) -> bool:
         return self._queue.qsize() <= remain
 
-    def disconnect(self):
+    def disconnect(self, send_event: bool = False):
         self._exit.set()
         self._transmit.disconnect()
         while self._queue.qsize():
             self._queue.get()
-        self.send_event(self._event_cls.disconnected('active disconnect'))
+
+        if send_event:
+            self.send_event(self._event_cls.disconnected('active disconnect'))
 
     def reset_section(self, sid: int = 0):
         self._section_seq.assign(sid)
@@ -358,7 +360,7 @@ class CommunicationController:
                             self.error_msg(msg)
                             self.send_event(self._event_cls.disconnected(msg))
                     except (AttributeError, TransmitException) as e:
-                        self.disconnect()
+                        self.disconnect(send_event=True)
                         self.error_msg(f'[{self.__class__.__name__}] Communication exception: {e}({request})')
                         self._latest_section = CommunicationSection(request, e)
                         self.send_event(self._event_cls.exception(f'Communication exception：{e}'))

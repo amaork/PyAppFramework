@@ -402,6 +402,8 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
                 self._cur_page = 0
                 return True
 
+            return True
+
         return False
 
     def flush_page(self, page: int, force: bool = False):
