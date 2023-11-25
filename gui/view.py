@@ -26,6 +26,7 @@ class TableView(QtWidgets.QTableView):
     tableDataChanged = QtCore.Signal()
 
     # Custom menu signals
+    signalRequestClearAll = QtCore.Signal()
     signalRequestRowMoveUp = QtCore.Signal(int)
     signalRequestRowMoveDown = QtCore.Signal(int)
     signalRequestRowMoveToTop = QtCore.Signal(int)
@@ -44,7 +45,9 @@ class TableView(QtWidgets.QTableView):
 
         for group, actions in {
             self.Action.COMM: [
-                (QtWidgets.QAction(self.tr("Clear All"), self), lambda: self.model().setRowCount(0)),
+                (
+                        QtWidgets.QAction(self.tr("Clear All"), self), lambda: self.signalRequestClearAll.emit()
+                ),
             ],
 
             self.Action.MOVE: [
@@ -134,6 +137,8 @@ class TableView(QtWidgets.QTableView):
                     if model.rowMoveToBottom(row):
                         self.setCurrentRow(self.rowCount() - 1)
                         self.tableDataChanged.emit()
+
+            self.signalRequestClearAll.connect(model.clearAll)
 
             self.signalRequestRowMoveUp.connect(rowMoveUp)
             self.signalRequestRowMoveDown.connect(rowMoveDown)
