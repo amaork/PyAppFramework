@@ -194,6 +194,8 @@ class CommunicationController:
         while self._queue.qsize():
             self._queue.get()
 
+        self._disconnect_callback()
+
         if send_event:
             self.send_event(self._event_cls.disconnected('active disconnect'))
 
@@ -212,6 +214,7 @@ class CommunicationController:
             self._timeout_cnt.reset()
             self._section_seq.reset()
             threading.Thread(target=self.thread_comm_with_device, daemon=True).start()
+            self._connect_callback()
             self.info_msg(f'Connected: {address}, timeout:{timeout}')
             self.send_event(self._event_cls.connected(address, timeout))
             return True
@@ -250,6 +253,12 @@ class CommunicationController:
 
     def _log_color(self, level: int) -> str:
         return ''
+
+    def _connect_callback(self):
+        pass
+
+    def _disconnect_callback(self):
+        pass
 
     @abc.abstractmethod
     def _simulate_handle(self, request: CommunicationObject) -> bool:
