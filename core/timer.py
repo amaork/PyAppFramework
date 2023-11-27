@@ -5,12 +5,13 @@ import inspect
 import traceback
 import threading
 import collections
-from typing import Optional, Callable, Any, Tuple
+from typing import Optional, Callable, Any, Tuple, TypeVar
 
 from .datatype import DynamicObject
 from .utils import util_check_arguments, util_auto_kwargs
 from .threading import ThreadLockAndDataWrap, ThreadConditionWrap, ThreadSafeBool
 __all__ = ['SwTimer', 'Tasklet', 'Task']
+TL = TypeVar('TL', bound='Tasklet')
 
 
 class SwTimer(object):
@@ -192,12 +193,16 @@ class Task(DynamicObject):
         self.reload()
         self.runtime.tasklet = None
 
-    def attach(self, tasklet):
-        """Attach task to tasklet
+    def attach(self, tasklet: TL, timeout: float = None):
+        """Attach task to tasklet and update timeout
 
-        :param tasklet:
+        :param tasklet: Tasklet to attach
+        :param timeout: task timeout
         :return:
         """
+        if isinstance(timeout, float):
+            self.update(dict(timeout=timeout))
+
         self.runtime.tasklet = tasklet
         self.runtime.update(dict(timeout=self.timeout, cnt=0))
 
