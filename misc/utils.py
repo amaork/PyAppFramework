@@ -13,8 +13,11 @@ from xml.dom import minidom
 from typing import List, Dict
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
-__all__ = ['awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
-           'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after']
+__all__ = [
+    'awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
+    'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after',
+    'size_convert'
+]
 
 
 def awk_query(cmd: str, keyword: str, position: int) -> str:
@@ -136,6 +139,17 @@ def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
         return False
 
     return False
+
+
+def size_convert(size: int, decimals: typing.Dict[str, int] = None) -> str:
+    decimals = decimals or dict()
+    units = 'KMGTPEZY'
+
+    for i, unit in enumerate(units):
+        if 2 ** (i * 10) <= size < 2 ** ((i + 1) * 10):
+            return f'{size / (2 ** (i * 10)):.{decimals.get(unit, i + 1)}f}{unit}'
+
+    return f'{size}'
 
 
 @contextlib.contextmanager
