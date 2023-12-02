@@ -188,6 +188,22 @@ class CommunicationController:
     def is_comm_idle(self, remain: int = 1) -> bool:
         return self._queue.qsize() <= remain
 
+    def wait_comm_idle(self, interval: float = 0.01, remain: int = 1,
+                       condition: typing.Callable[[], bool] = lambda: True) -> bool:
+        """Wait communication idle
+
+        :param interval: wait interval
+        :param remain: comm queue remain request count
+        :param condition: if condition is not fulfilled return false
+        :return: condition not fulfilled return false, otherwise return true
+        """
+        while not self.is_comm_idle(remain=remain):
+            if not condition():
+                return False
+            time.sleep(interval)
+
+        return condition()
+
     def disconnect(self, send_event: bool = False):
         self._exit.set()
         self._transmit.disconnect()
