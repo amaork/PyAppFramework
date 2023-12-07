@@ -88,7 +88,7 @@ class LoggerWrap:
     DefaultFormat = '%(asctime)s %(levelname)s %(message)s'
 
     def __init__(self, filename: str, fmt: str = DefaultFormat,
-                 level: int = logging.DEBUG, stream_level: int = logging.DEBUG, propagate: bool = False):
+                 level: int = logging.DEBUG, stream_level: int = logging.ERROR, propagate: bool = False):
         # Get logger and set level and propagate
         self._logger = logging.getLogger(filename)
         self._logger.propagate = propagate

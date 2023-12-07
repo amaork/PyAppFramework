@@ -6,11 +6,12 @@ import typing
 import inspect
 import collections
 import multiprocessing
+from ..misc.process import launch_program
 from ..misc.debug import LoggerWrap, JsonSettingsWithDebugCode
 from ..core.datatype import CustomEvent, FrozenJSON, DynamicObject, DynamicObjectDecodeError
 from .transmit import TCPSocketTransmit, TCPClientTransmit, TransmitException, TransmitWarning, TCPServerTransmitHandle
 __all__ = ['SRPCMessage', 'SRPCAPIWrap', 'SRPCSettings', 'SRPCException', 'SRPCServer',
-           'send_msg_to_client', 'send_msg_to_server', 'start_srpc_server']
+           'send_msg_to_client', 'send_msg_to_server', 'start_srpc_server', 'boot_srpc_server']
 HandleType = typing.Tuple[typing.Callable, bool]
 
 
@@ -209,7 +210,7 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
     :param version: server version string
     :param msg_cls: rpc message class
     :param handles: rpc message handles
-    :param extra_arg: handle extra arg, (arg name, arg value)
+    :param extra_arg: handles extra arg, (arg name, arg value)
     :param wait_forever: wait forever set this as true
     :param verbose: server enable verbose print
     :return: SRPCServer instance and stop server flag
@@ -235,3 +236,8 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
             print('SRPC server exit!!!!')
 
     return server, stop_flag
+
+
+def boot_srpc_server(settings: SRPCSettings):
+    launch_program(settings.launch_cmd, settings.app_path, settings.is_cmd_mode())
+
