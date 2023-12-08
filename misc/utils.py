@@ -16,7 +16,7 @@ from xml.etree.ElementTree import Element as XmlElement
 __all__ = [
     'awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
     'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after',
-    'size_convert'
+    'size_convert', 'create_file_if_not_exist'
 ]
 
 
@@ -150,6 +150,27 @@ def size_convert(size: int, decimals: typing.Dict[str, int] = None) -> str:
             return f'{size / (2 ** (i * 10)):.{decimals.get(unit, i + 1)}f}{unit}'
 
     return f'{size}'
+
+
+def create_file_if_not_exist(name: str, data: bytes) -> str:
+    """Create file if it's not exist
+
+    :param name: filename
+    :param data: filedata
+    :return: filename
+    """
+    try:
+        if not pathlib.Path(name).stat().st_size:
+            raise RuntimeError('file is empty')
+    except (OSError, RuntimeError):
+        try:
+            os.makedirs(os.path.dirname(name), 0o755, True)
+            with open(name, 'wb') as fp:
+                fp.write(data)
+        except OSError:
+            return ''
+
+    return name
 
 
 @contextlib.contextmanager

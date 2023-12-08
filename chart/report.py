@@ -31,6 +31,10 @@ class ReportlabGenerator:
         ('SIZE', (0, 0), (-1, -1), 12),
     ])
 
+    CustomStyle = collections.namedtuple(
+        'CustomStyle', 'Title Heading Abstract'
+    )(*'CustomTitle CustomHeading CustomAbstract'.split())
+
     def __init__(self, landscape=ps.A3):
         self.story = list()
         self.landscape = landscape
@@ -39,15 +43,15 @@ class ReportlabGenerator:
         # Customize style
         self.styles = getSampleStyleSheet()
         self.styles.add(ParagraphStyle(
-            name='CustomTitle', parent=self.styles['Title'], fontName='SimSun', leading=32, fontSize=36
+            name=self.CustomStyle.Title, parent=self.styles['Title'], fontName='SimSun', leading=32, fontSize=36
         ))
 
         self.styles.add(ParagraphStyle(
-            name='CustomHeading', parent=self.styles['Heading1'], fontName='SimSun', fontSize=26
+            name=self.CustomStyle.Heading, parent=self.styles['Heading1'], fontName='SimSun', fontSize=26
         ))
 
         self.styles.add(ParagraphStyle(
-            name='CustomAbstract', parent=self.styles['Heading2'], fontName='SimSun', fontSize=16
+            name=self.CustomStyle.Abstract, parent=self.styles['Heading2'], fontName='SimSun', fontSize=16
         ))
 
     def __del_tempdir(self):
@@ -62,6 +66,9 @@ class ReportlabGenerator:
     def get_style(self, name: str) -> ParagraphStyle:
         return self.styles[name]
 
+    def get_paragraph(self, c: str, style_name: str = CustomStyle.Heading, style: ParagraphStyle = None) -> Paragraph:
+        return Paragraph(c, style or self.get_style(style_name))
+
     def append_page_break(self):
         self.story.append(PageBreak())
 
@@ -70,7 +77,7 @@ class ReportlabGenerator:
 
     def append_empty_line(self, count: int = 1):
         for i in range(count):
-            self.append_paragraph('', 'CustomHeading')
+            self.append_paragraph('', self.CustomStyle.Heading)
 
     def append_stories(self, stories: typing.Sequence):
         self.story.extend(stories)
@@ -78,14 +85,14 @@ class ReportlabGenerator:
     def append_paragraph(self, content: str, style: str):
         self.story.append(Paragraph(content, style=self.styles[style]))
 
-    def append_abstract(self, abstract: typing.Sequence[str], style: str = 'CustomAbstract'):
+    def append_abstract(self, abstract: typing.Sequence[str], style: str = CustomStyle.Abstract):
         for content in abstract:
             self.append_paragraph(content, style)
 
-    def append_title(self, title: str, style: str = 'CustomTitle'):
+    def append_title(self, title: str, style: str = CustomStyle.Title):
         self.append_paragraph(title, style)
 
-    def append_heading(self, heading: str, style: str = 'CustomHeading'):
+    def append_heading(self, heading: str, style: str = CustomStyle.Heading):
         self.append_paragraph(heading, style)
 
     def append_table(self, table: typing.List, header: typing.Sequence[TableHeader],
