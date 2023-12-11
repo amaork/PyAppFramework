@@ -464,7 +464,7 @@ class ModbusTCPClientEvent(CommunicationEvent):
 
 class ModbusTCPClient:
     def __init__(self, host: str, event_callback: typing.Callable[[ModbusTCPClientEvent], None], **kwargs):
-        self.queue = queue.Queue()
+        self.queue = queue.PriorityQueue()
         self.event_callback = event_callback
         self.is_alive = ThreadSafeBool(False)
         self.tasklet = Tasklet(schedule_interval=1)
@@ -477,8 +477,10 @@ class ModbusTCPClient:
         if not self.is_alive:
             return
 
-        self.queue.put(args)
         name, fc, requests = args
+        # Read has higher priority
+        self.queue.put((1 if isinstance(requests, WriteRequest) else 0, args))
+
         if fc not in (FuncCode.ReadCoils, FuncCode.ReadRegs):
             self.event_callback(ModbusTCPClientEvent.debug(f'TX:[{name}] >>> {requests}'))
 
@@ -511,7 +513,8 @@ class ModbusTCPClient:
                 time.sleep(0.1)
                 continue
 
-            name, fc, request = self.queue.get()
+            _, args = self.queue.get()
+            name, fc, request = args
             func = functions.get(fc)
             if not callable(func):
                 self.event_callback(ModbusTCPClientEvent.error('invalid function code'))

@@ -16,11 +16,14 @@ ModbusWriteRequest = collections.namedtuple('ModbusWriteRequest', 'name fc reque
 
 
 class ModbusAddressModel(AbstractTableModel):
-    Column = collections.namedtuple('Column', 'Name Address Type State Desc')(*range(5))
+    Column = collections.namedtuple('Column', 'Name Address Type State Ctrl Desc')(*range(6))
 
     def __init__(self, table: Table, parent: QtWidgets.QWidget = None):
         super(ModbusAddressModel, self).__init__(parent=parent)
-        self._header = (self.tr('Name'), self.tr('Modbus Address'), self.tr('R/W'), self.tr('State'), self.tr('Desc'))
+        self._header = (
+            self.tr('Name'), self.tr('Address'),
+            self.tr('R/W'), self.tr('State'), self.tr('Ctrl'), self.tr('Desc')
+        )
 
         self.table = table
         self._address_list = list()
@@ -28,7 +31,7 @@ class ModbusAddressModel(AbstractTableModel):
         self.fc = helper_get_func_code(table.type)
         for name, address in table.address_list.items():
             address = Address(**address)
-            self._table.append([name, f'{address.ma}', ('R/W', 'RD')[address.ro], 0, address.annotate])
+            self._table.append([name, f'{address.ma}', ('R/W', 'RD')[address.ro], 0, 0, address.annotate])
             self._user.append([address])
             self._address_list.append(address)
 
@@ -52,7 +55,7 @@ class ModbusAddressModel(AbstractTableModel):
         except ValueError:
             return QtCore.QModelIndex(), None
         else:
-            index = self.index(row, self.Column.State)
+            index = self.index(row, self.Column.Ctrl)
             return index, self.getDisplay(index)
 
     def updateDisplay(self, response: ReadResponse):
@@ -74,7 +77,7 @@ class ModbusAddressModel(AbstractTableModel):
         self.dataChanged.emit(self.index(-1, -1), self.index(-1, -1), Qt.DisplayRole)
 
     def isReadonly(self, index: QtCore.QModelIndex) -> bool:
-        if index.column() != self.Column.State:
+        if index.column() != self.Column.Ctrl:
             return True
 
         attr = self.getModbusAddress(index)
@@ -130,19 +133,23 @@ class ModbusAddressView(QtWidgets.QTabWidget):
 
             view.setModel(model)
             view.setNoSelection()
-            view.setColumnStretchFactor((0.25, 0.12, 0.12, 0.1))
+            view.setColumnStretchFactor((0.25, 0.1, 0.08, 0.15, 0.15))
 
             if table.type in (DataType.Bit, DataType.Coil):
-                delegate.setColumnDelegate({ModbusAddressModel.Column.State: UiCheckBoxInput(table.type)})
+                delegate.setColumnDelegate({
+                    ModbusAddressModel.Column.Ctrl: UiCheckBoxInput(table.type),
+                    ModbusAddressModel.Column.State: UiCheckBoxInput(table.type)
+                })
                 view.setItemDelegate(delegate)
 
                 for row in range(model.rowCount()):
+                    view.openPersistentEditor(model.index(row, ModbusAddressModel.Column.Ctrl))
                     view.openPersistentEditor(model.index(row, ModbusAddressModel.Column.State))
 
                 for row in range(model.rowCount()):
-                    index = model.index(row, model.Column.State)
-                    if model.isReadonly(index):
-                        view.frozenItem(row, index.column(), True)
+                    view.frozenItem(row, model.Column.State, True)
+                    if model.isReadonly(model.index(row, model.Column.Ctrl)):
+                        view.frozenItem(row, model.Column.Ctrl, True)
             else:
                 filter_ = dict()
                 for row in range(model.rowCount()):
@@ -152,7 +159,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
                         input_ = UiIntegerInput(table.type, 0, maximum=(1 << bits) - 1)
                     else:
                         input_ = UiDoubleInput(table.type, -999999999.0, 999999999.0, decimals=4)
-                    filter_[(row, ModbusAddressModel.Column.State)] = input_
+                    filter_[(row, ModbusAddressModel.Column.Ctrl)] = input_
 
                 delegate.setItemDelegate(filter_)
                 view.setItemDelegate(delegate)
