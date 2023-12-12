@@ -168,14 +168,17 @@ class QuestionBoxMail(BaseUiMail):
 
 class ProgressBarMail(BaseUiMail):
     def __init__(self, progress: int, content: str = '', title: str = '',
-                 closeable: bool = False, increase: int = 0, interval: float = 0.0):
+                 closeable: bool = False, increase: int = 0, interval: float = 0.0,
+                 cancelable: bool = False, cancel_callback: typing.Callable = None):
         super(ProgressBarMail, self).__init__(content)
-        self._increase = increase
-        self._interval = interval
+        self.increase = increase
+        self.interval = interval
 
         self.title = title
         self._progress = progress
-        self._closeable = closeable
+        self.closeable = closeable
+        self.cancelable = cancelable
+        self.cancel_callback = cancel_callback
 
     @property
     def progress(self) -> int:
@@ -185,20 +188,8 @@ class ProgressBarMail(BaseUiMail):
     def progress(self, progress: int):
         self._progress = progress
 
-    @property
-    def closeable(self) -> bool:
-        return self._closeable
-
-    @property
-    def increase(self) -> int:
-        return self._increase
-
-    @property
-    def interval(self) -> float:
-        return self._interval
-
     def autoIncreaseEnabled(self) -> bool:
-        return self._increase > 0 and self.interval > 0.0
+        return self.increase > 0 and self.interval > 0.0
 
 
 class StatusBarWidgetMail(BaseUiMail):
@@ -371,6 +362,8 @@ class UiMailBox(QObject):
                 self.__progress.setLabelText(mail.content)
                 self.__progress.setProgress(mail.progress)
                 self.__progress.setCloseable(mail.closeable)
+                self.__progress.setCancelable(mail.cancelable)
+                self.__progress.setCancelCallback(mail.cancel_callback)
 
                 if mail.autoIncreaseEnabled():
                     self.__pai_task = self.__tasklet.add_task(

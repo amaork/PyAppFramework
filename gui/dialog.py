@@ -547,6 +547,8 @@ class ProgressDialog(QProgressDialog):
         self.__canceled = False
         self.__closeable = closeable
         self.__cancelable = cancelable
+        self.__canceled_callback = None
+
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
@@ -565,8 +567,11 @@ class ProgressDialog(QProgressDialog):
             if showQuestionBox(self, self.tr("Cancel") + " " + self.windowTitle() + " ?"):
                 self.setLabelText(self.tr("Canceling please wait..."))
                 self.setCancelState(True)
-
-            ev.ignore()
+                if callable(self.__canceled_callback):
+                    self.__canceled_callback()
+                    self.slotHidden()
+            else:
+                ev.ignore()
 
     def showEvent(self, ev: QShowEvent):
         self.setCancelState(False)
@@ -590,6 +595,9 @@ class ProgressDialog(QProgressDialog):
     def setCancelState(self, st: bool):
         self.__canceled = True if st else False
         self.progressCanceled.emit(self.__canceled)
+
+    def setCancelCallback(self, callback: typing.Callable):
+        self.__canceled_callback = callback
 
     def setLabelText(self, text: str):
         if self.isCanceled():
