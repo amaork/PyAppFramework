@@ -9,8 +9,9 @@ import ipaddress
 import collections
 import collections.abc
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'ComparableXml', 'CustomEvent', 'FrozenJSON',
-           'DynamicObject', 'DynamicObjectEncoder',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE',
+           'ComparableXml', 'CustomEvent',
+           'FrozenJSON', 'DynamicObject', 'DynamicObjectEncoder',
            'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
            'str2float', 'str2number', 'resolve_number', 'ip4_check', 'port_check',
            'convert_property', 'float_property', 'integer_property', 'enum_property']
@@ -202,6 +203,7 @@ class DynamicObject(object):
     _check = dict()
     _properties = set()
     _json_decoder = None
+    _json_encoder = None
     _json_dump_sequence = ()
 
     def __init__(self, **kwargs):
@@ -276,7 +278,7 @@ class DynamicObject(object):
 
         :return:
         """
-        return json.dumps(self.__dict__, cls=self._json_decoder)
+        return json.dumps(self.__dict__, cls=self._json_encoder)
 
     def update(self, data):
         if not isinstance(data, (dict, DynamicObject)):
@@ -302,6 +304,8 @@ class DynamicObjectEncoder(json.JSONEncoder):
     def default(self, o: typing.Any) -> typing.Any:
         if isinstance(o, DynamicObject):
             return o.dict
+        elif isinstance(o, bytes):
+            return o.hex()
 
         return super().default(o)
 
