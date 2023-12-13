@@ -113,8 +113,8 @@ class ReportlabGenerator:
         chart = canvas.generatePieAndSave(values, ingredients, os.path.join(self.tempdir, f'pie_{name}.png'), attr)
         self.append_story(Image(chart))
 
-    def generate_report(self, path: str):
-        doc = SimpleDocTemplate(path)
+    def generate_report(self, path: str, doc: typing.Optional[SimpleDocTemplate] = None):
+        doc = doc or SimpleDocTemplate(path)
         doc.pagesize = self.landscape
         doc.build(self.story)
         self.__del_tempdir()
