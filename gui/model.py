@@ -228,6 +228,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
 class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
+    signalDBDataChanged = QtCore.Signal(str)
 
     def __init__(self, db_name: str, tbl: DBTable,
                  display_columns: typing.Sequence[str] = None, condition: str = '',
@@ -392,11 +393,16 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
         if self._verbose:
             print(query_obj.lastError().text())
 
+        if query_result:
+            self.signalDBDataChanged.emit(self.tbl.name)
+
         return query_result, query_obj
 
     def clear_table(self) -> bool:
         query = QtSql.QSqlQuery()
         if query.exec_(f'DELETE FROM {self.tbl_name}'):
+            self.signalDBDataChanged.emit(self.tbl.name)
+
             if query.exec_(f'UPDATE {self.SQLITE_SEQ_TBL_NAME} SET seq = 0 WHERE name = "{self.tbl_name}";'):
                 # Reset current page
                 self._cur_page = 0
