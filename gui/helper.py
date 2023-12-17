@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import time
 import typing
 import threading
 
@@ -8,8 +7,9 @@ from ..misc.utils import wait_timeout
 from ..misc.debug import ExceptionHandle
 from ..core.threading import ThreadConditionWrap
 from .mailbox import UiMailBox, MessageBoxMail, QuestionBoxMail, ProgressBarMail
-__all__ = ['ExceptionHandleMsgBox', 'ProgressBarContextManager',
-           'showMessageBoxFromThread', 'showQuestionBoxFromThread']
+__all__ = [
+    'ExceptionHandleMsgBox', 'ProgressBarContextManager',
+    'showMessageBoxFromThread', 'showQuestionBoxFromThread', 'saveFileToFSFromThread', 'loadFileFromFSFromThread']
 
 
 class ExceptionHandleMsgBox(ExceptionHandle):
@@ -80,3 +80,24 @@ def showQuestionBoxFromThread(mailbox: UiMailBox, content: str, title: str = '')
     condition = ThreadConditionWrap()
     mailbox.send(QuestionBoxMail(content, title, condition))
     return condition.wait()
+
+
+def saveFileToFSFromThread(data: bytes, path: str, mailbox: UiMailBox) -> bool:
+    try:
+        with open(path, 'wb') as fp:
+            fp.write(data)
+    except OSError as e:
+        mailbox.send(MessageBoxMail(MB_TYPE_ERR, f'Save file to filesystem failed: {e}'))
+        return False
+    else:
+        mailbox.send(MessageBoxMail(MB_TYPE_INFO, f'{path}'))
+        return True
+
+
+def loadFileFromFSFromThread(path: str, mailbox: UiMailBox) -> bytes:
+    try:
+        with open(path, 'rb') as fp:
+            return fp.read()
+    except OSError as e:
+        mailbox.send(MessageBoxMail(MB_TYPE_ERR, f'Load file from filesystem failed: {e}'))
+        return bytes()
