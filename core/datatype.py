@@ -3,6 +3,7 @@ import sys
 import math
 import json
 import ctypes
+import base64
 import typing
 import keyword
 import ipaddress
@@ -305,7 +306,7 @@ class DynamicObjectEncoder(json.JSONEncoder):
         if isinstance(o, DynamicObject):
             return o.dict
         elif isinstance(o, bytes):
-            return o.hex()
+            return base64.b64encode(o).decode()
 
         return super().default(o)
 

@@ -2,13 +2,14 @@
 import os
 import time
 import json
+import base64
 import random
 import typing
 import shutil
 import sqlite3
 import hashlib
 import collections
-from .datatype import DynamicObject, str2float, str2number, DynamicObjectError
+from .datatype import DynamicObject, DynamicObjectEncoder, DynamicObjectError, str2float, str2number
 from typing import Any, Optional, Union, List, Tuple, Sequence, Dict, Callable
 from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
 
@@ -103,6 +104,22 @@ class DBTable:
     @property
     def is_autoincrement(self) -> bool:
         return any(x.is_autoinc() for x in self.scheme)
+
+    @staticmethod
+    def encode_blob_data(data: typing.Any) -> str:
+        if isinstance(data, bytes):
+            return json.dumps(base64.b64encode(data).decode())
+        elif isinstance(data, dict):
+            return f"'{json.dumps(data, ensure_ascii=False, cls=DynamicObjectEncoder)}'"
+        else:
+            return json.dumps(data, ensure_ascii=False)
+
+    @staticmethod
+    def decode_blob_data(data: str) -> typing.Any:
+        try:
+            return json.loads(data)
+        except json.decoder.JSONDecodeError:
+            return base64.b64decode(data)
 
     def columns_name(self) -> typing.Tuple[str, ...]:
         return tuple([x.name for x in self.scheme if not x.is_autoinc()])
