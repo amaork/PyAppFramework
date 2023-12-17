@@ -314,6 +314,7 @@ class TableView(QtWidgets.QTableView):
         self.selectRow(row)
         self.setFocus(Qt.MouseFocusReason)
         self.scrollTo(self.model().index(row, 0))
+        self.clicked.emit(self.model().index(row, 0))
 
     def frozenTable(self, frozen: bool) -> bool:
         for row in range(self.rowCount()):

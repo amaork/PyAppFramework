@@ -99,6 +99,7 @@ class SimpleColorDialog(QDialog):
         :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
         :param color: init color
         :param button_box: with or without ok cancel button box
+        :param title: dialog title
         :param parent:
         :return:
         """
@@ -604,6 +605,12 @@ class ProgressDialog(QProgressDialog):
             return
 
         self.setWhatsThis(text)
+
+        # Make sure label text can fully show up
+        width = int(QtGui.QFontMetrics(self.font()).width(text) * 1.5)
+        if self.width() < width:
+            self.setMinimumWidth(width)
+
         super(ProgressDialog, self).setLabelText(text)
 
     def setProgress(self, value: int, force: bool = False):
