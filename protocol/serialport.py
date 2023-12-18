@@ -428,7 +428,11 @@ class SerialPort(object):
 
         data = bytes()
         while len(data) < size and time.time() - start < timeout:
-            data += self.__port.read(size - len(data))
+            try:
+                data += self.__port.read(size - len(data))
+            except TypeError:
+                break
+
             if data and callable(self.__ending_check) and self.__ending_check(data):
                 break
 
