@@ -87,7 +87,7 @@ class Transmit(object):
 
 class UARTTransmit(Transmit):
     VERBOSE = False
-    RESPONSE_MIN_LEN = 4
+    RESPONSE_MIN_LEN = 1
     DEFAULT_TIMEOUT = 0.1
 
     def __init__(self, length_fmt: str = '',
@@ -431,7 +431,7 @@ class TCPServerTransmitHandle:
 class UartTransmitCustomize(UARTTransmit):
     def __init__(self, length_fmt: str = '',
                  msg_check: Optional[Callable[[bytes], bool]] = None,
-                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None):
+                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None, **kwargs):
         """UartTransmitCustomize
 
         :param length_fmt: msg header length struct format
@@ -443,7 +443,7 @@ class UartTransmitCustomize(UARTTransmit):
         self.__msg_check = msg_check
         self.__checksum = checksum
         self.__checksum_len = checksum_len
-        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt, checksum=checksum)
+        super().__init__(ending_check=self.ending_check, length_fmt=length_fmt, checksum=checksum, **kwargs)
 
     def ending_check(self, data: bytes) -> bool:
         try:
@@ -464,12 +464,14 @@ class UartTransmitCustomize(UARTTransmit):
 
 class UartTransmitWithProtobufEndingCheck(UartTransmitCustomize):
     def __init__(self, msg_cls, length_fmt: str = '',
-                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None):
+                 checksum: Optional[Callable[[bytes], int]] = None, checksum_len: int = None, **kwargs):
         if not issubclass(msg_cls, Message):
             raise TypeError(f"'msg_cls' must be and {Message.__name__} type")
 
         self.__msg_cls = msg_cls
-        super().__init__(msg_check=self.msg_check, length_fmt=length_fmt, checksum=checksum, checksum_len=checksum_len)
+        super().__init__(
+            msg_check=self.msg_check, length_fmt=length_fmt, checksum=checksum, checksum_len=checksum_len, **kwargs
+        )
 
     def msg_check(self, data: bytes) -> bool:
         try:
