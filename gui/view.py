@@ -310,11 +310,12 @@ class TableView(QtWidgets.QTableView):
         # noinspection PyTypeChecker
         return self.setCurrentIndex(model.index(row, 0, QtCore.QModelIndex()))
 
-    def simulateSelectRow(self, row: int):
+    def simulateSelectRow(self, row: int, emit_signal: bool = False):
         self.selectRow(row)
         self.setFocus(Qt.MouseFocusReason)
         self.scrollTo(self.model().index(row, 0))
-        self.clicked.emit(self.model().index(row, 0))
+        if emit_signal:
+            self.clicked.emit(self.model().index(row, 0))
 
     def frozenTable(self, frozen: bool) -> bool:
         for row in range(self.rowCount()):
