@@ -1112,7 +1112,7 @@ class ImageWidget(PaintWidget):
 
 class TableWidget(QTableWidget):
     tableDataChanged = Signal()
-    ALL_ACTION = 0x7
+    ALL_ACTION = 0xF
     SUPPORT_ACTIONS = (0x1, 0x2, 0x4, 0x8)
     ACTION = collections.namedtuple('Action', ['COMM', 'MOVE', 'FROZEN', 'CUSTOM'])(*SUPPORT_ACTIONS)
 

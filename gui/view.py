@@ -151,8 +151,6 @@ class TableView(QtWidgets.QTableView):
         for group in self.Action:
             if mask & group:
                 self.__contentMenuEnableMask |= group
-            else:
-                self.__contentMenuEnableMask &= ~group
 
         if self.__contentMenuEnableMask:
             self.setContextMenuPolicy(Qt.CustomContextMenu)
