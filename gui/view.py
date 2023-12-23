@@ -159,11 +159,11 @@ class TableView(QtWidgets.QTableView):
 
     def setCustomContentMenu(self, menu: typing.List[QtWidgets.QAction]):
         for action in menu:
-            if not isinstance(action, QtWidgets.QAction):
-                continue
-
-            action.setProperty("group", self.Action.CUSTOM)
-            self.__contentMenu.addAction(action)
+            if isinstance(action, QtWidgets.QAction):
+                action.setProperty("group", self.Action.CUSTOM)
+                self.__contentMenu.addAction(action)
+            else:
+                self.__contentMenu.addSeparator()
 
         if menu:
             self.__contentMenu.addSeparator()
@@ -796,6 +796,11 @@ class SQliteQueryView(BasicWidget):
 
         if custom_content_menu:
             menu.addSeparator()
-            menu.addActions(custom_content_menu)
+
+            for action in custom_content_menu:
+                if action is None:
+                    menu.addSeparator()
+                else:
+                    menu.addAction(action)
 
         menu.popup(self.ui_view.viewport().mapToGlobal(pos))
