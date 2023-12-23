@@ -18,8 +18,8 @@ from ..misc.settings import *
 from ..core.timer import Task, Tasklet
 from ..core.datatype import DynamicObject
 from ..misc.windpi import get_program_scale_factor
-from ..gui.model import SQLiteQueryModel, AbstractTableModel
-__all__ = ['TableView', 'TableViewDelegate', 'SQLiteQueryView']
+from ..gui.model import SqliteQueryModel, AbstractTableModel
+__all__ = ['TableView', 'TableViewDelegate', 'SqliteQueryView']
 
 
 class TableView(QtWidgets.QTableView):
@@ -458,7 +458,7 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
         self.dataChanged.emit(index, data, self._private_data)
 
 
-class SQLiteQueryView(BasicWidget):
+class SqliteQueryView(BasicWidget):
     Group = 'group'
     signalRecordsCleared = QtCore.Signal()
     signalRequestScrollToTop = QtCore.Signal()
@@ -466,7 +466,7 @@ class SQLiteQueryView(BasicWidget):
     signalRecordDeleted = QtCore.Signal(object)
     ToolGroups = collections.namedtuple('ToolGroups', 'Date Search PageTurnCtrl')(*'date search pt_ctrl'.split())
 
-    def __init__(self, model: SQLiteQueryModel,
+    def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float] = None,
                  custom_content_menu: typing.Dict[
                      QtWidgets.QAction, typing.Callable[[QtCore.QModelIndex], bool]
@@ -513,7 +513,7 @@ class SQLiteQueryView(BasicWidget):
         self._date_search_columns = model.date_search_columns if auto_init else date_search_columns
         self._precisely_search_columns = model.precisely_search_columns if auto_init else precisely_search_columns
 
-        super(SQLiteQueryView, self).__init__(parent)
+        super(SqliteQueryView, self).__init__(parent)
         self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
 
     def _initUi(self):
@@ -628,7 +628,7 @@ class SQLiteQueryView(BasicWidget):
         self.signalRequestScrollToBottom.connect(self.ui_view.scrollToBottom)
 
     @property
-    def model(self) -> SQLiteQueryModel:
+    def model(self) -> SqliteQueryModel:
         return self._model
 
     @abc.abstractmethod
@@ -651,7 +651,7 @@ class SQLiteQueryView(BasicWidget):
             self.ui_page_num.setRange(1, self._model.total_page)
             self._model.rows_per_page = self.ui_view.geometry().height() / self._row_autoincrement_factor
 
-        super(SQLiteQueryView, self).resizeEvent(event)
+        super(SqliteQueryView, self).resizeEvent(event)
 
     def rowCount(self) -> int:
         return self._model.record_count

@@ -9,7 +9,7 @@ from PySide2.QtCore import Qt
 from PySide2 import QtSql, QtCore, QtGui
 
 from ..core.database import DBTable, sqlite_create_tables
-__all__ = ['AbstractTableModel', 'SQLiteQueryModel', 'Rect', 'q2r', 'r2q', 'create_or_open_sqlite_db']
+__all__ = ['AbstractTableModel', 'SqliteQueryModel', 'Rect', 'q2r', 'r2q', 'create_or_open_sqlite_db']
 
 
 Rect = collections.namedtuple('Rect', 'x y width height')
@@ -226,7 +226,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         pass
 
 
-class SQLiteQueryModel(QtSql.QSqlQueryModel):
+class SqliteQueryModel(QtSql.QSqlQueryModel):
     SQLITE_SEQ_TBL_NAME = 'sqlite_sequence'
     signalDBDataChanged = QtCore.Signal(str)
 
@@ -241,7 +241,7 @@ class SQLiteQueryModel(QtSql.QSqlQueryModel):
 
         self._columns = display_columns or self.tbl.display_columns()
         self._condition = condition
-        super(SQLiteQueryModel, self).__init__(parent)
+        super(SqliteQueryModel, self).__init__(parent)
 
         # Create placeholder
         need_clear = False
