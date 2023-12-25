@@ -523,7 +523,7 @@ class SqliteQueryView(BasicWidget):
         self._date_search_columns = model.date_search_columns if auto_init else date_search_columns
         self._precisely_search_columns = model.precisely_search_columns if auto_init else precisely_search_columns
 
-        super(SqliteQueryView, self).__init__(parent)
+        super().__init__(parent)
         self.slotSearchKeyChanged(self.ui_search_key.currentIndex())
 
     def _initUi(self):
@@ -650,7 +650,7 @@ class SqliteQueryView(BasicWidget):
 
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
-        return QtWidgets.QApplication.translate("SQliteQueryView", text, None)
+        return QtWidgets.QApplication.translate("SqliteQueryView", text, None)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         self.slotFlush()
