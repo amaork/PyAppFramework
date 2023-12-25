@@ -31,7 +31,7 @@ __all__ = ['BasicDialog',
            'SimpleColorDialog',
            'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog',
-           'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
+           'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog', 'TextInputDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
 
@@ -1061,6 +1061,40 @@ class ScalableCanvasImageDialog(BasicDialog):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         self.ui_preview.slotPaintCanvas(int(self.ui_preview.scaleFitWindow() * 100))
+
+
+class TextInputDialog(BasicDialog):
+    def __init__(self, parent: QtWidgets.QWidget, title: str, label: str, validator: str = '',
+                 mode: QtWidgets.QLineEdit.EchoMode = QtWidgets.QLineEdit.EchoMode.Normal, text: str = ''):
+        self.ui_label = QtWidgets.QLabel(label)
+
+        self.ui_input = QtWidgets.QLineEdit()
+        self.ui_input.setEchoMode(mode)
+        self.ui_input.setText(text)
+
+        if validator:
+            self.ui_input.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp(validator)))
+
+        super(TextInputDialog, self).__init__(parent)
+        self.setWindowTitle(title)
+
+    def _initUi(self):
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.ui_label)
+        layout.addWidget(self.ui_input)
+        layout.addWidget(QtWidgets.QSplitter())
+        layout.addWidget(self.ui_buttons)
+        self.setLayout(layout)
+
+    def getInputText(self) -> typing.Tuple[str, bool]:
+        return self.ui_input.text(), bool(self.result())
+
+    @classmethod
+    def getText(cls, parent: QtWidgets.QWidget, title: str, label: str, validator: str = '',
+                mode: QtWidgets.QLineEdit.EchoMode = QtWidgets.QLineEdit.EchoMode.Normal, text: str = ''):
+        dialog = cls(parent=parent, title=title, label=label, validator=validator, mode=mode, text=text)
+        dialog.exec_()
+        return dialog.getInputText()
 
 
 # noinspection PyTypeChecker
