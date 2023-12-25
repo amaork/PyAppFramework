@@ -23,6 +23,8 @@ __all__ = ['TableView', 'TableViewDelegate', 'SqliteQueryView']
 
 
 class TableView(QtWidgets.QTableView):
+    GroupKey = 'group'
+    SeparatorKey = 'Separator'
     tableDataChanged = QtCore.Signal()
 
     # Custom menu signals
@@ -74,7 +76,7 @@ class TableView(QtWidgets.QTableView):
         }.items():
             for action, slot in actions:
                 action.triggered.connect(slot)
-                action.setProperty("group", group)
+                action.setProperty(self.GroupKey, group)
                 self.__contentMenu.addAction(action)
 
             self.__contentMenu.addSeparator()
@@ -107,10 +109,18 @@ class TableView(QtWidgets.QTableView):
         for group in self.Action:
             enabled = group & self.__contentMenuEnableMask
             for action in self.__contentMenu.actions():
-                if action.property("group") == group:
+                if action.property(self.GroupKey) == group:
                     action.setVisible(enabled)
 
         self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+
+    @classmethod
+    def getSeparatorKey(cls, idx: int) -> str:
+        return f'{cls.SeparatorKey}{idx}'
+
+    @classmethod
+    def isSeparator(cls, action: typing.Any) -> bool:
+        return isinstance(action, str) and cls.SeparatorKey in action
 
     def setModel(self, model: QtCore.QAbstractItemModel):
         if isinstance(model, AbstractTableModel):
@@ -160,9 +170,9 @@ class TableView(QtWidgets.QTableView):
     def setCustomContentMenu(self, menu: typing.List[QtWidgets.QAction]):
         for action in menu:
             if isinstance(action, QtWidgets.QAction):
-                action.setProperty("group", self.Action.CUSTOM)
+                action.setProperty(self.GroupKey, self.Action.CUSTOM)
                 self.__contentMenu.addAction(action)
-            else:
+            elif self.isSeparator(action):
                 self.__contentMenu.addSeparator()
 
         if menu:
@@ -721,7 +731,7 @@ class SqliteQueryView(BasicWidget):
     def slotAppend(self, record: dict, scroll_to_end: bool = True) -> bool:
         if self._model.insert_record(record):
             self.slotFlush(scroll_to_end)
-            self.ui_view.selectRow(self._model.rowCount() - 1)
+            self.ui_view.simulateSelectRow(self._model.rowCount() - 1, emit_signal=True)
             return True
 
         return False
@@ -771,7 +781,7 @@ class SqliteQueryView(BasicWidget):
         if self._model.delete_record(primary_key):
             self.signalRecordDeleted.emit(primary_key)
             self.slotFlush()
-            self.ui_view.selectRow(self._model.rowCount() - 1)
+            self.ui_view.simulateSelectRow(row - 1, emit_signal=True)
             return True
 
         return False
@@ -798,9 +808,9 @@ class SqliteQueryView(BasicWidget):
             menu.addSeparator()
 
             for action in custom_content_menu:
-                if action is None:
-                    menu.addSeparator()
-                else:
+                if isinstance(action, QtWidgets.QAction):
                     menu.addAction(action)
+                elif TableView.isSeparator(action):
+                    menu.addSeparator()
 
         menu.popup(self.ui_view.viewport().mapToGlobal(pos))

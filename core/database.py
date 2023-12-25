@@ -108,7 +108,7 @@ class DBTable:
     @staticmethod
     def encode_blob_data(data: typing.Any) -> str:
         if isinstance(data, bytes):
-            return json.dumps(base64.b64encode(data).decode())
+            return f'{base64.b64encode(data).decode()}'
         elif isinstance(data, dict):
             return f"'{json.dumps(data, ensure_ascii=False, cls=DynamicObjectEncoder)}'"
         else:
