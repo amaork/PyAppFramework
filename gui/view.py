@@ -770,7 +770,7 @@ class SqliteQueryView(BasicWidget):
             if idx in self._date_search_columns:
                 self.slotUpdateDateRange('')
 
-    def slotDelete(self, without_confirm: bool = False, emit_signal: bool = False) -> bool:
+    def slotDelete(self, without_confirm: bool = False, emit_signal: bool = True) -> bool:
         if not without_confirm and not showQuestionBox(
                 self, self.tr('Confirm to delete this record ?'), self.tr('Delete Confirm')
         ):
