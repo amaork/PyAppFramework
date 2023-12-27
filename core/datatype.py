@@ -203,7 +203,6 @@ class DynamicObjectDecodeError(DynamicObjectError):
 class DynamicObject(object):
     _check = dict()
     _properties = set()
-    _json_decoder = None
     _json_encoder = None
     _json_dump_sequence = ()
 
