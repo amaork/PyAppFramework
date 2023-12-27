@@ -728,10 +728,10 @@ class SqliteQueryView(BasicWidget):
     def slotUpdate(self, pk: typing.Any, data: dict) -> bool:
         return self._model.update_record(pk, data)
 
-    def slotAppend(self, record: dict, scroll_to_end: bool = True) -> bool:
+    def slotAppend(self, record: dict, scroll_to_end: bool = True, emit_signal: bool = False) -> bool:
         if self._model.insert_record(record):
             self.slotFlush(scroll_to_end)
-            self.ui_view.simulateSelectRow(self._model.rowCount() - 1, emit_signal=True)
+            self.ui_view.simulateSelectRow(self._model.rowCount() - 1, emit_signal=emit_signal)
             return True
 
         return False
@@ -770,7 +770,7 @@ class SqliteQueryView(BasicWidget):
             if idx in self._date_search_columns:
                 self.slotUpdateDateRange('')
 
-    def slotDelete(self, without_confirm: bool = False) -> bool:
+    def slotDelete(self, without_confirm: bool = False, emit_signal: bool = False) -> bool:
         if not without_confirm and not showQuestionBox(
                 self, self.tr('Confirm to delete this record ?'), self.tr('Delete Confirm')
         ):
@@ -781,7 +781,7 @@ class SqliteQueryView(BasicWidget):
         if self._model.delete_record(primary_key):
             self.signalRecordDeleted.emit(primary_key)
             self.slotFlush()
-            self.ui_view.simulateSelectRow(row - 1, emit_signal=True)
+            self.ui_view.simulateSelectRow(row - 1, emit_signal=emit_signal)
             return True
 
         return False
