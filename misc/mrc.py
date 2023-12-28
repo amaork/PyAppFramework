@@ -9,7 +9,7 @@ import subprocess
 from typing import List, Optional, Dict
 
 from ..misc.crypto import *
-from ..core.datatype import DynamicObject, str2number
+from ..core.datatype import DynamicObject, str2number, str2float
 __all__ = ['MachineInfo', 'MachineCode', 'RegistrationCode']
 
 _RAW_MC_LEN = 64
@@ -106,12 +106,15 @@ class MachineInfo(object):
                 except AttributeError:
                     sn = ""
 
+                if not dd.Size:
+                    continue
+
                 disk.append(
                     {
                         "sn": sn,
                         "id": dd.deviceid,
                         "caption": dd.Caption,
-                        "size": str(int(float(dd.Size) / 1024 / 1024 / 1024))
+                        "size": str(int(str2float(dd.Size) / 1024 / 1024 / 1024))
                     }
                 )
 
