@@ -169,12 +169,13 @@ class QuestionBoxMail(BaseUiMail):
 class ProgressBarMail(BaseUiMail):
     def __init__(self, progress: int, content: str = '', title: str = '',
                  closeable: bool = False, increase: int = 0, interval: float = 0.0,
-                 cancelable: bool = False, cancel_callback: typing.Callable = None):
+                 cancelable: bool = False, cancel_callback: typing.Callable = None, force: bool = False):
         super(ProgressBarMail, self).__init__(content)
         self.increase = increase
         self.interval = interval
 
         self.title = title
+        self.force = force
         self._progress = progress
         self.closeable = closeable
         self.cancelable = cancelable
@@ -280,8 +281,10 @@ class UiMailBox(QObject):
         return self.__progress.value()
 
     def taskProgressAutoIncrease(self, mail: ProgressBarMail):
-        self.send(ProgressBarMail(progress=self.__progress.value() + mail.increase,
-                                  content=mail.content, title=mail.title, closeable=mail.closeable))
+        self.send(ProgressBarMail(
+            progress=self.__progress.value() + mail.increase,
+            content=mail.content, title=mail.title, closeable=mail.closeable, force=mail.force)
+        )
 
     def findStatusWidget(self, type_, name: str):
         statusbar = self.__parent.findChild(QStatusBar)
@@ -360,10 +363,10 @@ class UiMailBox(QObject):
                 if mail.title:
                     self.__progress.setWindowTitle(mail.title)
                 self.__progress.setLabelText(mail.content)
-                self.__progress.setProgress(mail.progress)
                 self.__progress.setCloseable(mail.closeable)
                 self.__progress.setCancelable(mail.cancelable)
                 self.__progress.setCancelCallback(mail.cancel_callback)
+                self.__progress.setProgress(mail.progress, force=mail.force)
 
                 if mail.autoIncreaseEnabled():
                     self.__pai_task = self.__tasklet.add_task(

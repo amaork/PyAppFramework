@@ -23,9 +23,25 @@ class ExceptionHandleMsgBox(ExceptionHandle):
 class ProgressBarContextManager:
     def __init__(self, mailbox: UiMailBox,
                  content: str, title: str = '',
-                 init: int = 1, increase: int = 1, interval: float = 1.0, timeout: int = 0xffffffff,
-                 ignore_exceptions: bool = False, catch_exceptions: typing.Sequence[typing.Type[Exception]] = None):
+                 init: int = 1, increase: int = 1,
+                 interval: float = 1.0, timeout: int = 0xffffffff,
+                 force: bool = False, ignore_exceptions: bool = False,
+                 catch_exceptions: typing.Sequence[typing.Type[Exception]] = None):
+        """
+        ProgressBarContextManager
+        :param mailbox: UiMailBox instance
+        :param content: progressbar display content
+        :param title: progressbar display title
+        :param init:  progressbar initial value
+        :param increase: progressbar auto increase step
+        :param interval: progressbar auto increase interval
+        :param timeout: this operation max timeout is seconds
+        :param force: force flush UI display
+        :param ignore_exceptions: ignore exceptions
+        :param catch_exceptions:  catch exceptions list
+        """
         self.__init = init
+        self.__force = force
         self.__title = title
         self.__mailbox = mailbox
         self.__content = content
@@ -47,7 +63,7 @@ class ProgressBarContextManager:
     def __sendProgressBarMail(self, progress: int, closeable: bool = False):
         self.__mailbox.send(ProgressBarMail(
             progress, self.__content, self.__title,
-            closeable=closeable, increase=self.__increase, interval=self.__interval
+            closeable=closeable, increase=self.__increase, interval=self.__interval, force=self.__force
         ))
 
     def set_closeable(self):
