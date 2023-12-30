@@ -170,6 +170,18 @@ class ProgressBarMail(BaseUiMail):
     def __init__(self, progress: int, content: str = '', title: str = '',
                  closeable: bool = False, increase: int = 0, interval: float = 0.0,
                  cancelable: bool = False, cancel_callback: typing.Callable = None, force: bool = False):
+        """
+        ProgressBarMail
+        :param progress: progress bar initial value
+        :param content: progress bar display content
+        :param title: progress bar display title
+        :param closeable: is progress bar closeable
+        :param increase: progress bar auto increase value
+        :param interval: progress bar auto increase interval
+        :param cancelable: is progress bar cancelable
+        :param cancel_callback: cancel callback
+        :param force: force flush UI process event
+        """
         super(ProgressBarMail, self).__init__(content)
         self.increase = increase
         self.interval = interval

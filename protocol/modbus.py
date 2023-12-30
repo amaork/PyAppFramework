@@ -19,7 +19,7 @@ __all__ = ['FuncCode', 'ExceptionCode', 'DataTypeFuncCode',
            'WriteRequest', 'ReadRequest', 'ReadResponse',
            'WatchEventRequest', 'WatchEventResponse',
            'DataType', 'DataFormat', 'DataPresent', 'DataConvert',
-           'ModbusServer', 'ModbusTCPClientEvent', 'ModbusTCPClient',
+           'ModbusServer', 'ModbusTCPClientEvent', 'ModbusTCPClient', 'helper_is_contains_address',
            'helper_data2bits', 'helper_bits2data', 'helper_get_bytesize', 'helper_get_func_code']
 
 FuncCode = collections.namedtuple(
@@ -198,6 +198,11 @@ def helper_bits2data(bits: bytes, msb_first: bool = True) -> typing.Sequence[int
             data.append(True if (value & (1 << offset)) else False)
 
     return data
+
+
+def helper_is_contains_address(request: ReadRequest, address: int) -> typing.Tuple[bool, int]:
+    lst = range(request.start, request.start + request.count + 1)
+    return (True, lst.index(address)) if address in lst else (False, -1)
 
 
 class DataConvert:
