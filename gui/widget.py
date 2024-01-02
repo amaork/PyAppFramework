@@ -2823,7 +2823,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                 return layout, group, number_input
             elif setting.is_serial_type():
-                widget = SerialPortSelector(parent=parent)
+                widget = SerialPortSelector(flush_timeout=setting.get_check(), parent=parent)
                 widget.setProperty("format", "text")
                 widget.setCurrentIndex([widget.itemText(i) for i in range(widget.count())].index(setting.get_data()))
             elif setting.is_network_type():

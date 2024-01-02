@@ -45,8 +45,8 @@ class SerialPortSelector(QtWidgets.QComboBox):
         super(SerialPortSelector, self).__init__(parent)
 
         self.clear()
-        self.__text = text
         self.__one_shot = one_shot
+        self.__text = text or self.TIPS
         self.setProperty('format', 'text')
         self.__system = platform.system().lower()
         self.setToolTip(self.tr("Right click reset and refresh serial port"))

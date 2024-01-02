@@ -123,7 +123,7 @@ class UiInputSetting(DynamicObject):
         "FOLDER": (str, str),
         "FONT": (str, str),
         "COLOR": (str, str),
-        "SERIAL": (str, str),
+        "SERIAL": (str, float),
         "NETWORK": (str, str),
         "ADDRESS": (str, str),
         "INTERFACE": (str, str),
@@ -179,7 +179,7 @@ class UiInputSetting(DynamicObject):
     def get_name(self) -> str:
         return self.name
 
-    def get_check(self) -> tuple:
+    def get_check(self) -> Any:
         return self.check
 
     def get_default(self) -> Any:
@@ -519,9 +519,9 @@ class UiSelectInput(UiInputSetting):
 
 
 class UiSerialInput(UiInputSetting):
-    def __init__(self, name: str, port: str = ""):
+    def __init__(self, name: str, port: str = "", scan_timeout: float = 0.0):
         super(UiSerialInput, self).__init__(name=name, data=port, default=port,
-                                            check=port, readonly=False, type="SERIAL")
+                                            check=scan_timeout, readonly=False, type="SERIAL")
 
 
 class UiNetworkSelectInput(UiInputSetting):
