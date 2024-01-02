@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import queue
 import typing
 import collections
 from PySide2.QtCore import Qt
@@ -6,6 +7,8 @@ from PySide2 import QtWidgets, QtCore
 
 from .model import AbstractTableModel
 from .view import TableView, TableViewDelegate
+
+from ..core.timer import Task, Tasklet
 from ..core.datatype import DynamicObject, str2number
 from ..misc.settings import UiCheckBoxInput, UiIntegerInput, UiDoubleInput
 
@@ -65,10 +68,12 @@ class ModbusAddressModel(AbstractTableModel):
 
         if DataConvert.get_format_size(address.format) == 2:
             value = self.dc.plc2python(response.data, address.format)
+            self.setDisplay(self.index(row, self.Column.Ctrl), value)
             self.setDisplay(self.index(row, self.Column.State), value)
         else:
             for i in range(response.request.count):
                 try:
+                    self.setDisplay(self.index(row + i, self.Column.Ctrl), response.data[i])
                     self.setDisplay(self.index(row + i, self.Column.State), response.data[i])
                 except (ValueError, IndexError, AttributeError):
                     continue
@@ -108,9 +113,13 @@ class ModbusAddressView(QtWidgets.QTabWidget):
     # Table name, function code, WriteRequest
     signalWriteRequest = QtCore.Signal(object, object, object)
 
+    BitWriteRequest = collections.namedtuple('BitWriteRequest', 'name model fc address bit is_set')
+
     def __init__(self, parent: QtWidgets.QWidget = None):
         self.models = dict()
         self._timer_cnt = 0
+        self._tasklet = Tasklet(0.1)
+        self._write_merge_queue = queue.Queue()
         super(ModbusAddressView, self).__init__(parent)
         self.startTimer(1000)
 
@@ -184,6 +193,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
                 if reg_address != response.address:
                     continue
 
+                # model.setData(model.index(row, ModbusAddressModel.Column.Ctrl), response.data[0] & (1 << bit))
                 model.setData(model.index(row, ModbusAddressModel.Column.State), response.data[0] & (1 << bit))
 
     def slotRequestWrite(self, index: QtCore.QModelIndex, value: typing.Any, model: ModbusAddressModel):
@@ -208,14 +218,39 @@ class ModbusAddressView(QtWidgets.QTabWidget):
             for name, model in self.models.items():
                 index, reg_value = model.getValueByAddress(reg_address)
                 if reg_value is not None:
-                    if request.data:
-                        reg_value |= (1 << bit)
-                    else:
-                        reg_value &= ~(1 << bit)
-
-                    request = WriteRequest(type=DataType.Register, address=reg_address, data=reg_value)
                     model.setData(index, reg_value)
-                    self.signalWriteRequest.emit(name, function_code, request)
+                    self._write_merge_queue.put(
+                        self.BitWriteRequest(name, model, function_code, reg_address, bit, request.data)
+                    )
+                    self._tasklet.add_task(Task(self.taskMergeBitWriteRequest, 0.6))
+
+    def taskMergeBitWriteRequest(self):
+        # New value, clear flag, BitWriteRequest
+        address_dict = collections.defaultdict(lambda: [0, 0, None])
+
+        # Merge request
+        while self._write_merge_queue.qsize():
+            request = self.BitWriteRequest(*self._write_merge_queue.get())
+            address_dict[request.address][2] = request
+
+            if request.is_set:
+                address_dict[request.address][0] |= (1 << request.bit)
+                address_dict[request.address][1] &= ~(1 << request.bit)
+            else:
+                address_dict[request.address][0] &= ~(1 << request.bit)
+                address_dict[request.address][1] |= (1 << request.bit)
+
+        # Send merged write request
+        for address, item in address_dict.items():
+            new_value, clear_mask, request = item
+            _, cur_value = request.model.getValueByAddress(address)
+
+            value = cur_value | new_value
+
+            if clear_mask:
+                value &= ~clear_mask
+
+            self.signalWriteRequest.emit(request.name, request.fc, WriteRequest(DataType.Register, address, value))
 
     def timerEvent(self, event: QtCore.QTimerEvent) -> None:
         if self.isHidden():
