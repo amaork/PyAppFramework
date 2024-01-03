@@ -292,11 +292,15 @@ class UiMailBox(QObject):
     def getProgressValue(self) -> int:
         return self.__progress.value()
 
-    def taskProgressAutoIncrease(self, mail: ProgressBarMail):
+    def taskProgressAutoIncrease(self, task: Task, mail: ProgressBarMail):
+        new_value = self.__progress.value() + mail.increase
+
         self.send(ProgressBarMail(
-            progress=self.__progress.value() + mail.increase,
-            content=mail.content, title=mail.title, closeable=mail.closeable, force=mail.force)
+            progress=new_value, content=mail.content, title=mail.title, closeable=mail.closeable, force=mail.force)
         )
+
+        if new_value >= self.__progress.maximum():
+            task.delete()
 
     def findStatusWidget(self, type_, name: str):
         statusbar = self.__parent.findChild(QStatusBar)
