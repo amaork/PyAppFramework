@@ -99,13 +99,17 @@ class WindowsTitleMail(BaseUiMail):
 
 
 class CallbackFuncMail(BaseUiMail):
-    def __init__(self, func: typing.Callable, timeout: int = 0, args: tuple = (), kwargs: typing.Optional[dict] = None):
+    def __init__(self, func: typing.Callable, timeout: int = 0,
+                 args: tuple = (), kwargs: typing.Optional[dict] = None,
+                 callback_check: typing.Callable[[], bool] = lambda: True):
         """Call #func specified function with #args
 
         :param func: Callback function
         :param args:  Callback function args
         :param timeout: Callback function timeout
         :param kwargs: Callback function args
+        :param callback_check: before invoke func will invoke this first,
+        only if callback_check return true then will invoke func
         :return:
         """
         super(CallbackFuncMail, self).__init__()
@@ -118,23 +122,16 @@ class CallbackFuncMail(BaseUiMail):
         self.__func = func
         self.__args = args
         self.__timeout = timeout
+        self.__callback_check = callback_check
         self.__kwargs = kwargs if isinstance(kwargs, dict) else {}
-
-    @property
-    def callback(self) -> typing.Callable:
-        return self.__func
-
-    @property
-    def args(self) -> tuple:
-        return self.__args
-
-    @property
-    def kwargs(self) -> dict:
-        return self.__kwargs
 
     @property
     def timeout(self) -> int:
         return self.__timeout
+
+    def execute(self, check: bool):
+        if not check or self.__callback_check():
+            self.__func(*self.__args, **self.__kwargs)
 
 
 class QuestionBoxMail(BaseUiMail):
@@ -416,10 +413,10 @@ class UiMailBox(QObject):
         elif isinstance(mail, CallbackFuncMail):
             if mail.timeout:
                 # Using QTimer improve security
-                QTimer.singleShot(mail.timeout * 1000, lambda: mail.callback(*mail.args, **mail.kwargs))
+                QTimer.singleShot(mail.timeout * 1000, lambda: mail.execute(check=True))
             else:
                 # Timeout is zero call it immediately
-                mail.callback(*mail.args, **mail.kwargs)
+                mail.execute(check=False)
         else:
             return False
 
