@@ -527,7 +527,14 @@ class ModbusTCPClient:
 
             # print(name, fc, request)
             if isinstance(request, WriteRequest):
-                func(request.address, request.data)
+                retry = 3
+                while retry > 0:
+                    if func(request.address, request.data):
+                        break
+                    else:
+                        time.sleep(0.1)
+                        retry -= 1
+                        continue
             elif isinstance(request, list):
                 for req in request:
                     data = func(req.start, req.count)
