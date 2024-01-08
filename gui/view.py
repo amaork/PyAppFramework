@@ -652,9 +652,9 @@ class SqliteQueryView(BasicWidget):
         # noinspection PyTypeChecker
         return QtWidgets.QApplication.translate("SqliteQueryView", text, None)
 
-    def showEvent(self, event: QtGui.QShowEvent) -> None:
-        self.slotFlush()
-        super().showEvent(event)
+    # def showEvent(self, event: QtGui.QShowEvent) -> None:
+    #     self.slotFlush()
+    #     super().showEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         if not self._without_pt_ctrl and self._row_autoincrement_factor:
