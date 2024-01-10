@@ -4,6 +4,7 @@ import time
 import random
 import typing
 import inspect
+import threading
 import collections
 import multiprocessing
 from ..misc.process import launch_program
@@ -179,9 +180,9 @@ def _handle_client(client: TCPSocketTransmit, version: str,
             break
 
 
-def _handle_new_connection(client: TCPSocketTransmit, version: str,
-                           stop_flag: multiprocessing.Event, msg_cls: typing.Type[SRPCMessage],
-                           handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any]):
+def _handle_new_connection_process(client: TCPSocketTransmit, version: str,
+                                   stop_flag: multiprocessing.Event, msg_cls: typing.Type[SRPCMessage],
+                                   handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any]):
     multiprocessing.Process(
         target=_handle_client,
         kwargs=dict(
@@ -191,17 +192,30 @@ def _handle_new_connection(client: TCPSocketTransmit, version: str,
     ).start()
 
 
+def _handle_new_connection_thread(client: TCPSocketTransmit, version: str,
+                                  stop_flag: multiprocessing.Event, msg_cls: typing.Type[SRPCMessage],
+                                  handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any]):
+    threading.Thread(
+        target=_handle_client,
+        kwargs=dict(
+            client=client, version=version, stop_flag=stop_flag,
+            msg_cls=msg_cls, register_handle=handles, extra_arg=extra_arg
+        ), daemon=True
+    ).start()
+
+
 class SRPCServer(TCPServerTransmitHandle):
-    def __init__(self, verbose: bool = False):
+    def __init__(self, thread_mode: bool = False, verbose: bool = False):
         super(SRPCServer, self).__init__(
-            _handle_new_connection, length_fmt=TCPSocketTransmit.DefaultLengthFormat, processing=True, verbose=verbose
+            _handle_new_connection_thread if thread_mode else _handle_new_connection_process,
+            length_fmt=TCPSocketTransmit.DefaultLengthFormat, processing=True, verbose=verbose
         )
 
 
 def start_srpc_server(address: TCPSocketTransmit.Address,
                       max_concurrent: int, version: str, msg_cls: typing.Type[SRPCMessage],
                       handles: typing.Dict[str, HandleType], extra_arg: typing.Tuple[str, typing.Any] = None,
-                      wait_forever: bool = True, verbose: bool = False
+                      wait_forever: bool = True, thread_mode: bool = False, verbose: bool = False
                       ) -> typing.Tuple[SRPCServer, multiprocessing.Event]:
     """Start a simple RPC server
 
@@ -209,14 +223,15 @@ def start_srpc_server(address: TCPSocketTransmit.Address,
     :param max_concurrent: server max concurrent number
     :param version: server version string
     :param msg_cls: rpc message class
-    :param handles: rpc message handles
-    :param extra_arg: handles extra arg, (arg name, arg value)
+    :param handles: rpc message handle
+    :param extra_arg: handle extra arg, (arg name, arg value)
     :param wait_forever: wait forever set this as true
+    :param thread_mode: using thread replace process
     :param verbose: server enable verbose print
     :return: SRPCServer instance and stop server flag
     """
     stop_flag = multiprocessing.Event()
-    server = SRPCServer(verbose=verbose)
+    server = SRPCServer(thread_mode=thread_mode, verbose=verbose)
 
     try:
         server.start(

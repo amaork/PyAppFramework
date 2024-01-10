@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import inspect
 import itertools
-import collections
-from typing import Callable, Tuple, List, Container, Dict, Any, Optional
+from typing import Callable, Tuple, List, Container, Dict, Any, Optional, Sequence
 __all__ = ['util_filter_parameters', 'util_check_arguments', 'util_auto_kwargs']
 
 
@@ -20,7 +19,7 @@ def util_default_parameters(func: Callable) -> List[str]:
     return [k for k, v in inspect.signature(func).parameters.items() if v.default != inspect.Parameter.empty]
 
 
-def util_check_arguments(func: Callable, args: Tuple, filter_args: Optional[collections.Sequence] = None):
+def util_check_arguments(func: Callable, args: Tuple, filter_args: Optional[Sequence] = None):
     """Check if a function's args is filled
 
     :param func: function to check
