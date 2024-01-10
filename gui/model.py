@@ -114,7 +114,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
     def getLastIndex(self, column: int = 0) -> QtCore.QModelIndex:
         return self.index(self.rowCount() - 1, column)
 
-    def getRowData(self, row: int, user: bool = False) -> typing.Sequence:
+    def getRowData(self, row: int, user: bool = False) -> typing.List:
         try:
             return self._user[row] if user else self._table[row]
         except (IndexError, TypeError):

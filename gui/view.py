@@ -29,6 +29,7 @@ class TableView(QtWidgets.QTableView):
 
     # Custom menu signals
     signalRequestClearAll = QtCore.Signal()
+    signalRequestRowDelete = QtCore.Signal(int)
     signalRequestRowMoveUp = QtCore.Signal(int)
     signalRequestRowMoveDown = QtCore.Signal(int)
     signalRequestRowMoveToTop = QtCore.Signal(int)
@@ -37,18 +38,23 @@ class TableView(QtWidgets.QTableView):
     ALL_ACTION = 0xf
     Action = collections.namedtuple('Action', ['COMM', 'MOVE', 'FROZEN', 'CUSTOM'])(*(0x1, 0x2, 0x4, 0x8))
 
-    def __init__(self, disable_custom_content_menu: bool = True, parent: typing.Optional[QtWidgets.QWidget] = None):
+    def __init__(self, disable_custom_context_menu: bool = True, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableView, self).__init__(parent)
         self.__autoHeight = False
-        self.__contentMenu = QtWidgets.QMenu(self)
-        self.__contentMenuEnableMask = 0x0
+        self.__contextMenu = QtWidgets.QMenu(self)
+        self.__contextMenuEnableMask = 0x0
         self.__columnStretchFactor = list()
         self.__scale_x, self.__scale_y = get_program_scale_factor()
 
         for group, actions in {
             self.Action.COMM: [
                 (
-                        QtWidgets.QAction(self.tr("Clear All"), self), lambda: self.signalRequestClearAll.emit()
+                        QtWidgets.QAction(self.tr("Delete"), self),
+                        lambda: self.signalRequestRowDelete.emit(self.getCurrentRow())
+                ),
+                (
+                        QtWidgets.QAction(self.tr("Clear All"), self),
+                        lambda: self.signalRequestClearAll.emit()
                 ),
             ],
 
@@ -77,12 +83,12 @@ class TableView(QtWidgets.QTableView):
             for action, slot in actions:
                 action.triggered.connect(slot)
                 action.setProperty(self.GroupKey, group)
-                self.__contentMenu.addAction(action)
+                self.__contextMenu.addAction(action)
 
-            self.__contentMenu.addSeparator()
+            self.__contextMenu.addSeparator()
 
-        if not disable_custom_content_menu:
-            self.customContextMenuRequested.connect(self.__slotShowContentMenu)
+        if not disable_custom_context_menu:
+            self.customContextMenuRequested.connect(self.__slotShowContextMenu)
 
     def __checkModel(self) -> bool:
         return isinstance(self.model(), QtCore.QAbstractItemModel)
@@ -105,14 +111,14 @@ class TableView(QtWidgets.QTableView):
 
         return True
 
-    def __slotShowContentMenu(self, pos: QtCore.QPoint):
+    def __slotShowContextMenu(self, pos: QtCore.QPoint):
         for group in self.Action:
-            enabled = group & self.__contentMenuEnableMask
-            for action in self.__contentMenu.actions():
+            enabled = group & self.__contextMenuEnableMask
+            for action in self.__contextMenu.actions():
                 if action.property(self.GroupKey) == group:
                     action.setVisible(enabled)
 
-        self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+        self.__contextMenu.popup(self.viewport().mapToGlobal(pos))
 
     @classmethod
     def getSeparatorKey(cls, idx: int) -> str:
@@ -149,6 +155,7 @@ class TableView(QtWidgets.QTableView):
                         self.tableDataChanged.emit()
 
             self.signalRequestClearAll.connect(model.clearAll)
+            self.signalRequestRowDelete.connect(model.removeRow)
 
             self.signalRequestRowMoveUp.connect(rowMoveUp)
             self.signalRequestRowMoveDown.connect(rowMoveDown)
@@ -160,23 +167,23 @@ class TableView(QtWidgets.QTableView):
     def setContentMenuMask(self, mask: int):
         for group in self.Action:
             if mask & group:
-                self.__contentMenuEnableMask |= group
+                self.__contextMenuEnableMask |= group
 
-        if self.__contentMenuEnableMask:
+        if self.__contextMenuEnableMask:
             self.setContextMenuPolicy(Qt.CustomContextMenu)
         else:
             self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-    def setCustomContentMenu(self, menu: typing.List[QtWidgets.QAction]):
+    def setCustomContextMenu(self, menu: typing.List[QtWidgets.QAction]):
         for action in menu:
             if isinstance(action, QtWidgets.QAction):
                 action.setProperty(self.GroupKey, self.Action.CUSTOM)
-                self.__contentMenu.addAction(action)
+                self.__contextMenu.addAction(action)
             elif self.isSeparator(action):
-                self.__contentMenu.addSeparator()
+                self.__contextMenu.addSeparator()
 
         if menu:
-            self.__contentMenu.addSeparator()
+            self.__contextMenu.addSeparator()
             self.setContentMenuMask(self.Action.CUSTOM)
 
     def item(self, row: int, column: int) -> typing.Union[QtWidgets.QTableWidgetItem, None]:
@@ -478,7 +485,7 @@ class SqliteQueryView(BasicWidget):
 
     def __init__(self, model: SqliteQueryModel,
                  stretch_factor: typing.Sequence[float] = None,
-                 custom_content_menu: typing.Dict[
+                 custom_context_menu: typing.Dict[
                      QtWidgets.QAction, typing.Callable[[QtCore.QModelIndex], bool]
                  ] = None,
                  date_search_columns: typing.Optional[typing.Sequence[int]] = None,
@@ -490,7 +497,7 @@ class SqliteQueryView(BasicWidget):
 
         :param model: SqliteQueryModel instance
         :param stretch_factor:  column display stretch factor
-        :param custom_content_menu: customize content menu action
+        :param custom_context_menu: customize context menu action
         :param date_search_columns: which columns support data search
         :param precisely_search_columns:  which columns support precisely search
         :param readonly: is table is readonly
@@ -515,7 +522,7 @@ class SqliteQueryView(BasicWidget):
         self._datetime_format = datetime_format
         self._search_box_min_width = search_box_min_width
         self._row_autoincrement_factor = row_autoincrement_factor
-        self._custom_content_menu = collections.OrderedDict(custom_content_menu or dict())
+        self._custom_context_menu = collections.OrderedDict(custom_context_menu or dict())
 
         # Auto load from SqliteQueryModel
         self._is_readonly = model.readonly if auto_init else readonly
@@ -625,7 +632,7 @@ class SqliteQueryView(BasicWidget):
         self.ui_end_date.dateChanged.connect(self.slotUpdateDateRange)
         self.ui_start_date.dateChanged.connect(self.slotUpdateDateRange)
         self.ui_search_key.currentIndexChanged.connect(self.slotSearchKeyChanged)
-        self.ui_view.customContextMenuRequested.connect(self.slotCustomContentMenu)
+        self.ui_view.customContextMenuRequested.connect(self.slotCustomContextMenu)
 
         self.ui_end.setShortcut(QtGui.QKeySequence(Qt.Key_End))
         self.ui_home.setShortcut(QtGui.QKeySequence(Qt.Key_Home))
@@ -789,11 +796,11 @@ class SqliteQueryView(BasicWidget):
     def slotPageNumChanged(self, page, force: bool = False):
         self._model.flush_page(page - 1, force)
 
-    def slotCustomContentMenu(self, pos: QtCore.QPoint):
+    def slotCustomContextMenu(self, pos: QtCore.QPoint):
         if not self._model.record_count:
             return
 
-        if self._is_readonly and not self._custom_content_menu:
+        if self._is_readonly and not self._custom_context_menu:
             return
 
         menu = QtWidgets.QMenu(self)
@@ -802,7 +809,7 @@ class SqliteQueryView(BasicWidget):
             menu.addAction(self.ui_action_clear)
 
         index = self.ui_view.indexAt(pos)
-        custom_content_menu = [action for action, filter_ in self._custom_content_menu.items() if filter_(index)]
+        custom_content_menu = [action for action, filter_ in self._custom_context_menu.items() if filter_(index)]
 
         if custom_content_menu:
             menu.addSeparator()
