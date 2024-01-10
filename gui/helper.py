@@ -52,34 +52,37 @@ class ProgressBarContextManager:
         self.__ignore_exceptions = ignore_exceptions
         self.__catch_exceptions = catch_exceptions or list()
 
-    def __timeoutDetection(self):
+    def __timeout_detection(self):
         try:
             wait_timeout(self.__operation_finish.is_set, timeout=self.__max_timeout, desc=self.__content)
         except RuntimeError:
             self.set_closeable()
-            self.__sendProgressBarMail(0)
+            self.__send_mail(0)
             self.__mailbox.send(MessageBoxMail(MB_TYPE_ERR, '操作超时，请检查', f'{self.__title}超时'))
 
-    def __sendProgressBarMail(self, progress: int, closeable: bool = False):
+    def __send_mail(self, progress: int, closeable: bool = False, content: str = ''):
         self.__mailbox.send(ProgressBarMail(
-            progress, self.__content, self.__title,
+            progress, content or self.__content, self.__title,
             closeable=closeable, increase=self.__increase, interval=self.__interval, force=self.__force
         ))
 
     def set_closeable(self):
-        self.__sendProgressBarMail(self.__mailbox.getProgressValue(), True)
+        self.__send_mail(self.get_current_progress(), closeable=True)
 
-    def update(self, progress: int):
-        self.__sendProgressBarMail(progress)
+    def get_current_progress(self) -> int:
+        return self.__mailbox.getProgressValue()
+
+    def update(self, progress: int, content: str = ''):
+        self.__send_mail(progress, content=content)
 
     def __enter__(self):
-        self.__sendProgressBarMail(self.__init)
-        threading.Thread(target=self.__timeoutDetection, daemon=True).start()
+        self.__send_mail(self.__init)
+        threading.Thread(target=self.__timeout_detection, daemon=True).start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__operation_finish.set()
-        self.__sendProgressBarMail(0)
+        self.__send_mail(0)
         if exc_type in self.__catch_exceptions:
             self.__mailbox.send(MessageBoxMail(MB_TYPE_ERR, f'{exc_val}', f'{self.__title}失败'))
             return True

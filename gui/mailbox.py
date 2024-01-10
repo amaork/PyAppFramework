@@ -383,7 +383,10 @@ class UiMailBox(QObject):
 
                 if mail.autoIncreaseEnabled():
                     self.__pai_task = self.__tasklet.add_task(
-                        Task(func=self.taskProgressAutoIncrease, timeout=mail.interval, periodic=True, args=(mail,))
+                        Task(
+                            func=self.taskProgressAutoIncrease,
+                            timeout=mail.interval, periodic=True, args=(mail,), id_ignore_args=True
+                        )
                     )
             else:
                 self.__tasklet.del_task(self.__pai_task.id)
