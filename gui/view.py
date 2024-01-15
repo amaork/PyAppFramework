@@ -164,7 +164,7 @@ class TableView(QtWidgets.QTableView):
 
         super().setModel(model)
 
-    def setContentMenuMask(self, mask: int):
+    def setContextMenuMask(self, mask: int):
         for group in self.Action:
             if mask & group:
                 self.__contextMenuEnableMask |= group
@@ -184,7 +184,7 @@ class TableView(QtWidgets.QTableView):
 
         if menu:
             self.__contextMenu.addSeparator()
-            self.setContentMenuMask(self.Action.CUSTOM)
+            self.setContextMenuMask(self.Action.CUSTOM)
 
     def item(self, row: int, column: int) -> typing.Union[QtWidgets.QTableWidgetItem, None]:
         if not self.__checkRow(row) or not self.__checkColumn(column):

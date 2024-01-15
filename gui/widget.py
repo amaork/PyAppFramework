@@ -1136,8 +1136,8 @@ class TableWidget(QTableWidget):
         self.__columnStretchFactor = list()
         self.__columnStretchMode = QHeaderView.Fixed
 
-        self.__contentMenu = QMenu(self)
-        self.__contentMenuEnableMask = 0x0
+        self.__contextMenu = QMenu(self)
+        self.__contextMenuEnableMask = 0x0
 
         for group, actions in {
             self.ACTION.COMM: [
@@ -1155,13 +1155,13 @@ class TableWidget(QTableWidget):
             for action, slot in actions:
                 action.triggered.connect(slot)
                 action.setProperty("group", group)
-                self.__contentMenu.addAction(action)
+                self.__contextMenu.addAction(action)
 
-            self.__contentMenu.addSeparator()
+            self.__contextMenu.addSeparator()
 
         self.__scale_x, self.__scale_y = get_program_scale_factor()
         if not disable_custom_content_menu:
-            self.customContextMenuRequested.connect(self.__slotShowContentMenu)
+            self.customContextMenuRequested.connect(self.__slotShowContextMenu)
         self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
     def tr(self, text: str) -> str:
@@ -1251,19 +1251,19 @@ class TableWidget(QTableWidget):
 
         return temp
 
-    def __slotShowContentMenu(self, pos: QPoint):
+    def __slotShowContextMenu(self, pos: QPoint):
         for group in self.SUPPORT_ACTIONS:
-            enabled = group & self.__contentMenuEnableMask
+            enabled = group & self.__contextMenuEnableMask
 
             if enabled and group in (self.ACTION.MOVE, self.ACTION.FROZEN):
                 if not self.rowCount():
                     return
 
-            for action in self.__contentMenu.actions():
+            for action in self.__contextMenu.actions():
                 if action.property("group") == group:
                     action.setVisible(enabled)
 
-        self.__contentMenu.popup(self.viewport().mapToGlobal(pos))
+        self.__contextMenu.popup(self.viewport().mapToGlobal(pos))
 
     def __slotWidgetDataChanged(self):
         self.tableDataChanged.emit()
@@ -1275,27 +1275,27 @@ class TableWidget(QTableWidget):
         self.__autoHeight = enable
         self.resize(self.geometry().width(), self.geometry().height())
 
-    def setContentMenuMask(self, mask: int):
+    def setContextMenuMask(self, mask: int):
         for group in self.SUPPORT_ACTIONS:
             if mask & group:
-                self.__contentMenuEnableMask |= group
+                self.__contextMenuEnableMask |= group
             else:
-                self.__contentMenuEnableMask &= ~group
+                self.__contextMenuEnableMask &= ~group
 
-        if self.__contentMenuEnableMask:
+        if self.__contextMenuEnableMask:
             self.setContextMenuPolicy(Qt.CustomContextMenu)
         else:
             self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-    def setCustomContentMenu(self, menu: List[QAction]):
+    def setCustomContextMenu(self, menu: List[QAction]):
         for action in menu:
             if not isinstance(action, QAction):
                 continue
 
             action.setProperty("group", self.ACTION.CUSTOM)
-            self.__contentMenu.addAction(action)
+            self.__contextMenu.addAction(action)
 
-        self.__contentMenu.addSeparator()
+        self.__contextMenu.addSeparator()
 
     def resizeColumnWidthFitContents(self):
         header = self.horizontalHeader()
