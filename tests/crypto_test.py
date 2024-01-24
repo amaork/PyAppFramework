@@ -22,7 +22,10 @@ class CRC16Test(unittest.TestCase):
 
     def testAESPad(self):
         self.assertEqual(AESCrypto.unpad(AESCrypto.pad(b"123")), b"123")
-        self.assertEqual(AESCrypto.pad(b"0123456789abcdef"), b'0123456789abcdef')
+        self.assertEqual(
+            AESCrypto.pad(b"0123456789abcdef"),
+            b'0123456789abcdef\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10'
+        )
         self.assertEqual(AESCrypto.unpad(AESCrypto.pad(b"0123456789abcde")), b'0123456789abcde')
         self.assertEqual(AESCrypto.unpad(AESCrypto.pad(b"0123456789abcdef123")), b'0123456789abcdef123')
 
@@ -33,11 +36,11 @@ class CRC16Test(unittest.TestCase):
         with self.assertRaises(TypeError):
             self.aes_ecb.decrypt("123")
 
-        self.assertEqual(self.aes_ecb.decrypt(self.aes_ecb.encrypt(b'hello'), 5), b'hello')
-        self.assertEqual(self.aes_ecb.decrypt(self.aes_ecb.encrypt(bytes(range(256))), 256) == bytes(range(256)), True)
+        self.assertEqual(self.aes_ecb.decrypt(self.aes_ecb.encrypt(b'hello')), b'hello')
+        self.assertEqual(self.aes_ecb.decrypt(self.aes_ecb.encrypt(bytes(range(256)))) == bytes(range(256)), True)
 
-        self.assertEqual(self.aes_cbc.decrypt(self.aes_cbc.encrypt(b'hello'), 5), b'hello')
-        self.assertEqual(self.aes_cbc.decrypt(self.aes_cbc.encrypt(bytes(range(256))), 256) == bytes(range(256)), True)
+        self.assertEqual(self.aes_cbc.decrypt(self.aes_cbc.encrypt(b'hello')), b'hello')
+        self.assertEqual(self.aes_cbc.decrypt(self.aes_cbc.encrypt(bytes(range(256)))) == bytes(range(256)), True)
 
     def testDESEncrypt(self):
         string = "amaork0123456789"

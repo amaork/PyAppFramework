@@ -207,9 +207,6 @@ class AESCrypto(object):
 
     @staticmethod
     def pad(data: bytes) -> bytes:
-        if not len(data) % AESCrypto.BLOCK_SIZE:
-            return data
-
         pl = AESCrypto.BLOCK_SIZE - (len(data) % AESCrypto.BLOCK_SIZE)
         return data + bytes([pl]) * pl
 
@@ -229,7 +226,7 @@ class AESCrypto(object):
         self.check('encrypt', data)
         return self.cipher().encrypt(self.pad(data))
 
-    def decrypt(self, data: bytes, plaintext_len: int) -> bytes:
+    def decrypt(self, data: bytes) -> bytes:
         self.check('decrypt', data)
         plaintext = self.cipher().decrypt(data)
-        return self.unpad(plaintext) if plaintext_len % AESCrypto.BLOCK_SIZE else plaintext
+        return self.unpad(plaintext)
