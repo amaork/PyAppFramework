@@ -36,6 +36,26 @@ class RSAKeyHandle(object):
         'scryptAndAES256-CBC'
     )
 
+    HashAlgo = {
+        'MD5': MD5,
+
+        'SHA': SHA,
+        'SHA1': SHA1,
+
+        'SHA224': SHA224,
+        'SHA256': SHA256,
+        'SHA384': SHA384,
+        'SHA512': SHA512,
+
+        'SHA3_224': SHA3_224,
+        'SHA3_256': SHA3_256,
+        'SHA3_384': SHA3_384,
+        'SHA3_512': SHA3_512,
+
+        'RIPEMD': RIPEMD,
+        'RIPEMD160': RIPEMD160
+    }
+
     def __init__(self, key: str, pwd: str = None):
         self._key = RSA.importKey(str(key), passphrase=pwd)
         if not self.check():
@@ -82,27 +102,9 @@ class RSAKeyHandle(object):
         with open(file) as fp:
             return cls(fp.read(), **kwargs)
 
-    @staticmethod
-    def get_hash_algo_from_str(hash_algo: str):
-        return {
-            'MD5': MD5,
-
-            'SHA': SHA,
-            'SHA1': SHA1,
-
-            'SHA224': SHA224,
-            'SHA256': SHA256,
-            'SHA384': SHA384,
-            'SHA512': SHA512,
-
-            'SHA3_224': SHA3_224,
-            'SHA3_256': SHA3_256,
-            'SHA3_384': SHA3_384,
-            'SHA3_512': SHA3_512,
-
-            'RIPEMD': RIPEMD,
-            'RIPEMD160': RIPEMD160
-        }.get(hash_algo)
+    @classmethod
+    def get_hash_algo_from_str(cls, hash_algo: str):
+        return cls.HashAlgo.get(hash_algo)
 
     @staticmethod
     def generate_key_pair(bits: int = 3072, **kwargs) -> RSAKeyPair:
