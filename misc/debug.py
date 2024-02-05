@@ -149,8 +149,8 @@ class JsonSettingsWithDebugCode(JsonSettings):
     def is_debug_enabled(self, option: str) -> bool:
         return option in self.debug_code
 
-    def get_debug_option(self, option: str) -> str:
+    def get_debug_option(self, option: str, delimiter: str = '#') -> str:
         if not self.is_debug_enabled(option):
             return ''
 
-        return [x for x in self.debug_code.split() if option in x][0].split('#')[-1]
+        return [x for x in self.debug_code.split() if option in x][0].split(delimiter)[-1]
