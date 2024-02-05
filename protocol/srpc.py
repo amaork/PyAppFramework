@@ -57,18 +57,34 @@ class SRPCMessage(CustomEvent):
 
 
 class SRPCAPIWrap:
+    MessageCls = SRPCMessage
+
     def __init__(self, client: TCPSocketTransmit, api_info: str, logger: LoggerWrap):
         self.info = api_info
         self.client = client
         self.logger = logger
+        self._result = None
         self.tag = random.randint(0, 999999999)
 
+    def info(self, msg: str):
+        self.logger.info(msg)
+
+    def error(self, msg: str):
+        self.logger.error(msg)
+
+    def debug(self, msg: str):
+        self.logger.debug(msg)
+
+    def set_result(self, result: typing.Any):
+        self._result = result
+        send_msg_to_client(self.client, self.MessageCls.result(result), self.logger.error)
+
     def __enter__(self):
-        self.logger.debug(f'[S{self.tag:09d}]: {self.info}')
+        self.logger.debug(f'[I#{self.tag:09d}]: {self.info}')
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logger.debug(f'[E{self.tag:09d}]: {self.info}')
+        self.logger.debug(f'[O#{self.tag:09d}]: {self.info} ==> {self._result}')
         if exc_type:
             frame = inspect.stack()[1][0]
             info = inspect.getframeinfo(frame)

@@ -2,14 +2,13 @@
 import os
 import time
 import json
-import base64
 import random
 import typing
 import shutil
 import sqlite3
 import hashlib
 import collections
-from .datatype import DynamicObject, DynamicObjectEncoder, DynamicObjectError, str2float, str2number
+from .datatype import DynamicObject, str2float, str2number, DynamicObjectError
 from typing import Any, Optional, Union, List, Tuple, Sequence, Dict, Callable
 from ..misc.settings import UiInputSetting, UiIntegerInput, UiDoubleInput
 
@@ -104,22 +103,6 @@ class DBTable:
     @property
     def is_autoincrement(self) -> bool:
         return any(x.is_autoinc() for x in self.scheme)
-
-    @staticmethod
-    def encode_blob_data(data: typing.Any) -> str:
-        if isinstance(data, bytes):
-            return f'{base64.b64encode(data).decode()}'
-        elif isinstance(data, dict):
-            return f"'{json.dumps(data, ensure_ascii=False, cls=DynamicObjectEncoder)}'"
-        else:
-            return json.dumps(data, ensure_ascii=False)
-
-    @staticmethod
-    def decode_blob_data(data: str) -> typing.Any:
-        try:
-            return json.loads(data)
-        except json.decoder.JSONDecodeError:
-            return base64.b64decode(data)
 
     def columns_name(self) -> typing.Tuple[str, ...]:
         return tuple([x.name for x in self.scheme if not x.is_autoinc()])
@@ -268,10 +251,13 @@ class SQLiteDatabase(object):
         except TypeError:
             return '*'
 
+    def commit(self, commit: bool = True):
+        if commit:
+            self._conn.commit()
+
     def rawExecute(self, sql: str):
         try:
             self._cursor.execute(sql)
-            self._conn.commit()
             return self._cursor.fetchall()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
@@ -372,12 +358,19 @@ class SQLiteDatabase(object):
         else:
             return 0, table_info[0][self.TBL_NAME], Any
 
-    def getTableData(self, name: str, columns: typing.Sequence[str] = None) -> list:
+    def getTableData(self, name: str, columns: typing.Sequence[str] = None, cond: str = '') -> list:
         try:
-            self._cursor.execute(f"SELECT {self.columns2str(columns)} from {name}")
+            cond = f' WHERE {cond}' if cond else ''
+            self._cursor.execute(f"SELECT {self.columns2str(columns)} FROM {name}{cond}")
             return self._cursor.fetchall()
         except sqlite3.DatabaseError:
             return list()
+
+    def deleteTable(self, name: str):
+        try:
+            self._cursor.execute(f'DROP TABLE {name}')
+        except (TypeError, ValueError, sqlite3.DatabaseError) as error:
+            raise SQLiteDatabaseError("deleteTable error: {}".format(error))
 
     def createTable(self, name: str, columns: int):
         try:
@@ -403,12 +396,30 @@ class SQLiteDatabase(object):
 
             # print("CREATE TABLE {} ({});".format(name, ",".join(data)))
             self._cursor.execute("CREATE TABLE {} ({});".format(name, ",".join(data)))
-            self._conn.commit()
         except (TypeError, ValueError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Create table error:{}".format(error))
 
+    def deleteTableData(self, name: str, cond: str = '', commit: bool = False):
+        try:
+            cond = f' WHERE {cond}' if cond else ''
+            self._cursor.execute(f'DELETE FROM {name}{cond}')
+            self.resetAutoincrementSeq(name)
+        except (TypeError, ValueError, sqlite3.DatabaseError) as error:
+            raise SQLiteDatabaseError("deleteTableData error: {}".format(error))
+        else:
+            self.commit(commit)
+
     def getAutoincrementSeq(self, name: str) -> int:
         return self.selectRecord(self.SpcSequenceTBLName, ['seq'], self.conditionFormat('name', name))[0][0]
+
+    def resetAutoincrementSeq(self, name: str):
+        try:
+            self._cursor.execute(f'UPDATE {self.SpcSequenceTBLName} SET seq = 0 WHERE name = "{name}";')
+        except sqlite3.DatabaseError as error:
+            raise SQLiteDatabaseError(f'resetAutoincrementSeq error: {error}')
+
+    def isAutoincrement(self, tbl_name: str) -> bool:
+        return tbl_name in [x[0] for x in self.getTableData(self.SpcSequenceTBLName)]
 
     def deleteRecord(self, name: str, condition: str):
         """Delete records from table, when conditions matched
@@ -419,7 +430,6 @@ class SQLiteDatabase(object):
         """
         try:
             self._cursor.execute("DELETE FROM {} WHERE {};".format(name, condition))
-            self._conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError("Delete error:{}".format(error))
 
@@ -436,7 +446,9 @@ class SQLiteDatabase(object):
 
             # Get column names and types
             column_names = self.getColumnList(name)
-            if len(column_names) != len(record):
+            column_length = len(column_names) - 1 if self.isAutoincrement(name) else len(column_names)
+
+            if column_length != len(record):
                 raise ValueError("recode length dis-matched")
 
             # Pre-process placeholder
@@ -444,7 +456,6 @@ class SQLiteDatabase(object):
 
             # Insert to sqlite and save
             self._cursor.execute("INSERT INTO {} VALUES({})".format(name, placeholder), record)
-            self._conn.commit()
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
 
@@ -494,7 +505,6 @@ class SQLiteDatabase(object):
                 self._cursor.execute('UPDATE {} SET {};'.format(name, recode_data), blob_records)
             else:
                 self._cursor.execute('UPDATE {} SET {} WHERE {};'.format(name, recode_data, condition), blob_records)
-            self._conn.commit()
         except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
 
