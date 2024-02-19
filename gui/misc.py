@@ -2,6 +2,7 @@
 import glob
 import typing
 import platform
+import threading
 import websocket
 import collections
 import datetime as dt
@@ -11,12 +12,13 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
 from ..misc.utils import get_timestamp_str
+from ..network.utility import scan_lan_port
 from raspi_io import Query, RaspiSocketError
 from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
 
 from ..network.utility import get_system_nic
 from ..misc.settings import Color, CustomAction
-__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'DateTimeEdit',
+__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelector', 'DateTimeEdit',
            'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
@@ -118,6 +120,72 @@ class SerialPortSelector(QtWidgets.QComboBox):
             self.flushSerialPort()
 
         super(SerialPortSelector, self).mousePressEvent(ev)
+
+
+class ServicePortSelector(QtWidgets.QComboBox):
+    updateItems = Signal(object)
+    deviceSelected = Signal(object)
+
+    # noinspection PyTypeChecker
+    TIPS = QtWidgets.QApplication.translate("ServicePortSelector", "Please select device address", None)
+
+    def __init__(self, port: int, network: str, text: Optional[str] = TIPS,
+                 one_short: bool = False, timeout: float = 0.04, parent: Optional[QtWidgets.QWidget] = None):
+        super(ServicePortSelector, self).__init__(parent)
+        self._port = port
+        self._timeout = timeout
+        self._network = network
+        self._one_short = one_short
+        self.__text = text or self.TIPS
+
+        self.addItem(self.__text)
+        self.updateItems.connect(self.slotAddItems)
+        self.flushAddress(self._network, self._timeout)
+        self.setToolTip(self.tr("Right click reset and refresh"))
+        self.currentIndexChanged.connect(self.slotDeviceSelected)
+
+    def currentAddress(self) -> str:
+        return self.getSelectedAddress()
+
+    def getSelectedAddress(self) -> str:
+        if not self.count() or self.currentIndex() == 0:
+            return ""
+
+        return self.currentText()
+
+    def flushAddress(self, network: str = '', timeout: float = 0.0):
+        network = network or self._network
+        timeout = timeout or self._timeout
+        threading.Thread(target=self.threadFlush, args=(network, timeout), daemon=True).start()
+
+    def threadFlush(self, network: str, timeout: float):
+        try:
+            self.updateItems.emit(scan_lan_port(self._port, network=network, timeout=timeout))
+        except OSError:
+            self.updateItems.emit([])
+
+    def setScanNetwork(self, network: str):
+        self._network = network
+
+    def slotAddItems(self, items: typing.List[str]):
+        self.setEnabled(True)
+        self.clear()
+        self.addItem(self.__text)
+        self.addItems(items)
+
+    def slotDeviceSelected(self, idx: int) -> bool:
+        if not isinstance(idx, int) or not self.count() or not 0 <= idx < self.count() or not self.itemData(idx):
+            return False
+
+        self.setDisabled(self.__one_shot)
+        self.deviceSelected.emit(self.itemData(idx))
+        return True
+
+    def mousePressEvent(self, ev: QtGui.QMouseEvent):
+        if ev.button() == Qt.RightButton:
+            self.flushAddress()
+
+        super().mousePressEvent(ev)
 
 
 class NetworkInterfaceSelector(QtWidgets.QComboBox):
