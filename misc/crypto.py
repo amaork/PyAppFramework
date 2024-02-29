@@ -250,7 +250,7 @@ class CryptoCommDecodeException(CryptoCommException):
     pass
 
 
-class CryptoCommVerifyException(CryptoCommLengthException):
+class CryptoCommVerifyException(CryptoCommException):
     pass
 
 
