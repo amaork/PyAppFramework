@@ -201,6 +201,19 @@ class ProgressBarMail(BaseUiMail):
     def autoIncreaseEnabled(self) -> bool:
         return self.increase > 0 and self.interval > 0.0
 
+    @classmethod
+    def create(cls, total_time: float, **kwargs):
+        def calc(interval_: float) -> typing.Tuple[float, int]:
+            increase_ = int(100 / (total_time / interval_))
+            if increase_ < 1.0:
+                return calc(interval_ * 10)
+
+            return interval_, increase_
+
+        interval, increase = calc(0.1)
+        kwargs.setdefault('progress', 1)
+        return cls(interval=interval, increase=increase, **kwargs)
+
 
 class StatusBarWidgetMail(BaseUiMail):
     def __init__(self, widget_type, widget_name: str):

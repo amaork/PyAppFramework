@@ -6,6 +6,7 @@ import threading
 import websocket
 import collections
 import datetime as dt
+from PySide2.QtWidgets import QApplication
 from PySide2.QtCore import Qt, Signal, SLOT
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -23,7 +24,7 @@ __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelecto
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel', 'Separator',
-           'updateFilterMenu']
+           'updateFilterMenu', 'qtTranslate']
 
 
 class SerialPortSelector(QtWidgets.QComboBox):
@@ -340,6 +341,14 @@ class TabBar(QtWidgets.QTabBar):
 
     def tabSizeHint(self, index: int) -> QtCore.QSize:
         return self.tabSize
+
+
+def qtTranslate(text: str, views_name: typing.Sequence[str]) -> str:
+    try:
+        # noinspection PyTypeChecker
+        return [tr for tr in [QApplication.translate(view, text) for view in views_name] if tr != text][0]
+    except IndexError:
+        return text
 
 
 def updateFilterMenu(options: Sequence[str], menu: QtWidgets.QMenu,

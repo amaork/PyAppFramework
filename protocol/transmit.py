@@ -124,8 +124,10 @@ class UARTTransmit(Transmit):
         except serial.SerialException as err:
             raise TransmitException(err)
 
-    def rx(self, size: int, timeout: float = 0) -> bytes:
+    def rx(self, size: int, timeout: float = 0.0) -> bytes:
         try:
+            self.__serial.raw_port.timeout = timeout or self._timeout
+
             # Receive length first, without ending check
             if self.__length_fmt:
                 header = self.__serial.read(struct.calcsize(self.__length_fmt))
@@ -229,6 +231,8 @@ class TCPSocketTransmit(Transmit):
             raise TransmitException(err)
 
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
+        self._socket.settimeout(timeout or self._timeout)
+
         try:
             if self._length_fmt:
                 header = self._socket.recv(struct.calcsize(self._length_fmt))
