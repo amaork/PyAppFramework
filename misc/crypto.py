@@ -12,7 +12,11 @@ from Crypto.Signature import PKCS1_v1_5 as PKCS1_signature
 from Crypto.Hash import SHA1, SHA, SHA224, SHA256, SHA384, SHA512, SHA3_224, SHA3_256, SHA3_384, SHA3_512, \
     MD5, RIPEMD160, RIPEMD
 from ..core.datatype import DynamicObject
-__all__ = ['RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'RSAKeyPair', 'DESCrypto', 'AESCrypto']
+__all__ = [
+    'RSAPublicKeyHandle', 'RSAPrivateKeyHandle', 'RSAKeyHandle', 'RSAKeyPair', 'DESCrypto', 'AESCrypto',
+    'CryptoCommException', 'CryptoCommLengthException', 'CryptoCommDecodeException', 'CryptoCommVerifyException',
+    'crypto_encrypt_data', 'crypto_decrypt_data', 'crypto_communication'
+]
 
 
 class RSAKeyPair(DynamicObject):
@@ -87,7 +91,7 @@ class RSAKeyHandle(object):
                 message = message[max_length:]
 
             return result
-        except binascii.Error:
+        except (binascii.Error, ValueError):
             return bytes()
 
     def get_max_length(self, encrypt: bool) -> int:
@@ -232,3 +236,54 @@ class AESCrypto(object):
         self.check('decrypt', data)
         plaintext = self.cipher().decrypt(data)
         return self.unpad(plaintext)
+
+
+class CryptoCommException(Exception):
+    pass
+
+
+class CryptoCommLengthException(CryptoCommException):
+    pass
+
+
+class CryptoCommDecodeException(CryptoCommException):
+    pass
+
+
+class CryptoCommVerifyException(CryptoCommLengthException):
+    pass
+
+
+def crypto_decrypt_data(
+        public_key: RSAPublicKeyHandle, private_key: RSAPrivateKeyHandle, data: bytes, hash_algo: str = 'SHA256'
+) -> bytes:
+    sign_length = -384
+    if len(data) <= sign_length:
+        raise CryptoCommLengthException('request too short')
+
+    cipher, sign = data[:sign_length], data[sign_length:]
+    raw = private_key.decrypt(cipher)
+
+    if not raw:
+        raise CryptoCommDecodeException('decrypt request failed')
+
+    if not public_key.verify(raw, sign, hash_algo):
+        raise CryptoCommVerifyException('verify request failed')
+
+    return raw
+
+
+def crypto_encrypt_data(
+        public_key: RSAPublicKeyHandle, private_key: RSAPrivateKeyHandle, data: bytes, hash_algo: str = 'SHA256'
+) -> bytes:
+    cipher = public_key.encrypt(data)
+    sign = private_key.sign(data, hash_algo)
+    return cipher + sign
+
+
+def crypto_communication(
+        public_key: RSAPublicKeyHandle, private_key: RSAPrivateKeyHandle,
+        data: bytes, comm_core: typing.Callable[[bytes], bytes], hash_algo: str = 'SHA256'
+) -> bytes:
+    data = crypto_encrypt_data(public_key, private_key, data, hash_algo)
+    return crypto_decrypt_data(public_key, private_key, comm_core(data), hash_algo)
