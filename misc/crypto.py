@@ -262,13 +262,13 @@ def crypto_decrypt_data(
         raise CryptoCommLengthException('request too short')
 
     cipher, sign = data[:sign_length], data[sign_length:]
-    raw = private_key.decrypt(cipher)
 
+    if not public_key.verify(cipher, sign, hash_algo):
+        raise CryptoCommVerifyException('verify request failed')
+
+    raw = private_key.decrypt(cipher)
     if not raw:
         raise CryptoCommDecodeException('decrypt request failed')
-
-    if not public_key.verify(raw, sign, hash_algo):
-        raise CryptoCommVerifyException('verify request failed')
 
     return raw
 
@@ -277,7 +277,7 @@ def crypto_encrypt_data(
         public_key: RSAPublicKeyHandle, private_key: RSAPrivateKeyHandle, data: bytes, hash_algo: str = 'SHA256'
 ) -> bytes:
     cipher = public_key.encrypt(data)
-    sign = private_key.sign(data, hash_algo)
+    sign = private_key.sign(cipher, hash_algo)
     return cipher + sign
 
 
