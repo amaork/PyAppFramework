@@ -231,7 +231,9 @@ class TCPSocketTransmit(Transmit):
             raise TransmitException(err)
 
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
-        self._socket.settimeout(timeout or self._timeout)
+        timeout = timeout or self._timeout
+        if timeout:
+            self._socket.settimeout(timeout)
 
         try:
             if self._length_fmt:
