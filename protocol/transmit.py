@@ -124,20 +124,18 @@ class UARTTransmit(Transmit):
         except serial.SerialException as err:
             raise TransmitException(err)
 
-    def rx(self, size: int, timeout: float = 0.0) -> bytes:
+    def rx(self, size: int, timeout: float = None) -> bytes:
         try:
-            self.__serial.raw_port.timeout = timeout or self._timeout
-
             # Receive length first, without ending check
             if self.__length_fmt:
-                header = self.__serial.read(struct.calcsize(self.__length_fmt))
+                header = self.__serial.read(struct.calcsize(self.__length_fmt), timeout)
                 if not header:
                     raise TransmitWarning('Read length error')
 
                 # Get length from header
                 size = struct.unpack(self.__length_fmt, header)[0]
 
-            data = self.__serial.read(size)
+            data = self.__serial.read(size, timeout)
             self.print_msg(('rx: {0:03d} {1}'.format(len(data), self.hex_convert(data))))
 
             # Check received data length
