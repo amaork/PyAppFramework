@@ -305,11 +305,14 @@ class SerialPortSelectDialog(QDialog):
     # noinspection PyTypeChecker
     DEF_TITLE = QApplication.translate("SerialPortSelectDialog", "Please select serial port")
 
-    def __init__(self, timeout: float = 0.04, title: str = DEF_TITLE, parent: Optional[QWidget] = None):
+    def __init__(self, timeout: float = 0.04, port: str = '',
+                 title: str = DEF_TITLE, parent: Optional[QWidget] = None):
         super(SerialPortSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._ports = QComboBox(self)
         self._ports.addItems(SerialPort.get_serial_list(timeout))
+        self._ports.setCurrentText(port)
+
         button = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
@@ -379,7 +382,10 @@ class SerialPortSettingDialog(QDialog):
 class ServiceDiscoveryDialog(BasicDialog):
     signalEvent = Signal(object)
 
-    def __init__(self, service: str, port: int, network: str = get_default_network(), parent: Optional[QWidget] = None):
+    def __init__(self, service: str, port: int,
+                 network: str = get_default_network(),
+                 title: str = '', parent: Optional[QWidget] = None):
+        self.title = title or self.tr('Please select')
         super().__init__(parent)
         self.signalEvent.connect(self.eventHandle)
         self._discovery = ServiceDiscovery(
@@ -389,17 +395,18 @@ class ServiceDiscoveryDialog(BasicDialog):
     def _initUi(self):
         self.ui_address = QComboBox()
         label = QLabel(self.tr('Address'))
-        label.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+        label.setMaximumWidth(40)
         content = QHBoxLayout()
         content.addWidget(label)
         content.addWidget(self.ui_address)
 
         layout = QVBoxLayout()
         layout.addLayout(content)
+        layout.addWidget(QLabel(' ' * 35))
         layout.addWidget(QSplitter())
         layout.addWidget(self.ui_buttons)
         self.setLayout(layout)
-        self.setWindowTitle(self.tr('Please select'))
+        self.setWindowTitle(self.title)
 
     def sizeHint(self) -> QSize:
         return QSize(210, 80)
@@ -664,6 +671,7 @@ class BasicJsonSettingDialog(QDialog):
         self.setWindowTitle(self.tr(title))
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
+    # noinspection PyMethodOverriding
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
         return QApplication.translate("BasicJsonSettingDialog", text, None)
