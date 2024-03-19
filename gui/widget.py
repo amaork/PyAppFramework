@@ -1153,6 +1153,7 @@ class TableWidget(QTableWidget):
             ],
         }.items():
             for action, slot in actions:
+                # noinspection PyUnresolvedReferences
                 action.triggered.connect(slot)
                 action.setProperty("group", group)
                 self.__contextMenu.addAction(action)
@@ -1164,6 +1165,7 @@ class TableWidget(QTableWidget):
             self.customContextMenuRequested.connect(self.__slotShowContextMenu)
         self.setVerticalHeaderHeight(int(self.getVerticalHeaderHeight() * self.__scale_y))
 
+    # noinspection PyMethodOverriding
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
         return QApplication.translate("TableWidget", text, None)
@@ -1775,6 +1777,7 @@ class TableWidget(QTableWidget):
                     self.setCellWidget(row, column, widget)
                 elif isinstance(widget, QComboBox) and isinstance(data, int) and data < widget.count():
                     widget.setCurrentIndex(data)
+                    # noinspection PyUnresolvedReferences
                     widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                     self.cellWidget(row, column).setHidden(True)
                     self.removeCellWidget(row, column)
@@ -1783,6 +1786,7 @@ class TableWidget(QTableWidget):
                     date = QDate(data.year, data.month, data.day)
                     time = QTime(data.hour, data.minute, data.second)
                     widget.setDateTime(QDateTime(date, time))
+                    # noinspection PyUnresolvedReferences
                     widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                     self.removeCellWidget(row, column)
                     self.setCellWidget(row, column, widget)
@@ -1862,6 +1866,7 @@ class TableWidget(QTableWidget):
                 widget = QDateTimeEdit(dt)
                 widget.setCalendarPopup(True)
                 widget.setProperty("format", filters[2])
+                # noinspection PyUnresolvedReferences
                 widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
@@ -1902,6 +1907,7 @@ class TableWidget(QTableWidget):
                     value = filters.index(value) if value in filters else 0
                     widget.setProperty("format", "text")
                 widget.setCurrentIndex(value)
+                # noinspection PyUnresolvedReferences
                 widget.currentIndexChanged.connect(self.__slotWidgetDataChanged)
                 self.takeItem(row, column)
                 self.setCellWidget(row, column, widget)
@@ -2067,7 +2073,9 @@ class TreeWidget(QTreeWidget):
         self.ui_context_menu.addAction(self.ui_expand_all)
         self.ui_context_menu.addAction(self.ui_collapse_all)
 
+        # noinspection PyUnresolvedReferences
         self.ui_expand_all.triggered.connect(self.expandAll)
+        # noinspection PyUnresolvedReferences
         self.ui_collapse_all.triggered.connect(self.collapseAll)
 
     def disableScrollBar(self, horizontal: bool, vertical: bool):
@@ -2287,15 +2295,18 @@ class SerialPortSettingWidget(QWidget):
     # noinspection PyTypeChecker
     PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None)
     # noinspection PyTypeChecker
+    # noinspection SpellCheckingInspection
     DATABITS_STR = QApplication.translate("SerialPortSettingWidget", "DataBits", None)
     # noinspection PyTypeChecker
+    # noinspection SpellCheckingInspection
     STOPBITS_STR = QApplication.translate("SerialPortSettingWidget", "StopBits", None)
     # noinspection PyTypeChecker
+    # noinspection SpellCheckingInspection
     BAUDRATE_STR = QApplication.translate("SerialPortSettingWidget", "BaudRate", None)
     # noinspection PyTypeChecker
     TIMEOUT_STR = QApplication.translate("SerialPortSettingWidget", "Timeout (ms)", None)
 
-    # Options
+    # noinspection SpellCheckingInspection
     OPTIONS = {
         "baudrate": {
             "text": BAUDRATE_STR,
@@ -2323,7 +2334,9 @@ class SerialPortSettingWidget(QWidget):
             "values": [0, 9999]
         }
     }
+    # noinspection SpellCheckingInspection
     ALL_OPTIONS = ("baudrate", "bytesize", "parity", "stopbits", "timeout")
+    # noinspection SpellCheckingInspection
     DEFAULTS = {"baudrate": 9600, "bytesize": 8, "parity": "N", "stopbits": 1, "timeout": 0}
 
     def __init__(self, settings: Optional[dict] = None, flush_timeout: float = 0.04, parent: Optional[QWidget] = None):
@@ -2514,7 +2527,9 @@ class JsonSettingWidget(BasicJsonSettingWidget):
 
                         # Text mode
                         if isinstance(select_value, QLineEdit):
+                            # noinspection PyUnresolvedReferences
                             select_value.textChanged.connect(self.slotSettingChanged)
+                            # noinspection PyUnresolvedReferences
                             select_value.textChanged.connect(
                                 lambda x: self.settingChangedDetail.emit(select_value.property("data"), x)
                             )
@@ -2554,6 +2569,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 button.clicked.connect(self.slotSelectFont)
                 preview = self.ui_manager.getPrevSibling(button)
                 if isinstance(preview, QLineEdit):
+                    # noinspection PyUnresolvedReferences
                     preview.textChanged.connect(self.slotPreviewFont)
 
         for button in self.ui_manager.findValue("clicked", "color", QPushButton):
@@ -2561,8 +2577,10 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 button.clicked.connect(self.slotSelectColor)
                 preview = self.ui_manager.getPrevSibling(button)
                 if isinstance(preview, QLineEdit):
+                    # noinspection PyUnresolvedReferences
                     preview.textChanged.connect(self.slotPreviewColor)
 
+    # noinspection PyMethodOverriding
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
         return QApplication.translate("JsonSettingWidget", text, None)
@@ -3301,6 +3319,7 @@ class LogMessageWidget(QTextEdit):
     DISPLAY_INFO, DISPLAY_DEBUG, DISPLAY_ERROR = (0x1, 0x2, 0x4)
     DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR
 
+    # noinspection SpellCheckingInspection
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
                  parent: Optional[QWidget] = None):
@@ -3325,9 +3344,13 @@ class LogMessageWidget(QTextEdit):
             action.setChecked(True)
             self.ui_context_menu.addAction(action)
 
+        # noinspection PyUnresolvedReferences
         self.ui_clean_action.triggered.connect(self.clear)
+        # noinspection PyUnresolvedReferences
         self.ui_show_info.triggered.connect(self.slotShowSelectLog)
+        # noinspection PyUnresolvedReferences
         self.ui_show_debug.triggered.connect(self.slotShowSelectLog)
+        # noinspection PyUnresolvedReferences
         self.ui_show_error.triggered.connect(self.slotShowSelectLog)
         self.setDisplayFilter(display_filter, load=False)
 

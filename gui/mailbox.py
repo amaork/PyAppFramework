@@ -429,6 +429,7 @@ class UiMailBox(QObject):
         elif isinstance(mail, CallbackFuncMail):
             if mail.timeout:
                 # Using QTimer improve security
+                # noinspection PyUnresolvedReferences
                 QTimer.singleShot(mail.timeout * 1000, lambda: mail.execute(check=True))
             else:
                 # Timeout is zero call it immediately

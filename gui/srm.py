@@ -53,6 +53,7 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
     def __getRawRSAPrivateKey(self, key: bytes) -> str:
         return self.__decrypt(key) if hasattr(self.__decrypt, '__call__') else key.decode()
 
+    # noinspection PyMethodOverriding
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
         return QtWidgets.QApplication.translate("SoftwareRegistrationMachineWidget", text, None)

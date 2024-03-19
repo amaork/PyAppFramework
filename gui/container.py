@@ -44,6 +44,7 @@ class ComboBoxGroup(QObject):
             item.addItems(texts)
             if ordered:
                 item.setCurrentIndex(index)
+            # noinspection PyUnresolvedReferences
             item.currentIndexChanged.connect(self.slotDataChanged)
             self.__group.append(item)
 
@@ -152,6 +153,7 @@ class ComboBoxGroup(QObject):
             box.setCurrentIndex(self.count())
 
         self.__group.append(box)
+        # noinspection PyUnresolvedReferences
         box.currentIndexChanged.connect(self.slotDataChanged)
         return True
 
@@ -250,6 +252,7 @@ class ComponentManager(QObject):
             if isinstance(component, QDoubleSpinBox):
                 component.valueChanged.connect(self.slotDataChanged)
             elif isinstance(component, QComboBox):
+                # noinspection PyUnresolvedReferences
                 component.currentIndexChanged.connect(self.slotDataChanged)
             elif isinstance(component, QCheckBox):
                 component.stateChanged.connect(self.slotDataChanged)
@@ -260,12 +263,16 @@ class ComponentManager(QObject):
             elif isinstance(component, VirtualNumberInput):
                 component.numberChanged.connect(self.slotDataChanged)
             elif isinstance(component, QLineEdit):
+                # noinspection PyUnresolvedReferences
                 component.textChanged.connect(self.slotDataChanged)
             elif isinstance(component, QTextEdit):
+                # noinspection PyUnresolvedReferences
                 component.textChanged.connect(self.slotDataChanged)
             elif isinstance(component, QPlainTextEdit):
+                # noinspection PyUnresolvedReferences
                 component.textChanged.connect(self.slotDataChanged)
             elif isinstance(component, QDateTimeEdit):
+                # noinspection PyUnresolvedReferences
                 component.dateTimeChanged.connect(self.slotDataChanged)
             elif isinstance(component, QDial):
                 component.valueChanged.connect(self.slotDataChanged)
@@ -376,18 +383,23 @@ class ComponentManager(QObject):
         if isinstance(component, QDoubleSpinBox):
             component.valueChanged.connect(slot)
         elif isinstance(component, QComboBox):
+            # noinspection PyUnresolvedReferences
             component.currentIndexChanged.connect(slot)
         elif isinstance(component, QCheckBox):
             component.stateChanged.connect(slot)
         elif isinstance(component, QRadioButton):
             component.clicked.connect(slot)
         elif isinstance(component, QLineEdit):
+            # noinspection PyUnresolvedReferences
             component.textChanged.connect(slot)
         elif isinstance(component, QTextEdit):
+            # noinspection PyUnresolvedReferences
             component.textChanged.connect(slot)
         elif isinstance(component, QPlainTextEdit):
+            # noinspection PyUnresolvedReferences
             component.textChanged.connect(slot)
         elif isinstance(component, QDateTimeEdit):
+            # noinspection PyUnresolvedReferences
             component.dateTimeChanged.connect(slot)
         elif isinstance(component, QDial):
             component.valueChanged.connect(slot)
@@ -733,7 +745,7 @@ class ComponentManager(QObject):
         return True
 
     def bindComboBoxWithSpinBox(self, key: str, sender: Any, receiver: Any, limit: Union[list, tuple]) -> bool:
-        """Bind ComboBox with SpinBox, ComboBox current index changed, SpinBox will changed
+        """Bind ComboBox with SpinBox, ComboBox current index changed, SpinBox will change
 
         limit length = 3 (min, max, step)
         limit length = 2 (min, max)

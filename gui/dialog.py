@@ -991,8 +991,10 @@ class FileDialog(QtWidgets.QFileDialog):
         if not self.ui_list_view:
             self.reject()
 
+        # noinspection PyUnresolvedReferences
         for index in self.ui_list_view.selectionModel().selectedIndexes():
             if index.column() == 0:
+                # noinspection PyUnresolvedReferences
                 self.__selectedFiles.append(self.ui_list_view.model().filePath(index))
 
         self.done(1)

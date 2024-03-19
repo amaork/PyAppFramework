@@ -655,6 +655,7 @@ class SqliteQueryView(BasicWidget):
     def _enable_fuzzy_search(self, key: str) -> bool:
         return self._model.is_support_fuzzy_search(key)
 
+    # noinspection PyMethodOverriding
     def tr(self, text: str) -> str:
         # noinspection PyTypeChecker
         return QtWidgets.QApplication.translate("SqliteQueryView", text, None)

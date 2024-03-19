@@ -795,6 +795,7 @@ class CustomTextEditor(QtWidgets.QTextEdit):
         for action in self.__customize_actions:
             act = menu.addAction(action.text)
             act.setShortcut(action.ks)
+            # noinspection PyUnresolvedReferences
             act.triggered.connect(action.slot)
 
         menu.exec_(event.globalPos())

@@ -64,6 +64,7 @@ class CheckBox(QCheckBox):
     editingFinished = Signal()
 
     def __init__(self, text: str = "", stylesheet: Optional[dict] = None, parent: Optional[QWidget] = None):
+        # noinspection PyTypeChecker
         super(CheckBox, self).__init__(text, parent)
         self.setAutoFillBackground(True)
         self._frozen = False
@@ -180,7 +181,11 @@ class CheckBoxDelegate(QStyledItemDelegate):
     @Slot()
     def commitAndCloseEditor(self):
         sender = self.sender()
+
+        # noinspection PyUnresolvedReference
         self.commitData.emit(sender)
+
+        # noinspection PyUnresolvedReferences
         self.closeEditor.emit(sender, QAbstractItemDelegate.NoHint)
 
     def setEditorData(self, editor: CheckBox, index: QModelIndex):

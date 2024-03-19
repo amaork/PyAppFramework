@@ -231,6 +231,7 @@ class ModbusAddressView(QtWidgets.QTabWidget):
         # Merge request
         while self._write_merge_queue.qsize():
             request = self.BitWriteRequest(*self._write_merge_queue.get())
+            # noinspection PyTypeChecker
             address_dict[request.address][2] = request
 
             if request.is_set:

@@ -66,6 +66,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         self.removeRows(0, c)
         self.dataChanged.emit(self.index(-1, -1), self.index(-1, -1))
 
+    # noinspection PyMethodMayBeStatic
     def item(self, _row: int, _column: int):
         return None
 
@@ -202,12 +203,15 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         self.endRemoveRows()
         return True
 
+    # noinspection PyMethodMayBeStatic
     def getBackground(self, index: QtCore.QModelIndex) -> QtGui.QColor:
         return QtGui.QColor(Qt.white)
 
+    # noinspection PyMethodMayBeStatic
     def getForeground(self, index: QtCore.QModelIndex) -> QtGui.QColor:
         return QtGui.QColor(Qt.black)
 
+    # noinspection PyMethodMayBeStatic
     def getAlignment(self, index: QtCore.QModelIndex) -> Qt.AlignmentFlag:
         return Qt.AlignCenter
 

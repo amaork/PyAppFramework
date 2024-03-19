@@ -91,6 +91,7 @@ class ComboBoxBinder(QObject):
 
         self.__combobox = combobox
         self.__binding = list()
+        # noinspection PyUnresolvedReferences
         self.__combobox.currentIndexChanged.connect(self.eventProcess)
 
     def __check(self, obj: QWidget, factor: Sequence, types: Tuple[QWidget.__class__, ...]) -> bool:
