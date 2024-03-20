@@ -14,7 +14,8 @@ from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
 
 from .msgbox import *
 from .button import RectButton
-from .misc import CustomSpinBox
+from .misc import CustomSpinBox, ServicePortSelector
+
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
 from .canvas import ScalableCanvasWidget, canvas_init_helper
@@ -30,7 +31,7 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 __all__ = ['BasicDialog',
            'SimpleColorDialog',
            'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
-           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog',
+           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog', 'TextInputDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
@@ -441,6 +442,34 @@ class ServiceDiscoveryDialog(BasicDialog):
         if not self.result():
             return None
         return DynamicObject(address=self.ui_address.currentText())
+
+
+class ServicePortSelectDialog(BasicDialog):
+    def __init__(self, port: int, network: str, title: Optional[str] = '',
+                 timeout: float = 0.04, parent: Optional[QtWidgets.QWidget] = None):
+        self._title = title or self.tr('Please select device')
+        self._kwargs = dict(port=port, network=network, timeout=timeout, parent=self)
+        super(ServicePortSelectDialog, self).__init__(parent)
+
+    def _initUi(self):
+        self.ui_combox = ServicePortSelector(**self._kwargs)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.ui_combox)
+        layout.addWidget(QSplitter())
+        layout.addWidget(self.ui_buttons)
+
+        self.setLayout(layout)
+        self.setWindowTitle(self._title)
+
+    def sizeHint(self) -> QtCore.QSize:
+        return QSize(265, 80)
+
+    def getData(self) -> typing.Union[DynamicObject, dict, None]:
+        if not self.result():
+            return None
+
+        return DynamicObject(address=self.ui_combox.getSelectedAddress())
 
 
 class NetworkAddressSelectDialog(QDialog):

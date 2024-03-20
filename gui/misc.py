@@ -3,6 +3,7 @@ import glob
 import typing
 import platform
 import threading
+import ipaddress
 import websocket
 import collections
 import datetime as dt
@@ -127,19 +128,17 @@ class ServicePortSelector(QtWidgets.QComboBox):
     updateItems = Signal(object)
     deviceSelected = Signal(object)
 
-    # noinspection PyTypeChecker
-    TIPS = QtWidgets.QApplication.translate("ServicePortSelector", "Please select device address", None)
-
-    def __init__(self, port: int, network: str, text: Optional[str] = TIPS,
+    def __init__(self, port: int, network: str, text: Optional[str] = '',
                  one_short: bool = False, timeout: float = 0.04, parent: Optional[QtWidgets.QWidget] = None):
         super(ServicePortSelector, self).__init__(parent)
         self._port = port
+        self.__text = text
         self._timeout = timeout
         self._network = network
         self._one_short = one_short
-        self.__text = text or self.TIPS
 
-        self.addItem(self.__text)
+        if self.__text:
+            self.addItem(self.__text)
         self.updateItems.connect(self.slotAddItems)
         self.flushAddress(self._network, self._timeout)
         self.setToolTip(self.tr("Right click reset and refresh"))
@@ -149,10 +148,12 @@ class ServicePortSelector(QtWidgets.QComboBox):
         return self.getSelectedAddress()
 
     def getSelectedAddress(self) -> str:
-        if not self.count() or self.currentIndex() == 0:
-            return ""
-
-        return self.currentText()
+        try:
+            address = ipaddress.ip_address(self.currentText())
+        except ValueError:
+            return ''
+        else:
+            return f'{address}'
 
     def flushAddress(self, network: str = '', timeout: float = 0.0):
         network = network or self._network
@@ -171,7 +172,8 @@ class ServicePortSelector(QtWidgets.QComboBox):
     def slotAddItems(self, items: typing.List[str]):
         self.setEnabled(True)
         self.clear()
-        self.addItem(self.__text)
+        if self.__text:
+            self.addItem(self.__text)
         self.addItems(items)
 
     def slotDeviceSelected(self, idx: int) -> bool:
