@@ -668,7 +668,7 @@ class ComponentManager(QObject):
             [element.setDisabled(disable) for element in elements]
 
     def bindSpinBox(self, key: str, sender: Any, receiver: Any,
-                    factor: Union[int, float], enable: bool = False) -> bool:
+                    factor: SpinBoxBinderFactor, enable: bool = False) -> bool:
         """Bind two spinbox, when one spinbox is changes another will linkage
 
         :param key: property key

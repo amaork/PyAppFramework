@@ -4,7 +4,7 @@ from typing import Optional, Union, Callable, Sequence, Tuple
 from PySide2.QtWidgets import QSpinBox, QDoubleSpinBox, QLabel, QComboBox, QWidget, QLineEdit
 
 
-__all__ = ['SpinBoxBinder', 'ComboBoxBinder']
+__all__ = ['SpinBoxBinder', 'ComboBoxBinder', 'SpinBoxBinderFactor']
 SpinBoxBinderFactor = Union[int, float, Callable[[Union[int, float]], Union[int, float, str]]]
 
 
