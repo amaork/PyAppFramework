@@ -386,7 +386,8 @@ class ServiceDiscoveryDialog(BasicDialog):
     def __init__(self, service: str, port: int,
                  network: str = get_default_network(),
                  title: str = '', parent: Optional[QWidget] = None):
-        self.title = title or self.tr('Please select')
+        # noinspection PyTypeChecker
+        self.title = title or QApplication.translate("SerialPortSelectDialog", "Please select")
         super().__init__(parent)
         self.signalEvent.connect(self.eventHandle)
         self._discovery = ServiceDiscovery(
