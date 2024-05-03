@@ -4,6 +4,7 @@ from PySide2.QtWidgets import QLabel, QWidget, QVBoxLayout, QSplitter, QHBoxLayo
 from PySide2.QtCore import QSize, Qt, QRectF
 from typing import Union, Optional
 import collections
+import abc
 
 from ..gui.widget import BasicWidget
 from ..core.datatype import resolve_number
@@ -33,7 +34,7 @@ class NumberMonitor(BasicWidget):
         assert isinstance(title, str), "title must be a string"
         assert max_numbers > 0, "max_number must greater than zero"
         self._sv = sv
-        self._current = -1.0 if decimal else -1
+        self._current = 0.0 if decimal else 0
         self._title = title
         self._unit_id = unit_id
         self._bg_color = self.DEF_BG_COLOR
@@ -59,6 +60,10 @@ class NumberMonitor(BasicWidget):
 
     def _initStyle(self):
         self.setStyleSheet('color: rgb(255, 255, 255);font: {}pt "宋体";'.format(self.DEF_FONT_SIZE))
+
+    @abc.abstractmethod
+    def isSupportNegativeValue(self) -> bool:
+        pass
 
     def getSV(self) -> Union[int, float]:
         return self._sv
@@ -134,17 +139,20 @@ class NumberMonitor(BasicWidget):
 
         # Draw real time value
         location = self.rect()
-        if not self._decimal_display or self._current < 0:
-            location.moveLeft(self.width() / 10)
+        # if not self._decimal_display or self._current < 0:
+        #     location.moveLeft(self.width() / 10)
         painter.setPen(QPen(QColor(Qt.white)))
 
         # Integer part
         painter.setFont(QFont(self.DEF_RV_FONT, int(self.__getFontSize())))
-        current_str = "{}".format(integer if self.getRV() >= 0 else self.__getNoneState())
+        if self.isSupportNegativeValue():
+            current_str = f'{integer}'
+        else:
+            current_str = "{}".format(integer if self.getRV() >= 0 else self.__getNoneState())
         painter.drawText(location, Qt.AlignCenter, current_str)
 
         # Decimal part
-        if self.getRV() >= 0 and self._decimal_display:
+        if True if self.isSupportNegativeValue() else self.getRV() >= 0 and self._decimal_display:
             decimal_font = QFont(self.DEF_RV_FONT, int(self.__getFontSize() / 2))
             painter.setFont(decimal_font)
             space = 3 * (self._max_number - len(current_str))
@@ -152,7 +160,7 @@ class NumberMonitor(BasicWidget):
                 space = 0 - space
             location.moveLeft((len(current_str) * decimal_font.pointSize() + space) * self.__scale_factor)
             location.moveTop(decimal_font.pointSize() / 2 * self.__scale_factor)
-            painter.drawText(location, Qt.AlignCenter, ".{0:02d}".format(fractional))
+            painter.drawText(location, Qt.AlignCenter, ".{0:02d}".format(abs(fractional)))
 
         # Draw data unit
         location = self.rect()
@@ -181,6 +189,9 @@ class FlowMonitor(NumberMonitor):
     def __init__(self, title: str, unit_id: int = Unit.ml_min, max_numbers: int = 3, parent: Optional[QWidget] = None):
         super(FlowMonitor, self).__init__(title=title, unit_id=unit_id, max_numbers=max_numbers, parent=parent)
 
+    def isSupportNegativeValue(self) -> bool:
+        return False
+
     def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
         if self._unit_id == 0:
             return data
@@ -197,6 +208,9 @@ class PressureMonitor(NumberMonitor):
 
     def __init__(self, title: str, unit_id: int = 2, max_numbers: int = 3, parent: Optional[QWidget] = None):
         super(PressureMonitor, self).__init__(title=title, unit_id=unit_id, max_numbers=max_numbers, parent=parent)
+
+    def isSupportNegativeValue(self) -> bool:
+        return False
 
     def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
         def bar2psi(bar):
@@ -227,6 +241,9 @@ class PercentageMonitor(NumberMonitor):
     def __init__(self, title: str, max_numbers: int = 3, parent: Optional[QWidget] = None):
         super(PercentageMonitor, self).__init__(title=title, unit_id=0, max_numbers=max_numbers, parent=parent)
 
+    def isSupportNegativeValue(self) -> bool:
+        return False
+
 
 class TemperatureMonitor(NumberMonitor):
     DISPLAY_UNITS = ("℃", "℉")
@@ -235,6 +252,9 @@ class TemperatureMonitor(NumberMonitor):
     def __init__(self, title: str, sv: Optional[Union[int, float]] = None,
                  unit_id: int = 0, max_number: int = 3, parent: Optional[QWidget] = None):
         super(TemperatureMonitor, self).__init__(title, unit_id=unit_id, sv=sv, max_numbers=max_number, parent=parent)
+
+    def isSupportNegativeValue(self) -> bool:
+        return True
 
     def unitConvert(self, data: Union[int, float]) -> Union[int, float, None]:
         if self._unit_id == 0:
