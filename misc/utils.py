@@ -41,7 +41,7 @@ def xml_format(element: XmlElement, with_version: bool = True) -> str:
     :return: formatted xml string
     """
     rough_string = XmlElementTree.tostring(element, 'utf-8')
-    re_parsed = minidom.parseString(rough_string)
+    re_parsed = minidom.parseString(b''.join([x.strip() for x in rough_string.split(b'\n')]))
     return re_parsed.toprettyxml(indent="\t", newl="\n")[0 if with_version else 23:]
 
 
@@ -66,6 +66,7 @@ def qt_rcc_generate(res: Dict[str, List[str]]) -> str:
         if not len(items):
             continue
 
+        # noinspection SpellCheckingInspection
         doc = XmlElementTree.SubElement(root, "qresource", prefix=tag)
 
         for file in items:
@@ -143,6 +144,7 @@ def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
 
 def size_convert(size: int, decimals: typing.Dict[str, int] = None) -> str:
     decimals = decimals or dict()
+    # noinspection SpellCheckingInspection
     units = 'KMGTPEZY'
 
     for i, unit in enumerate(units):
