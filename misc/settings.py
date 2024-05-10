@@ -555,11 +555,12 @@ class UiPushButtonInput(UiInputSetting):
 
 
 class UiLayout(DynamicObject):
-    _properties = {'name', 'layout', 'margins', 'spaces', 'stretch', 'min_size', 'title'}
+    _properties = {'name', 'layout', 'margins', 'spaces', 'stretch', 'min_size', 'title', 'font'}
 
     def __init__(self, **kwargs):
-        kwargs.setdefault("name", "")
-        kwargs.setdefault("title", False)
+        kwargs.setdefault('name', "")
+        kwargs.setdefault('title', False)
+        kwargs.setdefault('font', ('', 0))
         kwargs.setdefault('stretch', (0, 0))
         kwargs.setdefault('min_size', (0, 0))
         kwargs.setdefault("spaces", (6, 6, 6))
@@ -574,6 +575,17 @@ class UiLayout(DynamicObject):
 
     def get_name(self) -> str:
         return self.name
+
+    def get_font(self):
+        font = self.font
+
+        try:
+            if isinstance(font[0], str) and isinstance(font[1], int) and font[0] and font[1]:
+                return tuple(font[:2])
+        except IndexError:
+            pass
+
+        return None, None
 
     def get_layout(self) -> Layout:
         return self.layout

@@ -2431,6 +2431,13 @@ class BasicJsonSettingWidget(QWidget):
         except (json.JSONDecodeError, DynamicObjectDecodeError):
             raise TypeError("settings.layout must be {!r}".format(UiLayout.__name__))
 
+        try:
+            font = QFont(*self.layout.get_font())
+        except (TypeError, ValueError):
+            pass
+        else:
+            self.setFont(font)
+
     def createLayout(self, row_stretch_mode: bool = False) -> QGridLayout:
         layout = QGridLayout()
         _, h, v = tuple(self.layout.get_spaces())
@@ -2482,7 +2489,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 try:
                     dict_ = self.settings.get(item)
                     ui_input = UiInputSetting(**dict_)
-                    widget = self.createInputWidget(ui_input, item)
+                    widget = self.createInputWidget(ui_input, item, parent=self)
                     if isinstance(widget, QWidget):
                         # Add label and widget
                         if ui_input.label_left:

@@ -9,8 +9,8 @@ from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBox
     QProgressDialog
 
 from PySide2 import QtWidgets, QtCore, QtGui
-from PySide2.QtGui import QColor, QCloseEvent, QShowEvent
 from PySide2.QtCore import Qt, Signal, QPoint, QLocale, QSize
+from PySide2.QtGui import QColor, QCloseEvent, QShowEvent, QFont
 
 from .msgbox import *
 from .button import RectButton
@@ -136,6 +136,7 @@ class SimpleColorDialog(QDialog):
         self.__depth.valueChanged.connect(self.slotChangeDepth)
         depthLayout.addWidget(QLabel(self.tr("Luminance")))
         depthLayout.addWidget(self.__depth)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         # Label for preview color
@@ -325,6 +326,7 @@ class SerialPortSelectDialog(QDialog):
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(title)
         self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getPort(self) -> Union[str, None]:
@@ -363,6 +365,7 @@ class SerialPortSettingDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Serial Configuration Dialog"))
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSerialSetting(self) -> Union[dict, None]:
@@ -497,6 +500,7 @@ class NetworkAddressSelectDialog(QDialog):
         self.setLayout(layout)
         self.setWindowTitle(title)
         self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSelectedAddress(self) -> Union[str, None]:
@@ -535,6 +539,7 @@ class NetworkInterfaceSelectDialog(QDialog):
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle(self.tr("Please Select Network Interface"))
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getSelectedInterfaceAddress(self) -> str:
@@ -590,6 +595,7 @@ class ProgressDialog(QProgressDialog):
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
         self.setWindowTitle(self.tr(title))
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         if cancel_button is None:
             # noinspection PyTypeChecker
@@ -697,8 +703,16 @@ class BasicJsonSettingDialog(QDialog):
         except AttributeError:
             title = self.tr("Configuration Dialog")
 
+        try:
+            font = QFont(*settings.layout.get_font())
+        except (TypeError, ValueError):
+            pass
+        else:
+            self.setFont(font)
+
         self.setLayout(layout)
         self.setWindowTitle(self.tr(title))
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     # noinspection PyMethodOverriding
@@ -748,6 +762,7 @@ class JsonSettingDialog(BasicJsonSettingDialog):
     def __init__(self, settings: DynamicObject, data: Optional[dict] = None,
                  reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(JsonSettingDialog, self).__init__(JsonSettingWidget, settings, data, reset, apply, parent)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getJsonSettings(self) -> Optional[DynamicObject]:
@@ -770,6 +785,7 @@ class MultiJsonSettingsDialog(BasicJsonSettingDialog):
                  reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(MultiJsonSettingsDialog, self).__init__(MultiJsonSettingsWidget,
                                                       settings, data, reset, apply, parent=parent)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
@@ -778,6 +794,7 @@ class MultiGroupJsonSettingsDialog(BasicJsonSettingDialog):
                  reset: bool = True, apply: Optional[DialogApplyFunction] = None, parent: Optional[QWidget] = None):
         super(MultiGroupJsonSettingsDialog, self).__init__(MultiGroupJsonSettingsWidget,
                                                            settings, data, reset, apply, parent=parent)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
 
@@ -788,6 +805,7 @@ class MultiTabJsonSettingsDialog(BasicJsonSettingDialog):
                                                          settings, data, reset, apply, parent)
         scale_x, _ = get_program_scale_factor()
         self.setMinimumWidth(int(len(settings.layout.layout) * 120 * scale_x))
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def getJsonSettings(self) -> Optional[DynamicObject]:
@@ -823,6 +841,7 @@ class PasswordDialog(QDialog):
         self.__initUi()
         self.__initSignalAndSlots()
         self.setStyleSheet(style)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def __initUi(self):
@@ -954,6 +973,7 @@ class OptionDialog(QDialog):
 
         self.setLayout(layout)
         self.setWindowTitle(title)
+        # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
     def slotSelected(self):
