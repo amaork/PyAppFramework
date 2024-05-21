@@ -7,6 +7,7 @@ import google.protobuf.message as message
 
 from ..core.timer import Task, Tasklet
 from ..misc.settings import UiLogMessage
+from ..core.threading import ThreadConditionWrap
 from .template import CommunicationEvent, CommunicationObject
 from .transmit import Transmit, TransmitWarning, TransmitException
 __all__ = ['ProtoBufSdkRequestCallback', 'ProtoBufHandle', 'ProtoBufHandleCallback', 'PBMessageWrap']
@@ -24,12 +25,19 @@ class PBMessageWrap(CommunicationObject):
             raise TypeError(f"'msg' must be a instance of {message.Message.__name__!r}")
 
         self.raw = msg
+        self._cond = ThreadConditionWrap()
 
     def __repr__(self):
         return f'{self.raw}({self.to_bytes().hex()})'
 
     def to_bytes(self) -> bytes:
         return self.raw.SerializeToString()
+
+    def set_response(self, response):
+        self._cond.finished(response)
+
+    def wait_response(self, timeout: float):
+        return self._cond.wait(timeout)
 
     @classmethod
     @abc.abstractmethod

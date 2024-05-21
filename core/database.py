@@ -150,9 +150,9 @@ class DBTable:
         return f'CREATE TABLE {self.name} ({", ".join([str(x) for x in self.scheme])});'
 
     def get_placeholder_sentence(self) -> str:
-        return self.get_inert_sentence(self.default_values())
+        return self.get_insert_sentence(self.default_values())
 
-    def get_inert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
+    def get_insert_sentence(self, record: typing.Dict[str, typing.Any]) -> str:
         v = [f'"{record.get(x.name)}"' if x.is_text() else f'{record.get(x.name)}'
              for x in self.scheme if x.name in record and not x.is_autoinc()]
         return f'INSERT INTO {self.name} ({", ".join(self.columns_name())}) VALUES({", ".join(v)})'
@@ -1228,7 +1228,7 @@ def sqlite_create_tables(db_name: str, tables: typing.Sequence[DBTable], verbose
             db_cursor.execute(create_sentence)
 
             for record in tbl.init_records:
-                insert_sentence = tbl.get_inert_sentence(record)
+                insert_sentence = tbl.get_insert_sentence(record)
                 if verbose:
                     print(insert_sentence)
 

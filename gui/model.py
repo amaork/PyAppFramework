@@ -455,7 +455,7 @@ class SqliteQueryModel(QtSql.QSqlQueryModel):
             self.set_query(f'SELECT {self.columns_str} FROM {self.tbl_name} WHERE {condition}{q};')
 
     def insert_record(self, record: typing.Dict[str, typing.Any]) -> bool:
-        return self.exec_query(self.tbl.get_inert_sentence(record))[0]
+        return self.exec_query(self.tbl.get_insert_sentence(record))[0]
 
     def update_record(self, pk: typing.Any, record: typing.Dict[str, typing.Any]) -> bool:
         result, query = self.exec_query(self.tbl.get_update_sentence(record, f'{self.tbl.pk} = {pk}'))

@@ -182,6 +182,10 @@ class CommunicationController:
     def address(self) -> Transmit.Address:
         return self._transmit.address
 
+    @property
+    def timeout(self) -> float:
+        return self._transmit.timeout
+
     def is_timeout(self) -> bool:
         return self._timeout.is_set()
 
