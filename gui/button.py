@@ -117,13 +117,14 @@ class IconButton(BaseButton):
 class RectButton(BaseButton):
     def __init__(self, width: int = 0, height: int = 0, text: Tuple[str, str] = ("", ""), shortCut: str = "",
                  color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
-                 tips: str = "", parent: Optional[QWidget] = None):
+                 tips: str = "", width_factor: float = 0.618, parent: Optional[QWidget] = None):
         super(RectButton, self).__init__(width, height, shortCut, tips=tips, parent=parent)
         self.setCheckable(True)
 
         # Default setting
         self.text = ("", "")
         self.drawColor = (Qt.red, Qt.green)
+        self.width_factor = width_factor or 0.618
         self.textColor = self.drawColor[1], self.drawColor[0]
 
         self.setText(text)
@@ -132,7 +133,9 @@ class RectButton(BaseButton):
 
     def draw(self, painter: QPainter, rect: QRect):
         painter.setPen(self.textColor[self.getState()])
-        painter.setFont(QFont("Times New Roman", min(rect.width() / self.textLength / 0.618, rect.height() * 0.618)))
+        painter.setFont(
+            QFont("Times New Roman", min(rect.width() / self.textLength / self.width_factor, rect.height() * 0.618))
+        )
         painter.drawText(rect, Qt.AlignCenter, self.tr(self.text[self.getState()]))
 
     def setText(self, text: Sequence[str]):
@@ -177,8 +180,8 @@ class RectButton(BaseButton):
 class RoundButton(RectButton):
     def __init__(self, diameter: int = 0, text: Tuple[str, str] = ("", ""),
                  shortCut: str = "", color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
-                 tips: str = "", parent: Optional[QWidget] = None):
-        super(RoundButton, self).__init__(diameter, diameter, text, shortCut, color, tips, parent)
+                 tips: str = "", width_factor: float = 0.618, parent: Optional[QWidget] = None):
+        super(RoundButton, self).__init__(diameter, diameter, text, shortCut, color, tips, width_factor, parent)
 
     def paintEvent(self, ev: QPaintEvent):
         painter = QPainter(self)
@@ -203,8 +206,8 @@ class StateButton(RoundButton):
 
     def __init__(self, diameter: int = 0, text: Tuple[str, str] = ("", ""),
                  shortCut: str = "", color: Sequence[Union[Qt.GlobalColor, QColor]] = (Qt.red, Qt.green),
-                 tips: str = "", parent: Optional[QWidget] = None):
-        super(StateButton, self).__init__(diameter, text, shortCut, color, tips, parent)
+                 tips: str = "", width_factor: float = 0.618, parent: Optional[QWidget] = None):
+        super(StateButton, self).__init__(diameter, text, shortCut, color, tips, width_factor, parent)
         self.setCheckable(False)
 
         # Internal state

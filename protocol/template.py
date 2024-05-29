@@ -138,7 +138,8 @@ class CommunicationController:
                  response_cls,
                  transmit: Transmit,
                  response_max_length: int,
-                 event_callback: typing.Callable[[CommunicationEvent], None], print_ts: bool = False, retry: int = 1):
+                 event_callback: typing.Callable[[CommunicationEvent], None],
+                 print_ts: bool = False, retry: int = 1, debug_mode: bool = False):
         if not isinstance(transmit, Transmit):
             raise TypeError(f"'transmit' must be a instance of {Transmit.__name__}")
 
@@ -166,6 +167,7 @@ class CommunicationController:
         self._response_cls = response_cls
         self._event_callback = event_callback
         self._response_max_length = response_max_length
+        self._catch_exception = (TransmitException,) if debug_mode else (AttributeError, TransmitException)
 
     def __del__(self):
         self.disconnect()
@@ -388,7 +390,7 @@ class CommunicationController:
                             msg = 'The number of timeouts exceeds the upper limit'
                             self.error_msg(msg)
                             self.send_event(self._event_cls.disconnected(msg))
-                    except (AttributeError, TransmitException) as e:
+                    except self._catch_exception as e:
                         self.disconnect(send_event=True)
                         self.error_msg(f'[{self.__class__.__name__}] Communication exception: {e}({request})')
                         self._latest_section = CommunicationSection(request, e)
