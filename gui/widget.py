@@ -141,10 +141,11 @@ class BasicWidget(QWidget):
 
 
 class BasicWindow(QMainWindow):
-    def __init__(self, ui_cls):
-        QMainWindow.__init__(self, None)
-        self.ui = ui_cls()
-        self.ui.setupUi(self)
+    def __init__(self, ui_cls=None, parent: QWidget = None):
+        QMainWindow.__init__(self, parent)
+        if ui_cls:
+            self.ui = ui_cls()
+            self.ui.setupUi(self)
 
         self._initUi()
         self._initData()
