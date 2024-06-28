@@ -9,9 +9,9 @@ import contextlib
 import collections
 from ..misc.settings import UiLogMessage
 from ..misc.debug import get_debug_timestamp
-from ..core.threading import ThreadSafeBool, ThreadSafeInteger
 from .transmit import Transmit, TransmitException, TransmitWarning
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
+from ..core.threading import ThreadSafeBool, ThreadSafeInteger, ThreadConditionWrap
 
 __all__ = ['CommunicationEvent', 'CommunicationEventHandle',
            'CommunicationController', 'CommunicationControllerConnectError',
@@ -106,11 +106,21 @@ class CommunicationEventHandle:
 
 
 class CommunicationObject:
+    def __init__(self, msg: typing.Any):
+        self.raw = msg
+        self._cond = ThreadConditionWrap()
+
     def print_log(self) -> bool:
         return not self.is_periodic()
 
     def is_periodic(self) -> bool:
         return False
+
+    def set_response(self, response):
+        self._cond.finished(response)
+
+    def wait_response(self, timeout: float):
+        return self._cond.wait(timeout)
 
     @abc.abstractmethod
     def to_bytes(self) -> bytes:
@@ -135,6 +145,7 @@ class CommunicationObjectDecodeError(Exception):
 class CommunicationController:
     def __init__(self,
                  event_cls,
+                 request_cls,
                  response_cls,
                  transmit: Transmit,
                  response_max_length: int,
@@ -145,6 +156,9 @@ class CommunicationController:
 
         if not issubclass(event_cls, CommunicationEvent):
             raise TypeError(f"'event_cls' must be a subclass of {CommunicationEvent.__name__}")
+
+        if not issubclass(request_cls, CommunicationObject):
+            raise TypeError(f"'request_cls' must be a subclass of {CommunicationObject.__name__}")
 
         if not issubclass(response_cls, CommunicationObject):
             raise TypeError(f"'response_cls' must be a subclass of {CommunicationObject.__name__}")
@@ -164,6 +178,7 @@ class CommunicationController:
         self._latest_section = CommunicationSection(None, None)
 
         self._event_cls = event_cls
+        self._request_cls = request_cls
         self._response_cls = response_cls
         self._event_callback = event_callback
         self._response_max_length = response_max_length
@@ -254,7 +269,16 @@ class CommunicationController:
         if callable(self._event_callback):
             self._event_callback(event)
 
-    def send_request(self, request: CommunicationObject, priority: typing.Optional[int] = None) -> bool:
+    def send_async_request(self, request: typing.Any) -> bool:
+        """Send request do not wait response"""
+        return self.send_request_wrap(self._request_cls(request))
+
+    def send_sync_request(self, request: typing.Any, timeout: float = 0.0):
+        """Send request and wait response"""
+        wrap = self._request_cls(request)
+        return wrap.wait_response(timeout or self.timeout) if self.send_request_wrap(wrap) else None
+
+    def send_request_wrap(self, request: CommunicationObject, priority: typing.Optional[int] = None) -> bool:
         if not self._transmit.connected:
             return False
 
@@ -273,6 +297,7 @@ class CommunicationController:
     def _format_log(self, msg: str) -> str:
         return f'{get_debug_timestamp()} {msg}' if self._print_ts else msg
 
+    # noinspection PyMethodMayBeStatic
     def _log_color(self, level: int) -> str:
         return ''
 

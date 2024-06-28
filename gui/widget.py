@@ -65,6 +65,8 @@ TableDataFilter = Union[list, tuple, str, UiInputSetting]
 
 
 class BasicWidget(QWidget):
+    Tag = ComponentManager.DefaultObjectNameKey
+
     def __init__(self, parent: Optional[QWidget] = None):
         super(BasicWidget, self).__init__(parent)
 
@@ -92,29 +94,29 @@ class BasicWidget(QWidget):
     def initStyle(self):
         self._initStyle()
 
-    @staticmethod
-    def createInputWithLabel(label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
+    @classmethod
+    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
         input_ = input_cls()
         label = QLabel(label)
-        input_.setProperty("name", key)
-        label.setProperty("name", "{}_label".format(key))
+        input_.setProperty(cls.Tag, key)
+        label.setProperty(cls.Tag, "{}_label".format(key))
         return label, input_
 
-    @staticmethod
-    def createMultiInputWithLabel(texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
+    @classmethod
+    def createMultiInputWithLabel(cls, texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
         layout = QGridLayout()
         for row, text in enumerate(texts):
             label, key = text
             text = input_cls()
             label = QLabel(label)
-            text.setProperty("name", key)
-            label.setProperty("name", "{}_label".format(key))
+            text.setProperty(cls.Tag, key)
+            label.setProperty(cls.Tag, "{}_label".format(key))
             layout.addWidget(label, row, 0)
             layout.addWidget(text, row, 1)
         return layout
 
-    @staticmethod
-    def createButtonGroup(key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
+    @classmethod
+    def createButtonGroup(cls, key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
         """Create button group and set button id
 
         :param key: button group key name
@@ -125,10 +127,10 @@ class BasicWidget(QWidget):
         label = QLabel(title)
         group = QButtonGroup()
         layout = QHBoxLayout()
-        group.setProperty("name", key)
+        group.setProperty(cls.Tag, key)
         for bid, name in enumerate(names):
             button = QRadioButton(name)
-            button.setProperty("name", name)
+            button.setProperty(cls.Tag, name)
             group.addButton(button)
             group.setId(button, bid)
             layout.addWidget(button)
@@ -173,6 +175,8 @@ class BasicWindow(QMainWindow):
 
 
 class BasicGroupBox(QGroupBox):
+    Tag = ComponentManager.DefaultObjectNameKey
+
     def __init__(self, parent: Optional[QWidget] = None):
         super(BasicGroupBox, self).__init__(parent)
 
@@ -200,52 +204,17 @@ class BasicGroupBox(QGroupBox):
     def initStyle(self):
         self._initStyle()
 
-    @staticmethod
-    def createInputWithLabel(label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
-        input_ = input_cls()
-        label = QLabel(label)
-        input_.setProperty("name", key)
-        label.setProperty("name", "{}_label".format(key))
-        return label, input_
+    @classmethod
+    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
+        return BasicWidget.createInputWithLabel(label, key, input_cls)
 
-    @staticmethod
-    def createMultiInputWithLabel(texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
-        layout = QGridLayout()
-        for row, text in enumerate(texts):
-            label, key = text
-            text = input_cls()
-            label = QLabel(label)
-            text.setProperty("name", key)
-            label.setProperty("name", "{}_label".format(key))
-            layout.addWidget(label, row, 0)
-            layout.addWidget(text, row, 1)
-        return layout
+    @classmethod
+    def createMultiInputWithLabel(cls, texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:
+        return BasicWidget.createMultiInputWithLabel(texts, input_cls)
 
-    @staticmethod
-    def createButtonGroup(key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
-        """Create button group and set button id
-
-        :param key: button group key name
-        :param names: button text
-        :param title: Radio button title
-        :return: button group, and layout
-        """
-        label = QLabel(title)
-        group = QButtonGroup()
-        layout = QHBoxLayout()
-        group.setProperty("name", key)
-        for bid, name in enumerate(names):
-            button = QRadioButton(name)
-            button.setProperty("name", name)
-            group.addButton(button)
-            group.setId(button, bid)
-            layout.addWidget(button)
-
-        # Select first
-        layout.addWidget(QSplitter())
-        group.button(0).setChecked(True)
-
-        return label, layout, group
+    @classmethod
+    def createButtonGroup(cls, key: str, names: Iterable[str], title: str) -> Tuple[QLabel, QHBoxLayout, QButtonGroup]:
+        return BasicWidget.createButtonGroup(key, names, title)
 
 
 class PaintWidget(QWidget):
@@ -2293,6 +2262,8 @@ class ListWidget(QListWidget):
 
 
 class SerialPortSettingWidget(QWidget):
+    Tag = ComponentManager.DefaultObjectNameKey
+
     # noinspection PyTypeChecker
     PARITIES_STR = QApplication.translate("SerialPortSettingWidget", "Parity", None)
     # noinspection PyTypeChecker
@@ -2353,7 +2324,7 @@ class SerialPortSettingWidget(QWidget):
 
         # If specified port select it
         port = SerialPortSelector(flush_timeout=flush_timeout)
-        port.setProperty("name", "port")
+        port.setProperty(self.Tag, "port")
         select_port = settings.get("port")
         if select_port is not None:
             port.setSelectedPort(select_port)
@@ -2386,7 +2357,7 @@ class SerialPortSettingWidget(QWidget):
 
             # Set option property
             label = QLabel(self.tr(text))
-            element.setProperty("name", option)
+            element.setProperty(self.Tag, option)
 
             # Layout direction setting
             layout.addWidget(label, index + 1, 0)
@@ -2397,15 +2368,15 @@ class SerialPortSettingWidget(QWidget):
 
     def getSetting(self) -> Dict[str, Any]:
         settings = dict()
-        for item in self.__uiManager.findKey("name"):
+        for item in self.__uiManager.findKey(self.Tag):
             if isinstance(item, QComboBox):
-                value = item.property("name")
+                value = item.property(self.Tag)
                 if value == "port" and item.currentIndex() == 0:
                     settings[value] = ""
                 else:
                     settings[value] = item.itemData(item.currentIndex())
             elif isinstance(item, QSpinBox):
-                settings[item.property("name")] = item.value()
+                settings[item.property(self.Tag)] = item.value()
 
         return settings
 
@@ -3333,7 +3304,7 @@ class LogMessageWidget(QTextEdit):
                  parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
 
-        self._logger = LoggerWrap(filename, log_format, level, propagate)
+        self._logger = LoggerWrap(filename, log_format, level, logging.ERROR, propagate)
         self.setReadOnly(True)
         self._startTime = datetime.now()
         self._displayFilter = self.DISPLAY_ALL
