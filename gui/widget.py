@@ -26,6 +26,7 @@ MultiTabJsonSettingsWidget
 import re
 import json
 import html
+import typing
 import logging
 import os.path
 import collections
@@ -95,10 +96,20 @@ class BasicWidget(QWidget):
         self._initStyle()
 
     @classmethod
-    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
+    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__,
+                             range_: typing.Tuple[typing.Union[int, float], typing.Union[int, float]] = None,
+                             value: typing.Union[int, float] = None) -> Tuple[QLabel, QWidget]:
         input_ = input_cls()
         label = QLabel(label)
         input_.setProperty(cls.Tag, key)
+
+        if isinstance(input_, (QSpinBox, QDoubleSpinBox)):
+            if range_ and len(range_) == 2:
+                input_.setRange(*range_)
+
+            if value is not None:
+                input_.setValue(value)
+
         label.setProperty(cls.Tag, "{}_label".format(key))
         return label, input_
 
@@ -205,8 +216,10 @@ class BasicGroupBox(QGroupBox):
         self._initStyle()
 
     @classmethod
-    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__) -> Tuple[QLabel, QWidget]:
-        return BasicWidget.createInputWithLabel(label, key, input_cls)
+    def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__,
+                             range_: typing.Tuple[typing.Union[int, float], typing.Union[int, float]] = None,
+                             value: typing.Union[int, float] = None) -> Tuple[QLabel, QWidget]:
+        return BasicWidget.createInputWithLabel(label, key, input_cls, range_, value)
 
     @classmethod
     def createMultiInputWithLabel(cls, texts: Iterable[Tuple[str, str]], input_cls: QWidget.__class__) -> QGridLayout:

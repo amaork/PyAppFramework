@@ -306,8 +306,9 @@ class UiMailBox(QObject):
         new_value = self.__progress.value() + mail.increase
 
         self.send(ProgressBarMail(
-            progress=new_value, content=mail.content, title=mail.title, closeable=mail.closeable, force=mail.force)
-        )
+            progress=new_value, content=mail.content, title=mail.title,
+            closeable=mail.closeable, cancelable=mail.cancelable, cancel_callback=mail.cancel_callback, force=mail.force
+        ))
 
         if new_value >= self.__progress.maximum():
             task.delete()
