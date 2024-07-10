@@ -7,11 +7,12 @@ import logging
 import threading
 import contextlib
 import collections
+from ..core.timer import Tasklet
 from ..misc.settings import UiLogMessage
 from ..misc.debug import get_debug_timestamp
 from .transmit import Transmit, TransmitException, TransmitWarning
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
-from ..core.threading import ThreadSafeBool, ThreadSafeInteger, ThreadConditionWrap
+from ..core.threading import ThreadSafeBool, ThreadSafeInteger, ThreadConditionWrap, ThreadLockAndDataWrap
 
 __all__ = ['CommunicationEvent', 'CommunicationEventHandle',
            'CommunicationController', 'CommunicationControllerConnectError',
@@ -22,8 +23,10 @@ CommunicationSection = collections.namedtuple('CommunicationSection', 'request r
 
 class CommunicationEvent(CustomEvent):
     Type = collections.namedtuple(
-        'Type', 'Timeout Restore Warning Exception Logging Connected Disconnected SectionStart SectionEnd Customize'
-    )(*('timeout', 'restore', 'warning', 'exception', 'logging', 'connect', 'disconnected', 'ss', 'se', 'customize'))
+        'Type', 'Timeout Restore Warning Exception Logging '
+                'Connected Disconnected SectionStart SectionEnd Customize StateChanged AckError'
+    )(*('timeout', 'restore', 'warning', 'exception', 'logging',
+        'connect', 'disconnected', 'ss', 'se', 'customize', 'state_changed', 'ack_error'))
 
     type = enum_property('type', Type)
 
@@ -62,6 +65,14 @@ class CommunicationEvent(CustomEvent):
     @classmethod
     def disconnected(cls, desc: str):
         return cls(cls.Type.Disconnected, data=desc)
+
+    @classmethod
+    def state_changed(cls, state: typing.Any):
+        return cls(cls.Type.StateChanged, data=state)
+
+    @classmethod
+    def ack_error(cls, err: typing.Any, request: typing.Any):
+        return cls(cls.Type.AckError, data=err, source=request)
 
 
 class CommunicationEventHandle:
@@ -143,6 +154,8 @@ class CommunicationObjectDecodeError(Exception):
 
 
 class CommunicationController:
+    MsgPriority = collections.namedtuple('MsgPriority', 'High Middle Low')(*range(3))
+
     def __init__(self,
                  event_cls,
                  request_cls,
@@ -150,7 +163,7 @@ class CommunicationController:
                  transmit: Transmit,
                  response_max_length: int,
                  event_callback: typing.Callable[[CommunicationEvent], None],
-                 print_ts: bool = False, retry: int = 1, debug_mode: bool = False):
+                 print_ts: bool = False, retry: int = 1, tasklet_interval: float = 0.05, debug_mode: bool = False):
         if not isinstance(transmit, Transmit):
             raise TypeError(f"'transmit' must be a instance of {Transmit.__name__}")
 
@@ -176,6 +189,10 @@ class CommunicationController:
         self._timeout_cnt = ThreadSafeInteger(0)
         self._section_seq = ThreadSafeInteger(0)
         self._latest_section = CommunicationSection(None, None)
+
+        self._cur_state = ThreadLockAndDataWrap(None)
+        self._prev_state = ThreadLockAndDataWrap(None)
+        self._tasklet = Tasklet(schedule_interval=tasklet_interval, name=self.__class__.__name__)
 
         self._event_cls = event_cls
         self._request_cls = request_cls
@@ -265,18 +282,28 @@ class CommunicationController:
     def debug_msg(self, msg: str):
         self.send_event(self._event_cls.debug(self._format_log(msg), self._log_color(logging.DEBUG)))
 
+    def update_state(self, state: typing.Any) -> bool:
+        """Update state if state changed, return true"""
+        self._prev_state.assign(self._cur_state.data)
+        self._cur_state.assign(state)
+        if self._prev_state.equal(state):
+            return False
+
+        self.send_event(CommunicationEvent.state_changed(state))
+        return True
+
     def send_event(self, event: CommunicationEvent):
         if callable(self._event_callback):
             self._event_callback(event)
 
-    def send_async_request(self, request: typing.Any) -> bool:
+    def send_async_request(self, request: typing.Any, pr: typing.Optional[int] = None) -> bool:
         """Send request do not wait response"""
-        return self.send_request_wrap(self._request_cls(request))
+        return self.send_request_wrap(self._request_cls(request), pr)
 
-    def send_sync_request(self, request: typing.Any, timeout: float = 0.0):
+    def send_sync_request(self, request: typing.Any, timeout: float = 0.0, pr: typing.Optional[int] = None):
         """Send request and wait response"""
         wrap = self._request_cls(request)
-        return wrap.wait_response(timeout or self.timeout) if self.send_request_wrap(wrap) else None
+        return wrap.wait_response(timeout or self.timeout) if self.send_request_wrap(wrap, pr) else None
 
     def send_request_wrap(self, request: CommunicationObject, priority: typing.Optional[int] = None) -> bool:
         if not self._transmit.connected:
@@ -298,6 +325,7 @@ class CommunicationController:
         return f'{get_debug_timestamp()} {msg}' if self._print_ts else msg
 
     # noinspection PyMethodMayBeStatic
+    # noinspection PyUnusedLocal
     def _log_color(self, level: int) -> str:
         return ''
 
@@ -342,8 +370,10 @@ class CommunicationController:
     def thread_comm_with_device(self):
         while not self._exit:
             try:
-                _, request = self._queue.get(timeout=0.1)
-            except (queue.Empty, TypeError):
+                _, request = self._queue.get(timeout=0.01)
+            except (queue.Empty, TypeError) as e:
+                if not isinstance(e, queue.Empty):
+                    self.send_event(CommunicationEvent.exception(f'{e}'))
                 continue
 
             if not isinstance(request, CommunicationObject):

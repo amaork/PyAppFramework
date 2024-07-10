@@ -28,8 +28,25 @@ class PBMessageWrap(CommunicationObject):
     def __repr__(self):
         return f'{self.raw}({self.to_bytes().hex()})'
 
+    def __lt__(self, other):
+        return self.get_number(self) < self.get_number(other)
+
     def to_bytes(self) -> bytes:
         return self.raw.SerializeToString()
+
+    def one_of_name(self) -> str:
+        return self.raw.DESCRIPTOR.oneofs[0].name
+
+    def get_number(self, msg) -> int:
+        try:
+            fields_dict = dict(zip(self.raw.DESCRIPTOR.fields_by_name, self.raw.DESCRIPTOR.fields_by_number))
+            return fields_dict.get(msg.raw.WhichOneof(self.one_of_name()))
+        except (AttributeError, KeyError, TypeError, IndexError):
+            return -1
+
+    @property
+    def payload(self) -> str:
+        return self.raw.WhichOneof(self.one_of_name())
 
     @classmethod
     @abc.abstractmethod
@@ -98,7 +115,7 @@ class ProtoBufHandle(object):
     def connect(self, address: typing.Tuple[str, int], timeout: float) -> bool:
         """
         Init transmit
-        :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baudrate)
+        :param address: for TCPTransmit is (host, port) for UARTTransmit is (port, baud rate)
         :param timeout: transmit communicate timeout is seconds
         :return: success return true, failed return false
         """
