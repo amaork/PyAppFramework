@@ -30,7 +30,7 @@ import typing
 import logging
 import os.path
 import collections
-
+from PySide2 import QtWidgets, QtGui
 from serial import Serial
 from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QPen, QBrush, QImage, QImageReader, QTextCursor,\
     QMouseEvent, QHideEvent, QPaintEvent, QContextMenuEvent, QResizeEvent, QRegExpValidator
@@ -52,7 +52,7 @@ from ..misc.windpi import get_program_scale_factor
 from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
-    UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput
+    UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput, SystemTrayIconSettings
 
 
 __all__ = ['BasicWidget', 'BasicWindow', 'BasicGroupBox', 'PaintWidget',
@@ -154,8 +154,9 @@ class BasicWidget(QWidget):
 
 
 class BasicWindow(QMainWindow):
-    def __init__(self, ui_cls=None, parent: QWidget = None):
+    def __init__(self, ui_cls=None, tray_icon_settings: SystemTrayIconSettings = None, parent: QWidget = None):
         QMainWindow.__init__(self, parent)
+        self.__tray_icon_settings = tray_icon_settings
         if ui_cls:
             self.ui = ui_cls()
             self.ui.setupUi(self)
@@ -165,6 +166,7 @@ class BasicWindow(QMainWindow):
         self._initStyle()
         self._initSignalAndSlots()
         self._initThreadAndTimer()
+        self.__initSystemTrayIcon()
 
     def _initUi(self):
         pass
@@ -183,6 +185,49 @@ class BasicWindow(QMainWindow):
 
     def initStyle(self):
         self._initStyle()
+
+    def isSupportTrayIcon(self) -> bool:
+        return isinstance(self.__tray_icon_settings, SystemTrayIconSettings)
+
+    def __initSystemTrayIcon(self):
+        if not self.isSupportTrayIcon():
+            return
+
+        self.ui_tray_exit = QtWidgets.QAction(self.tr('Exit'))
+        self.ui_tray_exit.triggered.connect(self.slotTrayIconExit)
+
+        self.ui_tray_menu = QtWidgets.QMenu(self)
+        self.ui_tray_menu.addAction(self.ui_tray_exit)
+
+        self.ui_tray_icon = QtWidgets.QSystemTrayIcon(QtGui.QIcon(self.__tray_icon_settings.icon))
+        self.ui_tray_icon.activated.connect(self.slotTrayIconActivated)
+        self.ui_tray_icon.setToolTip(self.__tray_icon_settings.tips)
+        self.ui_tray_icon.setContextMenu(self.ui_tray_menu)
+        self.ui_tray_icon.show()
+
+    def slotShowTrayIconMsg(self, msg: str, title: str = ''):
+        if not self.isSupportTrayIcon():
+            return
+
+        self.ui_tray_icon.showMessage(title or self.__tray_icon_settings.msg_title, msg)
+
+    def slotTrayIconExit(self):
+        if callable(self.__tray_icon_settings.exit_callback):
+            self.__tray_icon_settings.exit_callback()
+        else:
+            QtWidgets.QApplication.exit()
+
+    def slotTrayIconActivated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason):
+        if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
+            self.showNormal()
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self.isSupportTrayIcon():
+            self.hide()
+            event.ignore()
+            self.slotShowTrayIconMsg(
+                self.__tray_icon_settings.minimize_msg or self.tr('Minimize display, double click to restore display')
+            )
 
 
 class BasicGroupBox(QGroupBox):

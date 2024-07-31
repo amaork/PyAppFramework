@@ -18,7 +18,7 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'CustomAction',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput', 'UiInterfaceSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
            'Font', 'Time', 'Color', 'IndexColor', 'color_property',
-           'Layout', 'LayoutSpace', 'LayoutMargins']
+           'Layout', 'LayoutSpace', 'LayoutMargins', 'SystemTrayIconSettings']
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
@@ -29,6 +29,15 @@ IndexColor = Tuple[int, int]
 Layout = Sequence[str]
 LayoutSpace = Tuple[int, int, int]
 LayoutMargins = Tuple[int, int, int, int]
+
+
+class SystemTrayIconSettings(DynamicObject):
+    _properties = {'icon', 'tips', 'msg_title', 'minimize_msg', 'exit_callback'}
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('minimize_msg', None)
+        kwargs.setdefault('exit_callback', None)
+        super(SystemTrayIconSettings, self).__init__(**kwargs)
 
 
 class JsonSettingsDecodeError(Exception):
