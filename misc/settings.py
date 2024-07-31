@@ -3,13 +3,15 @@ import os
 import re
 import json
 import codecs
+import typing
 import logging
 import collections
 from string import Template, hexdigits
 from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple, Callable
 
 from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
-__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'CustomAction',
+__all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'SystemTrayIconSettings', 'WindowsPositionSettings',
+           'CustomAction',
            'UiLogMessage', 'LoggingMsgCallback',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
@@ -18,7 +20,7 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'CustomAction',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput', 'UiInterfaceSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
            'Font', 'Time', 'Color', 'IndexColor', 'color_property',
-           'Layout', 'LayoutSpace', 'LayoutMargins', 'SystemTrayIconSettings']
+           'Layout', 'LayoutSpace', 'LayoutMargins']
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
@@ -107,6 +109,20 @@ class JsonSettings(DynamicObject):
     @classmethod
     def ui(cls) -> DynamicObject:
         pass
+
+
+class WindowsPositionSettings(JsonSettings):
+    _properties = {'x', 'y', 'width', 'height', 'pin'}
+
+    @classmethod
+    def default(cls) -> DynamicObject:
+        return WindowsPositionSettings(x=0, y=0, width=0, height=0, pin=False)
+
+    def isValid(self, width: int, height: int):
+        return self.x and self.y and self.width and self.height and self.x < width and self.y < height
+
+    def getPosition(self) -> typing.Tuple[int, int, int, int]:
+        return self.x, self.y, self.width, self.height
 
 
 class CustomAction(DynamicObject):

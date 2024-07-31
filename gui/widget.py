@@ -34,7 +34,7 @@ from PySide2 import QtWidgets, QtGui
 from serial import Serial
 from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QPen, QBrush, QImage, QImageReader, QTextCursor,\
     QMouseEvent, QHideEvent, QPaintEvent, QContextMenuEvent, QResizeEvent, QRegExpValidator
-from PySide2.QtCore import Qt, Signal, Slot, QPoint, QSize, QDate, QDateTime, QRegExp, QTime
+from PySide2.QtCore import Qt, Signal, Slot, QPoint, QSize, QDate, QDateTime, QRegExp, QTime, QRect
 from PySide2.QtWidgets import QWidget, QApplication, QLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QButtonGroup, \
     QSpinBox, QDoubleSpinBox, QTableWidget, QHeaderView, QSplitter, QLabel, QMenu, QAction, QRadioButton, \
     QCheckBox, QPushButton, QLineEdit, QProgressBar, QDateTimeEdit, QAbstractItemView, QTableWidgetItem, \
@@ -52,7 +52,7 @@ from ..misc.windpi import get_program_scale_factor
 from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
-    UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput, SystemTrayIconSettings
+    UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput, SystemTrayIconSettings, WindowsPositionSettings
 
 
 __all__ = ['BasicWidget', 'BasicWindow', 'BasicGroupBox', 'PaintWidget',
@@ -205,6 +205,31 @@ class BasicWindow(QMainWindow):
         self.ui_tray_icon.setContextMenu(self.ui_tray_menu)
         self.ui_tray_icon.show()
 
+    def isPin(self) -> bool:
+        return bool(self.windowFlags() & Qt.WindowStaysOnTopHint)
+
+    def setPin(self, pin: bool):
+        if pin:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
+
+        self.show()
+
+    def loadWindowsPosition(self, config_path: str):
+        pos = WindowsPositionSettings.load(config_path)
+        geometry = QtWidgets.QApplication.desktop().availableGeometry()
+        if pos.isValid(geometry.width(), geometry.height()):
+            self.setGeometry(QRect(*pos.getPosition()))
+            if pos.pin:
+                self.slotShowTrayIconMsg(self.tr('Pin on top'))
+                self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+
+    def saveWindowsPosition(self, config_path: str, x_offset: int = 30):
+        pos = WindowsPositionSettings.load(config_path)
+        pos.update(dict(x=self.x(), y=self.y() + x_offset, width=self.width(), height=self.height(), pin=self.isPin()))
+        pos.save(config_path)
+
     def slotShowTrayIconMsg(self, msg: str, title: str = ''):
         if not self.isSupportTrayIcon():
             return
@@ -217,16 +242,15 @@ class BasicWindow(QMainWindow):
         else:
             QtWidgets.QApplication.exit()
 
-    def slotTrayIconActivated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason):
-        if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
-            self.showNormal()
+    def slotTrayIconActivated(self, _reason: QtWidgets.QSystemTrayIcon.ActivationReason):
+        self.showNormal() if self.isHidden() else self.hide()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.isSupportTrayIcon():
             self.hide()
             event.ignore()
             self.slotShowTrayIconMsg(
-                self.__tray_icon_settings.minimize_msg or self.tr('Minimize display, double click to restore display')
+                self.__tray_icon_settings.minimize_msg or self.tr('Minimize display, click to restore display')
             )
 
 
