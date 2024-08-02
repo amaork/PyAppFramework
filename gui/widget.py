@@ -234,7 +234,9 @@ class BasicWindow(QMainWindow):
         if not self.isSupportTrayIcon():
             return
 
-        self.ui_tray_icon.showMessage(title or self.__tray_icon_settings.msg_title, msg)
+        self.ui_tray_icon.showMessage(
+            title or self.__tray_icon_settings.msg_title, msg, QtGui.QIcon(self.__tray_icon_settings.icon)
+        )
 
     def slotTrayIconExit(self):
         if callable(self.__tray_icon_settings.exit_callback):
