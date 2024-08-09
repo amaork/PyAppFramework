@@ -7,6 +7,7 @@ import google.protobuf.message as message
 
 from ..core.timer import Task, Tasklet
 from ..misc.settings import UiLogMessage
+from ..misc.utils import get_pb_msg_fields_dict
 from .template import CommunicationEvent, CommunicationObject
 from .transmit import Transmit, TransmitWarning, TransmitException
 __all__ = ['ProtoBufSdkRequestCallback', 'ProtoBufHandle', 'ProtoBufHandleCallback', 'PBMessageWrap']
@@ -39,8 +40,7 @@ class PBMessageWrap(CommunicationObject):
 
     def get_number(self, msg) -> int:
         try:
-            fields_dict = dict(zip(self.raw.DESCRIPTOR.fields_by_name, self.raw.DESCRIPTOR.fields_by_number))
-            return fields_dict.get(msg.raw.WhichOneof(self.one_of_name()))
+            return get_pb_msg_fields_dict(self.raw).get(msg.raw.WhichOneof(self.one_of_name()))
         except (AttributeError, KeyError, TypeError, IndexError):
             return -1
 

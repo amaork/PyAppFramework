@@ -11,12 +11,13 @@ import datetime
 import contextlib
 from xml.dom import minidom
 from typing import List, Dict
+from google.protobuf.message import Message
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
 __all__ = [
     'awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
     'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after',
-    'size_convert', 'create_file_if_not_exist', 'utf8_truncate'
+    'size_convert', 'create_file_if_not_exist', 'utf8_truncate', 'get_pb_msg_fields_dict'
 ]
 
 
@@ -204,3 +205,9 @@ def auto_deletion_tempdir(catch_exceptions: typing.Sequence[typing.Type],
 
 def utf8_truncate(input_str: str, length: int) -> str:
     return input_str.encode('utf-8')[:length].decode(errors='ignore')
+
+
+def get_pb_msg_fields_dict(msg: Message, reverse: bool = False) -> dict:
+    names = msg.DESCRIPTOR.fields_by_name
+    numbers = msg.DESCRIPTOR.fields_by_number
+    return dict(zip(numbers, names)) if reverse else dict(zip(names, numbers))
