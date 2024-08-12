@@ -96,6 +96,29 @@ class BasicWidget(QWidget):
         self._initStyle()
 
     @classmethod
+    def createGroupBox(cls, title: str, items: typing.Sequence, checkable: bool = False, name: str = '',
+                       stretchs: typing.Tuple[int, int] = (2, 9), margins: typing.Tuple[int, ...] = (9, 9, 9, 9)):
+        layout = QtWidgets.QGridLayout()
+        layout.setContentsMargins(*margins)
+        layout.setColumnStretch(0, stretchs[0])
+        layout.setColumnStretch(1, stretchs[1])
+
+        group = QtWidgets.QGroupBox(title)
+        group.setLayout(layout)
+        group.setCheckable(checkable)
+
+        if name:
+            group.setProperty(ComponentManager.DefaultObjectNameKey, name)
+
+        for row, item in enumerate(items):
+            text, name, widget_cls, range_ = item
+            label, widget = cls.createInputWithLabel(text, name, widget_cls, range_)
+            layout.addWidget(label, row, 0)
+            layout.addWidget(widget, row, 1)
+
+        return group
+
+    @classmethod
     def createInputWithLabel(cls, label: str, key: str, input_cls: QWidget.__class__,
                              range_: typing.Tuple[typing.Union[int, float], typing.Union[int, float]] = None,
                              value: typing.Union[int, float] = None) -> Tuple[QLabel, QWidget]:
@@ -161,12 +184,12 @@ class BasicWindow(QMainWindow):
             self.ui = ui_cls()
             self.ui.setupUi(self)
 
+        self.__initSystemTrayIcon()
         self._initUi()
         self._initData()
         self._initStyle()
         self._initSignalAndSlots()
         self._initThreadAndTimer()
-        self.__initSystemTrayIcon()
 
     def _initUi(self):
         pass
@@ -216,6 +239,9 @@ class BasicWindow(QMainWindow):
 
         self.show()
 
+    def addTrayAction(self, action: QAction):
+        self.ui_tray_menu.addAction(action)
+
     def loadWindowsPosition(self, config_path: str):
         pos = WindowsPositionSettings.load(config_path)
         geometry = QtWidgets.QApplication.desktop().availableGeometry()
@@ -245,7 +271,8 @@ class BasicWindow(QMainWindow):
             QtWidgets.QApplication.exit()
 
     def slotTrayIconActivated(self, _reason: QtWidgets.QSystemTrayIcon.ActivationReason):
-        self.showNormal() if self.isHidden() else self.hide()
+        if self.isHidden():
+            self.showNormal()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.isSupportTrayIcon():
