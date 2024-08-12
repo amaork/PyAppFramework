@@ -5,7 +5,8 @@ Provide UI elements container
 import collections
 from PySide2.QtCore import *
 from PySide2.QtWidgets import QComboBox, QWidget, QDoubleSpinBox, QSpinBox, QLineEdit, QPlainTextEdit, QDateTimeEdit, \
-    QDial, QRadioButton, QCheckBox, QPushButton, QLCDNumber, QLabel, QTextEdit, QLayout, QGridLayout, QLayoutItem
+    QDial, QRadioButton, QCheckBox, QPushButton, QLCDNumber, QLabel, QTextEdit, QLayout, QGridLayout, QLayoutItem, \
+    QGroupBox
 from typing import Union, Optional, List, Any, Sequence, Callable
 
 from .binder import *
@@ -260,6 +261,8 @@ class ComponentManager(QObject):
                 component.clicked.connect(self.slotDataChanged)
             elif isinstance(component, QRadioButton):
                 component.clicked.connect(self.slotDataChanged)
+            elif isinstance(component, QGroupBox) and component.isCheckable():
+                component.clicked.connect(self.slotDataChanged)
             elif isinstance(component, VirtualNumberInput):
                 component.numberChanged.connect(self.slotDataChanged)
             elif isinstance(component, QLineEdit):
@@ -302,7 +305,7 @@ class ComponentManager(QObject):
                 return component.currentText()
             else:
                 return component.currentIndex()
-        elif isinstance(component, QCheckBox):
+        elif isinstance(component, QCheckBox) or (isinstance(component, QGroupBox) and component.isCheckable()):
             return component.isChecked()
         elif isinstance(component, QRadioButton):
             return component.isChecked()
@@ -349,7 +352,7 @@ class ComponentManager(QObject):
                 index = str2number(data)
                 index = 0 if index >= component.count() else index
             component.setCurrentIndex(index)
-        elif isinstance(component, QCheckBox):
+        elif isinstance(component, QCheckBox) or (isinstance(component, QGroupBox) and component.isCheckable()):
             component.setCheckable(True)
             component.setChecked(str2number(data))
         elif isinstance(component, QRadioButton):
@@ -387,6 +390,8 @@ class ComponentManager(QObject):
             component.currentIndexChanged.connect(slot)
         elif isinstance(component, QCheckBox):
             component.stateChanged.connect(slot)
+        elif isinstance(component, QGroupBox) and component.isCheckable():
+            component.clicked.connect(slot)
         elif isinstance(component, QRadioButton):
             component.clicked.connect(slot)
         elif isinstance(component, QLineEdit):
