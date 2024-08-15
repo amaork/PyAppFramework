@@ -4,13 +4,14 @@ import time
 import typing
 from threading import Thread
 import google.protobuf.message as message
+from google.protobuf.json_format import MessageToDict, MessageToJson
 
 from ..core.timer import Task, Tasklet
 from ..misc.settings import UiLogMessage
-from ..misc.utils import get_pb_msg_fields_dict
 from .template import CommunicationEvent, CommunicationObject
 from .transmit import Transmit, TransmitWarning, TransmitException
-__all__ = ['ProtoBufSdkRequestCallback', 'ProtoBufHandle', 'ProtoBufHandleCallback', 'PBMessageWrap']
+__all__ = ['ProtoBufSdkRequestCallback', 'ProtoBufHandle', 'ProtoBufHandleCallback', 'PBMessageWrap',
+           'ProtobufRWHelper', 'ProtobufDatabase']
 
 # callback(request message, response raw bytes)
 ProtoBufSdkRequestCallback = typing.Callable[[message.Message, bytes], None]
@@ -40,7 +41,7 @@ class PBMessageWrap(CommunicationObject):
 
     def get_number(self, msg) -> int:
         try:
-            return get_pb_msg_fields_dict(self.raw).get(msg.raw.WhichOneof(self.one_of_name()))
+            return ProtobufRWHelper.getMessageFieldsDict(self.raw).get(msg.raw.WhichOneof(self.one_of_name()))
         except (AttributeError, KeyError, TypeError, IndexError):
             return -1
 
@@ -172,3 +173,124 @@ class ProtoBufHandle(object):
                 continue
             except TransmitWarning:
                 continue
+
+
+class ProtobufRWHelper:
+    @classmethod
+    def updateRepeatedItem(cls, msg: message.Message, field_name: str, items: typing.Sequence[message.Message]):
+        # Delete old items
+        for _ in range(len(msg.__getattribute__(field_name))):
+            msg.__getattribute__(field_name).__delitem__(0)
+
+        # Set new items
+        msg.__getattribute__(field_name).extend(items)
+
+    @classmethod
+    def setRepeatedItem(cls, msg: message.Message, field_name: str, idx: int, item: message.Message) -> bool:
+        items = [x for x in msg.__getattribute__(field_name)]
+
+        # Modify item then update
+        try:
+            items[idx] = item
+        except IndexError:
+            return False
+
+        cls.updateRepeatedItem(msg, field_name, items)
+        return True
+
+    @classmethod
+    def getRepeatedItem(cls, msg: message.Message, field_name: str, idx: int) -> typing.Optional[message.Message]:
+        try:
+            return msg.__getattribute__(field_name)[idx]
+        except IndexError:
+            return None
+
+    @classmethod
+    def updateNormalItem(cls, msg: message.Message, field_name: str, item: message.Message):
+        msg.__getattribute__(field_name).CopyFrom(item)
+
+    @classmethod
+    def setNormalItem(cls, msg: message.Message, filed_name: str, name: str, value: typing.Any) -> bool:
+        try:
+            msg.__getattribute__(filed_name).__setattr__(name, value)
+        except TypeError as e:
+            print(f'save {filed_name}.{name} = {value} error: {e}')
+            return False
+        else:
+            return True
+
+    @classmethod
+    def getNormalItem(cls, msg: message.Message, field_name: str, name: str) -> typing.Any:
+        return msg.__getattribute__(field_name).__getattribute__(name)
+
+    @classmethod
+    def messageToDict(cls, msg: message.Message, e2i: bool = True, **kwargs) -> dict:
+        return MessageToDict(
+            msg, preserving_proto_field_name=True,
+            including_default_value_fields=True, use_integers_for_enums=e2i, **kwargs
+        )
+
+    @classmethod
+    def MessageToJson(cls, msg: message.Message, e2i: bool = True, **kwargs) -> str:
+        return MessageToJson(
+            msg, preserving_proto_field_name=True,
+            including_default_value_fields=True, use_integers_for_enums=e2i, **kwargs
+        )
+
+    @classmethod
+    def getMessageFieldsDict(cls, msg: message.Message, reverse: bool = False) -> dict:
+        names = msg.DESCRIPTOR.fields_by_name
+        numbers = msg.DESCRIPTOR.fields_by_number
+        return dict(zip(numbers, names)) if reverse else dict(zip(names, numbers))
+
+
+class ProtobufDatabase:
+    def __init__(self, db_path: str, db_msg: message.Message.__class__):
+        self.db_path = db_path
+
+        try:
+            with open(self.db_path, 'rb') as fp:
+                self.db = db_msg.FromString(fp.read())
+        except FileNotFoundError:
+            self.db = self.getDefaultDatabase()
+            self.save()
+
+    def save(self) -> bool:
+        try:
+            with open(self.db_path, 'wb') as fp:
+                fp.write(self.db.SerializeToString())
+        except OSError as e:
+            print(f'save db to {self.db_path} error: {e}')
+            return False
+        else:
+            return True
+
+    @abc.abstractmethod
+    def getDefaultDatabase(self) -> message.Message:
+        pass
+
+    def updateRepeatedItem(self, field_name: str, items: typing.Sequence[message.Message]) -> bool:
+        ProtobufRWHelper.updateRepeatedItem(self.db, field_name, items)
+        return self.save()
+
+    def setRepeatedItem(self, field_name: str, idx: int, item: message.Message) -> bool:
+        if not ProtobufRWHelper.setRepeatedItem(self.db, field_name, idx, item):
+            return False
+
+        return self.save()
+
+    def getRepeatedItem(self, field_name: str, idx: int) -> typing.Optional[message.Message]:
+        return ProtobufRWHelper.getRepeatedItem(self.db, field_name, idx)
+
+    def updateNormalItem(self, field_name: str, item: message.Message) -> bool:
+        ProtobufRWHelper.updateNormalItem(self.db, field_name, item)
+        return self.save()
+
+    def setNormalItem(self, filed_name: str, name: str, value: typing.Any) -> bool:
+        if not ProtobufRWHelper.setNormalItem(self.db, filed_name, name, value):
+            return False
+
+        return self.save()
+
+    def getNormalItem(self, field_name: str, name: str) -> typing.Any:
+        return ProtobufRWHelper.getNormalItem(self.db, field_name, name)

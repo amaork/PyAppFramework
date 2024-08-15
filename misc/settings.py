@@ -19,11 +19,14 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'SystemTrayIconSettings', 
            'UiTextInput', 'UiTimeInput', 'UiAddressInput', 'UiHexByteInput',
            'UiSerialInput', 'UiAddressSelectInput', 'UiNetworkSelectInput', 'UiInterfaceSelectInput',
            'UiSelectInput', 'UiCheckBoxInput', 'UiIntegerInput', 'UiDoubleInput',
-           'Font', 'Time', 'Color', 'IndexColor', 'color_property',
+           'Font', 'Time', 'Color', 'Unit', 'IndexColor', 'color_property',
            'Layout', 'LayoutSpace', 'LayoutMargins']
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
+Unit = collections.namedtuple('Unit', 'time_s time_ms temp_c vol_v vol_mv')(*(
+    ' (S)', ' (ms)', ' (°C)', ' (V)', ' (mV)'
+))
 
 Color = Tuple[int, int, int]
 IndexColor = Tuple[int, int]
