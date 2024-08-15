@@ -91,12 +91,9 @@ class SimpleColorDialog(QDialog):
     # This signal is emitted just after the user selected a color
     currentColorChanged = Signal(QColor)
 
-    # noinspection PyTypeChecker
-    DEF_TITLE = QApplication.translate("SimpleColorDialog", "Please select color")
-
     def __init__(self, basic: bool = False,
                  color: Union[QColor, Qt.GlobalColor] = Qt.black,
-                 button_box: bool = False, title: str = DEF_TITLE, parent: Optional[QWidget] = None):
+                 button_box: bool = False, title: str = '', parent: Optional[QWidget] = None):
         """Simple color dialog
 
         :param basic: if basic is true, only allow red, greed, blue, cyan, yellow, magenta, black, white color
@@ -174,7 +171,7 @@ class SimpleColorDialog(QDialog):
             layout.addWidget(button)
 
         self.setLayout(layout)
-        self.setWindowTitle(title)
+        self.setWindowTitle(title or self.tr('Please select color'))
 
     def __getColor(self) -> Color:
         """Get select color setting
@@ -306,11 +303,8 @@ class SimpleColorDialog(QDialog):
 
 
 class SerialPortSelectDialog(QDialog):
-    # noinspection PyTypeChecker
-    DEF_TITLE = QApplication.translate("SerialPortSelectDialog", "Please select serial port")
-
     def __init__(self, timeout: float = 0.04, port: str = '',
-                 title: str = DEF_TITLE, parent: Optional[QWidget] = None):
+                 title: str = '', parent: Optional[QWidget] = None):
         super(SerialPortSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._ports = QComboBox(self)
@@ -326,8 +320,8 @@ class SerialPortSelectDialog(QDialog):
         layout.addWidget(button)
         self.setLayout(layout)
         self.setFixedSize(self.sizeHint())
-        self.setWindowTitle(title)
-        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
+        self.setWindowTitle(title or self.tr('Please select serial port'))
+        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(self.windowTitle()) * 1.5)
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -391,13 +385,12 @@ class ServiceDiscoveryDialog(BasicDialog):
     def __init__(self, service: str, port: int,
                  network: str = get_default_network(),
                  title: str = '', parent: Optional[QWidget] = None):
-        # noinspection PyTypeChecker
-        self.title = title or QApplication.translate("SerialPortSelectDialog", "Please select")
         super().__init__(parent)
         self.signalEvent.connect(self.eventHandle)
         self._discovery = ServiceDiscovery(
             service=service, port=port, network=network, event_callback=self.signalEvent.emit, auto_stop=False
         )
+        self.setWindowTitle(title or self.tr('Please select'))
 
     def _initUi(self):
         self.ui_address = QComboBox()
@@ -413,7 +406,6 @@ class ServiceDiscoveryDialog(BasicDialog):
         layout.addWidget(QSplitter())
         layout.addWidget(self.ui_buttons)
         self.setLayout(layout)
-        self.setWindowTitle(self.title)
 
     def sizeHint(self) -> QSize:
         return QSize(210, 80)
@@ -453,9 +445,9 @@ class ServiceDiscoveryDialog(BasicDialog):
 class ServicePortSelectDialog(BasicDialog):
     def __init__(self, port: int, network: str, title: Optional[str] = '',
                  timeout: float = 0.04, parent: Optional[QtWidgets.QWidget] = None):
-        self._title = title or self.tr('Please select device')
         self._kwargs = dict(port=port, network=network, timeout=timeout, parent=self)
         super(ServicePortSelectDialog, self).__init__(parent)
+        self.setWindowTitle(title or self.tr('Please select device'))
 
     def _initUi(self):
         self.ui_combox = ServicePortSelector(**self._kwargs)
@@ -466,7 +458,6 @@ class ServicePortSelectDialog(BasicDialog):
         layout.addWidget(self.ui_buttons)
 
         self.setLayout(layout)
-        self.setWindowTitle(self._title)
 
     def sizeHint(self) -> QtCore.QSize:
         return QSize(265, 80)
@@ -479,11 +470,8 @@ class ServicePortSelectDialog(BasicDialog):
 
 
 class NetworkAddressSelectDialog(QDialog):
-    # noinspection PyTypeChecker
-    DEF_TITLE = QApplication.translate("NetworkAddressSelectDialog", "Please select address")
-
     def __init__(self, port: int, timeout: float = 0.04, network: str = '',
-                 title: str = DEF_TITLE, parent: Optional[QWidget] = None):
+                 title: str = '', parent: Optional[QWidget] = None):
         super(NetworkAddressSelectDialog, self).__init__(parent)
         layout = QVBoxLayout()
         self._address_list = QComboBox(self)
@@ -500,8 +488,8 @@ class NetworkAddressSelectDialog(QDialog):
         layout.addWidget(QSplitter())
         layout.addWidget(button)
         self.setLayout(layout)
-        self.setWindowTitle(title)
-        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(title) * 1.5)
+        self.setWindowTitle(title or self.tr('Please select address'))
+        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(self.windowTitle()) * 1.5)
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -581,10 +569,8 @@ class NetworkInterfaceSelectDialog(QDialog):
 
 class ProgressDialog(QProgressDialog):
     progressCanceled = Signal(bool)
-    # noinspection PyTypeChecker
-    DEF_TITLE = QApplication.translate("ProgressDialog", "Operation progress", None)
 
-    def __init__(self, parent: QWidget, title: str = DEF_TITLE, max_width: int = 350,
+    def __init__(self, parent: QWidget, title: str = '', max_width: int = 350,
                  cancel_button: Optional[str] = None, closeable: bool = True, cancelable: bool = False):
         super(ProgressDialog, self).__init__(parent)
         # fix ProgressDialog sometimes will auto popup issue
@@ -596,7 +582,7 @@ class ProgressDialog(QProgressDialog):
 
         self.setFixedWidth(max_width)
         self.setWindowModality(Qt.WindowModal)
-        self.setWindowTitle(self.tr(title))
+        self.setWindowTitle(title or self.tr('Operation progress'))
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         if cancel_button is None:
@@ -954,10 +940,7 @@ class PasswordDialog(QDialog):
 
 
 class OptionDialog(QDialog):
-    # noinspection PyTypeChecker
-    DEF_TITLE = QApplication.translate("OptionDialog", "Please select", None)
-
-    def __init__(self, options: Sequence[str], title: str = DEF_TITLE, parent: Optional[QWidget] = None):
+    def __init__(self, options: Sequence[str], title: str = '', parent: Optional[QWidget] = None):
         super(OptionDialog, self).__init__(parent)
 
         self.selection = ""
@@ -974,7 +957,7 @@ class OptionDialog(QDialog):
         layout.addWidget(cancel)
 
         self.setLayout(layout)
-        self.setWindowTitle(title)
+        self.setWindowTitle(title or self.tr('Please select'))
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 

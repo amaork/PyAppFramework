@@ -297,11 +297,17 @@ class BasicWindow(QMainWindow):
             title or self.__tray_icon_settings.msg_title, msg, QtGui.QIcon(self.__tray_icon_settings.icon)
         )
 
-    def slotTrayIconExit(self):
+    def slotTrayIconExit(self) -> bool:
+        """Can't exit return false"""
         if callable(self.__tray_icon_settings.exit_callback):
-            self.__tray_icon_settings.exit_callback()
+            if self.__tray_icon_settings.exit_callback():
+                QtWidgets.QApplication.exit()
+                return True
+            else:
+                return False
         else:
             QtWidgets.QApplication.exit()
+            return True
 
     def slotTrayIconActivated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason):
         if self.isHidden():
@@ -320,7 +326,8 @@ class BasicWindow(QMainWindow):
                     self.tr('Minimize to system tray, click to restore display')
                 )
             else:
-                self.slotTrayIconExit()
+                if not self.slotTrayIconExit():
+                    event.ignore()
         else:
             QtWidgets.QApplication.exit()
 
