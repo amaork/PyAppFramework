@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import time
 import typing
 import hashlib
+import collections
 from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
     QSpinBox, QSplitter, QComboBox, QDialogButtonBox, QLineEdit, QPushButton, QCheckBox, QSizePolicy, QFileDialog, \
@@ -21,15 +23,15 @@ from ..protocol.serialport import SerialPort
 from .canvas import ScalableCanvasWidget, canvas_init_helper
 from ..network.discovery import ServiceDiscovery, DiscoveryEvent
 
-from ..misc.windpi import get_program_scale_factor
 from ..misc.settings import UiLayout, Color, IndexColor
+from ..misc.windpi import get_program_scale_factor, system_open_file
 
 from ..core.datatype import DynamicObject
 from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
     JsonSettingWidget, MultiJsonSettingsWidget, MultiTabJsonSettingsWidget, MultiGroupJsonSettingsWidget
 
 __all__ = ['BasicDialog',
-           'SimpleColorDialog',
+           'SimpleColorDialog', 'AboutDialog',
            'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog', 'TextInputDialog',
@@ -1155,6 +1157,85 @@ class TextInputDialog(BasicDialog):
         dialog = cls(parent=parent, title=title, label=label, validator=validator, mode=mode, text=text)
         dialog.exec_()
         return dialog.getInputText()
+
+
+class AboutDialog(QtWidgets.QDialog):
+    CompanyInfo = collections.namedtuple('CompanyInfo', 'start_year en_name ch_name')
+
+    def __init__(self, logo: str, logo_width: int, ver_str: str, company_info: CompanyInfo,
+                 margin: int = 20, change_log: str = '', ver_font: QtGui.QFont = QtGui.QFont('宋体', 18),
+                 copyright_font: QtGui.QFont = QtGui.QFont('宋体', 9),
+                 changelog_font: QtGui.QFont = QtGui.QFont('宋体', 11),
+                 parent: typing.Optional[QtWidgets.QWidget] = None):
+        super().__init__(parent)
+        self._change_log = change_log if os.path.isfile(change_log) else ''
+        self._company_info = company_info
+        self._ver_str = ver_str
+
+        self._ver_font = ver_font
+        self._cr_font = copyright_font
+        self._cl_font = changelog_font
+
+        self._clickable_rect = QtCore.QRect()
+        self._pixmap = QtGui.QPixmap(logo)
+        self._logo_width = logo_width
+        self._margin = margin
+        self.setMouseTracking(True)
+
+    def getCopyrightStr(self) -> str:
+        return f'Copyright © {self._company_info.start_year} - {time.strftime("%Y")} {self._company_info.en_name}®. ' \
+                f'All rights reserved.\n{self._company_info.ch_name} 版权所有'
+
+    def isChangeLogPos(self, pos: QtCore.QPoint) -> bool:
+        return self._clickable_rect.contains(pos)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+        self.setCursor(QtGui.QCursor(Qt.PointingHandCursor if self.isChangeLogPos(event.pos()) else Qt.ArrowCursor))
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
+        if not self.isChangeLogPos(event.pos()):
+            return
+
+        try:
+            system_open_file(self._change_log)
+        except (AttributeError, ValueError, OSError) as e:
+            showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Open change log filed'))
+
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
+        center = self.rect().center()
+        painter.drawPixmap(
+            center.x() - self._logo_width // 2, self._margin, self._logo_width, self._logo_width, self._pixmap
+        )
+
+        rect = self.rect()
+        rect.y = self._margin + self._logo_width + self._margin * 2
+        painter.setFont(self._ver_font)
+        painter.setPen(QtGui.QPen(QtGui.QColor(QtCore.Qt.black)))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, self._ver_str)
+
+        vfh = QtGui.QFontMetrics(self._ver_font).height()
+        rect.moveTop(vfh * 6)
+        painter.setFont(self._cr_font)
+        painter.setPen(QtGui.QPen(QtGui.QColor(QtCore.Qt.black)))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, self.getCopyrightStr())
+
+        if self._change_log:
+            rect.moveTop(vfh * 7.2)
+            painter.setFont(self._cl_font)
+            painter.setPen(QtGui.QPen(QtGui.QColor(QtCore.Qt.blue)))
+            painter.drawText(rect, QtCore.Qt.AlignCenter, self.tr('ChangeLog'))
+
+            fm = QtGui.QFontMetrics(painter.font())
+            self._clickable_rect = QtCore.QRect(
+                self.rect().center().x() - fm.width(self.tr('ChangeLog')) // 2,
+                self._margin * 3 + self._logo_width + vfh * 7 + QtGui.QFontMetrics(self._cr_font).height(),
+                fm.width(self.tr('ChangeLog')), fm.height()
+            )
 
 
 # noinspection PyTypeChecker

@@ -25,7 +25,7 @@ __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelecto
            'NavigationItem', 'NavigationBar',
            'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel', 'Separator',
-           'updateFilterMenu', 'qtTranslate']
+           'updateFilterMenu', 'qtTranslate', 'qtTranslateAuto']
 
 
 class SerialPortSelector(QtWidgets.QComboBox):
@@ -351,6 +351,10 @@ def qtTranslate(text: str, views_name: typing.Sequence[str]) -> str:
         return [tr for tr in [QApplication.translate(view, text) for view in views_name] if tr != text][0]
     except IndexError:
         return text
+
+
+def qtTranslateAuto(text: str, cls) -> str:
+    return qtTranslate(text, [x.__name__ for x in cls.mro()])
 
 
 def updateFilterMenu(options: Sequence[str], menu: QtWidgets.QMenu,
