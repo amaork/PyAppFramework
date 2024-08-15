@@ -30,7 +30,7 @@ import typing
 import logging
 import os.path
 import collections
-from PySide2 import QtWidgets, QtGui
+from PySide2 import QtWidgets, QtGui, QtCore
 from serial import Serial
 from PySide2.QtGui import QColor, QPixmap, QPainter, QFont, QPen, QBrush, QImage, QImageReader, QTextCursor,\
     QMouseEvent, QHideEvent, QPaintEvent, QContextMenuEvent, QResizeEvent, QRegExpValidator
@@ -97,11 +97,11 @@ class BasicWidget(QWidget):
 
     @classmethod
     def createGroupBox(cls, title: str, items: typing.Sequence, checkable: bool = False, name: str = '',
-                       stretchs: typing.Tuple[int, int] = (2, 9), margins: typing.Tuple[int, ...] = (9, 9, 9, 9)):
+                       stretch: typing.Tuple[int, int] = (2, 9), margins: typing.Tuple[int, ...] = (9, 9, 9, 9)):
         layout = QtWidgets.QGridLayout()
         layout.setContentsMargins(*margins)
-        layout.setColumnStretch(0, stretchs[0])
-        layout.setColumnStretch(1, stretchs[1])
+        layout.setColumnStretch(0, stretch[0])
+        layout.setColumnStretch(1, stretch[1])
 
         group = QtWidgets.QGroupBox(title)
         group.setLayout(layout)
@@ -177,6 +177,8 @@ class BasicWidget(QWidget):
 
 
 class BasicWindow(QMainWindow):
+    signalTrayIconDoubleClicked = Signal()
+
     def __init__(self, ui_cls=None, tray_icon_settings: SystemTrayIconSettings = None, parent: QWidget = None):
         QMainWindow.__init__(self, parent)
         self.__tray_icon_settings = tray_icon_settings
@@ -216,7 +218,11 @@ class BasicWindow(QMainWindow):
         if not self.isSupportTrayIcon():
             return
 
-        self.ui_tray_exit = QtWidgets.QAction(self.tr('Exit'))
+        self.__timer_cnt = 0
+        self.__timer_flush_icon = QtCore.QTimer(self)
+        self.__timer_flush_icon.timeout.connect(self.slotFlushIcon)
+
+        self.ui_tray_exit = QtWidgets.QAction(self.tr('Exit') + f' {self.__tray_icon_settings.msg_title}')
         self.ui_tray_exit.triggered.connect(self.slotTrayIconExit)
 
         self.ui_tray_menu = QtWidgets.QMenu(self)
@@ -239,8 +245,23 @@ class BasicWindow(QMainWindow):
 
         self.show()
 
-    def addTrayAction(self, action: QAction):
-        self.ui_tray_menu.addAction(action)
+    def stopFlush(self):
+        self.__timer_flush_icon.stop()
+        self.ui_tray_icon.setIcon(QtGui.QIcon(self.__tray_icon_settings.icon))
+
+    def startFlush(self, interval: float = 1.0):
+        self.__timer_flush_icon.setInterval(int(interval * 1e3))
+        self.__timer_flush_icon.start()
+
+    def addTrayActions(self, actions: typing.Sequence[QAction]):
+        before = self.ui_tray_exit
+
+        for action in actions:
+            if not isinstance(action, QAction):
+                continue
+
+            self.ui_tray_menu.insertAction(before, action)
+            before = action
 
     def loadWindowsPosition(self, config_path: str):
         pos = WindowsPositionSettings.load(config_path)
@@ -256,6 +277,10 @@ class BasicWindow(QMainWindow):
         pos.update(dict(x=self.x(), y=self.y() + x_offset, width=self.width(), height=self.height(), pin=self.isPin()))
         pos.save(config_path)
 
+    def slotFlushIcon(self):
+        self.__timer_cnt += 1
+        self.ui_tray_icon.setIcon(QtGui.QIcon(self.__tray_icon_settings.icon if self.__timer_cnt % 2 else ':null.ico'))
+
     def slotShowTrayIconMsg(self, msg: str, title: str = ''):
         if not self.isSupportTrayIcon():
             return
@@ -270,9 +295,12 @@ class BasicWindow(QMainWindow):
         else:
             QtWidgets.QApplication.exit()
 
-    def slotTrayIconActivated(self, _reason: QtWidgets.QSystemTrayIcon.ActivationReason):
+    def slotTrayIconActivated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason):
         if self.isHidden():
             self.showNormal()
+
+        if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
+            self.signalTrayIconDoubleClicked.emit()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.isSupportTrayIcon():
