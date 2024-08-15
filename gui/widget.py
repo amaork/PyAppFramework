@@ -181,6 +181,8 @@ class BasicWindow(QMainWindow):
 
     def __init__(self, ui_cls=None, tray_icon_settings: SystemTrayIconSettings = None, parent: QWidget = None):
         QMainWindow.__init__(self, parent)
+        self.__en_system_tray_msg_notify = False
+        self.__en_minimize_to_system_tray = False
         self.__tray_icon_settings = tray_icon_settings
         if ui_cls:
             self.ui = ui_cls()
@@ -253,6 +255,12 @@ class BasicWindow(QMainWindow):
         self.__timer_flush_icon.setInterval(int(interval * 1e3))
         self.__timer_flush_icon.start()
 
+    def setEnableSystemTrayMsgNotify(self, en: bool):
+        self.__en_system_tray_msg_notify = en
+
+    def setEnableMinimizeToSystemTray(self, en: bool):
+        self.__en_minimize_to_system_tray = en
+
     def addTrayActions(self, actions: typing.Sequence[QAction]):
         before = self.ui_tray_exit
 
@@ -282,7 +290,7 @@ class BasicWindow(QMainWindow):
         self.ui_tray_icon.setIcon(QtGui.QIcon(self.__tray_icon_settings.icon if self.__timer_cnt % 2 else ':null.ico'))
 
     def slotShowTrayIconMsg(self, msg: str, title: str = ''):
-        if not self.isSupportTrayIcon():
+        if not self.isSupportTrayIcon() or not self.__en_system_tray_msg_notify:
             return
 
         self.ui_tray_icon.showMessage(
@@ -304,11 +312,17 @@ class BasicWindow(QMainWindow):
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self.isSupportTrayIcon():
-            self.hide()
-            event.ignore()
-            self.slotShowTrayIconMsg(
-                self.__tray_icon_settings.minimize_msg or self.tr('Minimize display, click to restore display')
-            )
+            if self.__en_minimize_to_system_tray:
+                self.hide()
+                event.ignore()
+                self.slotShowTrayIconMsg(
+                    self.__tray_icon_settings.minimize_msg or
+                    self.tr('Minimize to system tray, click to restore display')
+                )
+            else:
+                self.slotTrayIconExit()
+        else:
+            QtWidgets.QApplication.exit()
 
 
 class BasicGroupBox(QGroupBox):
