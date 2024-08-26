@@ -6,10 +6,11 @@ import collections
 from PySide2.QtCore import Qt
 from PySide2 import QtCore, QtGui, QtWidgets
 
-from .widget import ImageWidget
 from .canvas import ScalableCanvasWidget
+from ..misc.settings import UiLogMessage
 from ..misc.windpi import show_file_in_explorer
-__all__ = ['StretchFactor', 'BasicDock', 'FilelistDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
+from .widget import ImageWidget, LogMessageWidget
+__all__ = ['StretchFactor', 'BasicDock', 'FilelistDock', 'LogMessageDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
 StretchFactor = collections.namedtuple('StretchFactor', 'h v')
 
 
@@ -139,6 +140,17 @@ class FilelistDock(QtWidgets.QDockWidget):
             self.signalLeftKeyDoubleClicked.emit()
         elif event.button() == Qt.RightButton:
             self.signalRightKeyDoubleClicked.emit()
+
+
+class LogMessageDock(QtWidgets.QDockWidget):
+    def __init__(self, title: str, parent: typing.Optional[QtWidgets.QWidget] = None, **kwargs):
+        super(LogMessageDock, self).__init__(parent=parent)
+        self.ui_log = LogMessageWidget(**kwargs)
+        self.setWidget(self.ui_log)
+        self.setWindowTitle(title)
+
+    def slotLogging(self, msg: UiLogMessage):
+        self.ui_log.logging(msg)
 
 
 class ImagePreviewDock(QtWidgets.QDockWidget):
