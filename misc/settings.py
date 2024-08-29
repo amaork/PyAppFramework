@@ -664,7 +664,9 @@ T = TypeVar('T', bound='UiLogMessage')
 
 class UiLogMessage(DynamicObject):
     _properties = {'level', 'color', 'font_size', 'content'}
-    DefaultColor = collections.namedtuple('DefaultColor', 'Info Debug Error')(*'#000000 #0000FF #FF0000'.split())
+    DefaultColor = collections.namedtuple(
+        'DefaultColor', 'Info Debug Warn Error'
+    )(*'#000000 #0000FF #74572f #FF0000'.split())
 
     def __init__(self, **kwargs):
         # Default is info level color is black size is 3
@@ -673,25 +675,29 @@ class UiLogMessage(DynamicObject):
         kwargs.setdefault('level', logging.INFO)
         super(UiLogMessage, self).__init__(**kwargs)
 
-    @staticmethod
-    def genDefaultMessage(content: str, level: int) -> T:
+    @classmethod
+    def genDefaultMessage(cls, content: str, level: int) -> T:
         return {
-
-            logging.INFO: UiLogMessage.genDefaultInfoMessage,
-            logging.DEBUG: UiLogMessage.genDefaultDebugMessage,
-            logging.ERROR: UiLogMessage.genDefaultErrorMessage,
+            logging.INFO: cls.genDefaultInfoMessage,
+            logging.WARN: cls.genDefaultWarnMessage,
+            logging.DEBUG: cls.genDefaultDebugMessage,
+            logging.ERROR: cls.genDefaultErrorMessage,
         }.get(level, UiLogMessage.genDefaultInfoMessage)(content)
 
-    @staticmethod
-    def genDefaultInfoMessage(content: str, color: str = DefaultColor.Info) -> T:
+    @classmethod
+    def genDefaultInfoMessage(cls, content: str, color: str = DefaultColor.Info) -> T:
         return UiLogMessage(content=content, level=logging.INFO, color=color or UiLogMessage.DefaultColor.Info)
 
-    @staticmethod
-    def genDefaultDebugMessage(content, color: str = DefaultColor.Debug) -> T:
+    @classmethod
+    def genDefaultDebugMessage(cls, content, color: str = DefaultColor.Debug) -> T:
         return UiLogMessage(content=content, level=logging.DEBUG, color=color or UiLogMessage.DefaultColor.Debug)
 
-    @staticmethod
-    def genDefaultErrorMessage(content, color: str = DefaultColor.Error) -> T:
+    @classmethod
+    def genDefaultWarnMessage(cls, content, color: str = DefaultColor.Warn) -> T:
+        return UiLogMessage(content=content, level=logging.WARN, color=color or UiLogMessage.DefaultColor.Warn)
+
+    @classmethod
+    def genDefaultErrorMessage(cls, content, color: str = DefaultColor.Error) -> T:
         return UiLogMessage(content=content, level=logging.ERROR, color=color or UiLogMessage.DefaultColor.Error)
 
 

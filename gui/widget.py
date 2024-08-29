@@ -3455,8 +3455,8 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
 class LogMessageWidget(QTextEdit):
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-    DISPLAY_INFO, DISPLAY_DEBUG, DISPLAY_ERROR = (0x1, 0x2, 0x4)
-    DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR
+    DISPLAY_DEBUG, DISPLAY_INFO, DISPLAY_WARN, DISPLAY_ERROR = (0x1, 0x2, 0x4, 0x8)
+    DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR | DISPLAY_WARN
 
     # noinspection SpellCheckingInspection
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
@@ -3473,29 +3473,27 @@ class LogMessageWidget(QTextEdit):
         # Context menu
         self.ui_context_menu = QMenu(self)
         self.ui_show_info = QAction(self.tr("Show Info"), self)
+        self.ui_show_warn = QAction(self.tr("Show Warn"), self)
         self.ui_show_debug = QAction(self.tr("Show Debug"), self)
         self.ui_show_error = QAction(self.tr("Show Error"), self)
         self.ui_clean_action = QAction(self.tr("Clear All"), self)
 
         self.ui_context_menu.addAction(self.ui_clean_action)
-        for action in (self.ui_show_info, self.ui_show_debug, self.ui_show_error):
+        for action in (self.ui_show_info, self.ui_show_warn, self.ui_show_debug, self.ui_show_error):
             action.setCheckable(True)
             action.setChecked(True)
+            # noinspection PyUnresolvedReferences
+            action.triggered.connect(self.slotShowSelectLog)
             self.ui_context_menu.addAction(action)
 
         # noinspection PyUnresolvedReferences
         self.ui_clean_action.triggered.connect(self.clear)
-        # noinspection PyUnresolvedReferences
-        self.ui_show_info.triggered.connect(self.slotShowSelectLog)
-        # noinspection PyUnresolvedReferences
-        self.ui_show_debug.triggered.connect(self.slotShowSelectLog)
-        # noinspection PyUnresolvedReferences
-        self.ui_show_error.triggered.connect(self.slotShowSelectLog)
         self.setDisplayFilter(display_filter, load=False)
 
     def getLevelMask(self, level: int) -> int:
         return {
             logging.INFO: self.DISPLAY_INFO,
+            logging.WARN: self.DISPLAY_WARN,
             logging.DEBUG: self.DISPLAY_DEBUG,
             logging.ERROR: self.DISPLAY_ERROR
         }.get(level, self.DISPLAY_ALL)
@@ -3505,6 +3503,12 @@ class LogMessageWidget(QTextEdit):
             self._displayFilter |= self.DISPLAY_INFO
         else:
             self._displayFilter &= ~self.DISPLAY_INFO
+
+    def _enableWarn(self, en: bool):
+        if en:
+            self._displayFilter |= self.DISPLAY_WARN
+        else:
+            self._displayFilter &= ~self.DISPLAY_WARN
 
     def _enableDebug(self, en: bool):
         if en:
@@ -3521,6 +3525,9 @@ class LogMessageWidget(QTextEdit):
     def infoEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_INFO
 
+    def warnEnabled(self, target: Optional[int] = None):
+        return (target or self._displayFilter) & self.DISPLAY_WARN
+
     def debugEnabled(self, target: Optional[int] = None):
         return (target or self._displayFilter) & self.DISPLAY_DEBUG
 
@@ -3529,6 +3536,9 @@ class LogMessageWidget(QTextEdit):
 
     def info(self, msg: str):
         self.logging(UiLogMessage.genDefaultInfoMessage(msg))
+
+    def warn(self, msg: str):
+        self.logging(UiLogMessage.genDefaultWarnMessage(msg))
 
     def debug(self, msg: str):
         self.logging(UiLogMessage.genDefaultDebugMessage(msg))
@@ -3606,6 +3616,9 @@ class LogMessageWidget(QTextEdit):
         if self.ui_show_info.isChecked():
             levels.append(logging.INFO)
 
+        if self.ui_show_warn.isChecked():
+            levels.append(logging.WARN)
+
         if self.ui_show_debug.isChecked():
             levels.append(logging.DEBUG)
 
@@ -3613,6 +3626,7 @@ class LogMessageWidget(QTextEdit):
             levels.append(logging.ERROR)
 
         self._enableInfo(self.ui_show_info.isChecked())
+        self._enableWarn(self.ui_show_warn.isChecked())
         self._enableDebug(self.ui_show_debug.isChecked())
         self._enableError(self.ui_show_error.isChecked())
         self.filterLog(levels)
@@ -3625,6 +3639,11 @@ class LogMessageWidget(QTextEdit):
             self.ui_show_info.setChecked(True)
         else:
             self.ui_show_info.setChecked(False)
+
+        if self.warnEnabled(display_filter):
+            self.ui_show_warn.setChecked(True)
+        else:
+            self.ui_show_warn.setChecked(False)
 
         if self.debugEnabled(display_filter):
             self.ui_show_debug.setChecked(True)

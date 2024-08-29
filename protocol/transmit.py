@@ -26,7 +26,8 @@ class TransmitException(Exception):
 
 class TransmitWarning(Exception):
     def is_timeout(self):
-        return 'timeout' in f'{self}'
+        keywords = ('timeout', 'timed out')
+        return any(kw in f'{self}' for kw in keywords)
 
 
 class Transmit(object):

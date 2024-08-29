@@ -39,6 +39,10 @@ class CommunicationEvent(CustomEvent):
         return cls(cls.Type.Logging, data=UiLogMessage.genDefaultInfoMessage(msg, color))
 
     @classmethod
+    def warn(cls, msg: str, color: str = ''):
+        return cls(cls.Type.Logging, data=UiLogMessage.genDefaultWarnMessage(msg, color))
+
+    @classmethod
     def debug(cls, msg: str, color: str = ''):
         return cls(cls.Type.Logging, data=UiLogMessage.genDefaultDebugMessage(msg, color))
 
@@ -163,7 +167,7 @@ class CommunicationController:
                  transmit: Transmit,
                  response_max_length: int,
                  event_callback: typing.Callable[[CommunicationEvent], None],
-                 print_ts: bool = False, retry: int = 1, tasklet_interval: float = 0.05, debug_mode: bool = False):
+                 print_ts: bool = False, retry: int = 3, tasklet_interval: float = 0.05, debug_mode: bool = False):
         if not isinstance(transmit, Transmit):
             raise TypeError(f"'transmit' must be a instance of {Transmit.__name__}")
 
@@ -275,6 +279,9 @@ class CommunicationController:
 
     def info_msg(self, msg: str):
         self.send_event(self._event_cls.info(self._format_log(msg), self._log_color(logging.INFO)))
+
+    def warn_msg(self, msg: str):
+        self.send_event(self._event_cls.warn(self._format_log(msg), self._log_color(logging.WARN)))
 
     def error_msg(self, msg: str):
         self.send_event(self._event_cls.error(self._format_log(msg), self._log_color(logging.ERROR)))
@@ -429,6 +436,7 @@ class CommunicationController:
                         if e.is_timeout():
                             retry += 1
                             if retry < max_retry_times:
+                                self.warn_msg(f'[{self.__class__.__name__}] retry[{retry}]: {e}({request})')
                                 time.sleep(retry * 0.3)
                                 continue
                             else:
