@@ -419,6 +419,7 @@ class CommunicationController:
 
                             if not self._section_check(request, response, cost_time):
                                 self.error_msg(f'Section check failed: {request!r} {response!r}')
+                                self._transmit.flush()
                                 continue
 
                         # Communication restored
@@ -438,6 +439,7 @@ class CommunicationController:
                             if retry < max_retry_times:
                                 self.warn_msg(f'[{self.__class__.__name__}] retry[{retry}]: {e}({request})')
                                 time.sleep(retry * 0.3)
+                                self._transmit.flush()
                                 continue
                             else:
                                 self._timeout.set()

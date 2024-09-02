@@ -68,6 +68,7 @@ class Transmit(object):
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
         pass
 
+    @abc.abstractmethod
     def flush(self):
         pass
 
@@ -230,7 +231,7 @@ class TCPSocketTransmit(Transmit):
             raise TransmitException(err)
 
     def rx(self, size: int, timeout: float = 0.0) -> bytes:
-        timeout = timeout or self._timeout
+        timeout = timeout or self.timeout
         if timeout:
             self._socket.settimeout(timeout)
 
@@ -260,6 +261,18 @@ class TCPSocketTransmit(Transmit):
         except (socket.error, IndexError, struct.error, MemoryError, ConnectionError) as err:
             raise TransmitException(err)
 
+    def flush(self):
+        s = time.time()
+        while time.time() - s < self.timeout:
+            try:
+                self._socket.recv(1500)
+            except TransmitWarning as e:
+                if e.is_timeout():
+                    continue
+                else:
+                    print(f'{e}')
+                    break
+
     def disconnect(self):
         if callable(self._disconnect_callback):
             self._disconnect_callback()
@@ -282,6 +295,9 @@ class TCPClientTransmit(Transmit):
         self._socket = TCPSocketTransmit(
             socket.socket(socket.AF_INET, socket.SOCK_STREAM), length_fmt=length_fmt, processing=processing
         )
+
+    def flush(self):
+        self._socket.flush()
 
     def tx(self, data: bytes) -> bool:
         return self._socket.tx(data)
@@ -308,6 +324,7 @@ class TCPClientTransmit(Transmit):
             self._server_address = address
             timeout = timeout or self.DEFAULT_TIMEOUT
             self._socket.raw_socket = create_socket_and_connect(address[0], address[1], timeout)
+            self._socket.connect(self._socket.raw_socket.getsockname(), timeout)
             return self._update(self._socket.raw_socket.getsockname(), timeout, True)
         except RuntimeError as err:
             raise TransmitException(err)
@@ -360,6 +377,9 @@ class TCPServerTransmit(Transmit):
     def disconnect(self):
         self._connected.clear()
         self._socket.disconnect()
+
+    def flush(self):
+        self._socket.flush()
 
     def tx(self, data: bytes) -> bool:
         return self._socket.tx(data)
