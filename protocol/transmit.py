@@ -266,12 +266,11 @@ class TCPSocketTransmit(Transmit):
         while time.time() - s < self.timeout:
             try:
                 self._socket.recv(1500)
-            except TransmitWarning as e:
-                if e.is_timeout():
-                    continue
-                else:
-                    print(f'{e}')
-                    break
+            except socket.timeout:
+                continue
+            except socket.error as e:
+                print(f'{e}')
+                break
 
     def disconnect(self):
         if callable(self._disconnect_callback):

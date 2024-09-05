@@ -11,13 +11,12 @@ import datetime
 import contextlib
 from xml.dom import minidom
 from typing import List, Dict
-from google.protobuf.message import Message
 import xml.etree.ElementTree as XmlElementTree
 from xml.etree.ElementTree import Element as XmlElement
 __all__ = [
     'awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
     'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after',
-    'size_convert', 'create_file_if_not_exist', 'utf8_truncate'
+    'size_convert', 'create_file_if_not_exist', 'utf8_truncate', 'has_chinese'
 ]
 
 
@@ -201,6 +200,15 @@ def auto_deletion_tempdir(catch_exceptions: typing.Sequence[typing.Type],
                 print(f'auto_deletion_tempdir: {tempdir} deleted')
         except shutil.Error as e:
             print(f'auto_deletion_tempdir: {tempdir} delete error, {e}')
+
+
+def has_chinese(check_str: str) -> bool:
+    try:
+        check_str.encode('ascii')
+    except UnicodeEncodeError:
+        return True
+    else:
+        return False
 
 
 def utf8_truncate(input_str: str, length: int) -> str:
