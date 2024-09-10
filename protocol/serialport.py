@@ -389,8 +389,11 @@ class SerialPort(object):
         self.__port.close()
 
     def flush(self):
-        self.__port.flushInput()
-        self.__port.flushOutput()
+        try:
+            self.__port.flushInput()
+            self.__port.flushOutput()
+        except (serial.SerialException, OSError):
+            pass
 
     def write(self, data: bytes) -> int:
         """Basic send data

@@ -630,6 +630,12 @@ class NavigationBar(QtWidgets.QToolBar):
 
 
 class CustomEventFilterHandler(QtCore.QObject):
+    NormalInputEvents = (
+        QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.Wheel,
+        QtCore.QEvent.MouseButtonDblClick, QtCore.QEvent.HoverLeave, QtCore.QEvent.HoverEnter,
+        QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease
+    )
+
     def __init__(self, types: Tuple[type, ...], events: Sequence[QtCore.QEvent.Type],
                  parent: Optional[QtWidgets.QWidget] = None):
         super(CustomEventFilterHandler, self).__init__(parent)

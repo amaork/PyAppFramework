@@ -455,6 +455,7 @@ class CommunicationController:
                             msg = 'The number of timeouts exceeds the upper limit'
                             self.error_msg(msg)
                             self.send_event(self._event_cls.disconnected(msg))
+                            break
                     except self._catch_exception as e:
                         self.disconnect(send_event=True)
                         self.error_msg(f'[{self.__class__.__name__}] Communication exception: {e}({request})')

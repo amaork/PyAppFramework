@@ -186,7 +186,7 @@ class ProtobufRWHelper:
         msg.__getattribute__(field_name).extend(items)
 
     @classmethod
-    def setRepeatedItem(cls, msg: message.Message, field_name: str, idx: int, item: message.Message) -> bool:
+    def setRepeatedItem(cls, msg: message.Message, field_name: str, idx: int, item: typing.Any) -> bool:
         items = [x for x in msg.__getattribute__(field_name)]
 
         # Modify item then update

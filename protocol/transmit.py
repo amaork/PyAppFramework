@@ -167,7 +167,7 @@ class UARTTransmit(Transmit):
             self.__serial.flush()
             self.__serial.close()
             self._connected.clear()
-        except (serial.SerialException, AttributeError):
+        except (serial.SerialException, AttributeError, OSError):
             pass
 
     def connect(self, address: Transmit.Address, timeout: float) -> bool:
