@@ -6,7 +6,6 @@ import inspect
 import logging
 import datetime
 import functools
-import contextlib
 from ..core.datatype import DynamicObject
 from ..misc.settings import UiLogMessage, JsonSettings
 __all__ = ['track_time', 'statistics_time', 'get_debug_timestamp', 'get_stack_info',
@@ -35,13 +34,23 @@ def track_time(func):
     return wrapper_debug_time
 
 
-@contextlib.contextmanager
-def statistics_time(label: str = 'statistics_time'):
-    start = time.perf_counter()
-    try:
-        yield
-    finally:
-        print(f'{label}: {time.perf_counter() - start}')
+class statistics_time:
+    def __init__(self, label: str = 'statistics_time'):
+        self.label = label
+
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(f'{self.label}: {time.perf_counter() - self.start}')
+        return True
+
+    def tag(self, tag: str):
+        print(f'{tag}: {self.cost()}')
+
+    def cost(self) -> float:
+        return time.perf_counter() - self.start
 
 
 def get_debug_timestamp() -> str:
