@@ -420,6 +420,7 @@ class CommunicationController:
                             if not self._section_check(request, response, cost_time):
                                 self.error_msg(f'Section check failed: {request!r} {response!r}')
                                 self._transmit.flush()
+                                self._transmit.flush()
                                 continue
 
                         # Communication restored
