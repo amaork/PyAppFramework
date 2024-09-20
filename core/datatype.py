@@ -290,7 +290,8 @@ class DynamicObject(object):
             if k not in self._properties:
                 raise DynamicObjectEncodeError("Unknown key: {}".format(k))
 
-            if not isinstance(v, type(self.__dict__[k])):
+            if not isinstance(v, type(self.__dict__[k])) and \
+                    not (isinstance(v, (list, tuple)) and type(self.__dict__[k]) in (list, tuple)):
                 raise DynamicObjectEncodeError("New value {!r} type is not matched: new({!r}) old({!r})".format(
                     k, v.__class__.__name__, self.__dict__[k].__class__.__name__))
 

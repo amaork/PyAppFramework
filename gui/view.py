@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import abc
+import json
 import typing
 import datetime
 import contextlib
@@ -16,9 +17,9 @@ from .widget import JsonSettingWidget, BasicWidget
 
 from ..misc.settings import *
 from ..core.timer import Task, Tasklet
-from ..core.datatype import DynamicObject
 from ..misc.windpi import get_program_scale_factor
 from ..gui.model import SqliteQueryModel, AbstractTableModel
+from ..core.datatype import DynamicObject, DynamicObjectDecodeError
 __all__ = ['TableView', 'TableViewDelegate', 'SqliteQueryView']
 
 
@@ -391,12 +392,17 @@ class TableView(QtWidgets.QTableView):
 
 class TableViewDelegate(QtWidgets.QItemDelegate):
     dataChanged = QtCore.Signal(QtCore.QModelIndex, object, object)
+    CheckBoxDefStyle = DynamicObject(fillColor=(0, 0, 0), sizeFactor=1.7)
 
     def __init__(self, private: typing.Any = None, parent: typing.Optional[QtWidgets.QWidget] = None):
         super(TableViewDelegate, self).__init__(parent)
         self._private_data = private
+        self._itemWidgetDict = dict()
         self._itemDelegateSettings = dict()
         self._columnDelegateSettings = dict()
+
+    def getItemWidget(self, index: QtCore.QModelIndex) -> typing.Optional[QtWidgets.QWidget]:
+        return self._itemWidgetDict.get(index)
 
     def setItemDelegate(self, filter_: typing.Dict[typing.Tuple[int, int], UiInputSetting]):
         if isinstance(filter_, dict):
@@ -433,22 +439,27 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
             return None
 
         if isinstance(settings, UiCheckBoxInput):
-            checkbox = CheckBox(stylesheet=DynamicObject(fillColor=(0, 0, 0), sizeFactor=1.7).dict, parent=parent)
-            checkbox.stateChanged.connect(lambda x: self.commitData.emit(checkbox))
-            return checkbox
+            try:
+                style = DynamicObject(**json.loads(settings.get_name()))
+            except (DynamicObjectDecodeError, json.decoder.JSONDecodeError):
+                style = self.CheckBoxDefStyle
+
+            widget = CheckBox(stylesheet=style.dict, parent=parent)
+            widget.stateChanged.connect(lambda x: self.commitData.emit(widget))
         elif isinstance(settings, UiPushButtonInput):
-            button = QtWidgets.QPushButton(settings.get_name(), parent=parent)
-            button.setProperty('private', index.data())
-            button.setProperty('index', index)
-            button.clicked.connect(settings.get_default())
-            return button
+            widget = QtWidgets.QPushButton(settings.get_name(), parent=parent)
+            widget.setProperty('private', index.data())
+            widget.setProperty('index', index)
+            widget.clicked.connect(settings.get_default())
         else:
             widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
             widget.setFocus()
             ComponentManager.connectComponentSignalAndSlot(
                 widget, lambda data: self.commitAndCloseEditor(widget, data, index)
             )
-            return widget
+
+        self._itemWidgetDict[index] = widget
+        return widget
 
     def setEditorData(self, editor: QtWidgets.QWidget, index: QtCore.QModelIndex):
         if not isinstance(index, QtCore.QModelIndex):
