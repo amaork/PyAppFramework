@@ -245,12 +245,20 @@ class ProtobufRWHelper:
 
 
 class ProtobufDatabase:
-    def __init__(self, db_path: str, db_msg: message.Message.__class__):
+    def __init__(self,
+                 db_path: str, db_msg: message.Message.__class__,
+                 encrypt_func: typing.Callable[[bytes], bytes] = None,
+                 decrypt_func: typing.Callable[[bytes], bytes] = None):
         self.db_path = db_path
+        self.__encrypt_func = encrypt_func
+        self.__decrypt_func = decrypt_func
 
         try:
             with open(self.db_path, 'rb') as fp:
-                self.db = db_msg.FromString(fp.read())
+                data = fp.read()
+                if callable(self.__decrypt_func):
+                    data = self.__decrypt_func(data)
+                self.db = db_msg.FromString(data)
         except FileNotFoundError:
             self.db = self.getDefaultDatabase()
             self.save()
@@ -258,7 +266,10 @@ class ProtobufDatabase:
     def save(self) -> bool:
         try:
             with open(self.db_path, 'wb') as fp:
-                fp.write(self.db.SerializeToString())
+                data = self.db.SerializeToString()
+                if callable(self.__encrypt_func):
+                    data = self.__encrypt_func(data)
+                fp.write(data)
         except OSError as e:
             print(f'save db to {self.db_path} error: {e}')
             return False
