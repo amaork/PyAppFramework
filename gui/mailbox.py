@@ -58,13 +58,14 @@ class StatusBarMail(BaseUiMail):
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_: str, content: str, title: typing.Optional[str] = None, tag: str = ''):
+    def __init__(self, type_: str, content: str, title: typing.Optional[str] = None, tag: str = '', keep_time: int = 0):
         """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
         :param content: QMessageBox context
         :param title: QMessageBox title
         :param tag: specified which message box showing on
+        :param keep_time: msgbox keep time in seconds
         :return:
         """
         super(MessageBoxMail, self).__init__(content)
@@ -74,6 +75,7 @@ class MessageBoxMail(BaseUiMail):
         self.__tag = tag
         self.__type = type_
         self.__title = title
+        self.keep_time = keep_time
 
     @property
     def tag(self) -> str:
@@ -379,6 +381,8 @@ class UiMailBox(QObject):
             if mail.tag not in self.__bind_msg_boxs:
                 showMessageBox(self.__parent, mail.type, mail.content, mail.title)
             else:
+                if mail.keep_time and self.__bind_msg_boxs.get(mail.tag):
+                    self.send(CallbackFuncMail(self.__bind_msg_boxs.get(mail.tag).accept, mail.keep_time))
                 showOnSPMsgBox(self.__parent, self.__bind_msg_boxs.get(mail.tag), mail.type, mail.content, mail.title)
 
         # Show a question box
