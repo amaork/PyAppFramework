@@ -298,6 +298,10 @@ class UiMailBox(QObject):
 
         self.hasNewMail.connect(self.mailProcess)
 
+    @property
+    def progressDialog(self) -> ProgressDialog:
+        return self.__progress
+
     def bindMsgBox(self, msg_box: QMessageBox, tag: str):
         self.__bind_msg_boxs[tag] = msg_box
 
@@ -406,6 +410,11 @@ class UiMailBox(QObject):
                             timeout=mail.interval, periodic=True, args=(mail,), id_ignore_args=True
                         )
                     )
+
+                    if not callable(mail.cancel_callback):
+                        mail.cancel_callback = lambda: self.__tasklet.del_task(self.__pai_task.id)
+                        self.__progress.setCancelCallback(mail.cancel_callback)
+
             else:
                 self.__tasklet.del_task(self.__pai_task.id)
                 self.__progress.slotHidden()

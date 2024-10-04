@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import platform
+from ..protocol.upgrade import GogsUpgradeClient
 __all__ = ['RunEnvironment']
 
 
@@ -11,18 +12,31 @@ class RunEnvironment(object):
     _SYSTEM = platform.system().lower()
     _MACHINE = platform.machine().lower()
 
-    def __init__(self, name: str = '', version: float = 0.0, log_dir: str = 'logging', conf_dir: str = 'config'):
+    def __init__(self, name: str = '', version: float = 0.0,
+                 log_dir: str = 'logging', conf_dir: str = 'config',
+                 gogs_repo: str = '', gogs_update_server: str = '', server_user: str = '', server_pwd: str = ''):
         """Software running environment
 
         :param name: software name
         :param version: software name
         :param log_dir: software logging directory
         :param conf_dir: software configure directory
+        :param gogs_repo: gogs software update server repo name
+        :param gogs_update_server: gogs software update server(gogs release) url
+        :param server_user: update server username
+        :param server_pwd: update server user password
         """
         self.__name = name
         self.__version = version
         self.__log_dir = log_dir
         self.__conf_dir = conf_dir
+
+        # Software update using
+        self.__gogs_repo = gogs_repo
+        self.__server_pwd = server_pwd
+        self.__server_user = server_user
+        self.__gogs_update_server = gogs_update_server
+
         os.makedirs(self.__log_dir, exist_ok=True)
         os.makedirs(self.__conf_dir, exist_ok=True)
 
@@ -70,6 +84,10 @@ class RunEnvironment(object):
     def conf_dir(self) -> str:
         return self.__conf_dir[:]
 
+    @property
+    def gogs_server_url(self) -> str:
+        return self.__gogs_update_server
+
     def get_log_file(self, module_name: str, with_timestamp: bool = False) -> str:
         os.makedirs(os.path.join(self.log_dir, module_name), 0o755, True)
         timestamp = f'_{time.strftime(self._LOG_TS_FMT)}' if with_timestamp else ''
@@ -77,6 +95,9 @@ class RunEnvironment(object):
 
     def get_config_file(self, module_name: str):
         return os.path.join(self.conf_dir, f"{module_name}.json")
+
+    def get_gogs_update_client(self) -> GogsUpgradeClient:
+        return GogsUpgradeClient(self.__gogs_update_server, self.__gogs_repo, self.__server_user, self.__server_pwd)
 
     def run_in_background(self, path: str, name: str) -> bool:
         """Run app in background
