@@ -284,6 +284,11 @@ class TableView(QtWidgets.QTableView):
         self.__columnStretchFactor = factors
         self.resizeEvent(QtGui.QResizeEvent(self.geometry().size(), self.geometry().size()))
 
+    def setOpenPersistentEditor(self, columns: typing.Sequence[int]):
+        for column in columns:
+            for row in range(self.rowCount()):
+                self.openPersistentEditor(self.model().index(row, column))
+
     def resizeEvent(self, ev: QtGui.QResizeEvent):
         if not self.model():
             return
