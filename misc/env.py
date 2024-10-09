@@ -58,7 +58,7 @@ class RunEnvironment(object):
 
     @staticmethod
     def is_raspberry():
-        return RunEnvironment._MACHINE == "armv7l"
+        return RunEnvironment._MACHINE in 'armv7l aarch64'
 
     @staticmethod
     def system_version():
@@ -75,6 +75,14 @@ class RunEnvironment(object):
     @property
     def software_version(self) -> float:
         return self.__version
+
+    @property
+    def editor(self):
+        if self.is_linux():
+            # noinspection SpellCheckingInspection
+            return "leafpad"
+        else:
+            return "notepad.exe" if os.path.isfile(os.path.join(r'C:\Windows', "notepad.exe")) else "write.exe"
 
     @property
     def log_dir(self) -> str:
@@ -96,8 +104,9 @@ class RunEnvironment(object):
     def get_config_file(self, module_name: str):
         return os.path.join(self.conf_dir, f"{module_name}.json")
 
-    def get_gogs_update_client(self) -> GogsUpgradeClient:
-        return GogsUpgradeClient(self.__gogs_update_server, self.__gogs_repo, self.__server_user, self.__server_pwd)
+    def get_gogs_update_client(self, repo: str = '') -> GogsUpgradeClient:
+        repo = repo or self.__gogs_repo
+        return GogsUpgradeClient(self.__gogs_update_server, repo, self.__server_user, self.__server_pwd)
 
     def run_in_background(self, path: str, name: str) -> bool:
         """Run app in background

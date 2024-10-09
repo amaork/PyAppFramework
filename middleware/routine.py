@@ -9,7 +9,8 @@ from .callback import QtGuiCallback
 from ..misc.env import RunEnvironment
 from ..gui.mailbox import UiMailBox, CallbackFuncMail
 from ..network.gogs_request import GogsRequestException
-__all__ = ['Routine', 'SoftwareUpdateRoutine', 'SoftwareUpdateCheckRoutine']
+__all__ = ['Routine',
+           'SoftwareUpdateRoutine', 'SoftwareUpdateCheckRoutine', 'DownloadGogsReleaseWithoutConfirmRoutine']
 
 
 class Routine(object):
@@ -83,11 +84,16 @@ class Routine(object):
     def createFromCallback(cls, callback: QtGuiCallback):
         return cls(
             mail=callback.mail,
+
             stop=callback.stop,
             start=callback.start,
             final=callback.final,
+
             error=callback.error,
-            success=callback.success
+            success=callback.success,
+
+            update=callback.update,
+            canceled=callback.canceled
         )
 
 
@@ -131,4 +137,29 @@ class SoftwareUpdateCheckRoutine(Routine):
             else:
                 self._success(client, release)
         except (GogsUpgradeClientDownloadError, GogsRequestException) as e:
+            self._error("{}".format(e))
+
+
+class DownloadGogsReleaseWithoutConfirmRoutine(Routine):
+    def _routine(self, env: RunEnvironment, repo: str, path: str):
+        if not ping3.ping(urllib.parse.urlparse(env.gogs_server_url).netloc.split(":")[0]):
+            raise RuntimeError("Network error")
+
+        try:
+            self._start()
+            client = env.get_gogs_update_client(repo)
+            release = client.get_newest_release()
+
+            if not isinstance(release, GogsSoftwareReleaseDesc) or not release.check():
+                self._stop()
+                return
+
+            if not client.download_release(release=release, path=path, callback=self.update):
+                if self.isCanceled():
+                    self._stop()
+                else:
+                    self._error("Download error")
+            else:
+                self._success(release, path)
+        except Exception as e:
             self._error("{}".format(e))

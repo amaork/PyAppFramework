@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import typing
 import subprocess
 from threading import Thread
 from PySide2.QtWidgets import QWidget
@@ -11,7 +12,8 @@ from ..protocol.upgrade import *
 
 from ..misc.env import RunEnvironment
 from ..misc.process import subprocess_startup_info
-__all__ = ['QtGuiCallback', 'SoftwareUpdateCallback', 'SoftwareUpdateCheckCallback']
+__all__ = ['QtGuiCallback',
+           'SoftwareUpdateCallback', 'SoftwareUpdateCheckCallback', 'DownloadGogsReleaseWithoutConfirmCallback']
 
 
 class QtGuiCallback(QObject):
@@ -154,3 +156,47 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
             name="Software update", target=update_routine.run,
             kwargs=dict(client=client, release=release_desc), daemon=True
         ).start()
+
+
+class DownloadGogsReleaseWithoutConfirmCallback(QtGuiCallback):
+    def __init__(self, parent: QWidget, mail: UiMailBox,
+                 env: RunEnvironment, name: str, callback: typing.Callable[[str], None]):
+        super(DownloadGogsReleaseWithoutConfirmCallback, self).__init__(parent, mail, env)
+        self.__name = name
+        self.__callback = callback
+
+    def start(self):
+        self.initProgressBar(
+            self.tr("Downloading please wait......"), 0, 100,
+            self.tr("Download") + ": {}".format(self.__name), True
+        )
+        self.sendMail(StatusBarMail(Qt.blue, self.tr("Downloading") + ": {}".format(self.__name)))
+
+    def stop(self):
+        self.showMessage(
+            MB_TYPE_INFO, title=self.tr("Download canceled"),
+            content=self.__name + " " + self.tr("download canceled")
+        )
+
+    def error(self, error: str):
+        self.showMessage(
+            MB_TYPE_ERR, title=self.tr("Download failed"),
+            content=self.__name + " " + self.tr("download failed") + ": {}".format(error)
+        )
+
+    def success(self, release: GogsSoftwareReleaseDesc, path: str):
+        if self.canceled():
+            return
+
+        release.save(os.path.join(path, "{}.json".format(release.name)))
+        if hasattr(self.__callback, "__call__"):
+            self.sendMail(CallbackFuncMail(self.__callback, args=(os.path.join(path, release.name),)))
+
+    def update(self, progress: int, info: str) -> bool:
+        # noinspection PyUnresolvedReferences
+        if self._progress.isCanceled():
+            return False
+
+        self.signalProgressPercentage.emit(progress)
+        self.signalProgressText.emit(self.tr("Downloading") + ": {}".format(info))
+        return True
