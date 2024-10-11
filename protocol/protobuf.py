@@ -280,7 +280,7 @@ class ProtobufDatabase:
     def getDefaultDatabase(self) -> message.Message:
         pass
 
-    def updateRepeatedItem(self, field_name: str, items: typing.Sequence[message.Message]) -> bool:
+    def updateRepeatedItem(self, field_name: str, items: typing.Sequence[typing.Any]) -> bool:
         ProtobufRWHelper.updateRepeatedItem(self.db, field_name, items)
         return self.save()
 

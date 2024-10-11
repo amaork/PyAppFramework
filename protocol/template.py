@@ -125,9 +125,6 @@ class CommunicationObject:
         self.raw = msg
         self._cond = ThreadConditionWrap()
 
-    def print_log(self) -> bool:
-        return not self.is_periodic()
-
     def is_periodic(self) -> bool:
         return False
 
@@ -289,6 +286,12 @@ class CommunicationController:
     def debug_msg(self, msg: str):
         self.send_event(self._event_cls.debug(self._format_log(msg), self._log_color(logging.DEBUG)))
 
+    def log_msg_by_request(self, request: CommunicationObject, msg: str):
+        if request.is_periodic():
+            self.debug_msg(msg)
+        else:
+            self.info_msg(msg)
+
     def update_state(self, state: typing.Any) -> bool:
         """Update state if state changed, return true"""
         self._prev_state.assign(self._cur_state.data)
@@ -360,8 +363,8 @@ class CommunicationController:
     @contextlib.contextmanager
     def section(self, request: CommunicationObject):
         self.send_event(self._event_cls.section_start(self._section_seq.data))
-        if request.print_log():
-            self.debug_msg(f'[Section: {self._section_seq.data: 07d}]')
+        self.log_msg_by_request(request, f'[Section: {self._section_seq.data: 07d}]')
+
         try:
             yield
         except Exception as e:
@@ -370,8 +373,7 @@ class CommunicationController:
             raise e
         finally:
             self.send_event(self._event_cls.section_end(self._section_seq.data, self._latest_section))
-            if request.print_log():
-                self.debug_msg('>>>\r\n')
+            self.log_msg_by_request(request, '>>>\r\n')
             self._section_seq.increase()
 
     def thread_comm_with_device(self):
@@ -398,8 +400,7 @@ class CommunicationController:
                         start_time = time.perf_counter()
                         self._transmit.tx(request.to_bytes())
 
-                        if request.print_log():
-                            self.debug_msg(f'TX {"=" * 16}>: {request}')
+                        self.log_msg_by_request(request, f'TX {"=" * 16}>: {request}')
 
                         # Receive response
                         data = self._transmit.rx(self._response_max_length)
@@ -414,8 +415,7 @@ class CommunicationController:
                             self._transmit.flush()
                             continue
                         else:
-                            if request.print_log():
-                                self.debug_msg(f'RX <{"=" * 16}: {response}')
+                            self.log_msg_by_request(request, f'RX <{"=" * 16}: {response}')
 
                             if not self._section_check(request, response, cost_time):
                                 self.error_msg(f'Section check failed: {request!r} {response!r}')
