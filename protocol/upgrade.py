@@ -2,13 +2,14 @@
 import os
 import json
 import socket
-import http.client
+import typing
 import pathlib
 import hashlib
 import datetime
 import threading
-import socketserver
 import http.server
+import http.client
+import socketserver
 from typing import *
 from ..core.datatype import *
 from ..misc.settings import *
@@ -69,10 +70,10 @@ class UpgradeClient(object):
         return self.__connected
     
     def has_new_version(self, current_ver):
-        """Check if have new version software to upgrade
+        """Check if it has new version software to upgrade
 
         :param current_ver: current software version
-        :return: True if has new version else False
+        :return: True if it has new version else False
         """
         try:
             
@@ -345,9 +346,29 @@ class GogsSoftwareReleaseDesc(JsonSettings):
     def check(self):
         return self.name and self.size and self.md5 and self.url
 
+    def get_release_kwargs(self, repo: str, files: typing.List[str]) -> dict:
+        version = f'v{self.version}'
+        return dict(repo=repo, tag=version, title=version, content=self.desc, files=files)
+
     @classmethod
     def default(cls) -> T:
         return GogsSoftwareReleaseDesc(name="", desc="", size=0, date="", md5="", version=0.0, url="")
+
+    @classmethod
+    def parse_readme(cls, readme: str, version: float) -> str:
+        with open(readme, 'r', encoding='utf-8') as fp:
+            readme_desc = list()
+            start_desc = False
+            for line in fp.readlines():
+                if line.startswith(f'## v{version}'):
+                    start_desc = True
+                elif line.startswith(f'## v'):
+                    break
+
+                if start_desc:
+                    readme_desc.append(line)
+
+        return ''.join(readme_desc)
 
     @classmethod
     def generate(cls, path: str, version: float, desc: str = '', url: str = '') -> bool:
@@ -414,6 +435,25 @@ class GogsUpgradeClient(object):
                 continue
 
         return release_list
+
+    def new_release(self, release: str, app: str) -> bool:
+        try:
+            desc = GogsSoftwareReleaseDesc.load(release)
+        except JsonSettingsDecodeError as e:
+            print(f'Load desc failed: {e}')
+            return False
+
+        # Upload app and release desc
+        app_file = self._gogs_client.upload_attachment(app)
+        release_desc = self._gogs_client.upload_attachment(release)
+        self._gogs_client.new_repo_release(**desc.get_release_kwargs(self._repo, [release_desc, app_file]))
+
+        releases = self.get_releases()
+        for release in releases:
+            if release.name == f'v{desc.version} edit':
+                return True
+
+        return False
 
     def get_newest_release(self) -> GogsSoftwareReleaseDesc or None:
         releases = self.get_releases()

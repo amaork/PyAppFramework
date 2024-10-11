@@ -93,8 +93,12 @@ class RunEnvironment(object):
         return self.__conf_dir[:]
 
     @property
+    def gogs_repo(self) -> str:
+        return self.__gogs_repo[:]
+
+    @property
     def gogs_server_url(self) -> str:
-        return self.__gogs_update_server
+        return self.__gogs_update_server[:]
 
     def get_log_file(self, module_name: str, with_timestamp: bool = False) -> str:
         os.makedirs(os.path.join(self.log_dir, module_name), 0o755, True)

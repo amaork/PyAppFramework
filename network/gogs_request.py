@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 import os
+import json
+import typing
+
 import requests
+import mimetypes
 import concurrent.futures
 from pyquery import PyQuery
 from contextlib import closing
 from typing import List, Callable, Optional, Dict
 
 from .http_request import *
-from ..core.datatype import DynamicObject
+from ..core.datatype import DynamicObject, DynamicObjectDecodeError
 __all__ = ['GogsRequest', 'GogsRequestException', 'RepoRelease']
 
 
@@ -199,6 +203,7 @@ class GogsRequest(HttpRequest):
 
                 attachment = dict()
                 for a in item(".download").items():
+                    # noinspection SpellCheckingInspection
                     for package in a(".octicon-package").items():
                         package_name = package.next().text()
                         package_href = package.next().attr("href")
@@ -211,10 +216,37 @@ class GogsRequest(HttpRequest):
             print("get_repo_releases exception: {}".format(e))
             return list()
 
+    def upload_attachment(self, attachment: str, timeout: float = 30.0) -> str:
+        """
+        Upload attachment to server and return uuid
+        """
+        upload_url = f'{self.__host}/releases/attachments'
+
+        form_data = DynamicObject(
+            _csrf=(None, self.__token),
+            file=(os.path.basename(attachment), open(attachment, 'rb'), mimetypes.guess_type(attachment)[0])
+        )
+        ret = self._section.post(upload_url, files=form_data.dict, timeout=timeout or self._timeout)
+        ret.raise_for_status()
+
+        try:
+            return DynamicObject(**json.loads(ret.content)).uuid
+        except (json.decoder.JSONDecodeError, DynamicObjectDecodeError) as e:
+            raise GogsRequestException(ret.status_code, f'{e}')
+
     def upload_repo_avatar(self, repo_path: str, avatar: str, timeout: Optional[float] = None):
         avatar_url = "{}/{}/settings/avatar".format(self.__host, repo_path)
-        avatar_from_data = DynamicObject(
+        from_data = DynamicObject(
             _csrf=(None, self.__token), avatar=(os.path.basename(avatar), open(avatar, "rb"))
         )
-        ret = self._section.post(avatar_url, files=avatar_from_data.dict, timeout=timeout or self._timeout)
+        ret = self._section.post(avatar_url, files=from_data.dict, timeout=timeout or self._timeout)
+        ret.raise_for_status()
+
+    def new_repo_release(self, repo: str, tag: str, title: str, content: str,
+                         files: typing.List[str], branch: str = 'master', timeout: float = 30.0):
+        url = f'{self.get_repo_url(repo)}/releases/new'
+        form_data = DynamicObject(
+            _csrf=self.__token, tag_name=tag, tag_target=branch, title=title, content=content, files=files
+        )
+        ret = self._section.post(url, data=form_data.dict, timeout=timeout or self._timeout)
         ret.raise_for_status()
