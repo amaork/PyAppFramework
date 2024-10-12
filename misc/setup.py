@@ -3,8 +3,12 @@ import os
 import shutil
 import subprocess
 from typing import List, Sequence
+from ..network.gogs_request import GogsRequestException
+from .env import GogsReleasePublishEnvironment, RunEnvironment
+from ..protocol.upgrade import GogsSoftwareReleaseDesc, GogsUpgradeClient
 
-__all__ = ['get_git_release_date', 'get_git_release_hash', 'get_git_commit_count',
+
+__all__ = ['get_git_release_date', 'get_git_release_hash', 'get_git_commit_count', 'gogs_publish_release',
            'get_dir_file_list', 'py2exe_clear_setup', 'py2exe_setup_module', 'py_installer_add_data_dir']
 
 
@@ -74,3 +78,42 @@ def py_installer_add_data_dir(data_dir_path: str):
         files.append((file, file, 'DATA'))
 
     return files
+
+
+def gogs_publish_release(run_env: RunEnvironment, gogs_env_file: str,
+                         readme_file: str = 'README.md', output_dir: str = 'Output') -> bool:
+    app = f'{run_env.software_name}_{run_env.software_version}.exe'
+    changelog = GogsSoftwareReleaseDesc.parse_readme(readme_file, run_env.software_version)
+
+    try:
+        # Encrypt app first
+        src_app = os.path.join(output_dir, app)
+        dest_app = os.path.join(output_dir, app.replace('exe', 'encrypt'))
+
+        try:
+            run_env.encrypt_file(src_app, dest_app)
+        except ValueError:
+            # Do not encrypt
+            dest_app = src_app
+        except OSError as e:
+            raise RuntimeError(e)
+
+        # Generate release.json
+        if GogsSoftwareReleaseDesc.generate(dest_app, run_env.software_version, changelog):
+            gogs_env = GogsReleasePublishEnvironment.load(gogs_env_file)
+            if not gogs_env.username or not gogs_env.password:
+                raise RuntimeError('Do not found gogs release environment')
+
+            # Publish release to gogs server
+            client = GogsUpgradeClient(run_env.gogs_server_url, run_env.gogs_repo, gogs_env.username, gogs_env.password)
+            print(f'Start publish new release to gogs server: {run_env.gogs_server_url}/{run_env.gogs_repo}')
+
+            if client.new_release(os.path.join(output_dir, GogsSoftwareReleaseDesc.file_path()), dest_app):
+                raise RuntimeError('New release failed')
+
+    except (RuntimeError, GogsRequestException) as e:
+        print(f'{e}, exit!')
+        return False
+    else:
+        print('Done!')
+        return True
