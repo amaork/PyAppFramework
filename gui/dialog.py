@@ -32,9 +32,10 @@ from .widget import SerialPortSettingWidget, BasicJsonSettingWidget, \
 
 __all__ = ['BasicDialog',
            'SimpleColorDialog', 'AboutDialog',
+           'TextInputDialog', 'TextDisplayDialog',
            'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
-           'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog', 'TextInputDialog',
+           'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
 
@@ -1140,6 +1141,35 @@ class TextInputDialog(BasicDialog):
         dialog = cls(parent=parent, title=title, label=label, validator=validator, mode=mode, text=text)
         dialog.exec_()
         return dialog.getInputText()
+
+
+class TextDisplayDialog(BasicDialog):
+    def __init__(self, content: str, title: str,
+                 advice_size: QSize = QSize(500, 300), parent: typing.Optional[QWidget] = None):
+        self.adv_size = advice_size
+        super(TextDisplayDialog, self).__init__(parent)
+        self.ui_content.setHtml(content)
+        self.setWindowTitle(title)
+
+    def _initUi(self):
+        self.ui_content = QtWidgets.QTextEdit()
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.ui_content)
+        layout.addWidget(QtWidgets.QSplitter())
+        layout.addWidget(self.ui_buttons)
+        self.setLayout(layout)
+
+    def _initStyle(self):
+        self.ui_content.setReadOnly(True)
+
+    def sizeHint(self) -> QtCore.QSize:
+        return self.adv_size
+
+    @classmethod
+    def showContent(cls, **kwargs):
+        dialog = cls(**kwargs)
+        dialog.exec_()
+        return dialog.result()
 
 
 class AboutDialog(QtWidgets.QDialog):
