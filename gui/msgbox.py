@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from PySide2.QtWidgets import QMessageBox, QApplication, QWidget
+import typing
+from PySide2.QtWidgets import QMessageBox, QApplication, QWidget, QPushButton
 
 __all__ = ['showQuestionBox', 'showMessageBox', 'showOnSPMsgBox',
            'MB_TYPES', 'MB_TYPE_ERR', 'MB_TYPE_INFO', 'MB_TYPE_WARN', 'MB_TYPE_QUESTION']
@@ -24,13 +25,15 @@ def showQuestionBox(parent: QWidget, content: str, title: str = '') -> bool:
     return showMessageBox(parent, MB_TYPE_QUESTION, content, title)
 
 
-def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = '') -> bool:
+def showMessageBox(parent: QWidget, msg_type: str, content: str,
+                   title: str = '', extra_buttons: typing.Sequence[QPushButton] = None) -> bool:
     """Show a QMessage box
 
     :param parent: parent widget
     :param msg_type: Message type
     :param content: Message content
     :param title: Message title
+    :param extra_buttons: show extra pushbuttonS
     :return: result
     """
     # noinspection PyTypeChecker
@@ -45,18 +48,25 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str, title: str = ''
         icon, default_title = __attributes.get(msg_type)
         title = title if title else parent.tr(default_title)
         buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
-        msg = QMessageBox(icon, title, content, buttons, parent=parent)
+        msg_box = QMessageBox(icon, title, content, buttons, parent=parent)
+
+        extra_buttons = extra_buttons or list()
+        if extra_buttons and all(isinstance(x, QPushButton) for x in extra_buttons):
+            for btn in extra_buttons:
+                msg_box.addButton(btn, QMessageBox.ButtonRole.HelpRole)
+
         if msg_type == MB_TYPE_QUESTION:
-            return msg.exec_() == QMessageBox.Ok
+            return msg_box.exec_() == QMessageBox.Ok
         else:
-            msg.exec_()
+            msg_box.exec_()
             return True if msg_type == MB_TYPE_INFO else False
     except TypeError as e:
         print(f'showMessageBox:{e}')
         return False
 
 
-def showOnSPMsgBox(parent: QWidget, msg_box: QMessageBox, msg_type: str, content: str, title: str = '') -> bool:
+def showOnSPMsgBox(parent: QWidget, msg_box: QMessageBox, msg_type: str,
+                   content: str, title: str = '', extra_buttons: typing.Sequence[QPushButton] = None) -> bool:
     # noinspection PyTypeChecker
     __attributes = {
         MB_TYPE_ERR: (QMessageBox.Critical, QApplication.translate("msgbox", "Error", None)),
@@ -74,6 +84,12 @@ def showOnSPMsgBox(parent: QWidget, msg_box: QMessageBox, msg_type: str, content
         msg_box.setText(content)
         msg_box.setWindowTitle(title)
         msg_box.setDefaultButton(buttons)
+
+        extra_buttons = extra_buttons or list()
+        if extra_buttons and all(isinstance(x, QPushButton) for x in extra_buttons):
+            for btn in extra_buttons:
+                msg_box.addButton(btn, QMessageBox.ButtonRole.HelpRole)
+
         if msg_type == MB_TYPE_QUESTION:
             return msg_box.exec_() == QMessageBox.Ok
         else:

@@ -2,7 +2,7 @@
 import typing
 from PySide2.QtGui import QColor
 from PySide2.QtCore import Qt, Signal, Slot, QObject, QTimer
-from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox, QProgressBar
+from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox, QProgressBar, QPushButton
 
 from ..core.timer import Task, Tasklet
 from ..core.threading import ThreadConditionWrap
@@ -58,7 +58,8 @@ class StatusBarMail(BaseUiMail):
 
 
 class MessageBoxMail(BaseUiMail):
-    def __init__(self, type_: str, content: str, title: typing.Optional[str] = None, tag: str = '', keep_time: int = 0):
+    def __init__(self, type_: str, content: str, title: typing.Optional[str] = None,
+                 tag: str = '', keep_time: int = 0, extra_buttons: typing.Sequence[QPushButton] = None):
         """ Show QMessageBox with #title and #content
 
         :param type_: QMessageBox types ["info", "error", "warning"]
@@ -66,6 +67,7 @@ class MessageBoxMail(BaseUiMail):
         :param title: QMessageBox title
         :param tag: specified which message box showing on
         :param keep_time: msgbox keep time in seconds
+        :param extra_buttons: msgbox show extra pushbuttons
         :return:
         """
         super(MessageBoxMail, self).__init__(content)
@@ -76,6 +78,7 @@ class MessageBoxMail(BaseUiMail):
         self.__type = type_
         self.__title = title
         self.keep_time = keep_time
+        self.extra_buttons = extra_buttons
 
     @property
     def tag(self) -> str:
@@ -383,11 +386,12 @@ class UiMailBox(QObject):
         # Show a message box
         elif isinstance(mail, MessageBoxMail):
             if mail.tag not in self.__bind_msg_boxs:
-                showMessageBox(self.__parent, mail.type, mail.content, mail.title)
+                showMessageBox(self.__parent, mail.type, mail.content, mail.title, mail.extra_buttons)
             else:
-                if mail.keep_time and self.__bind_msg_boxs.get(mail.tag):
-                    self.send(CallbackFuncMail(self.__bind_msg_boxs.get(mail.tag).accept, mail.keep_time))
-                showOnSPMsgBox(self.__parent, self.__bind_msg_boxs.get(mail.tag), mail.type, mail.content, mail.title)
+                msg_box = self.__bind_msg_boxs.get(mail.tag)
+                if mail.keep_time and msg_box:
+                    self.send(CallbackFuncMail(msg_box.accept, mail.keep_time))
+                showOnSPMsgBox(self.__parent, msg_box, mail.type, mail.content, mail.title, mail.extra_buttons)
 
         # Show a question box
         elif isinstance(mail, QuestionBoxMail):
