@@ -99,7 +99,18 @@ class SoftwareUpdateCallback(QtGuiCallback):
             if self.canceled():
                 return
 
-            subprocess.Popen("{}".format(release.name),
+            release_name = release.name
+            if os.path.splitext(release.name)[-1] == '.encrypt':
+                try:
+                    release_name = release.name.replace('encrypt', 'exe')
+                    self.env.decrypt_file(os.path.join(path, release.name), os.path.join(path, release_name))
+                except ValueError as e:
+                    self.showMessage(MB_TYPE_ERR, f'{e}', self.tr('Decrypt software upgrade failed'))
+                    return
+                finally:
+                    os.unlink(os.path.join(path, release.name))
+
+            subprocess.Popen("{}".format(release_name),
                              cwd=path, shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=subprocess_startup_info())
         except Exception as error:

@@ -95,6 +95,7 @@ class RSAKeyHandle(object):
             return bytes()
 
     def get_max_length(self, encrypt: bool) -> int:
+        # noinspection PyUnresolvedReferences
         block_size = Crypto.Util.number.size(self._key.n) // 8
         reserve_size = 11
         if not encrypt:
@@ -197,11 +198,11 @@ class AESCrypto(object):
         AES_GCM: AES.MODE_GCM
     }
 
-    def __init__(self, key: bytes, mode: str = AES_ECB, vi: bytes = bytes(range(BLOCK_SIZE))):
+    def __init__(self, key: bytes, mode: str = AES_CBC, iv: bytes = bytes(range(BLOCK_SIZE))):
         if mode not in self.AES_MODE:
             raise ValueError('Invalid mode: {!r} mode must be: {}'.format(mode, list(self.AES_MODE.keys())))
 
-        self.__vi = vi
+        self.__iv = iv
         self.__mode = mode
         self.__key = self.pad(key)
 
@@ -209,13 +210,14 @@ class AESCrypto(object):
         if self.__mode == self.AES_ECB:
             return AES.new(self.__key, self.AES_MODE.get(self.__mode))
         else:
-            return AES.new(self.__key, self.AES_MODE.get(self.__mode), self.__vi)
+            return AES.new(self.__key, self.AES_MODE.get(self.__mode), self.__iv)
 
     @staticmethod
     def pad(data: bytes) -> bytes:
         pl = AESCrypto.BLOCK_SIZE - (len(data) % AESCrypto.BLOCK_SIZE)
         return data + bytes([pl]) * pl
 
+    # noinspection SpellCheckingInspection
     @staticmethod
     def unpad(data: bytes) -> bytes:
         return data[:-data[-1]]
@@ -236,6 +238,16 @@ class AESCrypto(object):
         self.check('decrypt', data)
         plaintext = self.cipher().decrypt(data)
         return self.unpad(plaintext)
+
+    def encrypt_file(self, src: str, dest: str):
+        with open(src, 'rb') as src_fp:
+            with open(dest, 'wb') as dest_fp:
+                dest_fp.write(self.encrypt(src_fp.read()))
+
+    def decrypt_file(self, src: str, dest: str):
+        with open(src, 'rb') as src_fp:
+            with open(dest, 'wb') as dest_fp:
+                dest_fp.write(self.decrypt(src_fp.read()))
 
 
 class CryptoCommException(Exception):

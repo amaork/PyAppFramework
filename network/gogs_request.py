@@ -15,7 +15,7 @@ from ..core.datatype import DynamicObject, DynamicObjectDecodeError
 __all__ = ['GogsRequest', 'GogsRequestException', 'RepoRelease']
 
 
-class GogsRequestException(HttpRequestException):
+class GogsRequestException(Exception):
     pass
 
 
@@ -51,10 +51,10 @@ class GogsRequest(HttpRequest):
             login_response = self.login(login_url, login_data.dict, require_token=True)
             if login_response.url == login_url:
                 doc = PyQuery(login_response.text)
-                raise GogsRequestException(self.HTTP_Forbidden, doc('p').text().strip())
+                raise GogsRequestException(doc('p').text().strip())
             self.__token = self.get_token_from_text(login_response.text, self.TOKEN_NAME)
         except requests.RequestException as err:
-            raise GogsRequestException(err.response.status_code if err.response else -1, err.response.text)
+            raise GogsRequestException(f'{err}')
 
     def get_repo_url(self, repo: str) -> str:
         return "{}/{}".format(self.__host, repo)
@@ -159,7 +159,7 @@ class GogsRequest(HttpRequest):
             if not os.path.isdir(path):
                 os.makedirs(path)
         except (OSError, FileExistsError) as err:
-            raise GogsRequestException(404, "Download attachment error: {}".format(err))
+            raise GogsRequestException("Download attachment error: {}".format(err))
 
         if parallel:
             # Thread pool parallel download attachment
@@ -226,13 +226,18 @@ class GogsRequest(HttpRequest):
             _csrf=(None, self.__token),
             file=(os.path.basename(attachment), open(attachment, 'rb'), mimetypes.guess_type(attachment)[0])
         )
-        ret = self._section.post(upload_url, files=form_data.dict, timeout=timeout or self._timeout)
+
+        try:
+            ret = self._section.post(upload_url, files=form_data.dict, timeout=timeout or self._timeout)
+        except requests.exceptions.RequestException as e:
+            raise GogsRequestException(f'{e}')
+
         ret.raise_for_status()
 
         try:
             return DynamicObject(**json.loads(ret.content)).uuid
         except (json.decoder.JSONDecodeError, DynamicObjectDecodeError) as e:
-            raise GogsRequestException(ret.status_code, f'{e}')
+            raise GogsRequestException(f'{e}')
 
     def upload_repo_avatar(self, repo_path: str, avatar: str, timeout: Optional[float] = None):
         avatar_url = "{}/{}/settings/avatar".format(self.__host, repo_path)

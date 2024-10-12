@@ -2,9 +2,14 @@
 import os
 import sys
 import time
+import typing
 import platform
+
+from .settings import JsonSettings
+from ..misc.crypto import AESCrypto
+from ..core.datatype import DynamicObject
 from ..protocol.upgrade import GogsUpgradeClient
-__all__ = ['RunEnvironment']
+__all__ = ['RunEnvironment', 'GogsReleasePublishEnvironment']
 
 
 class RunEnvironment(object):
@@ -14,7 +19,8 @@ class RunEnvironment(object):
 
     def __init__(self, name: str = '', version: float = 0.0,
                  log_dir: str = 'logging', conf_dir: str = 'config',
-                 gogs_repo: str = '', gogs_update_server: str = '', server_user: str = '', server_pwd: str = ''):
+                 gogs_repo: str = '', gogs_update_server: str = '',
+                 server_user: str = '', server_pwd: str = '', aes_key: bytes = b'', aes_iv: bytes = b''):
         """Software running environment
 
         :param name: software name
@@ -25,6 +31,8 @@ class RunEnvironment(object):
         :param gogs_update_server: gogs software update server(gogs release) url
         :param server_user: update server username
         :param server_pwd: update server user password
+        :param aes_key: aes key using encrypt/decrypt software update packet
+        :param aes_iv: aes iv using  encrypt/decrypt software update packet
         """
         self.__name = name
         self.__version = version
@@ -32,6 +40,9 @@ class RunEnvironment(object):
         self.__conf_dir = conf_dir
 
         # Software update using
+        self.__aes_iv = aes_iv
+        self.__aes_key = aes_key
+
         self.__gogs_repo = gogs_repo
         self.__server_pwd = server_pwd
         self.__server_user = server_user
@@ -58,6 +69,7 @@ class RunEnvironment(object):
 
     @staticmethod
     def is_raspberry():
+        # noinspection SpellCheckingInspection
         return RunEnvironment._MACHINE in 'armv7l aarch64'
 
     @staticmethod
@@ -100,6 +112,18 @@ class RunEnvironment(object):
     def gogs_server_url(self) -> str:
         return self.__gogs_update_server[:]
 
+    def encrypt_file(self, src: str, dest: str):
+        if not self.__aes_key or not self.__aes_iv:
+            raise ValueError('software run env do not support encrypt')
+
+        AESCrypto(self.__aes_key, iv=self.__aes_iv).encrypt_file(src, dest)
+
+    def decrypt_file(self, src: str, dest: str):
+        if not self.__aes_key or not self.__aes_iv:
+            raise ValueError('software run env do not support decrypt')
+
+        AESCrypto(self.__aes_key, iv=self.__aes_iv).decrypt_file(src, dest)
+
     def get_log_file(self, module_name: str, with_timestamp: bool = False) -> str:
         os.makedirs(os.path.join(self.log_dir, module_name), 0o755, True)
         timestamp = f'_{time.strftime(self._LOG_TS_FMT)}' if with_timestamp else ''
@@ -136,3 +160,19 @@ class RunEnvironment(object):
             return False
         finally:
             os.chdir(pwd)
+
+
+class GogsReleasePublishEnvironment(JsonSettings):
+    _properties = {'username', 'password', 'publish_keys'}
+
+    @classmethod
+    def default(cls) -> DynamicObject:
+        return GogsReleasePublishEnvironment(username='', password='', publish_keys=dict())
+
+    def get_key(self, name: str) -> typing.Tuple[bytes, bytes]:
+        raw = self.publish_keys.get(name, '')
+        try:
+            _, key, iv, _ = raw.split('#')
+            return key.encode(), iv.encode()
+        except (TypeError, ValueError, AttributeError):
+            return bytes(), bytes()
