@@ -437,7 +437,7 @@ class CommunicationController:
 
                         if e.is_timeout():
                             retry += 1
-                            if retry < max_retry_times:
+                            if retry < max_retry_times or request.is_periodic():
                                 self.warn_msg(f'[{self.__class__.__name__}] retry[{retry}]: {e}({request})')
                                 time.sleep(retry * 0.3)
                                 self._transmit.flush()
