@@ -9,6 +9,7 @@ from PySide2.QtCore import Qt, Signal, QObject
 from ..gui.msgbox import *
 from ..gui.mailbox import *
 from ..protocol.upgrade import *
+from ..gui.dialog import TextDisplayDialog
 
 from ..misc.env import RunEnvironment
 from ..misc.process import subprocess_startup_info
@@ -116,6 +117,7 @@ class SoftwareUpdateCallback(QtGuiCallback):
             return False
 
         self.signalProgressPercentage.emit(progress)
+        self._progress.setWindowTitle(self.tr('Download update'))
         self.signalProgressText.emit(self.tr("Downloading") + ": {}".format(info))
         return True
 
@@ -135,15 +137,17 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
     def error(self, error):
         self.showMessage(MB_TYPE_ERR, self.tr("Download software upgrade failed") + ": {}".format(error))
 
-    def success(self, client: GogsUpgradeClient, release_desc: GogsSoftwareReleaseDesc):
-        if release_desc.version <= self.__version:
+    def success(self, client: GogsUpgradeClient, releases: typing.Sequence[GogsSoftwareReleaseDesc]):
+        newest_release = releases[0]
+        if newest_release.version <= self.__version:
             return self.showMessage(MB_TYPE_INFO, self.tr("Currently version is newest version"))
 
-        ver_info = " V{} ".format(release_desc.version)
-        size_info = self.tr("Size") + ": {0:.2f}M".format(release_desc.size / 1024 ** 2)
+        ver_info = " V{} ".format(newest_release.version)
+        size_info = self.tr("Size") + ": {0:.2f}M".format(newest_release.size / 1024 ** 2)
         title = self.__title if self.__title else self.tr("Confirm Update to") + ver_info + size_info
 
-        if not showQuestionBox(self._parent, content=release_desc.desc, title=title):
+        middle_releases_desc = '\n'.join([x.desc for x in releases if x.version > self.__version])
+        if not TextDisplayDialog.showContent(content=middle_releases_desc, title=title, parent=self._parent):
             msg = self.tr("Software update canceled")
             self.sendMail(StatusBarMail(Qt.blue, msg, 3))
             return self.showMessage(MB_TYPE_INFO, content=msg)
@@ -154,7 +158,7 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
         update_routine.setCallback(SoftwareUpdateCallback(self._parent, self.mail, self.env))
         Thread(
             name="Software update", target=update_routine.run,
-            kwargs=dict(client=client, release=release_desc), daemon=True
+            kwargs=dict(client=client, release=newest_release), daemon=True
         ).start()
 
 

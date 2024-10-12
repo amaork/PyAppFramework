@@ -607,7 +607,7 @@ class ProgressDialog(QProgressDialog):
                 ev.ignore()
 
     def showEvent(self, ev: QShowEvent):
-        self.setCancelState(False)
+        # self.setCancelState(False)
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
         self.move(QPoint(x, y))

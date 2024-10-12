@@ -54,7 +54,7 @@ class GogsRequest(HttpRequest):
                 raise GogsRequestException(self.HTTP_Forbidden, doc('p').text().strip())
             self.__token = self.get_token_from_text(login_response.text, self.TOKEN_NAME)
         except requests.RequestException as err:
-            raise GogsRequestException(err.response.status_code, err.response.text)
+            raise GogsRequestException(err.response.status_code if err.response else -1, err.response.text)
 
     def get_repo_url(self, repo: str) -> str:
         return "{}/{}".format(self.__host, repo)

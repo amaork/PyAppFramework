@@ -130,12 +130,12 @@ class SoftwareUpdateCheckRoutine(Routine):
         try:
             self._start()
             client = env.get_gogs_update_client()
-            release = client.get_newest_release()
+            releases = client.get_releases()
 
-            if not isinstance(release, GogsSoftwareReleaseDesc) or not release.check():
+            if not releases or any(not release.check() for release in releases):
                 self._stop()
             else:
-                self._success(client, release)
+                self._success(client, releases)
         except (GogsUpgradeClientDownloadError, GogsRequestException) as e:
             self._error("{}".format(e))
 
@@ -148,7 +148,8 @@ class DownloadGogsReleaseWithoutConfirmRoutine(Routine):
         try:
             self._start()
             client = env.get_gogs_update_client(repo)
-            release = client.get_newest_release()
+            releases = client.get_releases()
+            release = releases[0] if releases else None
 
             if not isinstance(release, GogsSoftwareReleaseDesc) or not release.check():
                 self._stop()
