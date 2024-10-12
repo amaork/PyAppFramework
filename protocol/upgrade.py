@@ -11,6 +11,8 @@ import http.server
 import http.client
 import socketserver
 from typing import *
+import requests.exceptions
+
 from ..core.datatype import *
 from ..misc.settings import *
 from ..network.gogs_request import *
@@ -430,11 +432,12 @@ class GogsUpgradeClient(object):
                 desc.update(DynamicObject(url=release.get_attachment_url(desc.name)))
 
                 release_list.append(desc)
-            except (IndexError, ValueError, AttributeError, DynamicObjectEncodeError) as e:
+            except (IndexError, ValueError, AttributeError,
+                    DynamicObjectEncodeError, requests.exceptions.ProxyError) as e:
                 print("{!r} get_releases error {}".format(self.__class__.__name__, e))
                 continue
 
-        return release_list
+        return sorted(release_list, key=lambda x: x.version, reverse=True)
 
     def new_release(self, release: str, app: str) -> bool:
         try:
@@ -454,11 +457,6 @@ class GogsUpgradeClient(object):
                 return True
 
         return False
-
-    def get_newest_release(self) -> GogsSoftwareReleaseDesc or None:
-        releases = self.get_releases()
-        releases = sorted(releases, key=lambda x: x.version, reverse=True)
-        return releases[0] if releases else None
 
     def download_release(self, release: GogsSoftwareReleaseDesc, path: str,
                          callback: Callable[[float, str], bool] or None = None) -> bool:
