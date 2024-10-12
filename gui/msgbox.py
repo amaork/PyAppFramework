@@ -13,6 +13,13 @@ MB_TYPE_QUESTION = "question"
 MB_TYPES = (MB_TYPE_ERR, MB_TYPE_INFO, MB_TYPE_WARN, MB_TYPE_QUESTION)
 
 
+def addExtraButtonsToMsgBox(msg_box: QMessageBox, extra_buttons: typing.Sequence[QPushButton] = None):
+    extra_buttons = extra_buttons or list()
+    if extra_buttons and all(isinstance(x, QPushButton) for x in extra_buttons):
+        for btn in extra_buttons:
+            msg_box.addButton(btn, QMessageBox.ButtonRole.YesRole)
+
+
 def showQuestionBox(parent: QWidget, content: str, title: str = '') -> bool:
     """ Show a Question message box and return result
 
@@ -47,13 +54,9 @@ def showMessageBox(parent: QWidget, msg_type: str, content: str,
     try:
         icon, default_title = __attributes.get(msg_type)
         title = title if title else parent.tr(default_title)
-        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
+        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.Ok
         msg_box = QMessageBox(icon, title, content, buttons, parent=parent)
-
-        extra_buttons = extra_buttons or list()
-        if extra_buttons and all(isinstance(x, QPushButton) for x in extra_buttons):
-            for btn in extra_buttons:
-                msg_box.addButton(btn, QMessageBox.ButtonRole.HelpRole)
+        addExtraButtonsToMsgBox(msg_box, extra_buttons)
 
         if msg_type == MB_TYPE_QUESTION:
             return msg_box.exec_() == QMessageBox.Ok
@@ -78,17 +81,13 @@ def showOnSPMsgBox(parent: QWidget, msg_box: QMessageBox, msg_type: str,
     try:
         icon, default_title = __attributes.get(msg_type)
         title = title if title else parent.tr(default_title)
-        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.NoButton
+        buttons = QMessageBox.Ok | QMessageBox.Cancel if msg_type == MB_TYPE_QUESTION else QMessageBox.Ok
 
         msg_box.setIcon(icon)
         msg_box.setText(content)
         msg_box.setWindowTitle(title)
         msg_box.setDefaultButton(buttons)
-
-        extra_buttons = extra_buttons or list()
-        if extra_buttons and all(isinstance(x, QPushButton) for x in extra_buttons):
-            for btn in extra_buttons:
-                msg_box.addButton(btn, QMessageBox.ButtonRole.HelpRole)
+        addExtraButtonsToMsgBox(msg_box, extra_buttons)
 
         if msg_type == MB_TYPE_QUESTION:
             return msg_box.exec_() == QMessageBox.Ok
