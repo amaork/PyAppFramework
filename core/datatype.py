@@ -5,12 +5,13 @@ import json
 import ctypes
 import base64
 import typing
+import hashlib
 import keyword
 import ipaddress
 import collections
 import collections.abc
 import xml.etree.ElementTree as XmlElementTree
-__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE',
+__all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'BasicFileHeader',
            'ComparableXml', 'CustomEvent',
            'FrozenJSON', 'DynamicObject', 'DynamicObjectEncoder',
            'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
@@ -160,6 +161,7 @@ class BasicDataType(ctypes.Structure):
         ctypes.memmove(ctypes.addressof(self), cdata, size)
         return True
 
+    # noinspection SpellCheckingInspection
     def set_cstr(self, offset: int, maxsize: int, data: typing.Union[str, bytes]):
         if data and offset + len(data) <= ctypes.sizeof(self):
             try:
@@ -312,6 +314,7 @@ class DynamicObjectEncoder(json.JSONEncoder):
 
 
 class FrozenJSON:
+    # noinspection SpellCheckingInspection
     """From <<Fluent Python>> by Luciano Ramalho"""
     def __new__(cls, arg):
         if isinstance(arg, collections.abc.Mapping):
@@ -394,3 +397,73 @@ class CustomEvent(DynamicObject):
 
     def isEvent(self, type_) -> bool:
         return self.type == type_
+
+
+class BasicFileHeader(BasicTypeLE):
+    Size = 60
+
+    _fields_ = [
+        ('_model', ctypes.c_ubyte * 24),
+        ('_size', ctypes.c_uint32),
+        ('_md5', ctypes.c_ubyte * 32),
+    ]
+
+    def __init__(self, model):
+        super(BasicFileHeader, self).__init__()
+        if not isinstance(model, str):
+            raise TypeError("model should be 'str' not {}".format(model.__class__.__name__))
+
+        self._size = 0
+        ctypes.memset(ctypes.addressof(self._md5), 0, ctypes.sizeof(self._md5))
+        ctypes.memset(ctypes.addressof(self._model), 0, ctypes.sizeof(self._model))
+        ctypes.memmove(ctypes.addressof(self._model), model.encode(), min(len(model), ctypes.sizeof(self._model)))
+
+    def __str__(self):
+        return "Model:{0:s}, size:{1:d}, md5:{2:s}".format(self.model, self.size, self.md5)
+
+    @property
+    def model(self):
+        return ctypes.string_at(ctypes.addressof(self._model), ctypes.sizeof(self._model)).decode().strip(' \t\n\r\0')
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, size):
+        if isinstance(size, int):
+            self._size = size
+
+    @property
+    def md5(self):
+        return ctypes.string_at(ctypes.addressof(self._md5), ctypes.sizeof(self._md5)).decode()
+
+    @md5.setter
+    def md5(self, md5):
+        if isinstance(md5, str) and len(md5) == 32:
+            ctypes.memmove(ctypes.addressof(self._md5), md5.encode(), ctypes.sizeof(self._md5))
+
+    def update(self, data):
+        self.size = len(data)
+        self.md5 = hashlib.md5(data).hexdigest()
+        return True
+
+    def check(self, data, model):
+        """Check data is valid
+
+        :param data: data to check
+        :param model: data model type
+        :return: success return true, failed raise RuntimeError
+        """
+        if not isinstance(data, bytes) or not isinstance(model, str):
+            raise TypeError('data or model type error')
+
+        if self.size > len(data):
+            print(self.size, len(data))
+            raise ValueError('data size mismatch')
+
+        if self.md5 != hashlib.md5(data).hexdigest():
+            raise ValueError('data corrupted invalid md5')
+
+        if self.model != model:
+            raise ValueError(f'data model missmatch, data model is: {self.model!r}')

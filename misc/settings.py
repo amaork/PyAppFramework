@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import abc
 import json
 import codecs
 import typing
@@ -9,9 +10,9 @@ import collections
 from string import Template, hexdigits
 from typing import Tuple, Optional, Any, Sequence, Union, List, TypeVar, NamedTuple, Callable
 
-from ..core.datatype import DynamicObject, DynamicObjectDecodeError, str2number
+from ..core.datatype import DynamicObject, DynamicObjectDecodeError, BasicFileHeader, str2number
 __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'SystemTrayIconSettings', 'WindowsPositionSettings',
-           'CustomAction',
+           'CustomAction', 'BinarySettings',
            'UiLogMessage', 'LoggingMsgCallback',
            'UiInputSetting', 'UiLayout',
            'UiFontInput', 'UiColorInput',
@@ -80,6 +81,7 @@ class JsonSettings(DynamicObject):
                 return cls.default()
 
             with codecs.open(path, "r", "utf-8") as fp:
+                # noinspection PyTypeChecker
                 dict_ = json.load(fp, object_pairs_hook=collections.OrderedDict)
 
             return cls(**dict_) if dict_ else cls.default()
@@ -112,6 +114,53 @@ class JsonSettings(DynamicObject):
     @classmethod
     def ui(cls) -> DynamicObject:
         pass
+
+
+class BinarySettings:
+    @classmethod
+    @abc.abstractmethod
+    def model(cls) -> str:
+        pass
+
+    @classmethod
+    def extension(cls) -> str:
+        return f'*.{cls.model()}'
+
+    @classmethod
+    def _encrypt(cls, data: bytes) -> bytes:
+        return data
+
+    @classmethod
+    def _decrypt(cls, data: bytes) -> bytes:
+        return data
+
+    @classmethod
+    def load(cls, path: str) -> bytes:
+        try:
+            with open(path, 'rb') as fp:
+                data = fp.read()
+
+            header = BasicFileHeader('')
+            header.set_cdata(data[:BasicFileHeader.Size])
+            header.check(data[BasicFileHeader.Size:], cls.model())
+            return cls._decrypt(data[BasicFileHeader.Size:])
+        except (OSError, ValueError) as e:
+            print(f'load {path} fail: {e}')
+            raise OSError(e)
+
+    @classmethod
+    def save(cls, data: bytes, path: Optional[str] = None):
+        try:
+            data = cls._encrypt(data)
+            header = BasicFileHeader(cls.model())
+            header.update(data)
+
+            with open(path, 'wb') as fp:
+                fp.write(header.cdata())
+                fp.write(data)
+        except (TypeError, OSError) as e:
+            print(f'save data to {path}, fail: {e}')
+            raise OSError(e)
 
 
 class WindowsPositionSettings(JsonSettings):
@@ -475,6 +524,7 @@ class UiColorInput(UiInputSetting):
         if len(html_color) != 7 or html_color[0] != '#' or any([x.upper() not in hexdigits for x in html_color[1:]]):
             return 0, 0, 0
 
+        # noinspection PyTypeChecker
         return tuple([int(a + b, 16) for a, b in zip(html_color[1::2], html_color[2::2])])
 
     @staticmethod

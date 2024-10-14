@@ -112,17 +112,23 @@ class RunEnvironment(object):
     def gogs_server_url(self) -> str:
         return self.__gogs_update_server[:]
 
-    def encrypt_file(self, src: str, dest: str):
+    def __check_and_create_crypto(self, desc: str) -> AESCrypto:
         if not self.__aes_key or not self.__aes_iv:
-            raise ValueError('software run env do not support encrypt')
+            raise ValueError(f'software run env do not support {desc}')
 
-        AESCrypto(self.__aes_key, iv=self.__aes_iv).encrypt_file(src, dest)
+        return AESCrypto(self.__aes_key, iv=self.__aes_iv)
+
+    def encrypt(self, data: bytes) -> bytes:
+        return self.__check_and_create_crypto('encrypt').encrypt(data)
+
+    def decrypt(self, data: bytes) -> bytes:
+        return self.__check_and_create_crypto('decrypt').decrypt(data)
+
+    def encrypt_file(self, src: str, dest: str):
+        self.__check_and_create_crypto('encrypt').encrypt_file(src, dest)
 
     def decrypt_file(self, src: str, dest: str):
-        if not self.__aes_key or not self.__aes_iv:
-            raise ValueError('software run env do not support decrypt')
-
-        AESCrypto(self.__aes_key, iv=self.__aes_iv).decrypt_file(src, dest)
+        self.__check_and_create_crypto('decrypt').decrypt_file(src, dest)
 
     def get_log_file(self, module_name: str, with_timestamp: bool = False) -> str:
         os.makedirs(os.path.join(self.log_dir, module_name), 0o755, True)
