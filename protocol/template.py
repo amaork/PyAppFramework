@@ -7,7 +7,7 @@ import logging
 import threading
 import contextlib
 import collections
-from ..core.timer import Tasklet
+from ..core.timer import Tasklet, Task
 from ..misc.settings import UiLogMessage
 from ..misc.debug import get_debug_timestamp
 from .transmit import Transmit, TransmitException, TransmitWarning
@@ -163,6 +163,7 @@ class CommunicationController:
                  response_cls,
                  transmit: Transmit,
                  response_max_length: int,
+                 fetch_state_period: float,
                  event_callback: typing.Callable[[CommunicationEvent], None],
                  print_ts: bool = False, retry: int = 3, tasklet_interval: float = 0.05, debug_mode: bool = False):
         if not isinstance(transmit, Transmit):
@@ -193,7 +194,9 @@ class CommunicationController:
 
         self._cur_state = ThreadLockAndDataWrap(None)
         self._prev_state = ThreadLockAndDataWrap(None)
+        self._fetch_state_period = fetch_state_period
         self._tasklet = Tasklet(schedule_interval=tasklet_interval, name=self.__class__.__name__)
+        self._fetch_state_tid = self._tasklet.add_task(Task(self.task_fetch_state, fetch_state_period, True))
 
         self._event_cls = event_cls
         self._request_cls = request_cls
@@ -243,16 +246,18 @@ class CommunicationController:
 
         return condition()
 
+    def pause_fetch_state(self, pause: bool):
+        if pause:
+            self._tasklet.pause_task(self._fetch_state_tid.id)
+        else:
+            self._tasklet.resume_task(self._fetch_state_tid.id)
+
     def disconnect(self, send_event: bool = False):
-        self._exit.set()
-        self._transmit.disconnect()
+        self.pause_fetch_state(True)
+
         while self._queue.qsize():
             self._queue.get()
-
-        self._disconnect_callback()
-
-        if send_event:
-            self.send_event(self._event_cls.disconnected('active disconnect'))
+        self._tasklet.add_task(Task(self.task_disconnect, args=(send_event,), timeout=self._fetch_state_period))
 
     def reset_section(self, sid: int = 0):
         self._section_seq.assign(sid)
@@ -270,6 +275,7 @@ class CommunicationController:
             self._section_seq.reset()
             threading.Thread(target=self.thread_comm_with_device, daemon=True).start()
             self._connect_callback()
+            self.pause_fetch_state(False)
             self.info_msg(f'Connected: {address}, timeout:{timeout}')
             self.send_event(self._event_cls.connected(address, timeout))
             return True
@@ -291,6 +297,23 @@ class CommunicationController:
             self.debug_msg(msg)
         else:
             self.info_msg(msg)
+
+    def task_fetch_state(self):
+        if not self.connected:
+            return
+
+        if not self.is_comm_idle():
+            return
+
+        self._fetch_state()
+
+    def task_disconnect(self, send_event: bool):
+        self._exit.set()
+        self._transmit.disconnect()
+        self._disconnect_callback()
+
+        if send_event:
+            self.send_event(self._event_cls.disconnected('active disconnect'))
 
     def update_state(self, state: typing.Any) -> bool:
         """Update state if state changed, return true"""
@@ -343,6 +366,11 @@ class CommunicationController:
         pass
 
     def _disconnect_callback(self):
+        pass
+
+    @abc.abstractmethod
+    def _fetch_state(self):
+        """Fetch state"""
         pass
 
     @abc.abstractmethod
