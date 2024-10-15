@@ -8,12 +8,16 @@ from PySide2.QtCore import Qt, Signal, QObject
 
 from ..gui.msgbox import *
 from ..gui.mailbox import *
-from ..protocol.upgrade import *
-from ..gui.dialog import TextDisplayDialog
+from ..gui.dialog import TextDisplayDialog, showFileImportDialog, showFileExportDialog
 
+from ..protocol.upgrade import *
 from ..misc.env import RunEnvironment
+from ..misc.settings import BinarySettings
+from ..core.threading import ThreadConditionWrap
 from ..misc.process import subprocess_startup_info
 __all__ = ['QtGuiCallback',
+           'FileImportCallback', 'FileExportCallback',
+           'BinarySettingsImportCallback', 'BinarySettingsExportCallback',
            'SoftwareUpdateCallback', 'SoftwareUpdateCheckCallback', 'DownloadGogsReleaseWithoutConfirmCallback']
 
 
@@ -30,6 +34,7 @@ class QtGuiCallback(QObject):
         assert isinstance(mail, UiMailBox), "Mail type error"
         assert isinstance(env, RunEnvironment), "Env type error"
         super(QtGuiCallback, self).__init__()
+        self._private_data = None
         self._progress = mail.progressDialog
         self._parent = parent
         self.mail = mail
@@ -43,7 +48,15 @@ class QtGuiCallback(QObject):
     def sendMail(self, mail):
         self.mail.send(mail)
 
-    def showMessage(self, type_: str, content: str, title: str or None = None):
+    def setData(self, data: typing.Any):
+        self._private_data = data
+
+    def showQuestion(self, content: str, title: str):
+        cond = ThreadConditionWrap()
+        self.mail.send(QuestionBoxMail(content, title, cond))
+        return cond.wait()
+
+    def showMessage(self, type_: str, content: str, title: str = ''):
         self.mail.send(MessageBoxMail(type_, content, title))
 
     def initProgressBar(self, text: str = "",
@@ -85,6 +98,79 @@ class QtGuiCallback(QObject):
 
     def success(self, *args, **kwargs):
         pass
+
+    def data(self) -> typing.Any:
+        return self._private_data
+
+
+class FileImportCallback(QtGuiCallback):
+    def start(self, fmt: str, name: str = '', title: str = ''):
+        self.setData(showFileImportDialog(self._parent, fmt, name, title))
+
+    def error(self, error: str):
+        self.showMessage(MB_TYPE_ERR, error, self.tr('Import failed'))
+
+    def success(self, path: str):
+        self.showMessage(MB_TYPE_INFO,  path, self.tr('Import success'))
+
+
+class FileExportCallback(QtGuiCallback):
+    def start(self, fmt: str, name: str = '', title: str = ''):
+        self.setData(showFileExportDialog(self._parent, fmt, name, title))
+
+    def error(self, error: str):
+        self.showMessage(MB_TYPE_ERR, error, self.tr('Export failed'))
+
+    def success(self, path: str):
+        self.showMessage(MB_TYPE_INFO, path, self.tr('Export success'))
+
+
+class BinarySettingsImportCallback(FileImportCallback):
+    def __init__(self, parent: QWidget, mail: UiMailBox, env: RunEnvironment, file_cls: BinarySettings.__class__):
+        super().__init__(parent, mail, env)
+        self.__file_cls = file_cls
+        self.__import_data = bytes()
+
+    def getImportData(self) -> bytes:
+        return self.__import_data
+
+    def process(self, export_path: str, cond: ThreadConditionWrap):
+        result = False
+        try:
+            import_data = self.__file_cls.load(export_path)
+        except OSError as e:
+            showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Export failed'))
+        else:
+            if not self.showQuestion(self.tr('Are you sure to import this ?'), self.tr('Import confirm')):
+                result = None
+            else:
+                result = True
+                self.__import_data = import_data
+        finally:
+            cond.finished(result)
+
+
+class BinarySettingsExportCallback(FileExportCallback):
+    def __init__(self,
+                 parent: QWidget, mail: UiMailBox, env: RunEnvironment,
+                 file_cls: BinarySettings.__class__, export_data: bytes = bytes()):
+        super().__init__(parent, mail, env)
+        self.__file_cls = file_cls
+        self.__export_data = export_data
+
+    def setExportData(self, data: bytes):
+        self.__export_data = data
+
+    def process(self, export_path: str, cond: ThreadConditionWrap):
+        result = False
+        try:
+            self.__file_cls.save(self.__export_data, export_path)
+        except OSError as e:
+            showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Export failed'))
+        else:
+            result = True
+        finally:
+            cond.finished(result)
 
 
 class SoftwareUpdateCallback(QtGuiCallback):

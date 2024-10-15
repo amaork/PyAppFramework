@@ -231,7 +231,7 @@ class ProtobufRWHelper:
         )
 
     @classmethod
-    def MessageToJson(cls, msg: message.Message, e2i: bool = True, **kwargs) -> str:
+    def messageToJson(cls, msg: message.Message, e2i: bool = True, **kwargs) -> str:
         return MessageToJson(
             msg, preserving_proto_field_name=True,
             including_default_value_fields=True, use_integers_for_enums=e2i, **kwargs
