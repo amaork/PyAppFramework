@@ -8,6 +8,7 @@ from PySide2.QtCore import Qt, Signal, QObject
 
 from ..gui.msgbox import *
 from ..gui.mailbox import *
+from ..gui.misc import qtTranslateAuto
 from ..gui.dialog import TextDisplayDialog, showFileImportDialog, showFileExportDialog
 
 from ..protocol.upgrade import *
@@ -131,6 +132,10 @@ class BinarySettingsImportCallback(FileImportCallback):
         self.__file_cls = file_cls
         self.__import_data = bytes()
 
+    # noinspection PyMethodOverriding
+    def tr(self, msg: str):
+        return qtTranslateAuto(msg, self.__class__)
+
     def getImportData(self) -> bytes:
         return self.__import_data
 
@@ -157,6 +162,10 @@ class BinarySettingsExportCallback(FileExportCallback):
         super().__init__(parent, mail, env)
         self.__file_cls = file_cls
         self.__export_data = export_data
+
+    # noinspection PyMethodOverriding
+    def tr(self, msg: str):
+        return qtTranslateAuto(msg, self.__class__)
 
     def setExportData(self, data: bytes):
         self.__export_data = data

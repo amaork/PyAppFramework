@@ -207,6 +207,7 @@ class DynamicObject(object):
     _properties = set()
     _json_encoder = None
     _json_dump_sequence = ()
+    CompatibleTypes = ((list, tuple), (dict, collections.OrderedDict))
 
     def __init__(self, **kwargs):
         try:
@@ -244,6 +245,9 @@ class DynamicObject(object):
         except KeyError:
             msg = "'{0}' object has no attribute '{1}'"
             raise AttributeError(msg.format(type(self).__name__, name))
+
+    def __is_compatible_type(self, k, v) -> bool:
+        return any(isinstance(v, types) and type(self.__dict__[k]) in types for types in self.CompatibleTypes)
 
     @property
     def dict(self) -> dict:
@@ -292,8 +296,7 @@ class DynamicObject(object):
             if k not in self._properties:
                 raise DynamicObjectEncodeError("Unknown key: {}".format(k))
 
-            if not isinstance(v, type(self.__dict__[k])) and \
-                    not (isinstance(v, (list, tuple)) and type(self.__dict__[k]) in (list, tuple)):
+            if not isinstance(v, type(self.__dict__[k])) and not self.__is_compatible_type(k, v):
                 raise DynamicObjectEncodeError("New value {!r} type is not matched: new({!r}) old({!r})".format(
                     k, v.__class__.__name__, self.__dict__[k].__class__.__name__))
 
