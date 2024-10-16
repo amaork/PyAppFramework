@@ -2,6 +2,7 @@
 import os
 import shutil
 import subprocess
+import typing
 from typing import List, Sequence
 from ..network.gogs_request import GogsRequestException
 from .env import GogsReleasePublishEnvironment, RunEnvironment
@@ -28,17 +29,26 @@ def get_git_release_date(fmt: str = '%Y%m%d%H%M%S') -> str:
                             stdout=subprocess.PIPE).stdout.read().decode().strip()
 
 
-def get_dir_file_list(path: str) -> List[str]:
+def get_dir_file_list(path: str,
+                      ignore_extensions: typing.Container[str] = '.py .pyc',
+                      ignore_files: typing.Container[str] = '') -> List[str]:
     """Get directory all file lists
 
     :param path:
+    :param ignore_extensions: ignore specified extension
+    :param ignore_files: ignore file in list
     :return:
     """
     lst = list()
+    ignore_files = ignore_files if hasattr(ignore_files, '__contains__') else list()
+    ignore_extensions = ignore_extensions if hasattr(ignore_extensions, '__contains__') else list()
 
     if os.path.isdir(path):
         for filename in os.listdir(path):
-            if filename.endswith(".py") or filename.endswith(".pyc"):
+            if filename in ignore_files:
+                continue
+
+            if os.path.splitext(filename)[-1] in ignore_extensions:
                 continue
 
             full_path = os.path.join(path, filename)
