@@ -295,17 +295,19 @@ class TableView(QtWidgets.QTableView):
 
         width = ev.size().width()
         height = ev.size().height()
+        header = self.horizontalHeader()
 
         # Auto adjust table row height
         if self.__autoHeight:
             self.setVerticalHeaderHeight(height / self.model().rowCount())
 
         if len(self.__columnStretchFactor) == 0:
+            for column in range(self.columnCount()):
+                header.setSectionResizeMode(column, QtWidgets.QHeaderView.Interactive)
             super(TableView, self).resizeEvent(ev)
             return
 
         # Auto adjust table column width
-        header = self.horizontalHeader()
         header.setStretchLastSection(True)
         for column, factor in enumerate(self.__columnStretchFactor):
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.Fixed)
