@@ -47,6 +47,7 @@ from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 
 from ..misc.debug import LoggerWrap
+from ..gui.msgbox import showQuestionBox
 from ..misc.windpi import get_program_scale_factor
 
 from .misc import SerialPortSelector, NetworkInterfaceSelector
@@ -306,8 +307,14 @@ class BasicWindow(QMainWindow):
             else:
                 return False
         else:
-            QtWidgets.QApplication.exit()
-            return True
+            if showQuestionBox(
+                    parent=self, title=self.tr('Exit confirm'),
+                    content=self.tr('Are you sure to exit') + f': {self.__tray_icon_settings.msg_title} ?',
+            ):
+                QtWidgets.QApplication.exit()
+                return True
+            else:
+                return False
 
     def slotTrayIconActivated(self, reason: QtWidgets.QSystemTrayIcon.ActivationReason):
         if self.isHidden():
