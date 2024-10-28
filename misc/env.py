@@ -19,7 +19,7 @@ class RunEnvironment(object):
 
     def __init__(self, name: str = '', version: float = 0.0,
                  log_dir: str = 'logging', conf_dir: str = 'config',
-                 gogs_repo: str = '', gogs_update_server: str = '',
+                 logfile_keep_days: int = 0, gogs_repo: str = '', gogs_update_server: str = '',
                  server_user: str = '', server_pwd: str = '', aes_key: bytes = b'', aes_iv: bytes = b''):
         """Software running environment
 
@@ -27,6 +27,7 @@ class RunEnvironment(object):
         :param version: software name
         :param log_dir: software logging directory
         :param conf_dir: software configure directory
+        :param logfile_keep_days: logfile keep max days
         :param gogs_repo: gogs software update server repo name
         :param gogs_update_server: gogs software update server(gogs release) url
         :param server_user: update server username
@@ -50,6 +51,10 @@ class RunEnvironment(object):
 
         os.makedirs(self.__log_dir, exist_ok=True)
         os.makedirs(self.__conf_dir, exist_ok=True)
+
+        if logfile_keep_days:
+            for module in os.listdir(self.__log_dir):
+                self.logfile_process(module, logfile_keep_days)
 
     @staticmethod
     def reboot():
@@ -129,6 +134,24 @@ class RunEnvironment(object):
 
     def decrypt_file(self, src: str, dest: str):
         self.__check_and_create_crypto('decrypt').decrypt_file(src, dest)
+
+    def logfile_process(self, module_name: str, keep_days: int):
+        def get_logfile_date(name: str) -> str:
+            return name.split('_')[-1][:10]
+
+        dates = {get_logfile_date(x) for x in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name)))}
+        if len(dates) <= keep_days:
+            return
+
+        keep_date = sorted(dates, reverse=True)[:keep_days]
+        for file in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name))):
+            if get_logfile_date(file) in keep_date:
+                continue
+
+            try:
+                os.unlink(os.path.join(self.__log_dir, module_name, file))
+            except OSError:
+                pass
 
     def get_log_file(self, module_name: str, with_timestamp: bool = False) -> str:
         os.makedirs(os.path.join(self.log_dir, module_name), 0o755, True)
