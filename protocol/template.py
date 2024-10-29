@@ -257,6 +257,9 @@ class CommunicationController:
 
         while self._queue.qsize():
             self._queue.get()
+
+        self._cur_state.assign(None)
+        self._prev_state.assign(None)
         self._tasklet.add_task(Task(self.task_disconnect, args=(send_event,), timeout=self._fetch_state_period))
 
     def reset_section(self, sid: int = 0):
