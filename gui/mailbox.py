@@ -421,7 +421,8 @@ class UiMailBox(QObject):
 
             else:
                 self.__tasklet.del_task(self.__pai_task.id)
-                self.__progress.slotHidden()
+                if self.__progress.isVisible():
+                    self.__progress.slotHidden()
                 self.__progress.setCloseable(True)
         elif isinstance(mail, StatusBarProgressBarMail):
             pb = self.findStatusWidget(mail.widget_type, mail.widget_name)

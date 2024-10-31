@@ -137,7 +137,8 @@ class FileImportExportRoutine(Routine):
 
 
 class SoftwareUpdateRoutine(Routine):
-    def _routine(self, client: GogsUpgradeClient, release: GogsSoftwareReleaseDesc):
+    def _routine(self, client: GogsUpgradeClient, release: GogsSoftwareReleaseDesc,
+                 start_update_callback: typing.Optional[typing.Callable[[bool], None]] = None):
         temp_dir = tempfile.gettempdir()
 
         self._start()
@@ -149,13 +150,14 @@ class SoftwareUpdateRoutine(Routine):
                 else:
                     self._error()
             else:
-                self._success(release, temp_dir)
+                self._success(release, temp_dir, start_update_callback)
         except GogsUpgradeClientDownloadError as e:
             self._error("{}".format(e))
 
 
 class SoftwareUpdateCheckRoutine(Routine):
-    def _routine(self, env: RunEnvironment):
+    def _routine(self, env: RunEnvironment,
+                 start_update_callback: typing.Optional[typing.Callable[[bool], None]] = None):
         if not isinstance(env, RunEnvironment):
             raise RuntimeError("[SoftwareUpdateCheckRoutine]: invalid software running environment")
 
@@ -174,7 +176,7 @@ class SoftwareUpdateCheckRoutine(Routine):
             if not releases or any(not release.check() for release in releases):
                 self._stop()
             else:
-                self._success(client, releases)
+                self._success(client, releases, start_update_callback)
         except (GogsUpgradeClientDownloadError, GogsRequestException) as e:
             self._error("{}".format(e))
 

@@ -189,7 +189,8 @@ class SoftwareUpdateCallback(QtGuiCallback):
     def stop(self):
         self.showMessage(MB_TYPE_INFO, title=self.tr("Download canceled"), content=self.tr("Software update canceled"))
 
-    def success(self, release: GogsSoftwareReleaseDesc, path: str):
+    def success(self, release: GogsSoftwareReleaseDesc, path: str,
+                start_update_callback: typing.Optional[typing.Callable[[bool], None]] = None):
         try:
             if self.canceled():
                 return
@@ -205,6 +206,9 @@ class SoftwareUpdateCallback(QtGuiCallback):
                 finally:
                     os.unlink(os.path.join(path, release.name))
 
+            if callable(start_update_callback):
+                self.mail.send(CallbackFuncMail(start_update_callback, args=(True,)))
+
             subprocess.Popen("{}".format(release_name),
                              cwd=path, shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=subprocess_startup_info())
@@ -212,6 +216,8 @@ class SoftwareUpdateCallback(QtGuiCallback):
             msg = self.tr("Launch software upgrade install package failed") + ": {}, ".format(error) + \
                   self.tr("please manual install!")
             os.system("start {}".format(path))
+            if callable(start_update_callback):
+                self.mail.send(CallbackFuncMail(start_update_callback, args=(False,)))
             self.showMessage(MB_TYPE_ERR, msg)
 
     def error(self, error: str = ""):
@@ -243,7 +249,8 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
     def error(self, error):
         self.showMessage(MB_TYPE_ERR, self.tr("Download software upgrade failed") + ": {}".format(error))
 
-    def success(self, client: GogsUpgradeClient, releases: typing.Sequence[GogsSoftwareReleaseDesc]):
+    def success(self, client: GogsUpgradeClient, releases: typing.Sequence[GogsSoftwareReleaseDesc],
+                start_update_callback: typing.Optional[typing.Callable[[bool], None]] = None):
         newest_release = releases[0]
         if newest_release.version <= self.__version:
             return self.showMessage(MB_TYPE_INFO, self.tr("Currently version is newest version"))
@@ -264,7 +271,7 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
         update_routine.setCallback(SoftwareUpdateCallback(self._parent, self.mail, self.env))
         Thread(
             name="Software update", target=update_routine.run,
-            kwargs=dict(client=client, release=newest_release), daemon=True
+            kwargs=dict(client=client, release=newest_release, start_update_callback=start_update_callback), daemon=True
         ).start()
 
 
