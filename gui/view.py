@@ -308,7 +308,7 @@ class TableView(QtWidgets.QTableView):
             return
 
         # Auto adjust table column width
-        header.setStretchLastSection(True)
+        header.setStretchLastSection(len(self.__columnStretchFactor) != self.columnCount())
         for column, factor in enumerate(self.__columnStretchFactor):
             header.setSectionResizeMode(column, QtWidgets.QHeaderView.Fixed)
             self.setColumnWidth(column, width * factor)

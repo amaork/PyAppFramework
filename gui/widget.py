@@ -275,11 +275,10 @@ class BasicWindow(QMainWindow):
     def loadWindowsPosition(self, config_path: str):
         pos = WindowsPositionSettings.load(config_path)
         geometry = QtWidgets.QApplication.desktop().availableGeometry()
-        if pos.isValid(geometry.width(), geometry.height()):
-            self.setGeometry(QRect(*pos.getPosition()))
-            if pos.pin:
-                self.slotShowTrayIconMsg(self.tr('Pin on top'))
-                self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setGeometry(QRect(*pos.getPosition()))
+        if pos.pin:
+            self.slotShowTrayIconMsg(self.tr('Pin on top'))
+            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
     def saveWindowsPosition(self, config_path: str, x_offset: int = 30):
         pos = WindowsPositionSettings.load(config_path)
