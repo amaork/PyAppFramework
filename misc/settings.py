@@ -170,8 +170,11 @@ class WindowsPositionSettings(JsonSettings):
     def default(cls) -> DynamicObject:
         return WindowsPositionSettings(x=0, y=0, width=0, height=0, pin=False)
 
-    def isValid(self, width: int, height: int):
-        return self.x and self.y and self.width and self.height and self.x < width and self.y < height
+    def isValid(self):
+        return self.width and self.height
+
+    def setPosition(self, x: int, y: int, w: int, h: int):
+        self.update(dict(x=x, y=y, width=w, height=h))
 
     def getPosition(self) -> typing.Tuple[int, int, int, int]:
         return self.x, self.y, self.width, self.height

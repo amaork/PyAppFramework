@@ -272,16 +272,18 @@ class BasicWindow(QMainWindow):
             self.ui_tray_menu.insertAction(before, action)
             before = action
 
-    def loadWindowsPosition(self, config_path: str):
-        pos = WindowsPositionSettings.load(config_path)
-        geometry = QtWidgets.QApplication.desktop().availableGeometry()
+    def loadWindowsPosition(self, config_path: str, prefer_width: int = 0, prefer_height: int = 0):
+        pos = WindowsPositionSettings.get(config_path)
+        if not pos.isValid():
+            pos.setPosition(300, 200, prefer_width, prefer_height)
+
         self.setGeometry(QRect(*pos.getPosition()))
         if pos.pin:
             self.slotShowTrayIconMsg(self.tr('Pin on top'))
             self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
     def saveWindowsPosition(self, config_path: str, x_offset: int = 30):
-        pos = WindowsPositionSettings.load(config_path)
+        pos = WindowsPositionSettings.get(config_path)
         pos.update(dict(x=self.x(), y=self.y() + x_offset, width=self.width(), height=self.height(), pin=self.isPin()))
         pos.save(config_path)
 
