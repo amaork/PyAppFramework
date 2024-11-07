@@ -74,6 +74,10 @@ class ServiceDiscovery:
     def resume(self):
         self._tasklet.add_task(self._task_send_discovery.task)
 
+    def setNetwork(self, network: str):
+        self._address = get_host_address(ipaddress.IPv4Network(network))[0]
+        self._broadcast = ipaddress.IPv4Interface(network).network.broadcast_address.exploded
+
     def foundCallback(self, address: str):
         if not address:
             return

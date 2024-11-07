@@ -421,6 +421,9 @@ class ServiceDiscoveryDialog(BasicDialog):
         self.ui_address.clear()
         self._discovery.resume()
 
+    def setNetwork(self, network: str):
+        self._discovery.setNetwork(network)
+
     def eventHandle(self, ev: DiscoveryEvent):
         # Has error occupied, enabled address can be manual input
         if ev.isEvent(DiscoveryEvent.Type.Error):
