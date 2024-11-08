@@ -389,12 +389,13 @@ class TCPServerTransmit(Transmit):
 
 class TCPServerTransmitHandle:
     def __init__(self, new_connection_callback: Callable[[TCPSocketTransmit, typing.Any], None],
-                 length_fmt: str = '', processing: bool = False, verbose: bool = False):
+                 length_fmt: str = '', timeout: float = None, processing: bool = False, verbose: bool = False):
         self._verbose = verbose
         self._processing = processing
         self._length_fmt = length_fmt
         self._new_connection_callback = new_connection_callback
         self._listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        self._listen_socket.settimeout(timeout)
         self._stopped = multiprocessing.Event() if processing else threading.Event()
 
     def __del__(self):
