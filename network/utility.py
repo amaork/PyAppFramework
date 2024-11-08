@@ -2,6 +2,8 @@
 import os
 import sys
 import time
+import typing
+
 import ping3
 import ifaddr
 import struct
@@ -15,7 +17,7 @@ from typing import List, Optional, Dict, Union, Tuple
 from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
            'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
-           'connect_device', 'scan_lan_port', 'scan_lan_alive',
+           'connect_device', 'scan_lan_port', 'scan_lan_alive', 'get_network_ifc',
            'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
            'create_socket_and_connect', 'wait_device_reboot',
            'tcp_socket_send_data', 'tcp_socket_recv_data', 'tcp_t_section',
@@ -23,9 +25,10 @@ __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network'
 
 
 class NicInfo(DynamicObject):
-    _properties = {'ip', 'network', 'network_prefix'}
+    _properties = {'ip', 'name', 'network', 'network_prefix'}
     _check = {
         'ip': lambda x: isinstance(x, str),
+        'name': lambda x: isinstance(x, str),
         'network': lambda x: isinstance(x, str),
         'network_prefix': lambda x: isinstance(x, int),
     }
@@ -47,6 +50,7 @@ def get_system_nic(ignore_loopback: bool = True) -> Dict[str, NicInfo]:
                     interfaces[adapter.nice_name] = NicInfo(
                         ip=str(address),
                         network=str(network),
+                        name=adapter.nice_name,
                         network_prefix=ip.network_prefix
                     )
                     break
@@ -92,6 +96,16 @@ def get_address_source_network(ip: str) -> Union[ipaddress.IPv4Network, None]:
                 return network
         except ValueError:
             return None
+
+    return None
+
+
+def get_network_ifc(network: str) -> typing.Optional[NicInfo]:
+    interfaces = get_system_nic(ignore_loopback=False)
+
+    for ifc in interfaces.values():
+        if ifc.network == network:
+            return ifc
 
     return None
 
