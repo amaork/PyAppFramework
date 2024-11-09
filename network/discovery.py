@@ -82,6 +82,8 @@ class ServiceDiscovery:
         self._stop_sniff.set()
         self._address = get_host_address(ipaddress.IPv4Network(network))[0]
         self._broadcast = ipaddress.IPv4Interface(network).network.broadcast_address.exploded
+
+        enable_multicast(self._sock, self._address)
         self._tasklet.add_task(Task(self.taskSniffUDPMsg, args=(get_network_ifc(network),), timeout=0.0))
 
     def foundCallback(self, address: str):
@@ -123,7 +125,7 @@ class ServiceDiscovery:
 
     def taskReceiveResponse(self):
         enable_broadcast(self._sock)
-        enable_multicast(self._sock, DEF_GROUP)
+        enable_multicast(self._sock, self._address)
 
         while not self._exit:
             data, sender = self._rx_queue.get(block=True)

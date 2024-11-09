@@ -18,7 +18,8 @@ from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
            'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
            'connect_device', 'scan_lan_port', 'scan_lan_alive', 'get_network_ifc',
-           'set_keepalive', 'enable_broadcast', 'enable_multicast', 'set_linger_option',
+           'set_keepalive', 'enable_broadcast', 'set_linger_option',
+           'enable_multicast', 'join_multicast', 'leave_multicast',
            'create_socket_and_connect', 'wait_device_reboot',
            'tcp_socket_send_data', 'tcp_socket_recv_data', 'tcp_t_section',
            'SocketSingleInstanceLock', 'NicInfo']
@@ -169,9 +170,20 @@ def enable_broadcast(sock: socket.socket) -> None:
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 
-def enable_multicast(sock: socket.socket, mcast_group: str) -> None:
-    option = struct.pack("4sL", socket.inet_aton(mcast_group), socket.INADDR_ANY)
+def join_multicast(sock: socket.socket, mcast_group: str, ifc_addr: str):
+    option = struct.pack("4s4s", socket.inet_aton(mcast_group), socket.inet_aton(ifc_addr))
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, option)
+
+
+def leave_multicast(sock: socket.socket,  mcast_group: str, ifc_addr: str):
+    option = struct.pack("4s4s", socket.inet_aton(mcast_group), socket.inet_aton(ifc_addr))
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_DROP_MEMBERSHIP, option)
+
+
+def enable_multicast(sock: socket.socket, ifc_addr: str, loop: bool = False, ttl: int = 2) -> None:
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ifc_addr))
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, int(loop))
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 
 
 def set_linger_option(sock: socket.socket, onoff: int = 1, linger: int = 0) -> None:
