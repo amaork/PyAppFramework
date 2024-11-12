@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 import json
 import time
-import queue
 import typing
 import socket
-import scapy.all
 import ipaddress
 import threading
 import collections
 from ..core.timer import Task, Tasklet
 from ..core.threading import ThreadLockAndDataWrap, ThreadSafeBool
 from ..core.datatype import CustomEvent, DynamicObject, DynamicObjectDecodeError
-from .utility import enable_broadcast, enable_multicast, get_default_network, get_host_address, get_network_ifc, NicInfo
+from .utility import enable_broadcast, enable_multicast, get_default_network, get_host_address
 __all__ = ['ServiceDiscovery', 'ServiceResponse', 'DiscoveryEvent', 'DiscoveryMsg']
 
 DEF_GROUP = '224.1.2.3'
@@ -46,24 +44,23 @@ class DiscoveryEvent(CustomEvent):
 
 class ServiceDiscovery:
     def __init__(self, service: str, port: int,
-                 event_callback: typing.Callable[[DiscoveryEvent], None],
-                 network: str = get_default_network(), send_interval: float = 1.0, auto_stop: bool = False):
+                 event_callback: typing.Callable[[DiscoveryEvent], None], network: str = get_default_network(),
+                 send_interval: float = 1.0, auto_stop: bool = False, discovery_timeout: float = 0.0):
         self._exit = False
         self._auto_stop = auto_stop
-        self._rx_queue = queue.Queue()
+        self._send_interval = send_interval
         self._event_callback = event_callback
-        self._stop_sniff = ThreadSafeBool(False)
+        self._stop_sniff = ThreadSafeBool(True)
+        self._discovery_timeout = discovery_timeout
+        self._send_discovery = ThreadSafeBool(False)
         self._dev_list = ThreadLockAndDataWrap(dict())
         self._msg = DiscoveryMsg(service=service, port=port)
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
         self._address = get_host_address(ipaddress.IPv4Network(network))[0]
         self._broadcast = ipaddress.IPv4Interface(network).network.broadcast_address.exploded
 
-        self._tasklet = Tasklet(1.0, max_workers=4, name=f'{self.__class__.__name__}')
+        self._tasklet = Tasklet(1.0, max_workers=2, name=f'{self.__class__.__name__}')
         self._tasklet.add_task(Task(self.taskOfflineCheck, timeout=3.0, periodic=True))
-        self._tasklet.add_task(Task(self.taskSniffUDPMsg, args=(get_network_ifc(network),), timeout=0.0))
-        self._tasklet.add_task(Task(self.taskReceiveResponse, timeout=0.0, periodic=False), immediate=True)
-        self._task_send_discovery = self._tasklet.add_task(Task(self.taskSendDiscovery, send_interval, True))
+        self._tasklet.add_task(Task(self.taskReceiveResponse, timeout=0.0), immediate=True)
 
     def __del__(self):
         self._exit = True
@@ -73,18 +70,17 @@ class ServiceDiscovery:
         return list(self._dev_list.data.keys())
 
     def pause(self):
-        self._tasklet.del_task(self._task_send_discovery.id)
+        self._send_discovery.clear()
 
     def resume(self):
-        self._tasklet.add_task(self._task_send_discovery.task)
+        self._send_discovery.set()
+        self._tasklet.add_task(Task(self.taskDiscoveryTimeout, timeout=5.0))
 
     def setNetwork(self, network: str):
         self._stop_sniff.set()
         self._address = get_host_address(ipaddress.IPv4Network(network))[0]
         self._broadcast = ipaddress.IPv4Interface(network).network.broadcast_address.exploded
-
-        enable_multicast(self._sock, self._address)
-        self._tasklet.add_task(Task(self.taskSniffUDPMsg, args=(get_network_ifc(network),), timeout=0.0))
+        self._tasklet.add_task(Task(self.taskDiscoveryTimeout, timeout=self._discovery_timeout))
 
     def foundCallback(self, address: str):
         if not address:
@@ -92,24 +88,18 @@ class ServiceDiscovery:
         self._dev_list.data[address] = time.time()
         self._event_callback(DiscoveryEvent(type=DiscoveryEvent.Type.Online, data=address))
 
-    # noinspection PyUnresolvedReferences
-    def sniffProcess(self, pkt):
-        if scapy.all.UDP in pkt:
-            ip = pkt[scapy.all.IP]
+    def taskDiscoveryTimeout(self):
+        if not self._discovery_timeout:
+            return
 
-            src = ip.src, ip.sport
-            payload = pkt[scapy.all.UDP].payload
-            self._rx_queue.put((payload.load, src))
+        if not self._send_discovery:
+            return
 
-    def taskSniffUDPMsg(self, ifc: NicInfo):
-        self._stop_sniff.clear()
-        scapy.all.sniff(
-            stop_filter=lambda x: self._stop_sniff.is_set(),
-            filter=f'udp port {DEF_PORT}', prn=self.sniffProcess, store=False, iface=ifc.name
-        )
+        if not self._dev_list.data:
+            self._event_callback(DiscoveryEvent.error())
 
     def taskOfflineCheck(self):
-        if not self._tasklet.is_task_in_schedule(self._task_send_discovery.id):
+        if not self._send_discovery:
             return
 
         # Filter 3 seconds do not send discovery msg device
@@ -118,31 +108,50 @@ class ServiceDiscovery:
             self._dev_list.data.pop(address)
             self._event_callback(DiscoveryEvent(type=DiscoveryEvent.Type.Offline, data=address))
 
-    def taskSendDiscovery(self):
-        msg = DiscoveryEvent.discovery(self._msg, self._address).bytes()
-        self._sock.sendto(msg, (DEF_GROUP, DEF_PORT))
-        self._sock.sendto(msg, (self._broadcast, DEF_PORT))
+    def taskSendDiscovery(self, sock: socket.socket, msg: bytes):
+        if self._send_discovery and not self._stop_sniff:
+            sock.sendto(msg, (DEF_GROUP, DEF_PORT))
+            sock.sendto(msg, (self._broadcast, DEF_PORT))
 
     def taskReceiveResponse(self):
-        enable_broadcast(self._sock)
-        enable_multicast(self._sock, self._address)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
 
         while not self._exit:
-            data, sender = self._rx_queue.get(block=True)
+            enable_broadcast(sock)
+            enable_multicast(sock, self._address)
+            sock.settimeout(self._send_interval)
 
             try:
-                event = DiscoveryEvent(**json.loads(data.decode()))
-                if not event.isEvent(DiscoveryEvent.Type.Response):
+                sock.bind((self._address, DEF_PORT))
+            except OSError:
+                sock.bind((self._address, 0))
+
+            while not self._exit and not self._stop_sniff:
+                try:
+                    data, sender = sock.recvfrom(DiscoveryEvent.MaxSize)
+                except socket.timeout:
                     continue
 
-                if DiscoveryMsg(**json.loads(event.data)) == self._msg:
-                    # Just incase event.source is empty
-                    source = event.source or sender[0]
-                    self.foundCallback(source)
-                    if self._auto_stop:
-                        self.pause()
-            except (TypeError, json.decoder.JSONDecodeError, DynamicObjectDecodeError):
-                pass
+                try:
+                    event = DiscoveryEvent(**json.loads(data.decode()))
+                    if not event.isEvent(DiscoveryEvent.Type.Response):
+                        continue
+
+                    if DiscoveryMsg(**json.loads(event.data)) == self._msg:
+                        # Just incase event.source is empty
+                        source = event.source or sender[0]
+                        self.foundCallback(source)
+                        if self._auto_stop:
+                            self.pause()
+                except (TypeError, json.decoder.JSONDecodeError, DynamicObjectDecodeError):
+                    pass
+
+            sock.close()
+            self._stop_sniff.clear()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+            msg = DiscoveryEvent.discovery(self._msg, self._address).bytes()
+            self._tasklet.add_task(Task(self.taskSendDiscovery, self._send_interval, args=(sock, msg), periodic=True))
+            print(f'Restart sniff: {self._address}')
 
 
 class ServiceResponse:

@@ -4,6 +4,7 @@ import sys
 import time
 import typing
 import hashlib
+import ipaddress
 import collections
 from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
@@ -385,11 +386,12 @@ class ServiceDiscoveryDialog(BasicDialog):
 
     def __init__(self, service: str, port: int,
                  network: str = get_default_network(),
-                 title: str = '', parent: Optional[QWidget] = None):
+                 title: str = '', timeout: float = 0.0, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.signalEvent.connect(self.eventHandle)
         self._discovery = ServiceDiscovery(
-            service=service, port=port, network=network, event_callback=self.signalEvent.emit, auto_stop=False
+            service=service, port=port, network=network,
+            event_callback=self.signalEvent.emit, auto_stop=False, discovery_timeout=timeout
         )
         self.setWindowTitle(title or self.tr('Please select'))
 
@@ -422,7 +424,16 @@ class ServiceDiscoveryDialog(BasicDialog):
         self._discovery.resume()
 
     def setNetwork(self, network: str):
-        self._discovery.setNetwork(network)
+        try:
+            network = str(ipaddress.IPv4Network(network))
+            ifc = get_network_ifc(network)
+            if not ifc:
+                raise ValueError(f'invalid network: {network}')
+        except ValueError as e:
+            showMessageBox(self, MB_TYPE_WARN, f'{e}', self.tr('Invalid network'))
+        else:
+            self.ui_address.setEditable(False)
+            self._discovery.setNetwork(network)
 
     def eventHandle(self, ev: DiscoveryEvent):
         # Has error occupied, enabled address can be manual input
