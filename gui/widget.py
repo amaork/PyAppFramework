@@ -236,6 +236,7 @@ class BasicWindow(QMainWindow):
         self.ui_tray_icon.setToolTip(self.__tray_icon_settings.tips)
         self.ui_tray_icon.setContextMenu(self.ui_tray_menu)
         self.ui_tray_icon.show()
+        QApplication.instance().setQuitOnLastWindowClosed(False)
 
     def isPin(self) -> bool:
         return bool(self.windowFlags() & Qt.WindowStaysOnTopHint)

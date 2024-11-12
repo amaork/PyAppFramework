@@ -357,6 +357,10 @@ class UiMailBox(QObject):
         if not isinstance(mail, BaseUiMail):
             return False
 
+        if isinstance(mail, (MessageBoxMail, QuestionBoxMail)):
+            if self.__parent.isHidden():
+                self.__parent.showNormal()
+
         # Show message on status bar
         if isinstance(mail, StatusBarMail):
             if hasattr(self.__parent, "ui") and hasattr(self.__parent.ui, "statusbar"):
