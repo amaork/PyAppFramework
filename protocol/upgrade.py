@@ -357,14 +357,14 @@ class GogsSoftwareReleaseDesc(JsonSettings):
         return GogsSoftwareReleaseDesc(name="", desc="", size=0, date="", md5="", version=0.0, url="")
 
     @classmethod
-    def parse_readme(cls, readme: str, version: float) -> str:
+    def parse_readme(cls, readme: str, header: str, tail: str) -> str:
         with open(readme, 'r', encoding='utf-8') as fp:
             readme_desc = list()
             start_desc = False
             for line in fp.readlines():
-                if line.startswith(f'## v{version}'):
+                if line.startswith(header):
                     start_desc = True
-                elif line.startswith(f'## v'):
+                elif line.startswith(tail):
                     break
 
                 if start_desc:

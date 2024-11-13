@@ -100,10 +100,11 @@ def py_installer_add_data_dir(data_dir_path: str):
     return files
 
 
-def gogs_publish_release(run_env: RunEnvironment, gogs_env_file: str,
-                         readme_file: str = 'README.md', output_dir: str = 'Output') -> bool:
-    app = f'{run_env.software_name}_{run_env.software_version}.exe'
-    changelog = GogsSoftwareReleaseDesc.parse_readme(readme_file, run_env.software_version)
+def gogs_publish_release(run_env: RunEnvironment,
+                         gogs_env_file: str, readme_header: str, readme_tail: str,
+                         app: str = '', readme_file: str = 'README.md', output_dir: str = 'Output') -> bool:
+    app = app or f'{run_env.software_name}_{run_env.software_version}.exe'
+    changelog = GogsSoftwareReleaseDesc.parse_readme(readme_file, readme_header, readme_tail)
 
     try:
         # Encrypt app first
