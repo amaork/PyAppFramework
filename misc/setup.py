@@ -31,32 +31,42 @@ def get_git_release_date(fmt: str = '%Y%m%d%H%M%S') -> str:
 
 def get_dir_file_list(path: str,
                       ignore_extensions: typing.Container[str] = '.py .pyc',
-                      ignore_files: typing.Container[str] = '') -> List[str]:
+                      ignore_files: typing.Container[str] = '', recursive: bool = True) -> List[str]:
     """Get directory all file lists
 
     :param path:
     :param ignore_extensions: ignore specified extension
     :param ignore_files: ignore file in list
+    :param recursive: if set this will recursive subdir
     :return:
     """
     lst = list()
-    ignore_files = ignore_files if hasattr(ignore_files, '__contains__') else list()
-    ignore_extensions = ignore_extensions if hasattr(ignore_extensions, '__contains__') else list()
+    ignore_files = ignore_files if hasattr(ignore_files, '__contains__') else ''
+    ignore_extensions = ignore_extensions if hasattr(ignore_extensions, '__contains__') else ''
+
+    _ignore_files = ignore_files.split()
+    _ignore_extensions = ignore_extensions.split()
 
     if os.path.isdir(path):
         for filename in os.listdir(path):
-            if filename in ignore_files:
+            if filename.startswith('.'):
                 continue
 
-            if os.path.splitext(filename)[-1] in ignore_extensions:
+            fullpath = os.path.join(path, filename)
+
+            if filename in _ignore_files or fullpath in _ignore_files:
                 continue
 
-            full_path = os.path.join(path, filename)
+            if os.path.isfile(fullpath) and os.path.splitext(filename)[-1] in _ignore_extensions:
+                continue
 
-            if os.path.isdir(full_path):
-                lst.extend(get_dir_file_list(full_path))
+            if os.path.isdir(fullpath):
+                if recursive:
+                    lst.extend(get_dir_file_list(fullpath, ignore_extensions, ignore_files, recursive))
+                else:
+                    continue
             else:
-                lst.append(full_path)
+                lst.append(fullpath)
 
     return lst
 
