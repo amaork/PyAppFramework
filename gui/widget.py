@@ -3227,6 +3227,8 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
 
 class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
+    Property = collections.namedtuple('Property', 'Name Data Group')(*'name data group'.split())
+
     def __init__(self, settings: DynamicObject, data: dict, parent: Optional[QWidget] = None):
         super(MultiGroupJsonSettingsWidget, self).__init__(settings, parent)
 
@@ -3269,7 +3271,8 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
                             settings[item_name] = self.settings.get(item_name)
 
                     box_widget = JsonSettingWidget(DynamicObject(**settings))
-                    box_widget.setProperty("name", group_settings.get_name())
+                    box_widget.setProperty(self.Property.Name, group_settings.get_name())
+                    box_widget.setProperty(self.Property.Group, box)
                     group_layout.addWidget(box_widget)
                     box.setLayout(group_layout)
                     widget_layout.addWidget(box, row, column)
@@ -3302,7 +3305,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
         data = self.getData()
         settings = self.settings
         for k, v in data.items():
-            settings[k]["data"] = v
+            settings[k][self.Property.Data] = v
         return self.settings_cls(**settings)
 
     def resetDefaultData(self):
@@ -3311,9 +3314,16 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
     def slotSettingChanged(self):
         self.settingChanged.emit()
 
+    def getGroupWidget(self, name: str) -> Optional[QWidget]:
+        for widget in self.widget_list:
+            if widget.property(self.Property.Name) == name:
+                return widget.property(self.Property.Group)
+
+        return None
+
     def getWidgetManager(self, name: str) -> Optional[ComponentManager]:
         for widget in self.widget_list:
-            if widget.property("name") == name:
+            if widget.property(self.Property.Name) == name:
                 return widget.ui_manager
 
         return None
@@ -3329,6 +3339,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
     SET_DATA_METHOD_NAME = "setData"
     GET_DATA_METHOD_NAME = "getData"
     RESET_DATA_METHOD_NAME = "resetDefaultData"
+    Property = collections.namedtuple('Property', 'Name Data Group')(*'name data group'.split())
 
     def __init__(self, settings: DynamicObject, data: dict, parent: Optional[QWidget] = None):
         super(MultiTabJsonSettingsWidget, self).__init__(parent)
@@ -3384,7 +3395,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
                             settings[item_name] = self.settings.get(item_name)
 
                 widget = MultiGroupJsonSettingsWidget(DynamicObject(**settings), dict())
-                widget.setProperty('name', tab_setting.name)
+                widget.setProperty(self.Property.Name, tab_setting.name)
 
                 self.widget_list.append(widget)
                 tab_layout.addWidget(widget)
@@ -3434,7 +3445,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
         data = self.getData()
         settings = self.settings
         for k, v in data.items():
-            settings[k]["data"] = v
+            settings[k][self.Property.Data] = v
         return self.settings_cls(**settings)
 
     def resetDefaultData(self):
@@ -3445,7 +3456,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
     def getTabWidget(self, name: str) -> Optional[QWidget]:
         for widget in self.widget_list:
-            if widget.property('name') == name:
+            if widget.property(self.Property.Name) == name:
                 return widget
 
         return None
