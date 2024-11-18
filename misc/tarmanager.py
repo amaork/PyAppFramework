@@ -5,6 +5,7 @@ Tar package file manager, support package file/directory to tar, gz, bz2  or un-
 import os
 import shutil
 import tarfile
+import typing
 import zipfile
 import lz4.frame
 from typing import Optional, Callable, List, Sequence, Tuple, Union
@@ -293,7 +294,8 @@ class TarManager(object):
     @staticmethod
     def pack(path: str, name: str, fmt: Optional[str] = None,
              extensions: Optional[Sequence[str]] = None, filters: Optional[TarManagerFilterCallback] = None,
-             verbose: bool = False, simulate: bool = False, callback: Optional[TarManagerCallback] = None):
+             verbose: bool = False, simulate: bool = False, callback: Optional[TarManagerCallback] = None,
+             root_filter: Optional[typing.Callable[[str], bool]] = None):
         """Package directory to a tarfile
 
         :param path: directory path
@@ -304,6 +306,7 @@ class TarManager(object):
         :param verbose: show verbose message
         :param simulate: set simulate means not real pack only run process to get how many files it;s need to pack
         :param callback: before pack every file will call this callback function
+        :param root_filter: if this filter set it will first call
         """
 
         current_path = os.getcwd()
@@ -341,6 +344,9 @@ class TarManager(object):
 
             # Traversal all files in path add to tarFile
             for root, dirs, files in os.walk('.'):
+                if callable(root_filter) and not root_filter(root):
+                    continue
+
                 for file_name in files:
                     extension_name = file_name.split(".")[-1]
                     full_path = os.path.join(root, file_name)

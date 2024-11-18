@@ -7,6 +7,7 @@ import platform
 
 from .settings import JsonSettings
 from ..misc.crypto import AESCrypto
+from ..gui.mailbox import MessageBoxMail
 from ..core.datatype import DynamicObject
 from ..protocol.upgrade import GogsUpgradeClient
 __all__ = ['RunEnvironment', 'GogsReleasePublishEnvironment']
@@ -40,6 +41,10 @@ class RunEnvironment(object):
         self.__log_dir = log_dir
         self.__conf_dir = conf_dir
 
+        # Mailbox and sdk
+        self.__sdk = None
+        self.__mailbox = None
+
         # Software update using
         self.__aes_iv = aes_iv
         self.__aes_key = aes_key
@@ -54,7 +59,7 @@ class RunEnvironment(object):
 
         if logfile_keep_days:
             for module in os.listdir(self.__log_dir):
-                self.logfile_process(module, logfile_keep_days)
+                self.remove_old_log(module, logfile_keep_days)
 
     @staticmethod
     def reboot():
@@ -117,6 +122,18 @@ class RunEnvironment(object):
     def gogs_server_url(self) -> str:
         return self.__gogs_update_server[:]
 
+    def set_sdk(self, sdk: typing.Any):
+        self.__sdk = sdk
+
+    def get_sdk(self) -> typing.Any:
+        return self.__sdk
+
+    def set_mailbox(self, mailbox: MessageBoxMail):
+        self.__mailbox = mailbox
+
+    def get_mailbox(self) -> typing.Optional[MessageBoxMail]:
+        return self.__mailbox
+
     def __check_and_create_crypto(self, desc: str) -> AESCrypto:
         if not self.__aes_key or not self.__aes_iv:
             raise ValueError(f'software run env do not support {desc}')
@@ -135,19 +152,29 @@ class RunEnvironment(object):
     def decrypt_file(self, src: str, dest: str):
         self.__check_and_create_crypto('decrypt').decrypt_file(src, dest)
 
-    def logfile_process(self, module_name: str, keep_days: int):
-        def get_logfile_date(name: str) -> str:
-            return name.split('_')[-1][:10]
+    def remove_old_log(self, module_name: str, keep_days: int,
+                       get_logfile_date: typing.Optional[typing.Callable[[str], str]] = None,
+                       remove_confirm: typing.Optional[typing.Callable[[typing.Sequence[str]], bool]] = None):
+        def _get_logfile_date(name: str) -> str:
+            if callable(get_logfile_date):
+                return get_logfile_date(name)
+            else:
+                return name.split('_')[-1][:10]
 
-        dates = {get_logfile_date(x) for x in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name)))}
+        dates = {_get_logfile_date(x) for x in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name)))}
         if len(dates) <= keep_days:
             return
 
         keep_date = sorted(dates, reverse=True)[:keep_days]
-        for file in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name))):
-            if get_logfile_date(file) in keep_date:
-                continue
+        remove_files = [
+            x for x in os.listdir(os.path.join(os.path.join(self.__log_dir, module_name)))
+            if _get_logfile_date(x) not in keep_date
+        ]
 
+        if not remove_files or (callable(remove_confirm) and not remove_confirm(remove_files)):
+            return
+
+        for file in remove_files:
             try:
                 os.unlink(os.path.join(self.__log_dir, module_name, file))
             except OSError:
