@@ -9,7 +9,8 @@ import platform
 import threading
 import subprocess
 from typing import List
-__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead', 'subprocess_startup_info', 'launch_program']
+__all__ = ['ProcessManager', 'SubprocessWithTimeoutRead',
+           'subprocess_startup_info', 'launch_program', 'get_subprocess_si']
 
 
 class ProcessManager(object):
@@ -200,16 +201,21 @@ def get_subprocess_si(console_mode: bool):
     return None if console_mode else si
 
 
-def launch_program(launch_cmd: str, program_path: str, console_mode: bool):
+def launch_program(launch_cmd: str, program_path: str, console_mode: bool, verbose: bool = False) -> subprocess.Popen:
     cwd = os.getcwd()
     path, program = os.path.split(program_path)
     os.system(f'taskkill /IM "{program}" /F')
     time.sleep(1)
 
-    subprocess.Popen(
-        launch_cmd.format(program), cwd=path, shell=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=get_subprocess_si(console_mode)
+    proc = subprocess.Popen(
+        launch_cmd.format(program), cwd=path,
+        shell=True, startupinfo=get_subprocess_si(console_mode),
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
     os.chdir(cwd)
-    print(launch_cmd.format(program), path, os.getcwd())
+
+    if verbose:
+        print(launch_cmd.format(program), path, os.getcwd())
+
+    return proc

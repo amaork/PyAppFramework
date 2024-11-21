@@ -295,7 +295,8 @@ class TarManager(object):
     def pack(path: str, name: str, fmt: Optional[str] = None,
              extensions: Optional[Sequence[str]] = None, filters: Optional[TarManagerFilterCallback] = None,
              verbose: bool = False, simulate: bool = False, callback: Optional[TarManagerCallback] = None,
-             root_filter: Optional[typing.Callable[[str], bool]] = None):
+             pre_filter: Optional[typing.Callable[[str], bool]] = None,
+             post_filter: Optional[typing.Callable[[str], bool]] = None):
         """Package directory to a tarfile
 
         :param path: directory path
@@ -306,7 +307,8 @@ class TarManager(object):
         :param verbose: show verbose message
         :param simulate: set simulate means not real pack only run process to get how many files it;s need to pack
         :param callback: before pack every file will call this callback function
-        :param root_filter: if this filter set it will first call
+        :param pre_filter: if this filter set it will first call
+        :param post_filter: if this filter set it will last call
         """
 
         current_path = os.getcwd()
@@ -344,7 +346,7 @@ class TarManager(object):
 
             # Traversal all files in path add to tarFile
             for root, dirs, files in os.walk('.'):
-                if callable(root_filter) and not root_filter(root):
+                if callable(pre_filter) and not pre_filter(root):
                     continue
 
                 for file_name in files:
@@ -360,6 +362,9 @@ class TarManager(object):
                     if filters and filters(extension_name):
                         compress.pack(tar_file, full_path)
                         continue
+
+                    if callable(post_filter) and post_filter(full_path):
+                        compress.pack(tar_file, full_path)
 
                     # No in extensions and not in filters
                     if len(extensions) or filters:
