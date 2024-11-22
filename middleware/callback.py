@@ -13,6 +13,7 @@ from ..gui.dialog import TextDisplayDialog, showFileImportDialog, showFileExport
 
 from ..protocol.upgrade import *
 from ..misc.env import RunEnvironment
+from ..misc.windpi import system_open_file
 from ..misc.settings import BinarySettings
 from ..core.threading import ThreadConditionWrap
 from ..misc.process import subprocess_startup_info
@@ -215,7 +216,7 @@ class SoftwareUpdateCallback(QtGuiCallback):
         except Exception as error:
             msg = self.tr("Launch software upgrade install package failed") + ": {}, ".format(error) + \
                   self.tr("please manual install!")
-            os.system("start {}".format(path))
+            system_open_file(path)
             if callable(start_update_callback):
                 self.mail.send(CallbackFuncMail(start_update_callback, args=(False,)))
             self.showMessage(MB_TYPE_ERR, msg)

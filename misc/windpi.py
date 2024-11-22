@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import os
 import platform
 import subprocess
 from typing import NamedTuple, Tuple
+from .process import launch_program, subprocess_startup_info
 __all__ = ['get_win_dpi', 'get_program_scale_factor', 'scale_x', 'scale_y', 'scale_size', 'DPI', 'ScaleFactor',
            'system_open_file', 'show_file_in_explorer', 'copy_str_to_clip']
 
@@ -28,6 +28,7 @@ def get_win_dpi() -> DPI:
 
     if platform.system().lower() == "windows" and int(platform.release()) <= 7:
         try:
+            # noinspection PyPackageRequirements
             import win32gui
             import win32print
 
@@ -80,11 +81,11 @@ def scale_size(size: Size) -> Size:
 
 
 def system_open_file(filepath: str):
-    os.system(rf'START {filepath}')
+    launch_program('start {}', filepath, console_mode=False)
 
 
 def copy_str_to_clip(data: str):
-    os.system(f'echo {data} | clip')
+    subprocess.Popen(f'echo {data} | clip', shell=True, startupinfo=subprocess_startup_info(False))
 
 
 def show_file_in_explorer(filepath: str):

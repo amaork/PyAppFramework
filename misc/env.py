@@ -6,6 +6,7 @@ import typing
 import platform
 
 from .settings import JsonSettings
+from .process import launch_program
 from ..misc.crypto import AESCrypto
 from ..gui.mailbox import MessageBoxMail
 from ..core.datatype import DynamicObject
@@ -63,7 +64,7 @@ class RunEnvironment(object):
 
     @staticmethod
     def reboot():
-        os.system("sync && reboot") if RunEnvironment.is_linux() else sys.exit(0)
+        launch_program('sync && reboot', '', console_mode=False) if RunEnvironment.is_linux() else sys.exit(0)
 
     @staticmethod
     def is_osx():
@@ -206,9 +207,9 @@ class RunEnvironment(object):
             os.chdir(path)
 
             if self.is_linux():
-                os.system("./{} &".format(name))
+                launch_program('./{} &', name, console_mode=False)
             else:
-                os.system("START /B {}".format(name))
+                launch_program('start /b {}', name, console_mode=False)
 
             return True
         except Exception as err:
@@ -225,10 +226,10 @@ class GogsReleasePublishEnvironment(JsonSettings):
     def default(cls) -> DynamicObject:
         return GogsReleasePublishEnvironment(username='', password='', publish_keys=dict())
 
-    def get_key(self, name: str) -> typing.Tuple[bytes, bytes]:
+    def get_key(self, name: str) -> typing.Tuple[str, str]:
         raw = self.publish_keys.get(name, '')
         try:
             _, key, iv, _ = raw.split('#')
-            return key.encode(), iv.encode()
+            return key, iv
         except (TypeError, ValueError, AttributeError):
-            return bytes(), bytes()
+            return '', ''
