@@ -207,10 +207,12 @@ def watch_program(name: str, launch_kwargs: dict, interval: float = 3.0, pipe_wr
         time.sleep(interval)
 
 
-def launch_program(launch_cmd: str, program_path: str, console_mode: bool, verbose: bool = False) -> subprocess.Popen:
+def launch_program(launch_cmd: str, program_path: str,
+                   console_mode: bool, verbose: bool = False, kill: bool = True) -> subprocess.Popen:
     cwd = os.getcwd()
     path, program = os.path.split(program_path)
-    ProcessManager.kill(program)
+    if kill:
+        ProcessManager.kill(program)
 
     proc = subprocess.Popen(
         launch_cmd.format(program), cwd=path,

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import sys
 import time
 import random
 import typing
@@ -16,7 +17,7 @@ from xml.etree.ElementTree import Element as XmlElement
 __all__ = [
     'awk_query', 'xml_format', 'qt_rcc_generate', 'qt_rcc_search', 'qt_file_fmt_convert', 'simulate_value',
     'get_timestamp_str', 'auto_deletion_tempdir', 'get_today_date', 'wait_timeout', 'get_newest_file_after',
-    'size_convert', 'create_file_if_not_exist', 'utf8_truncate', 'has_chinese'
+    'size_convert', 'create_file_if_not_exist', 'utf8_truncate', 'has_chinese', 'is_frozen', 'is_script_mode'
 ]
 
 
@@ -213,3 +214,11 @@ def has_chinese(check_str: str) -> bool:
 
 def utf8_truncate(input_str: str, length: int) -> str:
     return input_str.encode('utf-8')[:length].decode(errors='ignore')
+
+
+def is_frozen():
+    return getattr(sys, 'frozen', False)
+
+
+def is_script_mode():
+    return not is_frozen()
