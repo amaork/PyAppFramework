@@ -38,7 +38,7 @@ __all__ = ['BasicDialog',
            'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
-           'showFileImportDialog', 'showFileExportDialog', 'checkSocketSingleInstanceLock']
+           'showFileImportDialog', 'showFileExportDialog', 'showPasswordAuthDialog', 'checkSocketSingleInstanceLock']
 
 __showFileImportDialogRecentPathDict = dict()
 DialogApplyFunction = Callable[[dict], None]
@@ -1292,6 +1292,60 @@ def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
 
     __showFileImportDialogRecentPathDict[title] = os.path.dirname(import_path)
     return import_path
+
+
+def showPasswordAuthDialog(parent: QWidget, name: str,
+                           auth: typing.Callable[[str], bool],
+                           success_action: typing.Callable[[], Any] = None,
+                           retry_times: int = 3,
+                           auto_lock: bool = True,
+                           disable_ui: typing.Callable[[], None] = None,
+                           delay_enable_ui: typing.Callable[[], None] = None):
+    unlocked = False
+    retry_count = retry_times
+    while retry_count > 0:
+        try:
+            # noinspection PyTypeChecker
+            raw_password, ret = QtWidgets.QInputDialog.getText(
+                parent,
+                QApplication.translate('dialog', 'Please Input') +
+                f' {name} ' + QApplication.translate('dialog', 'Password'),
+                QApplication.translate('dialog', 'Password') + ' ' * 40, QtWidgets.QLineEdit.Password
+            )
+            if not ret:
+                return False
+
+            if not raw_password:
+                # noinspection PyTypeChecker
+                raise ValueError(QApplication.translate('dialog', "Password can't be empty"))
+
+            if not auth(raw_password):
+                # noinspection PyTypeChecker
+                showMessageBox(
+                    parent, MB_TYPE_ERR, QApplication.translate('dialog', 'Password verify failed, please retry!!!')
+                )
+                retry_count -= 1
+                continue
+
+            unlocked = True
+            if callable(success_action):
+                success_action()
+            return True
+        except ValueError as e:
+            showMessageBox(parent, MB_TYPE_ERR, f'{e}')
+            retry_count -= 1
+
+    if retry_count <= 0 and not unlocked and auto_lock and callable(disable_ui) and callable(delay_enable_ui):
+        disable_ui()
+        # noinspection PyTypeChecker
+        showMessageBox(
+            parent, MB_TYPE_WARN,
+            QApplication.translate('dialog', 'Too many errors, locked for 1 minute, please retry later.')
+        )
+        delay_enable_ui()
+        return False
+
+    return False
 
 
 def checkSocketSingleInstanceLock(port: int, parent: QWidget) -> SocketSingleInstanceLock:
