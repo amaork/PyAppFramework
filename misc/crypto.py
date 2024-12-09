@@ -198,13 +198,13 @@ class AESCrypto(object):
         AES_GCM: AES.MODE_GCM
     }
 
-    def __init__(self, key: bytes, mode: str = AES_CBC, iv: bytes = bytes(range(BLOCK_SIZE))):
+    def __init__(self, key: bytes, mode: str = AES_CBC, iv: bytes = bytes(range(BLOCK_SIZE)), pad_key: bool = True):
         if mode not in self.AES_MODE:
             raise ValueError('Invalid mode: {!r} mode must be: {}'.format(mode, list(self.AES_MODE.keys())))
 
         self.__iv = iv
         self.__mode = mode
-        self.__key = self.pad(key)
+        self.__key = self.pad(key) if pad_key else key
 
     def cipher(self):
         if self.__mode == self.AES_ECB:
