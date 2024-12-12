@@ -1012,6 +1012,25 @@ class SQLiteDatabaseCreator(object):
     def output_dir(self) -> str:
         return self._output_dir
 
+    @staticmethod
+    def generate_options_table(options: dict) -> str:
+        table = list()
+        table.append('## 设置选项')
+        header = (
+            '<div style="width:100px;">选项</div>',
+            '<div style="width:400px;">值</div>'
+        )
+
+        for name, items in options.items():
+            table.append(f'#### {name}')
+            table.append('|' + '|'.join(header) + '|')
+            table.append("----".join("|" * (len(header) + 1)))
+
+            for k, v in items.items():
+                table.append('|' + '|'.join([k, f'{v}']) + '|')
+
+        return "\n".join(table)
+
     def generate_protobuf_file(self, seq: typing.Sequence[str], filename: str = ''):
         filename = filename or os.path.basename(self._db_name).replace('db', 'proto')
         with open(os.path.join(self.output_dir, filename), 'w', encoding='utf-8') as writer:
