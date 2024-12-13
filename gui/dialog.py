@@ -1158,11 +1158,12 @@ class TextInputDialog(BasicDialog):
 
 
 class TextDisplayDialog(BasicDialog):
-    def __init__(self, content: str, title: str,
+    def __init__(self, content: str, title: str, zoom_in: int = 1,
                  advice_size: QSize = QSize(500, 300), parent: typing.Optional[QWidget] = None):
         self.adv_size = advice_size
         super(TextDisplayDialog, self).__init__(parent)
         self.ui_content.setHtml(content)
+        self.ui_content.zoomIn(zoom_in)
         self.setWindowTitle(title)
 
     def _initUi(self):
