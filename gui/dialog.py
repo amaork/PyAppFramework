@@ -1298,10 +1298,10 @@ def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
 def showPasswordAuthDialog(parent: QWidget, name: str,
                            auth: typing.Callable[[str], bool],
                            success_action: typing.Callable[[], Any] = None,
-                           retry_times: int = 3,
+                           retry_times: int = 3, space_size: int = 60,
                            auto_lock: bool = True,
                            disable_ui: typing.Callable[[], None] = None,
-                           delay_enable_ui: typing.Callable[[], None] = None):
+                           delay_enable_ui: typing.Callable[[], Any] = None):
     unlocked = False
     retry_count = retry_times
     while retry_count > 0:
@@ -1311,7 +1311,7 @@ def showPasswordAuthDialog(parent: QWidget, name: str,
                 parent,
                 QApplication.translate('dialog', 'Please Input') +
                 f' {name} ' + QApplication.translate('dialog', 'Password'),
-                QApplication.translate('dialog', 'Password') + ' ' * 40, QtWidgets.QLineEdit.Password
+                QApplication.translate('dialog', 'Password') + ' ' * space_size, QtWidgets.QLineEdit.Password,
             )
             if not ret:
                 return False
