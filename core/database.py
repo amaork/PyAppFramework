@@ -465,12 +465,14 @@ class SQLiteDatabase(object):
         except sqlite3.DatabaseError as error:
             raise SQLiteDatabaseError(error)
 
-    def updateRecord(self, name: str, record: Union[list, tuple, dict], condition: Optional[str] = None):
+    def updateRecord(self, name: str, record: Union[list, tuple, dict],
+                     condition: Optional[str] = None, commit: bool = True):
         """Update exist recode
 
         :param name: table name
         :param record: recode data could be list or dict (with column name and data)
         :param condition: update record condition after WHERE
+        :param commit: whether commit the change
         :return: error raise DatabaseError
         """
         try:
@@ -511,6 +513,8 @@ class SQLiteDatabase(object):
                 self._cursor.execute('UPDATE {} SET {};'.format(name, recode_data), blob_records)
             else:
                 self._cursor.execute('UPDATE {} SET {} WHERE {};'.format(name, recode_data, condition), blob_records)
+
+            self.commit(commit)
         except (ValueError, TypeError, IndexError, sqlite3.DatabaseError) as error:
             raise SQLiteDatabaseError("Update error:{}".format(error))
 
