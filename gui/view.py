@@ -401,12 +401,17 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
     dataChanged = QtCore.Signal(QtCore.QModelIndex, object, object)
     CheckBoxDefStyle = DynamicObject(fillColor=(0, 0, 0), sizeFactor=1.7)
 
-    def __init__(self, private: typing.Any = None, parent: typing.Optional[QtWidgets.QWidget] = None):
+    def __init__(self, private: typing.Any = None,
+                 parent: typing.Optional[QtWidgets.QWidget] = None,
+                 autoCommitAndCloseEditor: bool = True, autoCommitAndCloseEditorDelay: float = 3.0):
         super(TableViewDelegate, self).__init__(parent)
         self._private_data = private
         self._itemWidgetDict = dict()
         self._itemDelegateSettings = dict()
         self._columnDelegateSettings = dict()
+        self._tasklet = Tasklet(name=self.__class__.__name__)
+        self._autoCommitAndCloseEditor = autoCommitAndCloseEditor
+        self._autoCommitAndCloseEditorDelay = autoCommitAndCloseEditorDelay
 
     def getItemWidget(self, index: QtCore.QModelIndex) -> typing.Optional[QtWidgets.QWidget]:
         return self._itemWidgetDict.get(index)
@@ -461,9 +466,12 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
         else:
             widget = JsonSettingWidget.createInputWidget(settings, parent=parent)
             widget.setFocus()
-            ComponentManager.connectComponentSignalAndSlot(
-                widget, lambda data: self.commitAndCloseEditor(widget, data, index)
-            )
+            if self._autoCommitAndCloseEditor:
+                ComponentManager.connectComponentSignalAndSlot(
+                    widget, lambda data: self.delayCommitAndCloseEditor(
+                        self._autoCommitAndCloseEditorDelay, widget, data, index
+                    )
+                )
 
         self._itemWidgetDict[index] = widget
         return widget
@@ -487,6 +495,9 @@ class TableViewDelegate(QtWidgets.QItemDelegate):
     def updateEditorGeometry(self, editor: QtWidgets.QWidget,
                              option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex):
         editor.setGeometry(option.rect)
+
+    def delayCommitAndCloseEditor(self, delay: float, *args):
+        self._tasklet.add_task(Task(self.commitAndCloseEditor, args=args, timeout=delay))
 
     def commitAndCloseEditor(self, editor: QtWidgets.QWidget, data: typing.Any, index: QtCore.QModelIndex):
         self.commitData.emit(editor)
