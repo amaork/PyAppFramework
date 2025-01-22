@@ -13,7 +13,6 @@ from ..core.datatype import DynamicObject, str2number, str2float
 __all__ = ['MachineInfo', 'MachineCode', 'RegistrationCode']
 
 _RAW_MC_LEN = 64
-_RSA_MSG_LEN = 384
 
 """
 Logic:
@@ -81,6 +80,7 @@ class MachineInfo(object):
             sn = ''
             name = ''
             core_num = 1
+            # noinspection SpellCheckingInspection
             data = open('/proc/cpuinfo').read()
             for line in data.split('\n'):
                 if 'model name' in line:
@@ -219,9 +219,11 @@ class MachineCode(object):
             import pythoncom
 
             try:
+                # noinspection PyUnresolvedReferences
                 pythoncom.CoInitialize()
                 return self._generate_fingerprint()
             finally:
+                # noinspection PyUnresolvedReferences
                 pythoncom.CoUninitialize()
         else:
             return self._generate_fingerprint()
@@ -271,7 +273,7 @@ class MachineCode(object):
         :param code:  RegistrationCode generate registration code(machine fingerprint signature)
         :return: success write registration code to file and return true, failed return false
         """
-        if not isinstance(code, bytes) or len(code) != _RSA_MSG_LEN:
+        if not isinstance(code, bytes):
             return False
 
         if not self._public_key.verify(self.raw_fingerprint(), code):
@@ -300,9 +302,6 @@ class RegistrationCode(object):
 
     def get_raw_machine_code(self, machine_code: bytes) -> bytes:
         if not isinstance(machine_code, bytes):
-            return bytes()
-
-        if len(machine_code) != _RSA_MSG_LEN:
             return bytes()
 
         return self.__private_key.decrypt(machine_code)
