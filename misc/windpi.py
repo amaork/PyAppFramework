@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
+import typing
 import platform
 import subprocess
-from typing import NamedTuple, Tuple
 from .process import launch_program, subprocess_startup_info
 __all__ = ['get_win_dpi', 'get_program_scale_factor', 'scale_x', 'scale_y', 'scale_size', 'DPI', 'ScaleFactor',
-           'system_open_file', 'show_file_in_explorer', 'copy_str_to_clip']
+           'system_open_file', 'show_file_in_explorer', 'copy_str_to_clip',
+           'get_windows_app_handles', 'switch_windows_app_to_foreground', 'get_windows_app_handle_by_title']
 
-Size = Tuple[int, int]
-DPI = NamedTuple('DPI', [('x', int), ('y', int)])
-ScaleFactor = NamedTuple('ScaleFactor', [('x', float), ('y', float)])
+Size = typing.Tuple[int, int]
+DPI = typing.NamedTuple('DPI', [('x', int), ('y', int)])
+ScaleFactor = typing.NamedTuple('ScaleFactor', [('x', float), ('y', float)])
 
 
 def get_win_dpi() -> DPI:
@@ -91,6 +92,54 @@ def copy_str_to_clip(data: str):
 def show_file_in_explorer(filepath: str):
     filepath = filepath.replace('/', '\\').replace('\\\\', '\\')
     subprocess.Popen(rf'explorer /select,"{filepath}"')
+
+
+def get_windows_app_handles() -> typing.Dict[int, str]:
+    import win32gui
+
+    def impl(hwnd, *_args):
+        if win32gui.IsWindow(hwnd) and win32gui.IsWindowEnabled(hwnd) and win32gui.IsWindowVisible(hwnd):
+            if win32gui.GetWindowText(hwnd):
+                hmap.update({hwnd: win32gui.GetWindowText(hwnd)})
+
+    hmap = dict()
+    win32gui.EnumWindows(impl, 0)
+    return hmap
+
+
+def get_windows_app_handle_by_title(app_title: str) -> int:
+    hmap = get_windows_app_handles()
+    for handle, title in hmap.items():
+        if title != app_title:
+            continue
+
+        return handle
+
+    return -1
+
+
+def switch_windows_app_to_foreground(app_title: str) -> bool:
+    import win32gui
+    import win32con
+
+    hmap = get_windows_app_handles()
+    for handle, title in hmap.items():
+        if title != app_title:
+            continue
+
+        # win32gui.ShowWindow(handle, win32con.SW_RESTORE)
+
+        try:
+            win32gui.BringWindowToTop(handle)
+            win32gui.SetForegroundWindow(handle)
+            win32gui.ShowWindow(handle, win32con.SW_RESTORE)
+        except Exception as e:
+            print(f'switch_windows_app_to_foreground failed: {app_title},{e}')
+            return False
+
+        return True
+
+    return False
 
 
 if __name__ == '__main__':
