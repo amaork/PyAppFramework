@@ -22,7 +22,8 @@ class RunEnvironment(object):
     def __init__(self, name: str = '', version: float = 0.0,
                  log_dir: str = 'logging', conf_dir: str = 'config',
                  logfile_keep_days: int = 0, gogs_repo: str = '', gogs_update_server: str = '',
-                 server_user: str = '', server_pwd: str = '', aes_key: bytes = b'', aes_iv: bytes = b''):
+                 server_user: str = '', server_pwd: str = '', aes_key: bytes = b'', aes_iv: bytes = b'',
+                 user_private_data: typing.Optional[typing.Dict] = None):
         """Software running environment
 
         :param name: software name
@@ -36,11 +37,13 @@ class RunEnvironment(object):
         :param server_pwd: update server user password
         :param aes_key: aes key using encrypt/decrypt software update packet
         :param aes_iv: aes iv using  encrypt/decrypt software update packet
+        :param user_private_data: user private data
         """
         self.__name = name
         self.__version = version
         self.__log_dir = log_dir
         self.__conf_dir = conf_dir
+        self.__user_private_data = user_private_data if isinstance(user_private_data, dict) else dict()
 
         # Mailbox and sdk
         self.__sdk = None
@@ -134,6 +137,13 @@ class RunEnvironment(object):
 
     def get_mailbox(self) -> typing.Optional[MessageBoxMail]:
         return self.__mailbox
+
+    def set_user_private_data(self, data: typing.Dict):
+        if isinstance(data, dict):
+            self.__user_private_data = data
+
+    def get_user_private_data(self, key: typing.Any) -> typing.Any:
+        return self.__user_private_data.get(key)
 
     def __check_and_create_crypto(self, desc: str) -> AESCrypto:
         if not self.__aes_key or not self.__aes_iv:
