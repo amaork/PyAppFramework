@@ -225,7 +225,7 @@ class BasicWindow(QMainWindow):
         self.__timer_flush_icon = QtCore.QTimer(self)
         self.__timer_flush_icon.timeout.connect(self.slotFlushIcon)
 
-        self.ui_tray_exit = QtWidgets.QAction(self.tr('Exit') + f' {self.__tray_icon_settings.msg_title}')
+        self.ui_tray_exit = QtWidgets.QAction(self.tr('Exit'))
         self.ui_tray_exit.triggered.connect(self.slotTrayIconExit)
 
         self.ui_tray_menu = QtWidgets.QMenu(self)
