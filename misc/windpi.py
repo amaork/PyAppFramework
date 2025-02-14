@@ -4,12 +4,16 @@ import platform
 import subprocess
 from .process import launch_program, subprocess_startup_info
 __all__ = ['get_win_dpi', 'get_program_scale_factor', 'scale_x', 'scale_y', 'scale_size', 'DPI', 'ScaleFactor',
-           'system_open_file', 'show_file_in_explorer', 'copy_str_to_clip',
+           'system_open_file', 'show_file_in_explorer', 'copy_str_to_clip', 'is_windows',
            'get_windows_app_handles', 'switch_windows_app_to_foreground', 'get_windows_app_handle_by_title']
 
 Size = typing.Tuple[int, int]
 DPI = typing.NamedTuple('DPI', [('x', int), ('y', int)])
 ScaleFactor = typing.NamedTuple('ScaleFactor', [('x', float), ('y', float)])
+
+
+def is_windows() -> bool:
+    return platform.system().lower() == "windows"
 
 
 def get_win_dpi() -> DPI:
@@ -27,7 +31,7 @@ def get_win_dpi() -> DPI:
     para_x = 88  # magic number of Windows API for x-axis
     para_y = 90  # magic number of Windows API for y-axis
 
-    if platform.system().lower() == "windows" and int(platform.release()) <= 7:
+    if is_windows() and int(platform.release()) <= 7:
         try:
             # noinspection PyPackageRequirements
             import win32gui
@@ -95,6 +99,9 @@ def show_file_in_explorer(filepath: str):
 
 
 def get_windows_app_handles() -> typing.Dict[int, str]:
+    if not is_windows():
+        return dict()
+
     import win32gui
 
     def impl(hwnd, *_args):
@@ -119,6 +126,9 @@ def get_windows_app_handle_by_title(app_title: str) -> int:
 
 
 def switch_windows_app_to_foreground(app_title: str) -> bool:
+    if not is_windows():
+        return False
+
     import win32gui
     import win32con
 
