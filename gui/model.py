@@ -117,15 +117,14 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
     def getRowData(self, row: int, user: bool = False) -> typing.List:
         try:
-            role = Qt.UserRole if user else Qt.DisplayRole
-            return [self.data(self.index(row, column), role) for column in range(self.columnCount())]
+            return self._user[row] if user else self._table[row]
         except (IndexError, TypeError):
             return []
 
     def getColumnData(self, column: int, user: bool = False) -> typing.Sequence:
         try:
-            role = Qt.UserRole if user else Qt.DisplayRole
-            return [self.data(self.index(row, column), role) for row in range(self.rowCount())]
+            src = self._user if user else self._table
+            return [src[row][column] for row in range(self.rowCount())]
         except (IndexError, TypeError):
             return []
 
