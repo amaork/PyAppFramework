@@ -3151,7 +3151,6 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
         self.frozen_columns = list()
         self.layout = self.layout.get_vertical_layout(self.settings)
-
         self.__initUi()
         self.__initData(data)
         self.__initStyleSheet()
@@ -3193,6 +3192,11 @@ class MultiJsonSettingsWidget(BasicJsonSettingWidget):
 
         # Set table filters
         self.ui_table.setTableDataFilter(table_filters)
+
+        # Set widget minimum size
+        layout = self.settings.get('layout')
+        if all(layout.get_min_size()):
+            self.setMinimumSize(QSize(*layout.get_min_size()))
 
         layout = QVBoxLayout()
         layout.addWidget(self.ui_table)
@@ -3321,6 +3325,8 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
             row += 1
 
         self.setLayout(widget_layout)
+        if all(self.layout.get_min_size()):
+            self.setMinimumSize(QSize(*self.layout.get_min_size()))
 
     def __initData(self, data: dict):
         self.setData(data)
@@ -3402,6 +3408,8 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
         # Widget list for set/get data using
         self.widget_list = list()
+        if all(self.layout.get_min_size()):
+            self.setMinimumSize(QSize(*self.layout.get_min_size()))
         self.__initUi()
         self.__initData(data)
         self.__initSignalAndSlots()
