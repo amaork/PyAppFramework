@@ -2225,40 +2225,77 @@ class TreeWidget(QTreeWidget):
         for i in range(self.topLevelItemCount()):
             self.takeTopLevelItem(0)
 
-    def findItemByNameAndData(self, name: str, column: int, private_data: Any) -> Optional[QTreeWidgetItem]:
+    def createTreeFromDict(self, tree: collections.OrderedDict):
+        for root, config in tree.items():
+            # All leaves without branch
+            private_data, children = config
+            if all(isinstance(x, str) for x in children):
+                self.addSubTree(root, [[x] for x in children], private_data)
+            else:
+                self.addSubTree(root, private_data)
+                for child in children:
+                    # Leaf
+                    if isinstance(child, str):
+                        self.insSubTree(root, [[child]], private_data)
+                    # Branch with leaves
+                    elif isinstance(child, typing.Sequence) and len(child) == 2:
+                        sub_root, sub_children = child
+                        self.insSubTree(root, [[sub_root]], private_data)
+                        self.insSubTree(sub_root, [[x] for x in sub_children], private_data)
+
+    def findItemByNameAndData(self, name: str, column: int, private_data: Any = None) -> Optional[QTreeWidgetItem]:
         if not isinstance(name, str) or not isinstance(column, int) or not (0 <= column < self.columnCount()):
             return None
 
         for item in self.findItems(name, Qt.MatchExactly | Qt.MatchRecursive, column):
+            if not private_data:
+                return item
+
             if item.data(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole) == private_data:
                 return item
 
         return None
 
-    def addSubTree(self, name: str,
+    def insSubTree(self, parent: str,
                    children: Sequence[Union[Sequence[str], str]],
-                   private_data: Any, auto_expand: bool = True) -> bool:
-        if not isinstance(name, str):
-            return False
+                   private_data: Any = None, auto_expand: bool = True):
+        root = self.findItemByNameAndData(parent, 0)
+        if not isinstance(root, QTreeWidgetItem):
+            return
 
-        if not isinstance(children, (list, tuple)):
-            return False
+        self.addSubTreeToRoot(root, children, private_data, auto_expand)
+
+    def addSubTree(self, name: str,
+                   children: Sequence[Union[Sequence[str], str]] = None,
+                   private_data: Any = None, auto_expand: bool = True):
+        children = children or list()
+        if not isinstance(name, str):
+            return
 
         # Create root item
         root = QTreeWidgetItem(self, [name])
         root.setData(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole, private_data)
 
         # Append children to root
+        self.addSubTreeToRoot(root, children, private_data, auto_expand)
+
+    def addSubTreeToRoot(self, root: QTreeWidgetItem,
+                         children: Sequence[Union[Sequence[str], str]],
+                         private_data: Any = None, auto_expand: bool = True):
+        if not isinstance(children, (list, tuple)):
+            return
+
+        # Append children to root
         for child in children:
             item = QTreeWidgetItem(root, child)
-            item.setData(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole, private_data)
+            if private_data:
+                item.setData(self.PRIVATE_DATA_DEFAULT_COLUMN, Qt.UserRole, private_data)
             root.addChild(item)
 
         if auto_expand:
             self.expandAll()
 
         self.setCurrentItem(root.child(root.childCount() - 1))
-        return True
 
     def setAutoHeight(self, enable: bool):
         self.__autoHeight = enable
