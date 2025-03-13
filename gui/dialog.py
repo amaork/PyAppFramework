@@ -4,7 +4,6 @@ import sys
 import time
 import typing
 import hashlib
-import ipaddress
 import collections
 from typing import Optional, Union, Sequence, Callable, Any
 from PySide2.QtWidgets import QApplication, QWidget, QDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QLabel, QSlider, \
@@ -17,12 +16,11 @@ from PySide2.QtGui import QColor, QCloseEvent, QShowEvent, QFont
 
 from .msgbox import *
 from .button import RectButton
-from .misc import CustomSpinBox, ServicePortSelector
+from .misc import CustomSpinBox, ServicePortSelector, ServiceDiscoverySelector
 
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
 from .canvas import ScalableCanvasWidget, canvas_init_helper
-from ..network.discovery import ServiceDiscovery, DiscoveryEvent
 
 from ..misc.settings import UiLayout, Color, IndexColor
 from ..misc.windpi import get_program_scale_factor, system_open_file
@@ -382,29 +380,24 @@ class SerialPortSettingDialog(QDialog):
 
 
 class ServiceDiscoveryDialog(BasicDialog):
-    signalEvent = Signal(object)
-
     def __init__(self, service: str, port: int,
                  network: str = get_default_network(),
                  title: str = '', timeout: float = 0.0, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.signalEvent.connect(self.eventHandle)
-        self._discovery = ServiceDiscovery(
-            service=service, port=port, network=network,
-            event_callback=self.signalEvent.emit, auto_stop=False, discovery_timeout=timeout
+        self.ui_address = ServiceDiscoverySelector(
+            service=service, port=port, network=network, timeout=timeout, parent=self
         )
+        self.ui_layout.addWidget(self.ui_address)
         self.setWindowTitle(title or self.tr('Please select'))
 
     def _initUi(self):
-        self.ui_address = QComboBox()
         label = QLabel(self.tr('Address'))
         label.setMaximumWidth(40)
-        content = QHBoxLayout()
-        content.addWidget(label)
-        content.addWidget(self.ui_address)
+        self.ui_layout = QHBoxLayout()
+        self.ui_layout.addWidget(label)
 
         layout = QVBoxLayout()
-        layout.addLayout(content)
+        layout.addLayout(self.ui_layout)
         layout.addWidget(QLabel(' ' * 35))
         layout.addWidget(QSplitter())
         layout.addWidget(self.ui_buttons)
@@ -413,38 +406,14 @@ class ServiceDiscoveryDialog(BasicDialog):
     def sizeHint(self) -> QSize:
         return QSize(210, 80)
 
-    def getDeviceList(self):
-        return [self.ui_address.itemText(x) for x in range(self.ui_address.count())]
-
     def pauseDiscovery(self):
-        self._discovery.pause()
+        self.ui_address.pauseDiscovery()
 
     def resumeDiscovery(self):
-        self.ui_address.clear()
-        self._discovery.resume()
+        self.ui_address.resumeDiscovery()
 
     def setNetwork(self, network: str):
-        try:
-            network = str(ipaddress.IPv4Network(network))
-            ifc = get_network_ifc(network)
-            if not ifc:
-                raise ValueError(f'invalid network: {network}')
-        except ValueError as e:
-            showMessageBox(self, MB_TYPE_WARN, f'{e}', self.tr('Invalid network'))
-        else:
-            self.ui_address.setEditable(False)
-            self._discovery.setNetwork(network)
-
-    def eventHandle(self, ev: DiscoveryEvent):
-        # Has error occupied, enabled address can be manual input
-        if ev.isEvent(DiscoveryEvent.Type.Error):
-            self.ui_address.setEditable(True)
-        if ev.isEvent(DiscoveryEvent.Type.Online):
-            if ev.data not in self.getDeviceList():
-                self.ui_address.addItem(ev.data)
-        elif ev.isEvent(DiscoveryEvent.Type.Offline):
-            if ev.data in self.getDeviceList():
-                self.ui_address.removeItem(self.getDeviceList().index(ev.data))
+        self.ui_address.setNetwork(network)
 
     def getAddress(self) -> str:
         self.exec_()

@@ -18,12 +18,13 @@ from ..network.utility import scan_lan_port
 from raspi_io import Query, RaspiSocketError
 from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
 
-from ..network.utility import get_system_nic
+from .msgbox import *
 from ..misc.settings import Color, CustomAction
-__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelector', 'DateTimeEdit',
-           'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
-           'NavigationItem', 'NavigationBar',
-           'CustomEventFilterHandler',
+from ..network.discovery import ServiceDiscovery, DiscoveryEvent
+from ..network.utility import get_system_nic, get_default_network, get_network_ifc
+__all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelector', 'ServiceDiscoverySelector',
+           'DateTimeEdit', 'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
+           'NavigationItem', 'NavigationBar', 'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel', 'Separator',
            'updateFilterMenu', 'qtTranslate', 'qtTranslateAuto']
 
@@ -189,6 +190,53 @@ class ServicePortSelector(QtWidgets.QComboBox):
             self.flushAddress()
 
         super().mousePressEvent(ev)
+
+
+class ServiceDiscoverySelector(QtWidgets.QComboBox):
+    signalEvent = Signal(object)
+
+    def __init__(self, service: str, port: int,
+                 network: str = get_default_network(),
+                 timeout: float = 0.0, parent: Optional[QtWidgets.QWidget] = None):
+        super().__init__(parent)
+        self.signalEvent.connect(self.eventHandle)
+        self._discovery = ServiceDiscovery(
+            service=service, port=port, network=network,
+            event_callback=self.signalEvent.emit, auto_stop=False, discovery_timeout=timeout
+        )
+
+    def getDeviceList(self):
+        return [self.itemText(x) for x in range(self.count())]
+
+    def pauseDiscovery(self):
+        self._discovery.pause()
+
+    def resumeDiscovery(self):
+        self.clear()
+        self._discovery.resume()
+
+    def setNetwork(self, network: str):
+        try:
+            network = str(ipaddress.IPv4Network(network))
+            ifc = get_network_ifc(network)
+            if not ifc:
+                raise ValueError(f'invalid network: {network}')
+        except ValueError as e:
+            showMessageBox(self, MB_TYPE_WARN, f'{e}', self.tr('Invalid network'))
+        else:
+            self.setEditable(False)
+            self._discovery.setNetwork(network)
+
+    def eventHandle(self, ev: DiscoveryEvent):
+        # Has error occupied, enabled address can be manual input
+        if ev.isEvent(DiscoveryEvent.Type.Error):
+            self.setEditable(True)
+        if ev.isEvent(DiscoveryEvent.Type.Online):
+            if ev.data not in self.getDeviceList():
+                self.addItem(ev.data)
+        elif ev.isEvent(DiscoveryEvent.Type.Offline):
+            if ev.data in self.getDeviceList():
+                self.removeItem(self.getDeviceList().index(ev.data))
 
 
 class NetworkInterfaceSelector(QtWidgets.QComboBox):
