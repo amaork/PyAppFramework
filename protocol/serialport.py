@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import abc
 import time
 import glob
 import ctypes
@@ -484,15 +485,19 @@ class SerialPortProtocolSimulate(object):
         self.__handle = error_handle
         self.__send, self.__recv = send, recv
 
+    @abc.abstractmethod
     def _get_request_size(self) -> int:
         pass
 
+    @abc.abstractmethod
     def _check_request(self, req: Any) -> Tuple[bool, str]:
-        return False, "Unknown request"
+        pass
 
+    @abc.abstractmethod
     def _get_req_handle(self, req: Any) -> SimulatorRequestHandle:
         pass
 
+    @abc.abstractmethod
     def _error_request(self, req: Any) -> bytes:
         pass
 
@@ -527,7 +532,8 @@ class SerialPortProtocolSimulate(object):
                     ack = self._error_request(req)
 
                 # Ack peer
-                self.__send(ack)
+                if ack:
+                    self.__send(ack)
 
             except serial.SerialException as error:
                 self.__error_handle("SerialPort error:{}".format(error))
