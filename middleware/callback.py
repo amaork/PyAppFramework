@@ -2,6 +2,7 @@
 import os
 import typing
 import subprocess
+import collections
 from threading import Thread
 from PySide2.QtWidgets import QWidget
 from PySide2.QtCore import Qt, Signal, QObject
@@ -13,6 +14,7 @@ from ..gui.dialog import TextDisplayDialog, showFileImportDialog, showFileExport
 
 from ..protocol.upgrade import *
 from ..misc.env import RunEnvironment
+from ..core.datatype import CustomEvent
 from ..misc.windpi import system_open_file
 from ..misc.settings import BinarySettings
 from ..core.threading import ThreadConditionWrap
@@ -20,7 +22,9 @@ from ..misc.process import subprocess_startup_info
 __all__ = ['QtGuiCallback',
            'FileImportCallback', 'FileExportCallback',
            'BinarySettingsImportCallback', 'BinarySettingsExportCallback',
-           'SoftwareUpdateCallback', 'SoftwareUpdateCheckCallback', 'DownloadGogsReleaseWithoutConfirmCallback']
+           'SoftwareUpdateCallback', 'SoftwareUpdateCheckCallback',
+           'EmbeddedSoftwareUpdateCallback', 'EmbeddedSoftwareUpdateEvent',
+           'DownloadGogsReleaseWithoutConfirmCallback']
 
 
 class QtGuiCallback(QObject):
@@ -31,16 +35,14 @@ class QtGuiCallback(QObject):
     # Text, min, max, title, cancelable
     signalInitProgressBar = Signal(str, int, int, str, bool)
 
-    def __init__(self, parent: QWidget, mail: UiMailBox, env: RunEnvironment):
+    def __init__(self, parent: QWidget, mail: UiMailBox):
         assert isinstance(parent, QWidget), "Parent type error"
         assert isinstance(mail, UiMailBox), "Mail type error"
-        assert isinstance(env, RunEnvironment), "Env type error"
         super(QtGuiCallback, self).__init__()
         self._private_data = None
         self._progress = mail.progressDialog
         self._parent = parent
         self.mail = mail
-        self.env = env
 
         self.signalProgressHidden.connect(self._progress.slotHidden)
         self.signalInitProgressBar.connect(self.slotInitProgressBar)
@@ -128,8 +130,8 @@ class FileExportCallback(QtGuiCallback):
 
 
 class BinarySettingsImportCallback(FileImportCallback):
-    def __init__(self, parent: QWidget, mail: UiMailBox, env: RunEnvironment, file_cls: BinarySettings.__class__):
-        super().__init__(parent, mail, env)
+    def __init__(self, parent: QWidget, mail: UiMailBox, file_cls: BinarySettings.__class__):
+        super().__init__(parent, mail)
         self.__file_cls = file_cls
         self.__import_data = bytes()
 
@@ -157,10 +159,9 @@ class BinarySettingsImportCallback(FileImportCallback):
 
 
 class BinarySettingsExportCallback(FileExportCallback):
-    def __init__(self,
-                 parent: QWidget, mail: UiMailBox, env: RunEnvironment,
+    def __init__(self, parent: QWidget, mail: UiMailBox,
                  file_cls: BinarySettings.__class__, export_data: bytes = bytes()):
-        super().__init__(parent, mail, env)
+        super().__init__(parent, mail)
         self.__file_cls = file_cls
         self.__export_data = export_data
 
@@ -184,6 +185,10 @@ class BinarySettingsExportCallback(FileExportCallback):
 
 
 class SoftwareUpdateCallback(QtGuiCallback):
+    def __init__(self, parent: QWidget, mail: UiMailBox, env: RunEnvironment):
+        super(SoftwareUpdateCallback, self).__init__(parent, mail)
+        self.env = env
+
     def start(self):
         self.sendMail(StatusBarMail(Qt.blue, self.tr("Downloading software upgrade")))
 
@@ -237,7 +242,8 @@ class SoftwareUpdateCallback(QtGuiCallback):
 
 class SoftwareUpdateCheckCallback(QtGuiCallback):
     def __init__(self, parent: QWidget, mail: UiMailBox, env: RunEnvironment, title: str = ""):
-        super(SoftwareUpdateCheckCallback, self).__init__(parent, mail, env)
+        super(SoftwareUpdateCheckCallback, self).__init__(parent, mail)
+        self.env = env
         self.__title = title
         self.__version = env.software_version
 
@@ -276,10 +282,70 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
         ).start()
 
 
+class EmbeddedSoftwareUpdateEvent(CustomEvent):
+    Type = collections.namedtuple('Type', 'UpdateProgress WaitAppReboot RebootDone RebootFail UpdateFail')(*range(5))
+
+    @classmethod
+    def update(cls, value: int):
+        return cls(type=cls.Type.UpdateProgress, data=value)
+
+    @classmethod
+    def reboot_done(cls):
+        return cls(type=cls.Type.RebootDone)
+
+    @classmethod
+    def reboot_fail(cls):
+        return cls(type=cls.Type.RebootFail)
+
+    @classmethod
+    def update_fail(cls,  result: str):
+        return cls(type=cls.Type.UpdateFail, data=result)
+
+    @classmethod
+    def wait_app_reboot(cls, timeout: int):
+        return cls(type=cls.Type.WaitAppReboot, data=timeout)
+
+
+class EmbeddedSoftwareUpdateCallback(QtGuiCallback):
+    def __init__(self, parent: QWidget, mail: UiMailBox, success_msg: str = ''):
+        super(EmbeddedSoftwareUpdateCallback, self).__init__(parent, mail)
+        if success_msg:
+            self.success_msg = success_msg
+        else:
+            self.success_msg = self.tr('Software update success, application already reboot')
+
+    def start(self):
+        self.initProgressBar(self.tr('Software updating, please wait......'), 0, 100, self.tr("Software update"), True)
+
+    def final(self, *_args, **_kwargs):
+        super(EmbeddedSoftwareUpdateCallback, self).final(*_args, **_kwargs)
+        self.mail.send(ProgressBarMail(0))
+
+    def update(self, ev: EmbeddedSoftwareUpdateEvent) -> bool:
+        if ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.UpdateProgress):
+            self.signalProgressPercentage.emit(ev.data)
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.WaitAppReboot):
+            self.signalProgressPercentage.emit(0)
+            self.mail.send(ProgressBarMail.create(ev.data, content=self.tr('Wait application reboot, please wait...')))
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.RebootDone):
+            self.mail.send(ProgressBarMail(0))
+            self.showMessage(MB_TYPE_INFO, self.success_msg)
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.RebootFail):
+            self.mail.send(ProgressBarMail(0))
+            self.showMessage(MB_TYPE_WARN, self.tr('Software update success, application reboot failed'))
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.UpdateFail):
+            self.mail.send(ProgressBarMail(0))
+            self.showMessage(MB_TYPE_ERR, self.tr('Software update failed') + f': {ev.data}')
+
+        return True
+
+    def success(self):
+        return self.showMessage(MB_TYPE_INFO, self.tr('Software update success'))
+
+
 class DownloadGogsReleaseWithoutConfirmCallback(QtGuiCallback):
-    def __init__(self, parent: QWidget, mail: UiMailBox,
-                 env: RunEnvironment, name: str, callback: typing.Callable[[str], None]):
-        super(DownloadGogsReleaseWithoutConfirmCallback, self).__init__(parent, mail, env)
+    def __init__(self, parent: QWidget, mail: UiMailBox, name: str, callback: typing.Callable[[str], None]):
+        super(DownloadGogsReleaseWithoutConfirmCallback, self).__init__(parent, mail)
         self.__name = name
         self.__callback = callback
 

@@ -3,15 +3,18 @@ import abc
 import ping3
 import typing
 import tempfile
+import threading
+import collections
 import urllib.parse
-
 from ..protocol.upgrade import *
-from .callback import QtGuiCallback
 from ..misc.env import RunEnvironment
 from ..core.threading import ThreadConditionWrap
 from ..gui.mailbox import UiMailBox, CallbackFuncMail
 from ..network.gogs_request import GogsRequestException
-__all__ = ['Routine', 'FileImportExportRoutine',
+from .callback import QtGuiCallback, EmbeddedSoftwareUpdateEvent
+from ..protocol.serialport import SerialTransferProtocol, SerialTransferError
+from ..protocol.transmit import TransmitException, TCPSocketTransmit, TCPServerTransmitHandle
+__all__ = ['Routine', 'FileImportExportRoutine', 'EmbeddedSoftwareUpdateRoutine',
            'SoftwareUpdateRoutine', 'SoftwareUpdateCheckRoutine', 'DownloadGogsReleaseWithoutConfirmRoutine']
 
 
@@ -179,6 +182,60 @@ class SoftwareUpdateCheckRoutine(Routine):
                 self._success(client, releases, start_update_callback)
         except (GogsUpgradeClientDownloadError, GogsRequestException) as e:
             self._error("{}".format(e))
+
+
+class EmbeddedSoftwareUpdateRoutine(Routine):
+    UpdateResult = collections.namedtuple('UpdateResult', 'done fail reboot_fail')(*('done', 'fail', 'reboot fail'))
+
+    def wait_update_finish(self, magic: bytes, report_port: int, cond: ThreadConditionWrap, timeout: float = 30.0):
+        def handle(transmit: TCPSocketTransmit, server_: TCPServerTransmitHandle):
+            result = transmit.rx(0)
+
+            if result == magic:
+                transmit.tx(self.UpdateResult.done.encode())
+                cond.finished(self.UpdateResult.done)
+            else:
+                transmit.tx(self.UpdateResult.fail.encode())
+                cond.finished(result.decode())
+
+            server_.stop()
+
+        server = TCPServerTransmitHandle(handle, TCPSocketTransmit.DefaultLengthFormat, timeout=timeout)
+        server.start(('', report_port), kwargs=dict(server_=server))
+        server.wait_stop(timeout)
+        server.stop()
+        print('wait_update_finish server stopped')
+
+    def _routine(self, magic: bytes,
+                 header: bytes, data: bytes,
+                 tx: typing.Callable[[bytes], int],
+                 rx: typing.Callable[[int], bytes],
+                 close: typing.Callable, report_port: int = 2441, wait_reboot: bool = False):
+        self._start()
+
+        try:
+            transfer = SerialTransferProtocol(tx, rx)
+            transfer.send(header, data, callback=lambda x: self.update(EmbeddedSoftwareUpdateEvent.update(x)))
+        except (SerialTransferError, TransmitException) as e:
+            self._error(f'{e}')
+        else:
+            if not wait_reboot:
+                return self._success()
+
+            self.update(EmbeddedSoftwareUpdateEvent.wait_app_reboot(30))
+            cond = ThreadConditionWrap()
+            threading.Thread(target=self.wait_update_finish, args=(magic, report_port, cond), daemon=True).start()
+
+            result = cond.wait(timeout=30)
+            if result == self.UpdateResult.done:
+                return self.update(EmbeddedSoftwareUpdateEvent.reboot_done())
+
+            if result is None or result == self.UpdateResult.reboot_fail:
+                self.update(EmbeddedSoftwareUpdateEvent.reboot_fail())
+            else:
+                self.update(EmbeddedSoftwareUpdateEvent.update_fail(result))
+        finally:
+            close()
 
 
 class DownloadGogsReleaseWithoutConfirmRoutine(Routine):
