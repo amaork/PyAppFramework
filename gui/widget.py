@@ -3532,7 +3532,7 @@ class LogMessageWidget(QTextEdit):
         self._logger = LoggerWrap(filename, log_format, level, logging.ERROR, propagate)
         self.setReadOnly(True)
         self._startTime = datetime.now()
-        self._displayFilter = self.DISPLAY_ALL
+        self._displayFilter = display_filter
         self.textChanged.connect(self.slotAutoScroll)
 
         # Context menu
