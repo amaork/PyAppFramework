@@ -286,7 +286,7 @@ class EmbeddedSoftwareUpdateEvent(CustomEvent):
     Type = collections.namedtuple('Type', 'UpdateProgress WaitAppReboot RebootDone RebootFail UpdateFail')(*range(5))
 
     @classmethod
-    def update(cls, value: int):
+    def process(cls, value: int):
         return cls(type=cls.Type.UpdateProgress, data=value)
 
     @classmethod

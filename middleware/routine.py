@@ -215,7 +215,7 @@ class EmbeddedSoftwareUpdateRoutine(Routine):
 
         try:
             transfer = SerialTransferProtocol(tx, rx)
-            transfer.send(header, data, callback=lambda x: self.update(EmbeddedSoftwareUpdateEvent.update(x)))
+            transfer.send(header, data, callback=lambda x: self.update(EmbeddedSoftwareUpdateEvent.process(x)))
         except (SerialTransferError, TransmitException) as e:
             self._error(f'{e}')
         else:
