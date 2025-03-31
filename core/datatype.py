@@ -286,7 +286,7 @@ class DynamicObject(object):
         """
         return json.dumps(self.__dict__, cls=self._json_encoder)
 
-    def update(self, data):
+    def update(self, data, ignore_type_check: bool = False):
         if not isinstance(data, (dict, DynamicObject)):
             raise DynamicObjectEncodeError('DynamicObject update require {!r} or {!r} not {!r}'.format(
                 dict.__name__, DynamicObject.__name__, data.__class__.__name__))
@@ -296,12 +296,14 @@ class DynamicObject(object):
             if k not in self._properties:
                 raise DynamicObjectEncodeError("Unknown key: {}".format(k))
 
-            if not isinstance(v, type(self.__dict__[k])) and not self.__is_compatible_type(k, v):
-                raise DynamicObjectEncodeError("New value {!r} type is not matched: new({!r}) old({!r})".format(
-                    k, v.__class__.__name__, self.__dict__[k].__class__.__name__))
+            if not ignore_type_check:
+                if not isinstance(v, type(self.__dict__[k])) and not self.__is_compatible_type(k, v):
+                    raise DynamicObjectEncodeError("New value {!r} type is not matched: new({!r}) old({!r})".format(
+                        k, v.__class__.__name__, self.__dict__[k].__class__.__name__)
+                    )
 
-            if k in self._check and hasattr(self._check.get(k), "__call__") and not self._check.get(k)(v):
-                raise DynamicObjectEncodeError("Key {!r} new value {!r} check failed".format(k, v))
+                if k in self._check and hasattr(self._check.get(k), "__call__") and not self._check.get(k)(v):
+                    raise DynamicObjectEncodeError("Key {!r} new value {!r} check failed".format(k, v))
 
             self.__dict__[k] = v
 

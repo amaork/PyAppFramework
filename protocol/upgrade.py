@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import struct
 import socket
 import typing
 import pathlib
@@ -20,8 +21,11 @@ from ..network.gogs_request import *
 
 NEW_VERSION_DURL_CMD = "GET_NEWEST_DURL"
 NEW_VERSION_CHECK_CMD = "GET_NEWEST_VERSION"
-__all__ = ['UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler', 'GogsUpgradeClient',
-           'GogsSoftwareReleaseDesc', 'GogsUpgradeClientDownloadError']
+__all__ = [
+    'UpgradeClient', 'UpgradeServer', 'UpgradeServerHandler', 'GogsUpgradeClient',
+    'GogsSoftwareReleaseDesc', 'GogsUpgradeClientDownloadError',
+    'EmbeddedSoftwareUpdatePktFormatError', 'EmbeddedSoftwareUpdatePktDesc'
+]
 
 
 class UpgradeClient(object):
@@ -477,3 +481,86 @@ class GogsUpgradeClient(object):
             return False
 
         return hashlib.md5(open(download_path, "rb").read()).hexdigest() == release.md5
+
+
+class EmbeddedSoftwareUpdatePktFormatError(Exception):
+    pass
+
+
+class EmbeddedSoftwareUpdatePktDesc(DynamicObject):
+    PktFmt = 'bz2'
+    AppFmt = 'app'
+    Version = 0x0001
+    AnyMagic = b'**'
+
+    PktDescSize = 128
+    ExeFileMaxLen = 32
+    InstallPathMaxLen = 44
+    DescFormat = f'<2sHIIIf32s32s44s'
+    _properties = {'app', 'size', 'version', 'date', 'md5', 'exe_file'}
+
+    def to_bytes(self, magic: bytes, install_path: str) -> bytes:
+        exe_file = os.path.basename(self.exe_file).encode()[:self.ExeFileMaxLen]
+        exe_file += bytes(self.ExeFileMaxLen - len(exe_file))
+
+        install_path = install_path.encode()[:self.InstallPathMaxLen]
+        install_path += bytes(self.InstallPathMaxLen - len(install_path))
+
+        return struct.pack(
+            self.DescFormat, magic, self.Version,
+            self.size, self.date, self.app, self.version, self.md5, exe_file, install_path
+        )
+
+    def update_and_save(self, filename: str, magic: bytes, install_path: str):
+        """Append desc to lz4 header"""
+        try:
+            with open(filename, 'rb') as fp:
+                data = fp.read()
+
+            with open(filename, 'wb') as fp:
+                fp.write(self.to_bytes(magic, install_path))
+                fp.write(data)
+        except OSError as e:
+            print(f'Dump {self.__class__.__name__} to {filename} error: {e}')
+
+    @classmethod
+    def empty(cls):
+        return EmbeddedSoftwareUpdatePktDesc(**{k: '' for k in cls.properties()})
+
+    @classmethod
+    def from_bytes(cls, data: bytes, magic: bytes):
+        try:
+            *magic_, ver, size, date, app_idx, app_ver, md5, exe_file, install_path = struct.unpack(
+                cls.DescFormat, data[:struct.calcsize(cls.DescFormat)]
+            )
+        except struct.error as e:
+            raise EmbeddedSoftwareUpdatePktFormatError(f'解析错误：{e}')
+
+        if b''.join(magic_) != magic and b''.join(magic_) != cls.AnyMagic:
+            raise EmbeddedSoftwareUpdatePktFormatError('无法识别的文件格式')
+
+        return EmbeddedSoftwareUpdatePktDesc(
+            version=f'{app_ver:.02f}', date=date, app=app_idx, size=size,
+            md5=md5.decode(), exe_file=exe_file.split(b'\x00')[0].decode()
+        )
+
+    @classmethod
+    def from_file(cls, filename: str, magic: bytes):
+        with open(filename, 'rb') as fp:
+            data = fp.read()
+
+        desc = cls.from_bytes(data[:cls.PktDescSize], magic)
+        if len(data[cls.PktDescSize:]) != desc.size:
+            raise EmbeddedSoftwareUpdatePktFormatError('解析失败：长度不匹配')
+
+        if hashlib.md5(data[cls.PktDescSize:]).hexdigest() != desc.md5:
+            raise EmbeddedSoftwareUpdatePktFormatError('文件损坏：MD5 不匹配')
+
+        return desc
+
+    @classmethod
+    def get_header_and_payload(cls, upgrade_file: str):
+        with open(upgrade_file, 'rb') as fp:
+            data = fp.read()
+
+        return data[:cls.PktDescSize], data[cls.PktDescSize:]
