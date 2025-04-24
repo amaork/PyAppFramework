@@ -224,6 +224,10 @@ class CommunicationController:
     def timeout(self) -> float:
         return self._transmit.timeout
 
+    @timeout.setter
+    def timeout(self, timeout: float):
+        self._transmit.set_timeout(timeout)
+
     def is_timeout(self) -> bool:
         return self._timeout.is_set()
 

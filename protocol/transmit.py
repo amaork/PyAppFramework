@@ -77,6 +77,10 @@ class Transmit(object):
         pass
 
     @abc.abstractmethod
+    def set_timeout(self, timeout: float):
+        pass
+
+    @abc.abstractmethod
     def connect(self, address: Address, timeout: float) -> bool:
         pass
 
@@ -169,6 +173,10 @@ class UARTTransmit(Transmit):
             self._connected.clear()
         except (serial.SerialException, AttributeError, OSError):
             pass
+
+    def set_timeout(self, timeout: float):
+        self.__serial.raw_port.timeout = timeout
+        self._timeout = timeout
 
     def connect(self, address: Transmit.Address, timeout: float) -> bool:
         """
@@ -279,6 +287,10 @@ class TCPSocketTransmit(Transmit):
         self._socket.close()
         self._connected.clear()
 
+    def set_timeout(self, timeout: float):
+        self._socket.settimeout(timeout)
+        self._timeout = timeout
+
     def connect(self, address: Transmit.Address, timeout: float) -> bool:
         self._socket.settimeout(timeout)
         self._update(address, timeout, True)
@@ -311,6 +323,13 @@ class TCPClientTransmit(Transmit):
     @property
     def server(self) -> Transmit.Address:
         return self._server_address
+
+    @property
+    def timeout(self) -> float:
+        return self._socket.timeout
+
+    def set_timeout(self, timeout: float):
+        self._socket.set_timeout(timeout)
 
     def connect(self, address: Transmit.Address, timeout: float = DEFAULT_TIMEOUT) -> bool:
         """
@@ -361,6 +380,13 @@ class TCPServerTransmit(Transmit):
             # Waiting client disconnect
             while self._connected.is_set():
                 time.sleep(0.1)
+
+    @property
+    def timeout(self) -> float:
+        return self._socket.timeout
+
+    def set_timeout(self, timeout: float):
+        self._socket.set_timeout(timeout)
 
     def connect(self, address: Transmit.Address, backlog: int = 1) -> bool:
         try:
