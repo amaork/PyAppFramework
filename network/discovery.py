@@ -45,7 +45,7 @@ class DiscoveryEvent(CustomEvent):
 class ServiceDiscovery:
     def __init__(self, service: str, port: int,
                  event_callback: typing.Callable[[DiscoveryEvent], None], network: str = get_default_network(),
-                 send_interval: float = 1.0, auto_stop: bool = False, discovery_timeout: float = 0.0):
+                 send_interval: float = 2.0, auto_stop: bool = False, discovery_timeout: float = 0.0):
         self._exit = False
         self._auto_stop = auto_stop
         self._send_interval = send_interval
@@ -110,7 +110,11 @@ class ServiceDiscovery:
 
     def taskSendDiscovery(self, sock: socket.socket, msg: bytes):
         if self._send_discovery and not self._stop_sniff:
-            sock.sendto(msg, (DEF_GROUP, DEF_PORT))
+            try:
+                sock.sendto(msg, (DEF_GROUP, DEF_PORT))
+            except OSError:
+                pass
+
             sock.sendto(msg, (self._broadcast, DEF_PORT))
 
     def taskReceiveResponse(self):
@@ -123,7 +127,8 @@ class ServiceDiscovery:
 
             try:
                 sock.bind((self._address, DEF_PORT))
-            except OSError:
+            except OSError as e:
+                print(f'{self._address}:{DEF_PORT},{e}')
                 sock.bind((self._address, 0))
 
             while not self._exit and not self._stop_sniff:
