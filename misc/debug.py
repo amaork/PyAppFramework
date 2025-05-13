@@ -53,8 +53,9 @@ class statistics_time:
         return time.perf_counter() - self.start
 
 
-def get_debug_timestamp() -> str:
-    return datetime.datetime.now().strftime('%H:%M:%S.%f')
+def get_debug_timestamp(ts: float = None, fmt: str = '%H:%M:%S.%f') -> str:
+    ts = ts or time.time()
+    return datetime.datetime.fromtimestamp(ts).strftime(fmt)
 
 
 def get_stack_info() -> DynamicObject:

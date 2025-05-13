@@ -24,11 +24,15 @@ BasicJsonSettingWidget
 MultiTabJsonSettingsWidget
 """
 import re
+import time
 import json
 import html
+import struct
 import typing
 import logging
 import os.path
+import ipaddress
+import threading
 import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 from serial import Serial
@@ -46,12 +50,12 @@ from typing import Optional, Union, List, Any, Sequence, Tuple, Iterable, Dict, 
 from .container import ComponentManager
 from ..dashboard.input import VirtualNumberInput
 
-from ..misc.debug import LoggerWrap
 from ..gui.msgbox import showQuestionBox
 from ..misc.windpi import get_program_scale_factor
-
+from ..misc.debug import LoggerWrap, get_debug_timestamp
 from .misc import SerialPortSelector, NetworkInterfaceSelector
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
+from ..protocol.transmit import TCPSocketTransmit, TCPClientTransmit, TransmitException, TransmitWarning
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
     UiDoubleInput, UiIntegerInput, UiTextInput, UiFileInput, SystemTrayIconSettings, WindowsPositionSettings
 
@@ -1923,8 +1927,8 @@ class TableWidget(QTableWidget):
                     self.setCellWidget(row, column, widget)
                 elif isinstance(widget, QDateTimeEdit) and isinstance(data, datetime):
                     date = QDate(data.year, data.month, data.day)
-                    time = QTime(data.hour, data.minute, data.second)
-                    widget.setDateTime(QDateTime(date, time))
+                    time_ = QTime(data.hour, data.minute, data.second)
+                    widget.setDateTime(QDateTime(date, time_))
                     # noinspection PyUnresolvedReferences
                     widget.dateTimeChanged.connect(self.__slotWidgetDataChanged)
                     self.removeCellWidget(row, column)
@@ -1999,8 +2003,8 @@ class TableWidget(QTableWidget):
                 except (TypeError, ValueError):
                     dt = filters[0]
                     date = QDate(dt.year, dt.month, dt.day)
-                    time = QTime(dt.hour, dt.minute, dt.second)
-                    dt = QDateTime(date, time)
+                    time_ = QTime(dt.hour, dt.minute, dt.second)
+                    dt = QDateTime(date, time_)
 
                 widget = QDateTimeEdit(dt)
                 widget.setCalendarPopup(True)
@@ -3519,6 +3523,7 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
 
 class LogMessageWidget(QTextEdit):
+    signalRemoteLogging = QtCore.Signal(object)
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
     DISPLAY_DEBUG, DISPLAY_INFO, DISPLAY_WARN, DISPLAY_ERROR = (0x1, 0x2, 0x4, 0x8)
     DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR | DISPLAY_WARN
@@ -3526,14 +3531,19 @@ class LogMessageWidget(QTextEdit):
     # noinspection SpellCheckingInspection
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
+                 remote: TCPClientTransmit.Address = None, get_remote_log_level: typing.Callable[[str], int] = None,
                  parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
+        self._remote_exit = threading.Event()
+        self._get_remote_log_level = get_remote_log_level
 
         self._logger = LoggerWrap(filename, log_format, level, logging.ERROR, propagate)
         self.setReadOnly(True)
         self._startTime = datetime.now()
         self._displayFilter = display_filter
         self.textChanged.connect(self.slotAutoScroll)
+        self.signalRemoteLogging.connect(self.logging)
+        self.setRemote(remote, get_remote_log_level)
 
         # Context menu
         self.ui_context_menu = QMenu(self)
@@ -3725,3 +3735,64 @@ class LogMessageWidget(QTextEdit):
 
     def contextMenuEvent(self, ev: QContextMenuEvent):
         self.ui_context_menu.exec_(ev.globalPos())
+
+    @staticmethod
+    def getRemoteLogLevel(content: str) -> int:
+        for level, keywords in (
+                (logging.ERROR, 'error errr err fail failed'),
+                (logging.DEBUG, 'debug debg')
+        ):
+            if any(k.lower() in content.lower() for k in keywords.split()):
+                return level
+
+        return logging.INFO
+
+    def setRemote(self, remote: TCPClientTransmit.Address, level_check: typing.Callable[[str], int] = None):
+        self._get_remote_log_level = level_check
+        threading.Thread(target=self.threadSetRemoteWrap, args=(remote,), daemon=True).start()
+
+    def remoteLog2Message(self, content: str) -> UiLogMessage:
+        if callable(self._get_remote_log_level):
+            level = self._get_remote_log_level(content)
+        else:
+            level = self.getRemoteLogLevel(content)
+
+        return UiLogMessage.genDefaultMessage(content, level)
+
+    def threadSetRemoteWrap(self, remote: TCPClientTransmit.Address):
+        if not remote:
+            return
+
+        self._remote_exit.set()
+        time.sleep(5)
+        self._remote_exit.clear()
+        threading.Thread(target=self.threadConnectRemoteLogServer, args=(remote,), daemon=True).start()
+
+    def threadConnectRemoteLogServer(self, remote: TCPClientTransmit.Address):
+        try:
+            ipaddress.IPv4Address(remote[0])
+        except ValueError:
+            return
+
+        while not self._remote_exit.is_set():
+            client = TCPClientTransmit(TCPSocketTransmit.DefaultLengthFormat)
+
+            try:
+                client.connect(remote)
+            except TransmitException:
+                time.sleep(1)
+                continue
+
+            while not self._remote_exit.is_set():
+                try:
+                    data = client.rx(0)
+                    if not data:
+                        break
+
+                    ts = struct.unpack('<d', data[:8])[0]
+                    content = f'{get_debug_timestamp(ts, "%Y-%m-%d %H:%M:%S.%f")}: {data[8:].strip().decode()}'
+                    self.signalRemoteLogging.emit(self.remoteLog2Message(content))
+                except TransmitWarning:
+                    pass
+                except TransmitException:
+                    break

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import abc
 import time
 import typing
 import collections
@@ -10,7 +11,11 @@ from .canvas import ScalableCanvasWidget
 from ..misc.settings import UiLogMessage
 from ..misc.windpi import show_file_in_explorer
 from .widget import ImageWidget, LogMessageWidget
-__all__ = ['StretchFactor', 'BasicDock', 'FilelistDock', 'LogMessageDock', 'ImagePreviewDock', 'ImageIconPreviewDock']
+from ..protocol.transmit import TCPClientTransmit
+__all__ = [
+    'StretchFactor', 'BasicDock', 'FilelistDock', 'ImagePreviewDock', 'ImageIconPreviewDock',
+    'LogMessageDock', 'RemoteLogMessageDock'
+]
 StretchFactor = collections.namedtuple('StretchFactor', 'h v')
 
 
@@ -151,6 +156,22 @@ class LogMessageDock(QtWidgets.QDockWidget):
 
     def slotLogging(self, msg: UiLogMessage):
         self.ui_log.logging(msg)
+
+    def slotSetRemote(self, remote: TCPClientTransmit.Address, log_check: typing.Callable[[str], int] = None):
+        self.ui_log.setRemote(remote, log_check)
+
+
+class RemoteLogMessageDock(LogMessageDock):
+    @abc.abstractmethod
+    def getRemotePort(self) -> int:
+        pass
+
+    @abc.abstractmethod
+    def getRemoteLogLevel(self, content: str) -> int:
+        pass
+
+    def slotSetRemoteServer(self, server: str):
+        self.slotSetRemote((server, self.getRemotePort()), self.getRemoteLogLevel)
 
 
 class ImagePreviewDock(QtWidgets.QDockWidget):
