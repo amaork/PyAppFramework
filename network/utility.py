@@ -313,6 +313,8 @@ def tcp_socket_recv_data(tcp_socket: socket.socket, length: int, header: str = '
             data = tcp_socket.recv(length - len(recv_data))
         except socket.timeout:
             return recv_data
+        except (MemoryError, OverflowError):
+            return recv_data
 
         if not data:
             raise BrokenPipeError('peer closed')
