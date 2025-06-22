@@ -115,7 +115,10 @@ class ServiceDiscovery:
             except OSError:
                 pass
 
-            sock.sendto(msg, (self._broadcast, DEF_PORT))
+            try:
+                sock.sendto(msg, (self._broadcast, DEF_PORT))
+            except OSError:
+                pass
 
     def taskReceiveResponse(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
