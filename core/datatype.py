@@ -15,7 +15,7 @@ __all__ = ['BasicDataType', 'BasicTypeLE', 'BasicTypeBE', 'BasicFileHeader',
            'ComparableXml', 'CustomEvent',
            'FrozenJSON', 'DynamicObject', 'DynamicObjectEncoder',
            'DynamicObjectError', 'DynamicObjectDecodeError', 'DynamicObjectEncodeError',
-           'str2float', 'str2number', 'resolve_number', 'ip4_check', 'port_check',
+           'str2float', 'str2number', 'str2auto', 'resolve_number', 'ip4_check', 'port_check',
            'convert_property', 'float_property', 'integer_property', 'enum_property']
 
 
@@ -75,6 +75,20 @@ def str2number(text: typing.Union[str, bool, int, float]) -> int:
 
     except ValueError:
         return 0
+
+
+def str2auto(text: str) -> typing.Union[int, float, bool, str]:
+    if '.' in text:
+        return str2float(text)
+    elif text in ('True', 'False'):
+        return text == 'True'
+    elif text.lower().startswith('0x') or all(x in '-+0123456789' for x in text.lower()):
+        try:
+            return str2number(text)
+        except ValueError:
+            return text
+    else:
+        return text
 
 
 def enum_property(name: str, enum: typing.Iterable) -> property:

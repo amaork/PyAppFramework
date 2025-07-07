@@ -816,11 +816,13 @@ class HyperlinkLabel(ThreadSafeLabel):
 
 
 class CustomTextEditor(QtWidgets.QTextEdit):
+    SaveAsInfo = collections.namedtuple('SaveAsInfo', 'title format')
+
     def __init__(self,
-                 save_as_title: str = '',
+                 save_as_info: SaveAsInfo = None,
                  actions: Optional[Iterable[CustomAction]] = None, parent: Optional[QtWidgets.QWidget] = None):
         super(CustomTextEditor, self).__init__(parent)
-        self.__save_as_title = save_as_title
+        self.__save_as_info = save_as_info
         self.__customize_actions = actions or list()
 
         # Register custom action shortcuts
@@ -846,9 +848,11 @@ class CustomTextEditor(QtWidgets.QTextEdit):
         menu = self.createStandardContextMenu(event.pos())
         # Standard clear and save action
         menu.addSeparator()
-        menu.addAction('Clear All', self, SLOT(b'clear()'), self.__clear_ks)
-        if self.__save_as_title:
-            menu.addAction('Save As File', self, SLOT(b'slotSaveAs()'), self.__save_ks)
+        # noinspection PyTypeChecker
+        menu.addAction('Clear All', self, SLOT('clear()'), self.__clear_ks)
+        if isinstance(self.__save_as_info, self.SaveAsInfo):
+            # noinspection PyTypeChecker
+            menu.addAction('Save As File', self, SLOT('slotSaveAs()'), self.__save_ks)
 
         # Customize actions
         menu.addSeparator()
@@ -860,20 +864,46 @@ class CustomTextEditor(QtWidgets.QTextEdit):
 
         menu.exec_(event.globalPos())
 
+    def slotSave(self, path: str) -> bool:
+        # from .msgbox import showMessageBox, MB_TYPE_INFO
+
+        try:
+            with open(path, 'w', encoding='utf-8') as fp:
+                fp.write(self.toPlainText())
+        except (OSError, UnicodeError) as e:
+            return showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Save failed'))
+        else:
+            return showMessageBox(self, MB_TYPE_INFO, self.tr('Save success') + f'\n{path}', title=self.tr('Save File'))
+
     def slotSaveAs(self):
-        if not self.__save_as_title:
+        if not isinstance(self.__save_as_info, self.SaveAsInfo):
             return
 
         from .dialog import showFileExportDialog
-        from .msgbox import showMessageBox, MB_TYPE_INFO
-        path = showFileExportDialog(self, '*.txt', title=self.__save_as_title)
+        path = showFileExportDialog(self, self.__save_as_info.format, title=self.__save_as_info.title)
         if not path:
             return
 
-        with open(path, 'w', encoding='utf-8') as fp:
-            fp.write(self.toPlainText())
+        return self.slotSave(path)
 
-        return showMessageBox(self, MB_TYPE_INFO, self.tr('Save success') + f'\n{path}', title=self.tr('Save File'))
+    def lineCount(self) -> int:
+        return self.document().lineCount()
+
+    def changeLineColor(self, lines: typing.Sequence[int], color: QtGui.QColor):
+        for line in lines:
+            doc = self.document()
+
+            fmt = QtGui.QTextCharFormat()
+            fmt.setForeground(color)
+
+            block = doc.findBlockByNumber(line - 1)
+
+            if block.isValid():
+                cursor = QtGui.QTextCursor(block)
+                cursor.movePosition(QtGui.QTextCursor.StartOfLine)
+                cursor.movePosition(QtGui.QTextCursor.EndOfLine, QtGui.QTextCursor.KeepAnchor)
+
+                cursor.mergeCharFormat(fmt)
 
 
 class CustomSpinBox(QtWidgets.QSpinBox):

@@ -301,7 +301,7 @@ def tcp_socket_recv_data(tcp_socket: socket.socket, length: int, header: str = '
     recv_data = bytes()
 
     # Specified header fmt or length is zero means read length from header
-    if header or not length:
+    if header:
         try:
             length = struct.unpack(header, tcp_socket.recv(struct.calcsize(header)))[0]
         except (struct.error, IndexError) as e:
