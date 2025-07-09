@@ -816,6 +816,7 @@ class HyperlinkLabel(ThreadSafeLabel):
 
 
 class CustomTextEditor(QtWidgets.QTextEdit):
+    signalRequireSave = QtCore.Signal()
     SaveAsInfo = collections.namedtuple('SaveAsInfo', 'title format')
 
     def __init__(self,
@@ -837,22 +838,32 @@ class CustomTextEditor(QtWidgets.QTextEdit):
         # Shortcut for clear all and save as
         self.__save_ks = QtGui.QKeySequence('Ctrl+S')
         self.__clear_ks = QtGui.QKeySequence('Ctrl+Alt+C')
+        self.__save_as_ks = QtGui.QKeySequence('Ctrl+Alt+S')
 
         self.__save_shortcut = QtWidgets.QShortcut(self.__save_ks, self)
         self.__clear_shortcut = QtWidgets.QShortcut(self.__clear_ks, self)
+        self.__save_as_shortcut = QtWidgets.QShortcut(self.__save_as_ks, self)
 
-        self.__clear_shortcut.activated.connect(self.clear)
-        self.__save_shortcut.activated.connect(self.slotSaveAs)
+        self.__clear_shortcut.activated.connect(self.slotClearAll)
+        self.__save_as_shortcut.activated.connect(self.slotSaveAs)
+        self.__save_shortcut.activated.connect(self.slotRequireSave)
 
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
         menu = self.createStandardContextMenu(event.pos())
         # Standard clear and save action
         menu.addSeparator()
+
         # noinspection PyTypeChecker
-        menu.addAction('Clear All', self, SLOT('clear()'), self.__clear_ks)
+        menu.addAction('Clear All', self, SLOT('slotClearAll()'), self.__clear_ks)
+
+        menu.addSeparator()
+
+        # noinspection PyTypeChecker
+        menu.addAction('Save', self, SLOT('slotRequireSave()'), self.__save_ks)
+
         if isinstance(self.__save_as_info, self.SaveAsInfo):
             # noinspection PyTypeChecker
-            menu.addAction('Save As File', self, SLOT('slotSaveAs()'), self.__save_ks)
+            menu.addAction('Save As File', self, SLOT('slotSaveAs()'), self.__save_as_ks)
 
         # Customize actions
         menu.addSeparator()
@@ -885,6 +896,13 @@ class CustomTextEditor(QtWidgets.QTextEdit):
             return
 
         return self.slotSave(path)
+
+    def slotClearAll(self):
+        if showQuestionBox(self, self.tr('Clear all contents ?')):
+            self.clear()
+
+    def slotRequireSave(self):
+        self.signalRequireSave.emit()
 
     def lineCount(self) -> int:
         return self.document().lineCount()
