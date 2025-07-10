@@ -907,6 +907,14 @@ class CustomTextEditor(QtWidgets.QTextEdit):
     def lineCount(self) -> int:
         return self.document().lineCount()
 
+    def jump2Line(self, line_num: int, select: bool = True):
+        cursor = self.textCursor()
+        position = self.document().findBlockByLineNumber(line_num - 1).position()
+        cursor.setPosition(position, QtGui.QTextCursor.MoveAnchor)
+        if select:
+            cursor.select(QtGui.QTextCursor.LineUnderCursor)
+        self.setTextCursor(cursor)
+
     def changeLineColor(self, lines: typing.Sequence[int], color: QtGui.QColor):
         for line in lines:
             doc = self.document()
