@@ -600,6 +600,9 @@ class ProgressDialog(QProgressDialog):
         self.setProgress(self.maximum())
         self.setHidden(True)
 
+    def resetTitle(self):
+        self.setWindowTitle(self.tr('Operation progress'))
+
     def isCanceled(self) -> bool:
         return self.__canceled if self.__cancelable else False
 
@@ -630,7 +633,12 @@ class ProgressDialog(QProgressDialog):
         super(ProgressDialog, self).setLabelText(text)
 
     def setProgress(self, value: int, force: bool = False):
-        self.setValue(value)
+        try:
+            self.setValue(value)
+        except TypeError:
+            print('!!!!!!!!!!!!!!!!!!!!!!', value)
+            self.setValue(0)
+
         if value != self.maximum():
             self.show()
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2

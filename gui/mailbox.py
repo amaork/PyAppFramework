@@ -405,6 +405,9 @@ class UiMailBox(QObject):
             if mail.progress:
                 if mail.title:
                     self.__progress.setWindowTitle(mail.title)
+                else:
+                    self.__progress.resetTitle()
+
                 self.__progress.setLabelText(mail.content)
                 self.__progress.setCloseable(mail.closeable)
                 self.__progress.setCancelable(mail.cancelable)
