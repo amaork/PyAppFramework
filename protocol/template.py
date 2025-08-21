@@ -10,8 +10,8 @@ import collections
 from ..core.timer import Tasklet, Task
 from ..misc.settings import UiLogMessage
 from ..misc.debug import get_debug_timestamp
-from .transmit import Transmit, TransmitException, TransmitWarning
 from ..core.datatype import CustomEvent, enum_property, DynamicObject
+from .transmit import Transmit, TransmitException, TransmitWarning, TCPClientTransmit
 from ..core.threading import ThreadSafeBool, ThreadSafeInteger, ThreadConditionWrap, ThreadLockAndDataWrap
 
 __all__ = ['CommunicationEvent', 'CommunicationEventHandle',
@@ -215,6 +215,10 @@ class CommunicationController:
     @property
     def connected(self) -> bool:
         return self._transmit.connected
+
+    @property
+    def server(self) -> Transmit.Address:
+        return self._transmit.server if isinstance(self._transmit, TCPClientTransmit) else self.address
 
     @property
     def address(self) -> Transmit.Address:

@@ -185,6 +185,7 @@ class SoftwareUpdateCheckRoutine(Routine):
 
 
 class EmbeddedSoftwareUpdateRoutine(Routine):
+    SwUpdateServerPort = 2442
     UpdateResult = collections.namedtuple('UpdateResult', 'done fail reboot_fail')(*('done', 'fail', 'reboot fail'))
 
     def wait_update_finish(self, magic: bytes, report_port: int, cond: ThreadConditionWrap, timeout: float = 30.0):
