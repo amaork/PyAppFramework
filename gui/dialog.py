@@ -933,7 +933,9 @@ class PasswordDialog(QDialog):
 
 
 class OptionDialog(QDialog):
-    def __init__(self, options: Sequence[str], title: str = '', parent: Optional[QWidget] = None):
+    def __init__(self,
+                 options: Sequence[str], title: str = '',
+                 min_size: typing.Optional[QSize] = None, parent: Optional[QWidget] = None):
         super(OptionDialog, self).__init__(parent)
 
         self.selection = ""
@@ -950,6 +952,9 @@ class OptionDialog(QDialog):
         layout.addWidget(cancel)
 
         self.setLayout(layout)
+        if min_size:
+            self.setMinimumSize(min_size)
+
         self.setWindowTitle(title or self.tr('Please select'))
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
@@ -968,7 +973,7 @@ class OptionDialog(QDialog):
     def getSelectionIndex(self) -> int:
         try:
             return self.options.index(self.selection)
-        except IndexError:
+        except ValueError:
             return -1
 
     @classmethod
