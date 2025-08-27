@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import typing
+import collections
 from PySide2.QtGui import QColor
 from PySide2.QtCore import Qt, Signal, Slot, QObject, QTimer
 from PySide2.QtWidgets import QWidget, QStatusBar, QLabel, QMessageBox, QProgressBar, QPushButton
@@ -94,13 +95,30 @@ class MessageBoxMail(BaseUiMail):
 
 
 class WindowsTitleMail(BaseUiMail):
-    def __init__(self, content: str):
+    Target = collections.namedtuple(
+        'Target', 'ProgressBarTitle ProgressBarLabel'
+    )(*'progress_bar_title progress_bar_label'.split())
+
+    def __init__(self, content: str, target: str = ''):
         """Show a message on window title with #content
 
         :param content: message content
         :return:
         """
         super(WindowsTitleMail, self).__init__(content)
+        self.__target = target
+
+    @property
+    def target(self) -> str:
+        return self.__target[:]
+
+    @classmethod
+    def progressBarTitle(cls, content: str):
+        return cls(content=content, target=cls.Target.ProgressBarTitle)
+
+    @classmethod
+    def progressBarLabel(cls, content: str):
+        return cls(content=content, target=cls.Target.ProgressBarLabel)
 
 
 class CallbackFuncMail(BaseUiMail):
@@ -446,7 +464,12 @@ class UiMailBox(QObject):
                     ))
         # Appended a message on window title
         elif isinstance(mail, WindowsTitleMail):
-            self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
+            if mail.target == WindowsTitleMail.Target.ProgressBarTitle:
+                self.__progress.setWindowTitle(mail.content)
+            elif mail.target == WindowsTitleMail.Target.ProgressBarLabel:
+                self.__progress.setLabelText(mail.content)
+            else:
+                self.__parent.setWindowTitle(self.__parent.windowTitle() + self.tr("  {0:s}".format(mail.content)))
         elif isinstance(mail, StatusBarLabelMail):
             label = self.findStatusWidget(mail.widget_type, mail.widget_name)
             if hasattr(label, 'setText'):
