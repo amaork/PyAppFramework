@@ -3,8 +3,10 @@ import abc
 import time
 import glob
 import ctypes
+import typing
 import serial
 import platform
+import collections
 from threading import Thread
 import serial.tools.list_ports
 from raspi_io.utility import scan_server
@@ -83,6 +85,9 @@ class ReadReqMsg(BasicMsg):
 
     # Read done request
     DATA_DONE = 0xe
+
+    # Get state request
+    STATE_REQ = 0xf
 
     _fields_ = [
         ('len', ctypes.c_ubyte),
@@ -186,6 +191,9 @@ class SerialTransferError(Exception):
 
 class SerialTransferProtocol(object):
     PAYLOAD_SIZE = 128
+    State = collections.namedtuple(
+        'State', 'Idle Done Wait Error Verify Update Backup Encrypt Decrypt Compress Decompress'
+    )(*range(11))
 
     def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback):
         """Init a serial port transfer protocol object
@@ -214,6 +222,17 @@ class SerialTransferProtocol(object):
             return bytes()
 
         return data[idx * SerialTransferProtocol.PAYLOAD_SIZE: (idx + 1) * SerialTransferProtocol.PAYLOAD_SIZE]
+
+    def wait(self, callback: typing.Callable[[int, str], None], timeout: float) -> int:
+        s = time.perf_counter()
+        while time.perf_counter() - s < timeout:
+            state, error = self.__r_state()
+            callback(state, error)
+
+            if state in (self.State.Done, self.State.Error):
+                return state
+            else:
+                time.sleep(0.3)
 
     def recv(self, callback: Optional[Callable[[float], None]] = None) -> Tuple[bytes, bytes]:
         """Receive data
@@ -302,6 +321,14 @@ class SerialTransferProtocol(object):
 
         # Return package size data global data
         return int(ack.arg), ack.get_data_payload()
+
+    def __r_state(self) -> Tuple[int, str]:
+        """Read server current state
+        :return current state and error msg
+        """
+        req = ReadReqMsg(ReadReqMsg.STATE_REQ, 0)
+        ack = self.__basic_transfer(req)
+        return int(ack.arg), ack.get_data_payload().decode()
 
     def __r_data(self, package_index: int) -> bytes:
         """Read package_index specified package index

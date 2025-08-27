@@ -19,6 +19,7 @@ from ..misc.windpi import system_open_file
 from ..misc.settings import BinarySettings
 from ..core.threading import ThreadConditionWrap
 from ..misc.process import subprocess_startup_info
+from ..protocol.serialport import SerialTransferProtocol
 __all__ = ['QtGuiCallback',
            'FileImportCallback', 'FileExportCallback',
            'BinarySettingsImportCallback', 'BinarySettingsExportCallback',
@@ -283,7 +284,9 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
 
 
 class EmbeddedSoftwareUpdateEvent(CustomEvent):
-    Type = collections.namedtuple('Type', 'UpdateProgress WaitAppReboot RebootDone RebootFail UpdateFail')(*range(5))
+    Type = collections.namedtuple(
+        'Type', 'UpdateProgress PostProcess WaitUpdateDone RebootDone RebootFail UpdateFail'
+    )(*range(6))
 
     @classmethod
     def process(cls, value: int):
@@ -302,8 +305,19 @@ class EmbeddedSoftwareUpdateEvent(CustomEvent):
         return cls(type=cls.Type.UpdateFail, data=result)
 
     @classmethod
-    def wait_app_reboot(cls, timeout: int):
-        return cls(type=cls.Type.WaitAppReboot, data=timeout)
+    def post_process(cls, st: int, error: str):
+        if st == SerialTransferProtocol.State.Error:
+            return cls.update_fail(error)
+        elif st == SerialTransferProtocol.State.Done:
+            return cls.reboot_fail() if error else cls.reboot_done()
+        elif st == SerialTransferProtocol.State.Wait:
+            return cls.wait_update_done(120.0)
+        else:
+            return cls(type=cls.Type.PostProcess, data=st)
+
+    @classmethod
+    def wait_update_done(cls, timeout: float):
+        return cls(type=cls.Type.WaitUpdateDone, data=timeout)
 
 
 class EmbeddedSoftwareUpdateCallback(QtGuiCallback):
@@ -324,9 +338,21 @@ class EmbeddedSoftwareUpdateCallback(QtGuiCallback):
     def update(self, ev: EmbeddedSoftwareUpdateEvent) -> bool:
         if ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.UpdateProgress):
             self.signalProgressPercentage.emit(ev.data)
-        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.WaitAppReboot):
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.WaitUpdateDone):
             self.signalProgressPercentage.emit(0)
-            self.mail.send(ProgressBarMail.create(ev.data, content=self.tr('Wait application reboot, please wait...')))
+            self.mail.send(ProgressBarMail.create(ev.data, content=self.tr('Updating, please wait...')))
+        elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.PostProcess):
+            msg = {
+                SerialTransferProtocol.State.Backup: self.tr('Backup data......'),
+                SerialTransferProtocol.State.Verify: self.tr('Verifying data......'),
+                SerialTransferProtocol.State.Encrypt: self.tr('Encrypting data......'),
+                SerialTransferProtocol.State.Decrypt: self.tr('Decrypting data......'),
+                SerialTransferProtocol.State.Compress: self.tr('Compressing data......'),
+                SerialTransferProtocol.State.Decompress: self.tr('Decompressing data......'),
+                SerialTransferProtocol.State.Update: self.tr('Updating application......'),
+            }.get(ev.data)
+            if msg:
+                self.mail.send(WindowsTitleMail.progressBarLabel(msg))
         elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.RebootDone):
             self.mail.send(ProgressBarMail(0))
             self.showMessage(MB_TYPE_INFO, self.success_msg)
