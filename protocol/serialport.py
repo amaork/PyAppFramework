@@ -328,7 +328,7 @@ class SerialTransferProtocol(object):
         """
         req = ReadReqMsg(ReadReqMsg.STATE_REQ, 0)
         ack = self.__basic_transfer(req)
-        return int(ack.arg), ack.get_data_payload().decode()
+        return int(ack.arg), ack.get_data_payload().strip(b'\x00').decode()
 
     def __r_data(self, package_index: int) -> bytes:
         """Read package_index specified package index

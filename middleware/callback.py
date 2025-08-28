@@ -309,7 +309,7 @@ class EmbeddedSoftwareUpdateEvent(CustomEvent):
         if st == SerialTransferProtocol.State.Error:
             return cls.update_fail(error)
         elif st == SerialTransferProtocol.State.Done:
-            return cls.reboot_fail() if error else cls.reboot_done()
+            return cls.reboot_fail() if 'failed' in error else cls.reboot_done()
         elif st == SerialTransferProtocol.State.Wait:
             return cls.wait_update_done(120.0)
         else:
@@ -340,6 +340,7 @@ class EmbeddedSoftwareUpdateCallback(QtGuiCallback):
             self.signalProgressPercentage.emit(ev.data)
         elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.WaitUpdateDone):
             self.signalProgressPercentage.emit(0)
+            self.mail.send(CallbackFuncMail(self.mail.progressDialog.resetTitle))
             self.mail.send(ProgressBarMail.create(ev.data, content=self.tr('Updating, please wait...')))
         elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.PostProcess):
             msg = {
