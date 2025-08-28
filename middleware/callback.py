@@ -338,9 +338,9 @@ class EmbeddedSoftwareUpdateCallback(QtGuiCallback):
     def update(self, ev: EmbeddedSoftwareUpdateEvent) -> bool:
         if ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.UpdateProgress):
             self.signalProgressPercentage.emit(ev.data)
+            self.signalProgressText.emit(self.tr('Software updating, please wait......'))
         elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.WaitUpdateDone):
             self.signalProgressPercentage.emit(0)
-            self.mail.send(CallbackFuncMail(self.mail.progressDialog.resetTitle))
             self.mail.send(ProgressBarMail.create(ev.data, content=self.tr('Updating, please wait...')))
         elif ev.isEvent(EmbeddedSoftwareUpdateEvent.Type.PostProcess):
             msg = {
