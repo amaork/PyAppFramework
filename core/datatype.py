@@ -78,7 +78,7 @@ def str2number(text: typing.Union[str, bool, int, float]) -> int:
 
 
 def str2auto(text: str) -> typing.Union[int, float, bool, str]:
-    if '.' in text:
+    if '.' in text and all(x in '0123456789.+-' for x in text):
         return str2float(text)
     elif text in ('True', 'False'):
         return text == 'True'
