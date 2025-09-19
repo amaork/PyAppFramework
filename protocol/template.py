@@ -309,14 +309,14 @@ class CommunicationController:
         else:
             self.info_msg(msg)
 
-    def task_fetch_state(self):
+    def task_fetch_state(self, task: Task):
         if not self.connected:
             return
 
         if not self.is_comm_idle():
             return
 
-        self._fetch_state()
+        self._fetch_state(task)
 
     def task_disconnect(self, send_event: bool):
         self._exit.set()
@@ -380,7 +380,7 @@ class CommunicationController:
         pass
 
     @abc.abstractmethod
-    def _fetch_state(self):
+    def _fetch_state(self, task: Task):
         """Fetch state"""
         pass
 
