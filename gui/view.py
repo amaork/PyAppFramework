@@ -695,8 +695,12 @@ class SqliteQueryView(BasicWidget):
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         if not self._without_pt_ctrl and self._row_autoincrement_factor:
-            self._model.rows_per_page = self.ui_view.geometry().height() / self.ui_view.rowHeight(0) / 1.15
-            self.ui_page_num.setRange(1, self._model.total_page)
+            try:
+                self._model.rows_per_page = self.ui_view.geometry().height() / self.ui_view.rowHeight(0) / 1.15
+            except ZeroDivisionError:
+                pass
+            else:
+                self.ui_page_num.setRange(1, self._model.total_page)
 
         super(SqliteQueryView, self).resizeEvent(event)
 
