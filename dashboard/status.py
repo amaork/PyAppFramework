@@ -22,7 +22,8 @@ class DashboardStatusIcon(QWidget):
     def __init__(self, parent: QWidget,
                  name: str, status: Sequence[str],
                  tips: str = "", size: Optional[QSize] = None,
-                 differ_font_size: bool = False, font_size_factor: int = 10, max_double_click_interval: int = 300):
+                 differ_font_size: bool = False, font_size_factor: int = 10, max_double_click_interval: int = 300,
+                 fix_font_size: bool = False, font_size: int = 15):
         super(DashboardStatusIcon, self).__init__(parent)
         if not isinstance(name, str):
             raise TypeError("name require a str")
@@ -37,6 +38,7 @@ class DashboardStatusIcon(QWidget):
         self._bg_color = self.DEF_BG_COLOR
         self._fg_color = self.DEF_FG_COLOR
         self._hover_color = self.HOVER_COLOR
+        self._fix_font_size = fix_font_size
         self._font_color = self.DEF_FONT_COLOR
         self._font_color_bk = self.DEF_FONT_COLOR
         self._font_size_factor = font_size_factor
@@ -44,8 +46,8 @@ class DashboardStatusIcon(QWidget):
         self._scale_x, self._scale_y = get_program_scale_factor()
         self._radius = self.DEF_RADIUS * self._scale_factor
         self._differ_font_size = differ_font_size
-        self._font = QFont(self.DEF_FONT_NAME, 15)
-        self._display_font = QFont(self.DEF_FONT_NAME, 15)
+        self._font = QFont(self.DEF_FONT_NAME, font_size)
+        self._display_font = QFont(self.DEF_FONT_NAME, font_size)
         if isinstance(size, QSize):
             self.setMinimumSize(self.__scaleSize(size))
         self.setToolTip(tips)
@@ -70,8 +72,9 @@ class DashboardStatusIcon(QWidget):
             print("Max number must greater than zero")
 
     def sizeHint(self) -> QSize:
-        meter = QFontMetrics(self._font)
-        return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
+        if not self._fix_font_size:
+            meter = QFontMetrics(self._font)
+            return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
 
     @property
     def name(self) -> str:
@@ -172,8 +175,9 @@ class DashboardStatusIcon(QWidget):
         self.update()
 
     def resizeEvent(self, ev: QResizeEvent):
-        self._font = QFont(self.DEF_FONT_NAME, int(self.__getFontSize()))
-        self.update()
+        if not self._fix_font_size:
+            self._font = QFont(self.DEF_FONT_NAME, int(self.__getFontSize()))
+            self.update()
 
     def mousePressEvent(self, ev: QMouseEvent):
         self._timer.start()
