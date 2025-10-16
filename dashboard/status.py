@@ -72,7 +72,9 @@ class DashboardStatusIcon(QWidget):
             print("Max number must greater than zero")
 
     def sizeHint(self) -> QSize:
-        if not self._fix_font_size:
+        if self._fix_font_size:
+            return self.__scaleSize(self.size())
+        else:
             meter = QFontMetrics(self._font)
             return QSize(meter.width(self._name) * 1.2, meter.height() * 3)
 
