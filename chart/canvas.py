@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import numpy
 import typing
 import contextlib
 import matplotlib.axes
@@ -34,6 +35,20 @@ class ChartAxesAttribute(DynamicObject):
         kwargs.setdefault('title_kwargs', None)
         kwargs.setdefault('legend_kwargs', None)
         super(ChartAxesAttribute, self).__init__(**kwargs)
+
+    def update_range(self,
+                     min_dict: typing.Dict[str, float],
+                     max_dict: typing.Dict[str, float],
+                     margin: float = 10.0, steps: int = 5):
+        try:
+            min_ = min(v for k, v in min_dict.items() if k in self.lines)
+            max_ = max(v for k, v in max_dict.items() if k in self.lines)
+        except ValueError:
+            pass
+        else:
+            min_ -= abs(min_ / margin)
+            max_ += abs(max_ / margin)
+            self.update(dict(y_ticks=list(numpy.linspace(min_, max_, steps))))
 
 
 class CustomCanvas(FigureCanvas):
