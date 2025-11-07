@@ -15,11 +15,26 @@ from ..gui.model import AbstractTableModel
 from .misc import CustomTextEditor, qtTranslateAuto
 from .dialog import showFileImportDialog, BasicDialog
 
-__all__ = ['Script', 'RemoteScriptModel', 'RemoteScriptSelectDialog', 'ScriptEditDebugView']
+__all__ = ['Script', 'BaseRemoteScriptModel', 'RemoteScriptSelectDialog', 'ScriptEditDebugView']
 Script = collections.namedtuple('Script', 'name data')
 
 
-class RemoteScriptModel(AbstractTableModel):
+class BaseRemoteScriptModel(AbstractTableModel):
+    ColumnRole = collections.namedtuple('ColumnRole', 'Idx Script Delete Rename')(*range(4))
+
+    @abc.abstractmethod
+    def setScriptInfo(self, script_info: str):
+        pass
+
+    @abc.abstractmethod
+    def getColumnRole(self, role: int) -> int:
+        pass
+
+    def getScriptName(self, row: int) -> str:
+        return self.data(self.index(row, self.getColumnRole(self.ColumnRole.Script)))
+
+
+class RemoteScriptModel(BaseRemoteScriptModel):
     Column = collections.namedtuple('Column', 'Idx Script Delete Rename')(*range(4))
 
     def __init__(self):
@@ -28,8 +43,12 @@ class RemoteScriptModel(AbstractTableModel):
         # Script name using , split
         self.__script_info = ''
 
-    def getScriptName(self, row: int) -> str:
-        return self.data(self.index(row, self.Column.Script))
+    def getColumnRole(self, role: int) -> int:
+        return {
+            self.ColumnRole.Script: self.Column.Script,
+            self.ColumnRole.Delete: self.Column.Delete,
+            self.ColumnRole.Rename: self.Column.Rename,
+        }.get(role)
 
     def setScriptInfo(self, info: str):
         if not info:
@@ -55,9 +74,11 @@ class RemoteScriptSelectDialog(BasicDialog):
         super(RemoteScriptSelectDialog, self).__init__(parent)
 
     def _initUi(self):
-        self.ui_model = RemoteScriptModel()
         self.ui_view = TableView(True, parent=self)
         self.ui_delegate = TableViewDelegate(parent=self)
+        self.ui_model = self._create_remote_script_model()
+        self._delete_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Delete)
+        self._rename_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Rename)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.ui_view)
@@ -70,8 +91,8 @@ class RemoteScriptSelectDialog(BasicDialog):
         self.ui_view.setModel(self.ui_model)
         self.ui_view.setItemDelegate(self.ui_delegate)
         self.ui_delegate.setColumnDelegate({
-            RemoteScriptModel.Column.Delete: UiPushButtonInput(self.tr('Delete'), self.slotDelete),
-            RemoteScriptModel.Column.Rename: UiPushButtonInput(self.tr('Rename'), self.slotRename),
+            self._delete_column: UiPushButtonInput(self.tr('Delete'), self.slotDelete),
+            self._rename_column: UiPushButtonInput(self.tr('Rename'), self.slotRename),
         })
 
     def _initStyle(self):
@@ -95,17 +116,17 @@ class RemoteScriptSelectDialog(BasicDialog):
         pass
 
     @abc.abstractmethod
-    def _callback_del_script(self, name: str):
-        """Delete #name specified script"""
-        pass
-
-    @abc.abstractmethod
-    def _callback_get_script_info(self) -> bytes:
+    def _callback_get_script_info(self) -> str:
         """Get remote script info(name list)"""
         pass
 
     @abc.abstractmethod
-    def _callback_rename_script(self, old: str, new: str):
+    def _callback_del_script(self, name: str) -> bool:
+        """Delete #name specified script"""
+        pass
+
+    @abc.abstractmethod
+    def _callback_rename_script(self, old: str, new: str) -> bool:
         """Rename #old script name to #new name"""
         pass
 
@@ -113,6 +134,10 @@ class RemoteScriptSelectDialog(BasicDialog):
     def _callback_get_script(self, name: str) -> typing.Optional[Script]:
         """Get #name specified script"""
         pass
+
+    # noinspection PyMethodMayBeStatic
+    def _create_remote_script_model(self) -> BaseRemoteScriptModel:
+        return RemoteScriptModel()
 
     def slotDelete(self):
         script_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
@@ -150,27 +175,24 @@ class RemoteScriptSelectDialog(BasicDialog):
 
     def updateScriptInfo(self, info: str):
         self.ui_model.setScriptInfo(info)
-        self.ui_view.setOpenPersistentEditor([RemoteScriptModel.Column.Delete, RemoteScriptModel.Column.Rename])
+        self.ui_view.setOpenPersistentEditor([self._delete_column, self._rename_column])
 
     def threadGetScriptInfo(self):
-        script_info = self._callback_get_script_info()
-        if not script_info:
-            return
-
         try:
-            script_info_str = script_info.decode()
+            script_info = self._callback_get_script_info()
         except ValueError as e:
             self.ui_mail.send(MessageBoxMail(MB_TYPE_ERR, f'{e}', self.tr('Decode script info fail')))
             return
 
-        self.ui_mail.send(CallbackFuncMail(self.updateScriptInfo, args=(script_info_str,)))
+        self.ui_mail.send(CallbackFuncMail(self.updateScriptInfo, args=(script_info,)))
 
     def threadDeleteAction(self, name: str):
-        self._callback_del_script(name)
+        if self._callback_del_script(name):
+            self.threadGetScriptInfo()
 
     def threadRenameAction(self, old: str, new: str):
-        self._callback_rename_script(old, new)
-        self.threadGetScriptInfo()
+        if self._callback_rename_script(old, new):
+            self.threadGetScriptInfo()
 
 
 class ScriptEditDebugView(BasicWidget):
@@ -234,13 +256,13 @@ class ScriptEditDebugView(BasicWidget):
         pass
 
     @abc.abstractmethod
-    def _callback_load_from_remote(self) -> Script:
-        """Clicked Remote Load button will invoke this from thread"""
+    def _callback_save_to_remote(self, script: Script):
+        """Clicked Remote Save button will invoke this from thread"""
         pass
 
     @abc.abstractmethod
-    def _callback_save_to_remote(self, script: Script):
-        """Clicked Remote Save button will invoke this from thread"""
+    def _callback_load_from_remote(self) -> typing.Optional[Script]:
+        """Clicked Remote Load button will invoke this from thread"""
         pass
 
     def setRemoteConnected(self, connected: bool):
