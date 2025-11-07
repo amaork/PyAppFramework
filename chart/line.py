@@ -24,11 +24,11 @@ from ..misc.utils import get_timestamp_str
 from ..misc.debug import get_debug_timestamp
 
 from .canvas import CustomCanvas, ChartAxesAttribute
-__all__ = ['AutoRangeTimelineChartView', 'TimelineChartView', 'ChartLine']
+__all__ = ['AutoRangeTimelineChart', 'TimelineChart', 'ChartLine']
 ChartLine = collections.namedtuple('ChartLine', 'name tag style max')
 
 
-class TimelineChartView(BasicWidget):
+class TimelineChart(BasicWidget):
     def __init__(self, attr: ChartAxesAttribute, canvas_kwargs: dict = None, parent: QtWidgets.QWidget = None):
         self._attribute = attr
         self._canvas_kwargs = canvas_kwargs or dict()
@@ -36,7 +36,7 @@ class TimelineChartView(BasicWidget):
         self.cnt = 0
         self.xdata = list()
         self.ydata = {line.tag: list() for line in self._attribute.lines}
-        super(TimelineChartView, self).__init__(parent)
+        super(TimelineChart, self).__init__(parent)
 
     def _initUi(self):
         self.canvas = CustomCanvas(**self._canvas_kwargs)
@@ -88,7 +88,7 @@ class TimelineChartView(BasicWidget):
         self.updateChart()
 
 
-class AutoRangeTimelineChartView(BasicWidget):
+class AutoRangeTimelineChart(BasicWidget):
     signalUpdatePlot = QtCore.Signal(object)
     ToolbarItemType = typing.Union[QtWidgets.QWidget, QtWidgets.QAction]
     ToolbarPos = collections.namedtuple('ToolbarPos', 'Left Middle Right')(*range(3))
@@ -106,7 +106,7 @@ class AutoRangeTimelineChartView(BasicWidget):
         self.pause = ThreadSafeBool(False)
         self.boot_time = get_debug_timestamp(fmt='%H:%M:%S')
         self.previous_update_ts = str2number(get_debug_timestamp(fmt='%S'))
-        super(AutoRangeTimelineChartView, self).__init__(parent=parent)
+        super(AutoRangeTimelineChart, self).__init__(parent=parent)
 
     def _initUi(self):
         self.canvas = self._create_canvas()
@@ -204,9 +204,6 @@ class AutoRangeTimelineChartView(BasicWidget):
             self.slotClear(without_confirm=True)
 
     def isDataExported(self) -> bool:
-        if not self.sdk.connected:
-            return True
-
         return time.time() - self.data_export_ts <= 60.0
 
     def threadUpdatePlot(self):
@@ -244,6 +241,9 @@ class AutoRangeTimelineChartView(BasicWidget):
         ).start()
 
     def slotUpdatePlot(self, data: dict):
+        if not data:
+            return
+
         self.cnt += 1
         self.xdata.append(self.cnt)
         self.canvas.clear()

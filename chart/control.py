@@ -5,7 +5,7 @@ from PySide2 import QtWidgets
 
 from .canvas import ChartAxesAttribute
 from ..core.datatype import DynamicObject
-from .line import TimelineChartView, ChartLine
+from .line import TimelineChart, ChartLine
 __all__ = ['ControlChartView', 'CCResult', 'CCWarning', 'CCLineTag']
 
 
@@ -23,7 +23,7 @@ class CCResult(DynamicObject):
         return self.__dict__[item]
 
 
-class ControlChartView(TimelineChartView):
+class ControlChartView(TimelineChart):
     def __init__(self, attr: ChartAxesAttribute, canvas_kwargs: dict = None,
                  show_warning: bool = False, max_density: int = 70, parent: QtWidgets.QWidget = None):
         self.warning_xdata = list()
