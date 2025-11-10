@@ -820,10 +820,11 @@ class CustomTextEditor(QtWidgets.QTextEdit):
     SaveAsInfo = collections.namedtuple('SaveAsInfo', 'title format')
 
     def __init__(self,
-                 save_as_info: SaveAsInfo = None,
+                 save_as_info: SaveAsInfo = None, comment_sign: str = '',
                  actions: Optional[Iterable[CustomAction]] = None, parent: Optional[QtWidgets.QWidget] = None):
         super(CustomTextEditor, self).__init__(parent)
         self.__save_as_info = save_as_info
+        self.__comment_sign = comment_sign
         self.__customize_actions = actions or list()
 
         # Register custom action shortcuts
@@ -839,14 +840,17 @@ class CustomTextEditor(QtWidgets.QTextEdit):
         self.__save_ks = QtGui.QKeySequence('Ctrl+S')
         self.__clear_ks = QtGui.QKeySequence('Ctrl+Alt+C')
         self.__save_as_ks = QtGui.QKeySequence('Ctrl+Alt+S')
+        self.__comment_ks = QtGui.QKeySequence('Ctrl+/')
 
         self.__save_shortcut = QtWidgets.QShortcut(self.__save_ks, self)
         self.__clear_shortcut = QtWidgets.QShortcut(self.__clear_ks, self)
         self.__save_as_shortcut = QtWidgets.QShortcut(self.__save_as_ks, self)
+        self.__comment_shortcut = QtWidgets.QShortcut(self.__comment_ks, self)
 
         self.__clear_shortcut.activated.connect(self.slotClearAll)
         self.__save_as_shortcut.activated.connect(self.slotSaveAs)
         self.__save_shortcut.activated.connect(self.slotRequireSave)
+        self.__comment_shortcut.activated.connect(self.slotComment)
 
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent):
         menu = self.createStandardContextMenu(event.pos())
@@ -896,6 +900,39 @@ class CustomTextEditor(QtWidgets.QTextEdit):
             return
 
         return self.slotSave(path)
+
+    def slotComment(self):
+        def comment_uncomment(text: str) -> str:
+            indent = ''
+            for x in text:
+                if x == ' ':
+                    indent += x
+                else:
+                    break
+
+            if text.strip().startswith(self.__comment_sign):
+                return indent + text.split(self.__comment_sign)[-1].strip()
+            else:
+                return f'{indent}{self.__comment_sign} {text.strip()}'
+
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            start = cursor.selectionStart()
+            end = cursor.selectionEnd()
+
+            cursor.setPosition(start)
+            cursor.movePosition(QtGui.QTextCursor.StartOfLine)
+
+            cursor.setPosition(end, QtGui.QTextCursor.KeepAnchor)
+            cursor.movePosition(QtGui.QTextCursor.EndOfLine, QtGui.QTextCursor.KeepAnchor)
+            cursor.insertText(
+                '\n'.join([comment_uncomment(x) for x in cursor.selection().toPlainText().split('\n') if x])
+            )
+        else:
+            cursor.movePosition(QtGui.QTextCursor.StartOfLine)
+            cursor.movePosition(QtGui.QTextCursor.StartOfLine)
+            cursor.movePosition(QtGui.QTextCursor.EndOfLine, QtGui.QTextCursor.KeepAnchor)
+            cursor.insertText(comment_uncomment(cursor.block().text()))
 
     def slotClearAll(self):
         if showQuestionBox(self, self.tr('Clear all contents ?')):

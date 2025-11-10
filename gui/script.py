@@ -199,6 +199,10 @@ class ScriptEditDebugView(BasicWidget):
     sourceProperty = 'source'
     Source = collections.namedtuple('Source', 'Local Remote')(*'local remote'.split())
 
+    def __init__(self, comment_sign: str = '', parent: QtWidgets.QWidget = None):
+        self.__comment_sign = comment_sign
+        super().__init__(parent)
+
     def _initUi(self):
         self.ui_name = QtWidgets.QLineEdit()
         self.ui_run = QtWidgets.QPushButton(self.tr('Run'))
@@ -206,9 +210,11 @@ class ScriptEditDebugView(BasicWidget):
         self.ui_load = QtWidgets.QPushButton(self.tr('Load'))
         self.ui_remote_save = QtWidgets.QPushButton(self.tr('Save to remote'))
         self.ui_remote_load = QtWidgets.QPushButton(self.tr('Load from remote'))
-        self.ui_editor = CustomTextEditor(parent=self, save_as_info=CustomTextEditor.SaveAsInfo(
-            title=self.tr('Save script as'), format=self._format
-        ))
+        self.ui_editor = CustomTextEditor(
+            parent=self, comment_sign=self.__comment_sign, save_as_info=CustomTextEditor.SaveAsInfo(
+                title=self.tr('Save script as'), format=self._format
+            )
+        )
 
         tool_layout = QtWidgets.QHBoxLayout()
         for item in (
@@ -226,6 +232,7 @@ class ScriptEditDebugView(BasicWidget):
         self.setRemoteConnected(False)
         self.ui_editor.setTabStopDistance(40)
         self.ui_editor.setAcceptRichText(False)
+        self.setTabOrder(self.ui_name, self.ui_editor)
 
     def _initSignalAndSlots(self):
         self.ui_run.clicked.connect(self.slotRun)
