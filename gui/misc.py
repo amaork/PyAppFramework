@@ -905,7 +905,7 @@ class CustomTextEditor(QtWidgets.QTextEdit):
         def comment_uncomment(text: str) -> str:
             indent = ''
             for x in text:
-                if x == ' ':
+                if x in ' \t':
                     indent += x
                 else:
                     break
