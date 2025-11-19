@@ -20,7 +20,8 @@ Script = collections.namedtuple('Script', 'name data')
 
 
 class BaseRemoteScriptModel(AbstractTableModel):
-    ColumnRole = collections.namedtuple('ColumnRole', 'Idx Script Delete Rename')(*range(4))
+    Status = collections.namedtuple('Status', 'Running Stopped')(*'Running Stopped'.split())
+    ColumnRole = collections.namedtuple('ColumnRole', 'Idx Script Status Run Stop Delete Rename')(*range(7))
 
     @abc.abstractmethod
     def setScriptInfo(self, script_info: str):
@@ -33,18 +34,27 @@ class BaseRemoteScriptModel(AbstractTableModel):
     def getScriptName(self, row: int) -> str:
         return self.data(self.index(row, self.getColumnRole(self.ColumnRole.Script)))
 
+    def getScriptStatus(self, row: int) -> str:
+        return self.data(self.index(row, self.getColumnRole(self.ColumnRole.Status)))
+
 
 class RemoteScriptModel(BaseRemoteScriptModel):
-    Column = collections.namedtuple('Column', 'Idx Script Delete Rename')(*range(4))
+    Column = collections.namedtuple('ColumnRole', 'Idx Script Status Run Stop Delete Rename')(*range(7))
 
     def __init__(self):
         super(RemoteScriptModel, self).__init__()
-        self._header = (self.tr('Idx'), self.tr('Script Name'), self.tr('Delete'), self.tr('Rename'))
+        self._header = (
+            self.tr('Idx'), self.tr('Script Name'), self.tr('Status'),
+            self.tr('Run'), self.tr('Stop'), self.tr('Delete'), self.tr('Rename')
+        )
         # Script name using , split
         self.__script_info = ''
 
     def getColumnRole(self, role: int) -> int:
         return {
+            self.ColumnRole.Run: self.Column.Run,
+            self.ColumnRole.Stop: self.Column.Stop,
+            self.ColumnRole.Status: self.Column.Status,
             self.ColumnRole.Script: self.Column.Script,
             self.ColumnRole.Delete: self.Column.Delete,
             self.ColumnRole.Rename: self.Column.Rename,
@@ -57,7 +67,12 @@ class RemoteScriptModel(BaseRemoteScriptModel):
         else:
             self.__script_info = info
             self._table = [
-                [f'{i + 1}', s.strip(), 'Delete', 'Rename']
+                [
+                    f'{i + 1}',
+                    s.strip().split(':')[0].strip(),
+                    s.strip().split(':')[-1].strip(),
+                    'Run', 'Stop', 'Delete', 'Rename'
+                ]
                 for i, s in enumerate(info.split(','))
             ]
             self.layoutChanged.emit()
@@ -77,8 +92,12 @@ class RemoteScriptSelectDialog(BasicDialog):
         self.ui_view = TableView(True, parent=self)
         self.ui_delegate = TableViewDelegate(parent=self)
         self.ui_model = self._create_remote_script_model()
+        self.ui_stop_all = QtWidgets.QPushButton(self.tr('Stop All'))
+        self._run_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Run)
+        self._stop_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Stop)
         self._delete_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Delete)
         self._rename_column = self.ui_model.getColumnRole(BaseRemoteScriptModel.ColumnRole.Rename)
+        self.ui_buttons.addButton(self.ui_stop_all, QtWidgets.QDialogButtonBox.ResetRole)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.ui_view)
@@ -91,6 +110,8 @@ class RemoteScriptSelectDialog(BasicDialog):
         self.ui_view.setModel(self.ui_model)
         self.ui_view.setItemDelegate(self.ui_delegate)
         self.ui_delegate.setColumnDelegate({
+            self._run_column: UiPushButtonInput(self.tr('Run'), self.slotRun),
+            self._stop_column: UiPushButtonInput(self.tr('Stop'), self.slotStop),
             self._delete_column: UiPushButtonInput(self.tr('Delete'), self.slotDelete),
             self._rename_column: UiPushButtonInput(self.tr('Rename'), self.slotRename),
         })
@@ -98,13 +119,20 @@ class RemoteScriptSelectDialog(BasicDialog):
     def _initStyle(self):
         self.ui_view.hideRowHeader(True)
         self.ui_view.setRowSelectMode()
-        self.ui_view.setColumnStretchFactor((0.1, 0.48, 0.21))
+        self.ui_view.setColumnStretchFactor((0.1, 0.3, 0.14, 0.1, 0.1))
 
     def _initSignalAndSlots(self):
+        self.ui_stop_all.clicked.connect(self.slotStopAll)
         self.ui_view.doubleClicked.connect(lambda _: self.accept())
+
+    def _initThreadAndTimer(self):
+        self.startTimer(300)
 
     def sizeHint(self) -> QtCore.QSize:
         return QtCore.QSize(800, 400)
+
+    def timerEvent(self, event: QtCore.QTimerEvent) -> None:
+        self.threadGetScriptInfo()
 
     # noinspection PyMethodOverriding
     def tr(self, text: str):
@@ -135,16 +163,38 @@ class RemoteScriptSelectDialog(BasicDialog):
         """Get #name specified script"""
         pass
 
+    @abc.abstractmethod
+    def _callback_ctrl_script(self, name: str, run: bool) -> bool:
+        pass
+
     # noinspection PyMethodMayBeStatic
     def _create_remote_script_model(self) -> BaseRemoteScriptModel:
         return RemoteScriptModel()
+
+    def slotRun(self):
+        script_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
+        script_status = self.ui_model.getScriptStatus(self.ui_view.getCurrentRow())
+
+        if script_status == BaseRemoteScriptModel.Status.Running:
+            return showMessageBox(self, MB_TYPE_WARN, self.tr('Script currently is running'))
+
+        threading.Thread(target=self.threadCtrlScript, args=(script_name, True), daemon=True).start()
+
+    def slotStop(self):
+        script_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
+        script_status = self.ui_model.getScriptStatus(self.ui_view.getCurrentRow())
+
+        if script_status == BaseRemoteScriptModel.Status.Stopped:
+            return showMessageBox(self, MB_TYPE_WARN, self.tr('Script currently is stopped'))
+
+        threading.Thread(target=self.threadCtrlScript, args=(script_name, False), daemon=True).start()
 
     def slotDelete(self):
         script_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
         if not showQuestionBox(self, self.tr('Are you sure to delete ?') + f' {script_name!r}'):
             return
 
-        threading.Thread(target=self.threadDeleteAction, args=(script_name,), daemon=True).start()
+        threading.Thread(target=self.threadDeleteScript, args=(script_name,), daemon=True).start()
 
     def slotRename(self):
         old_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
@@ -165,7 +215,13 @@ class RemoteScriptSelectDialog(BasicDialog):
             showMessageBox(self, MB_TYPE_WARN, f'{e}', self.tr('Script name error'))
             return
 
-        threading.Thread(target=self.threadRenameAction, args=(old_name, new_name), daemon=True).start()
+        threading.Thread(target=self.threadRenameScript, args=(old_name, new_name), daemon=True).start()
+
+    def slotStopAll(self):
+        if not showQuestionBox(self, self.tr('Stop all running scripts ?')):
+            return
+
+        threading.Thread(target=self.threadCtrlScript, args=('', False), daemon=True).start()
 
     def getData(self) -> typing.Optional[Script]:
         if not self.result() or not self.ui_model.rowCount():
@@ -175,7 +231,9 @@ class RemoteScriptSelectDialog(BasicDialog):
 
     def updateScriptInfo(self, info: str):
         self.ui_model.setScriptInfo(info)
-        self.ui_view.setOpenPersistentEditor([self._delete_column, self._rename_column])
+        self.ui_view.setOpenPersistentEditor([
+            self._run_column, self._stop_column, self._delete_column, self._rename_column
+        ])
 
     def threadGetScriptInfo(self):
         try:
@@ -186,12 +244,16 @@ class RemoteScriptSelectDialog(BasicDialog):
 
         self.ui_mail.send(CallbackFuncMail(self.updateScriptInfo, args=(script_info,)))
 
-    def threadDeleteAction(self, name: str):
+    def threadDeleteScript(self, name: str):
         if self._callback_del_script(name):
             self.threadGetScriptInfo()
 
-    def threadRenameAction(self, old: str, new: str):
+    def threadRenameScript(self, old: str, new: str):
         if self._callback_rename_script(old, new):
+            self.threadGetScriptInfo()
+
+    def threadCtrlScript(self, script: str, run: bool):
+        if self._callback_ctrl_script(script, run):
             self.threadGetScriptInfo()
 
 
