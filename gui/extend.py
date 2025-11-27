@@ -192,7 +192,7 @@ class AbstractExtendPanel(BasicWidget):
         extend = self.__getAddExtend()
         name = self.ui_addList.currentText()
         if not issubclass(extend, AbstractSubExtendPanel):
-            return showMessageBox(self, MB_TYPE_ERR, self.tr("Unknown timing extension"))
+            return showMessageBox(self, MB_TYPE_ERR, self.tr("Unknown extension"))
 
         setting = self.getExtendSetting(extend)
         if not isinstance(setting, str):
@@ -202,7 +202,7 @@ class AbstractExtendPanel(BasicWidget):
         self.ui_modList.addItem(name)
         self.ui_addList.removeItem(self.ui_addList.currentIndex())
         self.dataChanged.emit()
-        msg = self.tr("Timing extension") + ' "{}" '.format(name) + self.tr("add success")
+        msg = self.tr("Extension") + ' "{}" '.format(name) + self.tr("add success")
         return showMessageBox(self, MB_TYPE_INFO, msg)
 
     def __slotModExtend(self):
@@ -216,7 +216,7 @@ class AbstractExtendPanel(BasicWidget):
         if isinstance(setting, str):
             self.__data[name] = setting
             self.dataChanged.emit()
-            msg = self.tr("Timing extension") + ' "{}" '.format(name) + self.tr("modify success")
+            msg = self.tr("Extension") + ' "{}" '.format(name) + self.tr("modify success")
             return showMessageBox(self, MB_TYPE_INFO, msg)
 
     def __slotRemoveExtend(self):
@@ -232,7 +232,7 @@ class AbstractExtendPanel(BasicWidget):
         self.ui_modContent.clear()
         self.ui_modList.removeItem(self.ui_modList.currentIndex())
         self.dataChanged.emit()
-        msg = self.tr("Timing extension") + ' "{}" '.format(name) + self.tr("delete success")
+        msg = self.tr("Extension") + ' "{}" '.format(name) + self.tr("delete success")
         return showMessageBox(self, MB_TYPE_INFO, msg)
 
     def reset(self):
@@ -242,10 +242,10 @@ class AbstractExtendPanel(BasicWidget):
         self.ui_modContent.clear()
 
     def setData(self, data: dict, private: typing.Any = None):
-        """When timing changed set extend data and timing
+        """When data changed set extend data
 
-        :param data: timing extend data
-        :param private: timing extend private data
+        :param data: extend data
+        :param private: extend private data
         :return:
         """
         try:
@@ -254,7 +254,7 @@ class AbstractExtendPanel(BasicWidget):
 
             for name in list(data.keys()):
                 if name not in self.__extend:
-                    print("Unknown timing extend:{}".format(name))
+                    print("Unknown extend:{}".format(name))
                     return False
 
                 extend.remove(name)
@@ -292,7 +292,7 @@ class AbstractExtendPanel(BasicWidget):
 
 class AbstractExtendParser(object):
     def __init__(self, extend: typing.Type[AbstractSubExtendPanel], model: typing.Any):
-        """Parser timing extend data
+        """Parser extend data
 
         :param extend: extend panel type
         :param model: device model
