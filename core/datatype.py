@@ -356,6 +356,10 @@ class FrozenJSON:
         else:
             return FrozenJSON(self.__data[item])
 
+    @property
+    def dict(self) -> dict:
+        return self.__dict__.get('_FrozenJSON__data')
+
 
 class ComparableXml(XmlElementTree.Element):
     def __init__(self, **kwargs):

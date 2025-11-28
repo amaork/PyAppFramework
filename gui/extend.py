@@ -161,6 +161,10 @@ class AbstractExtendPanel(BasicWidget):
     def _getSubExtendCls(self, model: typing.Any) -> typing.Dict[str, typing.Type[AbstractSubExtendPanel]]:
         pass
 
+    # noinspection PyMethodMayBeStatic
+    def _getMaxExtendCount(self, model: typing.Any) -> int:
+        return 256
+
     def __getAddExtend(self) -> typing.Optional[typing.Type[AbstractSubExtendPanel]]:
         return self.__extend.get(self.ui_addList.currentText())
 
@@ -187,6 +191,10 @@ class AbstractExtendPanel(BasicWidget):
 
     def __slotAddExtend(self):
         if self.ui_addList.count() == 0:
+            return
+
+        if self.ui_modList.count() >= self._getMaxExtendCount(self.__model):
+            showMessageBox(self, MB_TYPE_WARN, self.tr('The number of extend has reached the maximum limit.'))
             return
 
         extend = self.__getAddExtend()
