@@ -216,6 +216,7 @@ class AbstractExtendPanel(BasicWidget):
         if isinstance(setting, str):
             self.__data[name] = setting
             self.dataChanged.emit()
+            self.__slotShowExtendData(self.ui_modList.currentIndex())
             msg = self.tr("Extension") + ' "{}" '.format(name) + self.tr("modify success")
             return showMessageBox(self, MB_TYPE_INFO, msg)
 
