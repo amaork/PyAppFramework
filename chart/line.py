@@ -166,6 +166,10 @@ class AutoRangeTimelineChart(BasicWidget):
         pass
 
     @abc.abstractmethod
+    def _post_export(self, export_path: str):
+        pass
+
+    @abc.abstractmethod
     def _get_config(self) -> dict:
         pass
 
@@ -281,9 +285,13 @@ class AutoRangeTimelineChart(BasicWidget):
 
     def threadExportRawData2Excel(self, records: typing.Dict, export_path: str):
         try:
+            self.ui_mail.send(ProgressBarMail.create(total_time=60, title=self.tr('Exporting cvs, please wait......')))
             self._export_raw2excel(records, export_path)
         except Exception as e:
             self.ui_mail.send(MessageBoxMail(MB_TYPE_ERR, f'{e}', self.tr('Export to excel fail')))
         else:
             self.data_export_ts = time.time()
             self.ui_mail.send(MessageBoxMail(MB_TYPE_INFO, f'{export_path}', self.tr('Export success')))
+            self.ui_mail.send(CallbackFuncMail(self._post_export, args=(export_path,), timeout=3))
+        finally:
+            self.ui_mail.send(ProgressBarMail(0))

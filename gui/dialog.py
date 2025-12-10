@@ -1210,7 +1210,7 @@ class AboutDialog(QtWidgets.QDialog):
         try:
             system_open_file(self._change_log)
         except (AttributeError, ValueError, OSError) as e:
-            showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Open change log filed'))
+            showMessageBox(self, MB_TYPE_ERR, f'{e}', self.tr('Open change log fail'))
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         painter = QtGui.QPainter(self)
