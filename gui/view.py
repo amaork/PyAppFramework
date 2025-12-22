@@ -290,6 +290,7 @@ class TableView(QtWidgets.QTableView):
                 self.openPersistentEditor(self.model().index(row, column))
 
     def resizeEvent(self, ev: QtGui.QResizeEvent):
+        super(TableView, self).resizeEvent(ev)
         if not self.model():
             return
 
