@@ -10,13 +10,18 @@ from .view import *
 from .msgbox import *
 from .mailbox import *
 from ..misc.settings import *
-from .widget import BasicWidget
 from ..gui.model import AbstractTableModel
+from ..core.threading import ThreadSafeBool
+from .widget import BasicWidget, LogMessageWidget
 from .misc import CustomTextEditor, qtTranslateAuto
 from .dialog import showFileImportDialog, BasicDialog
 
-__all__ = ['Script', 'BaseRemoteScriptModel', 'RemoteScriptSelectDialog', 'ScriptEditDebugView']
+__all__ = [
+    'Script', 'RemoteScriptUiMsg',
+    'BaseRemoteScriptModel', 'RemoteScriptSelectDialog', 'RemoteScriptLoggerDock', 'ScriptEditDebugView'
+]
 Script = collections.namedtuple('Script', 'name data')
+RemoteScriptUiMsg = collections.namedtuple('RemoteUiMsg', 'type content source coverable')
 
 
 class BaseRemoteScriptModel(AbstractTableModel):
@@ -255,6 +260,69 @@ class RemoteScriptSelectDialog(BasicDialog):
     def threadCtrlScript(self, script: str, run: bool):
         if self._callback_ctrl_script(script, run):
             self.threadGetScriptInfo()
+
+
+class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
+    def __init__(self, logfile: str, mailbox: UiMailBox, parent: QtWidgets.QWidget):
+        self.cur_action = ''
+        self.mbox_dict = dict()
+        self.stop_query = ThreadSafeBool(False)
+        super().__init__(parent)
+
+        self.ui_mail = mailbox
+        self.ui_log = LogMessageWidget(logfile, parent=self)
+        self.setWidget(self.ui_log)
+        self.setWindowTitle(self.tr('Current running script log'))
+
+    @abc.abstractmethod
+    def _set_cur_script_name(self, name: str):
+        pass
+
+    def slotStopQuery(self):
+        self.cur_action = ''
+        self.stop_query.set()
+        self._set_cur_script_name('')
+
+    def setCurExecuteScript(self, name: str):
+        if name:
+            self.ui_log.clear()
+            self.stop_query.clear()
+            self.cur_action = name
+            self._set_cur_script_name(name)
+        else:
+            try:
+                self.mbox_dict.pop(self.cur_action)
+            except KeyError:
+                pass
+
+            self.slotStopQuery()
+
+    def handleScriptOutputAndMsg(self, msgs: typing.Sequence[RemoteScriptUiMsg], debug_output: str, error_output: str):
+        for ui_msg in msgs:
+            msg_tag = ''
+            if ui_msg.coverable:
+                if ui_msg.source not in self.mbox_dict:
+                    msgbox = QtWidgets.QMessageBox(parent=self)
+                    self.ui_mail.bindMsgBox(msgbox, ui_msg.source)
+                    self.mbox_dict[ui_msg.source] = msgbox
+
+                msg_tag = ui_msg.source
+
+            self.ui_mail.send(MessageBoxMail(
+                ui_msg.type.strip(), ui_msg.content.strip(), ui_msg.source, tag=msg_tag
+            ))
+
+        if not self.cur_action:
+            return
+
+        if debug_output:
+            for msg in debug_output.split('\n'):
+                if not msg:
+                    continue
+                self.ui_log.debug(msg)
+
+        if error_output:
+            self.ui_log.error(error_output)
 
 
 class ScriptEditDebugView(BasicWidget):

@@ -146,7 +146,7 @@ def wait_timeout(condition: typing.Callable[[], bool], timeout: float,
 def size_convert(size: int, decimals: typing.Dict[str, int] = None) -> str:
     decimals = decimals or dict()
     # noinspection SpellCheckingInspection
-    units = 'KMGTPEZY'
+    units = 'BKMGTPEZY'
 
     for i, unit in enumerate(units):
         if 2 ** (i * 10) <= size < 2 ** ((i + 1) * 10):
