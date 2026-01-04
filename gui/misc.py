@@ -915,6 +915,9 @@ class CustomTextEditor(QtWidgets.QTextEdit):
             else:
                 return f'{indent}{self.__comment_sign} {text.strip()}'
 
+        if not self.__comment_sign:
+            return
+
         cursor = self.textCursor()
         if cursor.hasSelection():
             start = cursor.selectionStart()
