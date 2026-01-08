@@ -179,6 +179,9 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
         return False
 
+    def flushRow(self, row: int):
+        self.dataChanged.emit(self.index(row, 0), self.index(row, self.columnCount() - 1))
+
     def appendRow(self, data: typing.Sequence[str], user: typing.Sequence[typing.Any] = None):
         self.insertRow(self.rowCount())
         row = self.rowCount() - 1
