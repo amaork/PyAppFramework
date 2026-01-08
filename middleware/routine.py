@@ -203,9 +203,9 @@ class EmbeddedSoftwareUpdateRoutine(Routine):
             if not wait_reboot:
                 return self._success()
 
-            self.update(EmbeddedSoftwareUpdateEvent.wait_update_done(120.0))
-            self.update(EmbeddedSoftwareUpdateEvent.wait_update_done(120.0))
-            transfer.wait(lambda *x: self.update(EmbeddedSoftwareUpdateEvent.post_process(*x)), 120.0)
+            self.update(EmbeddedSoftwareUpdateEvent.wait_update_done(300.0))
+            self.update(EmbeddedSoftwareUpdateEvent.wait_update_done(300.0))
+            transfer.wait(lambda *x: self.update(EmbeddedSoftwareUpdateEvent.post_process(*x)), 300.0)
         finally:
             close()
 
