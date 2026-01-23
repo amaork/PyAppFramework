@@ -11,7 +11,6 @@ from .msgbox import *
 from .mailbox import *
 from ..misc.settings import *
 from ..gui.model import AbstractTableModel
-from ..core.threading import ThreadSafeBool
 from .widget import BasicWidget, LogMessageWidget
 from .misc import CustomTextEditor, qtTranslateAuto
 from .dialog import showFileImportDialog, BasicDialog
@@ -266,7 +265,6 @@ class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
     def __init__(self, logfile: str, mailbox: UiMailBox, parent: QtWidgets.QWidget):
         self.cur_action = ''
         self.mbox_dict = dict()
-        self.stop_query = ThreadSafeBool(False)
         super().__init__(parent)
 
         self.ui_mail = mailbox
@@ -280,13 +278,11 @@ class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
 
     def slotStopQuery(self):
         self.cur_action = ''
-        self.stop_query.set()
         self._set_cur_script_name('')
 
     def setCurExecuteScript(self, name: str):
         if name:
             self.ui_log.clear()
-            self.stop_query.clear()
             self.cur_action = name
             self._set_cur_script_name(name)
         else:
@@ -297,7 +293,9 @@ class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
 
             self.slotStopQuery()
 
-    def handleScriptOutputAndMsg(self, msgs: typing.Sequence[RemoteScriptUiMsg], debug_output: str, error_output: str):
+    def handleScriptOutputAndMsg(self,
+                                 msgs: typing.Sequence[RemoteScriptUiMsg],
+                                 debug_output: str, error_output: str, ignore_action: bool = False):
         for ui_msg in msgs:
             msg_tag = ''
             if ui_msg.coverable:
@@ -312,7 +310,7 @@ class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
                 ui_msg.type.strip(), ui_msg.content.strip(), ui_msg.source, tag=msg_tag
             ))
 
-        if not self.cur_action:
+        if not ignore_action and not self.cur_action:
             return
 
         if debug_output:
