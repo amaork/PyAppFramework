@@ -162,6 +162,13 @@ class AbstractExtendPanel(BasicWidget):
         pass
 
     # noinspection PyMethodMayBeStatic
+    def _addPreCheck(self, extend: typing.Type[AbstractSubExtendPanel], name: str) -> bool:
+        return True
+
+    def getAddedExtend(self) -> typing.Dict[str, typing.Type[AbstractSubExtendPanel]]:
+        return {k: self.__extend.get(k) for k in self.__data.keys()}
+
+    # noinspection PyMethodMayBeStatic
     def _getMaxExtendCount(self, model: typing.Any) -> int:
         return 256
 
@@ -201,6 +208,9 @@ class AbstractExtendPanel(BasicWidget):
         name = self.ui_addList.currentText()
         if not issubclass(extend, AbstractSubExtendPanel):
             return showMessageBox(self, MB_TYPE_ERR, self.tr("Unknown extension"))
+
+        if not self._addPreCheck(extend, name):
+            return
 
         setting = self.getExtendSetting(extend)
         if not isinstance(setting, str):
