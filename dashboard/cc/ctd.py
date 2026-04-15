@@ -356,6 +356,24 @@ class CountdownDashboard(QWidget):
             self._refresh_display()
             self.signalStateChanged.emit("running")
 
+    def finish(self):
+        """Forcefully switch to finished state from outside."""
+        self._ticker.stop()
+        self._remaining = 0
+        self._state = "finished"
+        self._refresh_display()
+        self.signalFinished.emit()
+        self.signalStateChanged.emit("finished")
+
+    def reload(self):
+        """Reset countdown and start immediately (reset + start)."""
+        self._ticker.stop()
+        self._remaining = self._total
+        self._state = "running"
+        self._ticker.start()
+        self._refresh_display()
+        self.signalStateChanged.emit("running")
+
     def reset(self):
         """Stop and reset to ready state."""
         self._ticker.stop()
