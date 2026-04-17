@@ -15,6 +15,7 @@ from PySide2.QtWidgets import (
     QPushButton,
     QSlider,
     QSpinBox,
+    QDoubleSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -27,12 +28,13 @@ from PySide2.QtGui import QColor
 # ──────────────────────────────────────────────────────────────────
 
 _SPINBOX_STYLE: str = """
-QSpinBox {
+QSpinBox, QDoubleSpinBox {
     background: #1e2236; color: #ccccdd;
     border: 1px solid #3a3f5c; border-radius: 4px;
     padding: 2px 6px;
 }
-QSpinBox::up-button, QSpinBox::down-button { background: #2b2f45; }
+QSpinBox::up-button, QSpinBox::down-button,
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button { background: #2b2f45; }
 """
 
 _SLIDER_STYLE: str = """
@@ -152,8 +154,7 @@ class DemoWindow(QWidget):
         self._sync_val_slider()
         self.val_slider.valueChanged.connect(self._on_val_changed)
 
-        # noinspection PyProtectedMember
-        self.val_label = QLabel(f"{int(self.gauge._value)} °C")
+        self.val_label = QLabel(f"{int(self.gauge.getRV())} °C")
         self.val_label.setFixedWidth(58)
         self.val_label.setStyleSheet("color:#F4845F; font-weight:bold;")
 
@@ -169,19 +170,17 @@ class DemoWindow(QWidget):
 
         self.min_spin = QSpinBox()
         self.min_spin.setRange(-30, 329)
-        # noinspection PyProtectedMember
-        self.min_spin.setValue(int(self.gauge._min))
+        self.min_spin.setValue(int(self.gauge.getMinValue()))
         self.min_spin.setSuffix(" °C")
         self.min_spin.setStyleSheet(_SPINBOX_STYLE)
 
         self.max_spin = QSpinBox()
         self.max_spin.setRange(-29, 330)
-        # noinspection PyProtectedMember
-        self.max_spin.setValue(int(self.gauge._max))
+        self.max_spin.setValue(int(self.gauge.getMaxValue()))
         self.max_spin.setSuffix(" °C")
         self.max_spin.setStyleSheet(_SPINBOX_STYLE)
-        # noinspection PyProtectedMember
-        self.name_edit = QLineEdit(self.gauge._name)
+
+        self.name_edit = QLineEdit(self.gauge.getName())
         self.name_edit.setStyleSheet(_LINEEDIT_STYLE)
 
         def _lbl(t: str) -> QLabel:
@@ -197,6 +196,35 @@ class DemoWindow(QWidget):
         self.min_spin.valueChanged.connect(self._on_min_changed)
         self.max_spin.valueChanged.connect(self._on_max_changed)
         self.name_edit.textChanged.connect(self.gauge.setName)
+
+        # SV + diff
+        sv_box = QGroupBox("设定值与容差")
+        sv_box.setStyleSheet(_GROUP_STYLE)
+        sv_fl = QFormLayout(sv_box)
+        sv_fl.setLabelAlignment(Qt.AlignRight)
+
+        self.sv_spin = QDoubleSpinBox()
+        self.sv_spin.setRange(self.gauge.GLOBAL_MIN, self.gauge.GLOBAL_MAX)
+        self.sv_spin.setValue(self.gauge.getSV())
+        self.sv_spin.setSuffix(" °C")
+        self.sv_spin.setDecimals(1)
+        self.sv_spin.setSingleStep(0.5)
+        self.sv_spin.setStyleSheet(_SPINBOX_STYLE)
+
+        self.diff_spin = QDoubleSpinBox()
+        self.diff_spin.setRange(0.0, 100.0)
+        self.diff_spin.setValue(self.gauge.getDiff())
+        self.diff_spin.setSuffix(" °C")
+        self.diff_spin.setDecimals(1)
+        self.diff_spin.setSingleStep(0.1)
+        self.diff_spin.setStyleSheet(_SPINBOX_STYLE)
+
+        sv_fl.addRow(_lbl("设定值 SV"), self.sv_spin)
+        sv_fl.addRow(_lbl("容差 diff"), self.diff_spin)
+        vl.addWidget(sv_box)
+
+        self.sv_spin.valueChanged.connect(self._on_sv_changed)
+        self.diff_spin.valueChanged.connect(self._on_diff_changed)
 
         # Ready / Reset 按钮
         btn_box = QGroupBox("状态控制")
@@ -258,13 +286,11 @@ class DemoWindow(QWidget):
     # ── slots ─────────────────────────────────────────────────────
 
     def _sync_val_slider(self) -> None:
-        # noinspection PyProtectedMember
-        self.val_slider.setRange(int(self.gauge._min), int(self.gauge._max))
-        # noinspection PyProtectedMember
-        self.val_slider.setValue(int(self.gauge._value))
+        self.val_slider.setRange(int(self.gauge.getMinValue()), int(self.gauge.getMaxValue()))
+        self.val_slider.setValue(int(self.gauge.getRV()))
 
     def _on_val_changed(self, v: int) -> None:
-        self.gauge.setValueInt(v)
+        self.gauge.setRVInt(v)
         self.val_label.setText(f"{v} °C")
 
     def _on_min_changed(self, v: int) -> None:
@@ -281,9 +307,14 @@ class DemoWindow(QWidget):
         self.gauge.setMaxValueInt(v)
         self._sync_val_slider()
 
+    def _on_sv_changed(self, v: float) -> None:
+        self.gauge.setSV(v)
+
+    def _on_diff_changed(self, v: float) -> None:
+        self.gauge.setDiff(v)
+
     def _pick_color(self, key: str) -> None:
-        # noinspection PyProtectedMember
-        current = self.gauge._colors[key]
+        current = self.gauge.getColor(key)
         color = QColorDialog.getColor(current, self, f"选择颜色 — {self._COLOR_LABELS[key]}")
         if not color.isValid():
             return
@@ -310,8 +341,7 @@ class DemoWindow(QWidget):
             return
 
         for key, hex_val in data.items():
-            # noinspection PyProtectedMember
-            if key not in self.gauge._colors:
+            if key not in self.gauge.colors_as_hex():
                 continue
             color = QColor(hex_val)
             if not color.isValid():

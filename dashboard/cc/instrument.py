@@ -194,7 +194,7 @@ class StatusDot(QWidget):
     def paintEvent(self, _):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        alpha = int(110 + 145 * math.sin(self._phase)) if self._pulse.isActive() else 255
+        alpha = max(0, min(255, int(110 + 145 * math.sin(self._phase)))) if self._pulse.isActive() else 255
         c = QColor(self._color)
         c.setAlpha(alpha)
         p.setPen(Qt.NoPen)

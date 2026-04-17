@@ -13,14 +13,17 @@ Arc geometry
 Public API  (TemperatureGauge)
 ------------------------------
 Slots
-    setValue(float)         set current reading
-    setValueInt(int)        int overload for QSlider
+    setRV(float)            set current reading
+    setRVInt(int)           int overload for QSlider
     setMinValue(float)      set lower range bound
     setMinValueInt(int)     int overload for QSpinBox
     setMaxValue(float)      set upper range bound
     setMaxValueInt(int)     int overload for QSpinBox
     setRange(float, float)  set both bounds at once
     setName(str)            set the label below the gauge
+    setSV(float, float)     set the setpoint value and optional diff threshold
+    setSVInt(int)           int overload for setSV
+    setDiff(float)          set diff threshold for auto ready/reset
     slotReady()             set fill color to orange (ready state)
     slotReset()             reset fill color to default
 
@@ -80,6 +83,8 @@ class TemperatureDashboard(QWidget):
         min_val: float = 0.0,
         max_val: float = 60.0,
         value: float = 23.15,
+        sv: float = 25.0,
+        diff: float = 0.0,
         unit: str = "°C",
         name: str = "温度",
         colors: Optional[dict] = None,
@@ -88,7 +93,9 @@ class TemperatureDashboard(QWidget):
         super().__init__(parent)
         self._min: float = float(min_val)
         self._max: float = float(max_val)
-        self._value: float = float(value)
+        self._rv: float = float(value)
+        self._sv: float = float(sv)
+        self._diff: float = float(diff)
         self._unit: str = unit
         self._name: str = name
 
@@ -98,17 +105,19 @@ class TemperatureDashboard(QWidget):
 
         self.setMinimumSize(200, 160)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._update_fill_state()
 
     # ── public slots ──────────────────────────────────────────────
 
-    def setValue(self, v: float) -> None:
+    def setRV(self, v: float) -> None:
         """Set the current temperature reading (clamped to [min, max])."""
-        self._value = max(self._min, min(self._max, float(v)))
+        self._rv = max(self._min, min(self._max, float(v)))
+        self._update_fill_state()
         self.update()
 
-    def setValueInt(self, v: int) -> None:
-        """int overload of setValue — convenient for QSlider.valueChanged."""
-        self.setValue(float(v))
+    def setRVInt(self, v: int) -> None:
+        """int overload of setRV — convenient for QSlider.valueChanged."""
+        self.setRV(float(v))
 
     def setMinValue(self, v: float) -> None:
         """Set the lower display bound (clamped to GLOBAL_MIN, must be < max)."""
@@ -116,7 +125,8 @@ class TemperatureDashboard(QWidget):
         if v >= self._max:
             return
         self._min = v
-        self._value = max(self._min, self._value)
+        self._rv = max(self._min, self._rv)
+        self._update_fill_state()
         self.update()
 
     def setMinValueInt(self, v: int) -> None:
@@ -129,7 +139,8 @@ class TemperatureDashboard(QWidget):
         if v <= self._min:
             return
         self._max = v
-        self._value = min(self._max, self._value)
+        self._rv = min(self._max, self._rv)
+        self._update_fill_state()
         self.update()
 
     def setMaxValueInt(self, v: int) -> None:
@@ -144,7 +155,8 @@ class TemperatureDashboard(QWidget):
             return
         self._min = min_val
         self._max = max_val
-        self._value = max(self._min, min(self._max, self._value))
+        self._rv = max(self._min, min(self._max, self._rv))
+        self._update_fill_state()
         self.update()
 
     def setName(self, name: str) -> None:
@@ -161,6 +173,59 @@ class TemperatureDashboard(QWidget):
         """Reset fill color to default."""
         self._colors["fill"] = self._default_fill
         self.update()
+
+    def setSV(self, v: float, diff: Optional[float] = None) -> None:
+        """Set the setpoint value and optional diff threshold."""
+        self._sv = float(v)
+        if diff is not None:
+            self._diff = float(diff)
+        self._update_fill_state()
+        self.update()
+
+    def setSVInt(self, v: int) -> None:
+        """int overload of setSV."""
+        self.setSV(float(v))
+
+    def setDiff(self, diff: float) -> None:
+        """Set the diff threshold for auto ready/reset."""
+        self._diff = float(diff)
+        self._update_fill_state()
+        self.update()
+
+    def _update_fill_state(self) -> None:
+        """Auto switch fill color based on |rv - sv| <= diff."""
+        if abs(self._rv - self._sv) <= self._diff:
+            self.slotReady()
+        else:
+            self.slotReset()
+
+    def getRV(self) -> float:
+        """Return the current temperature reading."""
+        return self._rv
+
+    def getMinValue(self) -> float:
+        """Return the lower display bound."""
+        return self._min
+
+    def getMaxValue(self) -> float:
+        """Return the upper display bound."""
+        return self._max
+
+    def getName(self) -> str:
+        """Return the descriptive label."""
+        return self._name
+
+    def getColor(self, key: str) -> QColor:
+        """Return a colour by key, or black if key is missing."""
+        return self._colors.get(key, QColor(Qt.black))
+
+    def getSV(self) -> float:
+        """Return the setpoint value."""
+        return self._sv
+
+    def getDiff(self) -> float:
+        """Return the diff threshold."""
+        return self._diff
 
     # ── colour API ────────────────────────────────────────────────
 
@@ -200,7 +265,7 @@ class TemperatureDashboard(QWidget):
         self._draw_track(p, cx, cy, R)
         self._draw_fill(p, cx, cy, R)
         self._draw_ticks(p, cx, cy, R)
-        self._draw_value_text(p, cx, cy, R)
+        self._draw_rv_text(p, cx, cy, R)
         self._draw_name_label(p, cx, cy, R)
         p.end()
 
@@ -222,7 +287,7 @@ class TemperatureDashboard(QWidget):
         span = arc_max - arc_min
         if span <= 0:
             return
-        t = max(0.0, min(1.0, (self._value - arc_min) / span))
+        t = max(0.0, min(1.0, (self._rv - arc_min) / span))
         if t <= 0:
             return
         p.setPen(QPen(self._colors["fill"], R * 0.12, Qt.SolidLine, Qt.RoundCap))
@@ -332,9 +397,9 @@ class TemperatureDashboard(QWidget):
                 label,
             )
 
-    def _draw_value_text(self, p: QPainter, cx: float, cy: float, R: float) -> None:
+    def _draw_rv_text(self, p: QPainter, cx: float, cy: float, R: float) -> None:
         """Draw the large current-value readout in the centre of the arc."""
-        text: str = f"{self._value:.1f} {self._unit}"
+        text: str = f"{self._rv:.1f} {self._unit}"
         font: QFont = QFont("Arial", int(R * 0.22), QFont.Bold)
         p.setFont(font)
         p.setPen(QPen(self._colors["text_value"]))
@@ -373,17 +438,18 @@ class TemperatureDashboard(QWidget):
         p.setBrush(QBrush(grad))
         p.drawRect(QRectF(cx - line_w, line_y, line_w * 2, 1.5))
 
-        # Name text
+        # Name + SV text
+        label_text: str = "{} {:.1f} {}".format(self._name, self._sv, self._unit)
         font: QFont = QFont("Arial", max(9, int(R * 0.115)))
         p.setFont(font)
         fm = QFontMetrics(font)
         p.setPen(QPen(self._colors["text_label"]))
         p.drawText(
             QPointF(
-                cx - fm.horizontalAdvance(self._name) / 2,
+                cx - fm.horizontalAdvance(label_text) / 2,
                 label_y + fm.height() * 0.32,
             ),
-            self._name,
+            label_text,
         )
 
     # ── static helpers ────────────────────────────────────────────
