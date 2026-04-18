@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import abc
 import json
 import typing
 import datetime
@@ -678,9 +677,8 @@ class SqliteQueryView(BasicWidget):
     def model(self) -> SqliteQueryModel:
         return self._model
 
-    @abc.abstractmethod
     def _get_pk_from_row(self, row: int) -> typing.Any:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _get_pk_from_row')
 
     def _enable_fuzzy_search(self, key: str) -> bool:
         return self._model.is_support_fuzzy_search(key)

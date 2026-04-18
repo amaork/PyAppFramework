@@ -30,7 +30,7 @@ class TransmitWarning(Exception):
         return any(kw in f'{self}' for kw in keywords)
 
 
-class Transmit(object):
+class Transmit(abc.ABC):
     DEFAULT_TIMEOUT = 0.1
     Address = typing.Tuple[str, int]
 

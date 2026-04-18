@@ -8,7 +8,7 @@ from .settings import UiLogMessage
 __all__ = ['ParallelOperate', 'ConcurrentLauncher', 'BackgroundOperateLauncher']
 
 
-class ParallelOperate(object):
+class ParallelOperate(abc.ABC):
     CACHE_EXCEPTIONS = ()
     LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import abc
 import typing
 import numpy as np
 import matplotlib.axes
@@ -43,9 +42,8 @@ class BasePieChart(BasicWidget):
         v = v if isinstance(v, int) else round(v, self.precision)
         return f'{v}{self.annotation_suffix}'
 
-    @abc.abstractmethod
     def drawPie(self, values: typing.Sequence[typing.Union[int, float]]):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement drawPie')
 
     def getAnnotation(self, values: typing.Sequence[typing.Union[int, float]]):
         if not self.show_detail:

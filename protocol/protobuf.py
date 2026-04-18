@@ -244,7 +244,7 @@ class ProtobufRWHelper:
         return dict(zip(numbers, names)) if reverse else dict(zip(names, numbers))
 
 
-class ProtobufDatabase:
+class ProtobufDatabase(abc.ABC):
     def __init__(self,
                  db_path: str, db_msg: message.Message.__class__,
                  encrypt_func: typing.Callable[[bytes], bytes] = None,

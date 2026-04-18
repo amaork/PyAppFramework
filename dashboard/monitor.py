@@ -4,7 +4,6 @@ from PySide2.QtWidgets import QLabel, QWidget, QVBoxLayout, QSplitter, QHBoxLayo
 from PySide2.QtCore import QSize, Qt, QRectF
 from typing import Union, Optional
 import collections
-import abc
 
 from ..gui.widget import BasicWidget
 from ..core.datatype import resolve_number
@@ -61,9 +60,8 @@ class NumberMonitor(BasicWidget):
     def _initStyle(self):
         self.setStyleSheet('color: rgb(255, 255, 255);font: {}pt "宋体";'.format(self.DEF_FONT_SIZE))
 
-    @abc.abstractmethod
     def isSupportNegativeValue(self) -> bool:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement isSupportNegativeValue')
 
     def getSV(self) -> Union[int, float]:
         return self._sv

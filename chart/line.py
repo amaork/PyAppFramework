@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import abc
 import time
 import queue
 import typing
@@ -157,33 +156,26 @@ class AutoRangeTimelineChart(BasicWidget):
             self.ui_clear, self.ui_pause, self.ui_resume, self.ui_export_raw_data
         ], last=True)
 
-    @abc.abstractmethod
     def _pre_update(self):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _pre_update')
 
-    @abc.abstractmethod
     def _post_update(self):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _post_update')
 
-    @abc.abstractmethod
     def _post_export(self, export_path: str):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _post_export')
 
-    @abc.abstractmethod
     def _get_config(self) -> dict:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _get_config')
 
-    @abc.abstractmethod
     def _create_canvas(self) -> FigureCanvas:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _create_canvas')
 
-    @abc.abstractmethod
     def _export_raw2excel(self, records: typing.Dict, export_path: str):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _export_raw2excel')
 
-    @abc.abstractmethod
     def _get_toolbar_items(self, pos: ToolbarPos) -> typing.Sequence[ToolbarItemType]:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _get_toolbar_items')
 
     def updateChart(self):
         self.cnt = 0

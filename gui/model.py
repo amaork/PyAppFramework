@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import abc
 import json
 import typing
 import itertools
@@ -228,9 +227,8 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
 
         return False
 
-    @abc.abstractmethod
     def isReadonly(self, index: QtCore.QModelIndex) -> bool:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement isReadonly')
 
 
 class SqliteQueryModel(QtSql.QSqlQueryModel):

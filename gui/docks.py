@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import abc
 import time
 import typing
 import collections
@@ -162,13 +161,11 @@ class LogMessageDock(QtWidgets.QDockWidget):
 
 
 class RemoteLogMessageDock(LogMessageDock):
-    @abc.abstractmethod
     def getRemotePort(self) -> int:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement getRemotePort')
 
-    @abc.abstractmethod
     def getRemoteLogLevel(self, content: str) -> int:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement getRemoteLogLevel')
 
     def slotSetRemoteServer(self, server: str):
         self.slotSetRemote((server, self.getRemotePort()), self.getRemoteLogLevel)

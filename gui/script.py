@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import abc
 import typing
 import threading
 import collections
@@ -27,13 +26,11 @@ class BaseRemoteScriptModel(AbstractTableModel):
     Status = collections.namedtuple('Status', 'Running Stopped')(*'Running Stopped'.split())
     ColumnRole = collections.namedtuple('ColumnRole', 'Idx Script Status Run Stop Delete Rename')(*range(7))
 
-    @abc.abstractmethod
     def setScriptInfo(self, script_info: str):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement setScriptInfo')
 
-    @abc.abstractmethod
     def getColumnRole(self, role: int) -> int:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement getColumnRole')
 
     def getScriptName(self, row: int) -> str:
         return self.data(self.index(row, self.getColumnRole(self.ColumnRole.Script)))
@@ -142,34 +139,28 @@ class RemoteScriptSelectDialog(BasicDialog):
     def tr(self, text: str):
         return qtTranslateAuto(text, self.__class__)
 
-    @abc.abstractmethod
     def _check_name(self, name: str) -> str:
         """Check if script is valid, invalid raise RuntimeError"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _check_name')
 
-    @abc.abstractmethod
     def _callback_get_script_info(self) -> str:
         """Get remote script info(name list)"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_get_script_info')
 
-    @abc.abstractmethod
     def _callback_del_script(self, name: str) -> bool:
         """Delete #name specified script"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_del_script')
 
-    @abc.abstractmethod
     def _callback_rename_script(self, old: str, new: str) -> bool:
         """Rename #old script name to #new name"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_rename_script')
 
-    @abc.abstractmethod
     def _callback_get_script(self, name: str) -> typing.Optional[Script]:
         """Get #name specified script"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_get_script')
 
-    @abc.abstractmethod
     def _callback_ctrl_script(self, name: str, run: bool) -> bool:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_ctrl_script')
 
     # noinspection PyMethodMayBeStatic
     def _create_remote_script_model(self) -> BaseRemoteScriptModel:
@@ -272,9 +263,8 @@ class RemoteScriptLoggerDock(QtWidgets.QDockWidget):
         self.setWidget(self.ui_log)
         self.setWindowTitle(self.tr('Current running script log'))
 
-    @abc.abstractmethod
     def _set_cur_script_name(self, name: str):
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _set_cur_script_name')
 
     def slotStopQuery(self):
         self.cur_action = ''
@@ -371,34 +361,28 @@ class ScriptEditDebugView(BasicWidget):
         self.ui_remote_save.clicked.connect(self.slotRemoteSave)
 
     @property
-    @abc.abstractmethod
     def _format(self) -> str:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _format')
 
-    @abc.abstractmethod
     def _check_name(self, name: str) -> str:
         """Check if script is valid, invalid raise RuntimeError"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _check_name')
 
-    @abc.abstractmethod
     def _callback_run(self, script: Script):
         """Clicked Run button will invoke this from thread"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_run')
 
-    @abc.abstractmethod
     def _callback_stop(self, script: Script):
         """Clicked Stop button will invoke this from thread"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_stop')
 
-    @abc.abstractmethod
     def _callback_save_to_remote(self, script: Script):
         """Clicked Remote Save button will invoke this from thread"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_save_to_remote')
 
-    @abc.abstractmethod
     def _callback_load_from_remote(self) -> typing.Optional[Script]:
         """Clicked Remote Load button will invoke this from thread"""
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _callback_load_from_remote')
 
     def setRemoteConnected(self, connected: bool):
         self.ui_run.setVisible(connected)

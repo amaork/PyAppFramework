@@ -53,9 +53,8 @@ class AbstractSubExtendPanel(BasicDialog):
         else:
             return QtCore.QSize(int(size.width() * self._scale_x), int(size.height() * self._scale_y))
 
-    @abc.abstractmethod
     def getSetting(self) -> typing.Optional[str]:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement getSetting')
 
     def getBooleanStr(self, enable: typing.Any) -> str:
         return self.tr('Enable') if enable else self.tr('Disable')
@@ -157,9 +156,8 @@ class AbstractExtendPanel(BasicWidget):
         self.ui_addList.currentIndexChanged.connect(self.__slotShowExtendDesc)
         self.ui_modList.currentIndexChanged.connect(self.__slotShowExtendData)
 
-    @abc.abstractmethod
     def _getSubExtendCls(self, model: typing.Any) -> typing.Dict[str, typing.Type[AbstractSubExtendPanel]]:
-        pass
+        raise NotImplementedError(f'{self.__class__.__name__} must implement _getSubExtendCls')
 
     # noinspection PyMethodMayBeStatic
     def _addPreCheck(self, extend: typing.Type[AbstractSubExtendPanel], name: str) -> bool:
@@ -309,7 +307,7 @@ class AbstractExtendPanel(BasicWidget):
         return panel.getSetting()
 
 
-class AbstractExtendParser(object):
+class AbstractExtendParser(abc.ABC):
     def __init__(self, extend: typing.Type[AbstractSubExtendPanel], model: typing.Any):
         """Parser extend data
 

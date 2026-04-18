@@ -17,7 +17,7 @@ __all__ = ['Routine', 'FileImportExportRoutine', 'EmbeddedSoftwareUpdateRoutine'
            'SoftwareUpdateRoutine', 'SoftwareUpdateCheckRoutine', 'DownloadGogsReleaseWithoutConfirmRoutine']
 
 
-class Routine(object):
+class Routine(abc.ABC):
     Exceptions = (RuntimeError,)
 
     # noinspection PyShadowingNames

@@ -79,7 +79,7 @@ class CommunicationEvent(CustomEvent):
         return cls(cls.Type.AckError, data=err, source=request)
 
 
-class CommunicationEventHandle:
+class CommunicationEventHandle(abc.ABC):
     def __call__(self, event: CommunicationEvent):
         handle = {
             CommunicationEvent.Type.Logging: self.handleCommEventLogging,
@@ -120,7 +120,7 @@ class CommunicationEventHandle:
         pass
 
 
-class CommunicationObject:
+class CommunicationObject(abc.ABC):
     def __init__(self, msg: typing.Any):
         self.raw = msg
         self._cond = ThreadConditionWrap()
@@ -154,7 +154,7 @@ class CommunicationObjectDecodeError(Exception):
     pass
 
 
-class CommunicationController:
+class CommunicationController(abc.ABC):
     MsgPriority = collections.namedtuple('MsgPriority', 'High Middle Low')(*range(3))
 
     def __init__(self,

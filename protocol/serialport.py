@@ -499,7 +499,7 @@ class SerialPort(object):
         return port_list
 
 
-class SerialPortProtocolSimulate(object):
+class SerialPortProtocolSimulate(abc.ABC):
     def __init__(self, send: SerialSendCallback, recv: SerialRecvCallback, error_handle: PrintMsgCallback = print):
         if not hasattr(send, "__call__"):
             raise AttributeError("{} send function is not callable".format(self.__class__.__name__))

@@ -116,7 +116,7 @@ class JsonSettings(DynamicObject):
         pass
 
 
-class BinarySettings:
+class BinarySettings(abc.ABC):
     @classmethod
     @abc.abstractmethod
     def model(cls) -> str:
