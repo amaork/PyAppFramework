@@ -191,12 +191,12 @@ class AutoRangeTimelineChart(BasicWidget):
         self.records[get_debug_timestamp(fmt='%H:%M:%S')] = record
         self.previous_update_ts = str2number(get_debug_timestamp(fmt='%S'))
 
-    def startDraw(self, start: bool):
+    def startDraw(self, start: bool, clear: bool = True):
         self.ui_toolbar.setVisible(start)
         if start:
             self.boot_time = get_debug_timestamp(fmt='%Y/%m/%d %H:%M:%S')
             self.previous_update_ts = (str2number(get_debug_timestamp(fmt='%S')) - 1) % 60
-        else:
+        elif clear:
             self.slotClear(without_confirm=True)
 
     def isDataExported(self) -> bool:
