@@ -75,6 +75,8 @@ class Address(DynamicObject):
     @staticmethod
     def unpack_bit_address(bit_address: str) -> typing.Tuple[int, int]:
         temp = bit_address.split('/')
+        if len(temp) != 2:
+            raise ValueError(f'invalid bit address: {bit_address!r}')
         return str2number(temp[0]), str2number(temp[1])
 
 

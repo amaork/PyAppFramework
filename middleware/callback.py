@@ -259,6 +259,8 @@ class SoftwareUpdateCheckCallback(QtGuiCallback):
 
     def success(self, client: GogsUpgradeClient, releases: typing.Sequence[GogsSoftwareReleaseDesc],
                 start_update_callback: typing.Optional[typing.Callable[[bool, str], None]] = None):
+        if not releases:
+            return self.showMessage(MB_TYPE_INFO, self.tr("Do not found upgrade release"))
         newest_release = releases[0]
         if newest_release.version <= self.__version:
             return self.showMessage(MB_TYPE_INFO, self.tr("Currently version is newest version"))
