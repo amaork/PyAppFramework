@@ -901,6 +901,9 @@ class CustomTextEditor(QtWidgets.QTextEdit):
 
         return self.slotSave(path)
 
+    def setCommentSign(self, sign: str):
+        self.__comment_sign = sign
+
     def slotComment(self):
         def comment_uncomment(text: str) -> str:
             indent = ''
