@@ -95,15 +95,23 @@ class JsonSettings(DynamicObject):
             return False
 
         path = path if path else cls._default_path
+        tmp_path = path + ".tmp"
 
         try:
             if not os.path.isdir(os.path.dirname(path)) and len(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
-            with codecs.open(path, "w", "utf-8") as fp:
+            with codecs.open(tmp_path, "w", "utf-8") as fp:
                 json.dump(settings.dict, fp, indent=4, ensure_ascii=False, cls=cls._json_encoder)
+            os.replace(tmp_path, path)
         except OSError as e:
             print("store settings to {}, failed: {}".format(path, e))
             return False
+        finally:
+            if os.path.isfile(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
         return True
 
