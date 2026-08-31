@@ -39,6 +39,7 @@ __all__ = ['BasicDialog',
            'showFileImportDialog', 'showFileExportDialog', 'showPasswordAuthDialog', 'checkSocketSingleInstanceLock']
 
 __showFileImportDialogRecentPathDict = dict()
+__showFileExportDialogRecentPathDict = dict()
 DialogApplyFunction = Callable[[dict], None]
 PasswordHashFunction = Callable[[Union[bytes, bytearray, memoryview]], str]
 
@@ -1254,10 +1255,16 @@ def showFileExportDialog(parent: QWidget, fmt: str, name: str = "",
                          title: str = QApplication.translate("dialog",
                                                              "Please select export file save path",
                                                              None)) -> str:
+    # If name has no directory, prepend recently used path
+    recent = __showFileExportDialogRecentPathDict.get(title, "")
+    if recent and not os.path.dirname(name):
+        name = os.path.join(recent, name)
+
     path, ret = QFileDialog.getSaveFileName(parent, parent.tr(title), name, parent.tr(fmt))
     if not ret or len(path) == 0:
         return ""
 
+    __showFileExportDialogRecentPathDict[title] = os.path.dirname(path)
     return path
 
 

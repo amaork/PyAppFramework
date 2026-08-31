@@ -218,13 +218,18 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         return Qt.AlignCenter
 
     def getDisplay(self, index: QtCore.QModelIndex) -> typing.Any:
-        return self._table[index.row()][index.column()] if index.isValid() else False
+        if index.isValid() and index.row() < len(self._table):
+            row = self._table[index.row()]
+            if index.column() < len(row):
+                return row[index.column()]
+        return False
 
     def setDisplay(self, index: QtCore.QModelIndex, value: typing.Any) -> bool:
-        if index.isValid():
-            self._table[index.row()][index.column()] = value
-            return True
-
+        if index.isValid() and index.row() < len(self._table):
+            row = self._table[index.row()]
+            if index.column() < len(row):
+                row[index.column()] = value
+                return True
         return False
 
     def isReadonly(self, index: QtCore.QModelIndex) -> bool:

@@ -491,6 +491,7 @@ class EmbeddedSoftwareUpdatePktDesc(DynamicObject):
     PktFmt = 'bz2'
     AppFmt = 'app'
     Version = 0x0001
+    VersionEncryptMask = (1 << 15)
     AnyMagic = b'**'
 
     PktDescSize = 128
@@ -499,7 +500,7 @@ class EmbeddedSoftwareUpdatePktDesc(DynamicObject):
     DescFormat = f'<2sHIIIf32s32s44s'
     _properties = {'app', 'size', 'version', 'date', 'md5', 'exe_file'}
 
-    def to_bytes(self, magic: bytes, install_path: str) -> bytes:
+    def to_bytes(self, magic: bytes, install_path: str, ver: int = None) -> bytes:
         exe_file = os.path.basename(self.exe_file).encode()[:self.ExeFileMaxLen]
         exe_file += bytes(self.ExeFileMaxLen - len(exe_file))
 
@@ -507,18 +508,18 @@ class EmbeddedSoftwareUpdatePktDesc(DynamicObject):
         install_path += bytes(self.InstallPathMaxLen - len(install_path))
 
         return struct.pack(
-            self.DescFormat, magic, self.Version,
+            self.DescFormat, magic, self.Version if ver is None else ver,
             self.size, self.date, self.app, self.version, self.md5, exe_file, install_path
         )
 
-    def update_and_save(self, filename: str, magic: bytes, install_path: str):
+    def update_and_save(self, filename: str, magic: bytes, install_path: str, ver: int = None):
         """Append desc to lz4 header"""
         try:
             with open(filename, 'rb') as fp:
                 data = fp.read()
 
             with open(filename, 'wb') as fp:
-                fp.write(self.to_bytes(magic, install_path))
+                fp.write(self.to_bytes(magic, install_path, ver))
                 fp.write(data)
         except OSError as e:
             print(f'Dump {self.__class__.__name__} to {filename} error: {e}')
