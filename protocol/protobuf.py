@@ -177,7 +177,7 @@ class ProtoBufHandle(object):
 
 class ProtobufRWHelper:
     @classmethod
-    def updateRepeatedItem(cls, msg: message.Message, field_name: str, items: typing.Sequence[message.Message]):
+    def updateRepeatedItem(cls, msg: message.Message, field_name: str, items: typing.Sequence):
         # Delete old items
         for _ in range(len(msg.__getattribute__(field_name))):
             msg.__getattribute__(field_name).__delitem__(0)
