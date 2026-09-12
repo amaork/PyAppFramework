@@ -10,6 +10,7 @@ from framework.misc.windpi import get_program_scale_factor
 
 from .msgbox import *
 from .dialog import BasicDialog
+from .misc import qtTranslateAuto
 from .widget import BasicWidget
 
 __all__ = ['AbstractSubExtendPanel', 'AbstractExtendPanel', 'AbstractExtendParser']
@@ -37,12 +38,32 @@ class AbstractSubExtendPanel(BasicDialog):
         self._scale_x, self._scale_y = get_program_scale_factor()
         super(AbstractSubExtendPanel, self).__init__(parent)
 
+        # Intercept OK: validate before accept, keep dialog open if invalid
+        self.ui_buttons.accepted.disconnect(self.accept)
+        self.ui_buttons.accepted.connect(self._slotAcceptCheck)
+
         # self.setWindowIcon(icon)
         self.setWindowTitle(self.tr(self.EXTEND_DESC))
         self.setWhatsThis(self.tr(self.EXTEND_WHAT_THIS))
 
     def __str__(self):
         return "{}".format(self._settings_desc)
+
+    def _slotAcceptCheck(self):
+        error = self._validate()
+        if error:
+            showMessageBox(self, MB_TYPE_ERR, error, qtTranslateAuto('Invalid data', self.__class__))
+            return
+
+        self.accept()
+
+    def _validate(self) -> str:
+        """Validate panel data when OK clicked, before dialog closed
+
+        :return: error message if invalid, empty string means valid (dialog will accept)
+        Note: getSetting is abstract, subclass should call this method in its getSetting implementation as defense
+        """
+        return ''
 
     def _createSettingXml(self) -> XmlElement:
         return XmlElement(self.EXTEND_NAME)
