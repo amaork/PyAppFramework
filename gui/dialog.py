@@ -388,13 +388,15 @@ class ServiceDiscoveryDialog(BasicDialog):
         self.ui_address = ServiceDiscoverySelector(
             service=service, port=port, network=network, timeout=timeout, parent=self
         )
+        self.ui_address.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self.ui_layout.addWidget(self.ui_address)
         self.setWindowTitle(title or self.tr('Please select'))
 
     def _initUi(self):
         label = QLabel(self.tr('Address'))
-        label.setMaximumWidth(40)
         self.ui_layout = QHBoxLayout()
+        self.ui_layout.setSpacing(6)
+        self.ui_layout.setContentsMargins(0, 0, 0, 0)
         self.ui_layout.addWidget(label)
 
         layout = QVBoxLayout()
