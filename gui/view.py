@@ -302,9 +302,6 @@ class TableView(QtWidgets.QTableView):
             self.setVerticalHeaderHeight(height / self.model().rowCount())
 
         if len(self.__columnStretchFactor) == 0:
-            for column in range(self.columnCount()):
-                header.setSectionResizeMode(column, QtWidgets.QHeaderView.Interactive)
-            super(TableView, self).resizeEvent(ev)
             return
 
         # Auto adjust table column width
