@@ -11,7 +11,7 @@ import paramiko
 import telnetlib
 import threading
 import ipaddress
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Callable
 from ..protocol.ftp import FTPClient
 from ..network.utility import get_host_address, set_keepalive
 __all__ = ['RMIShellClient', 'RMIShellClientException', 'RMISTelnetClient', 'RMISSecureShellClient', 'TelnetBindNic']
@@ -259,6 +259,11 @@ class RMIShellClient(object):
         if self._verbose or verbose:
             print(ret)
 
+        # The exec above may have timed out while the remote tftp client is still
+        # transferring, wait until the remote file size settle before stopping
+        # the local tftp server, otherwise the transfer will be truncated
+        self._wait_transfer_settle(remote_file, os.path.getsize(local_file))
+
         # Stop ftp server
         # tftp_listen_thread.join(timeout)
         tftp_server.stop(True)
@@ -273,7 +278,36 @@ class RMIShellClient(object):
 
         local_file_size = os.path.getsize(local_file)
         local_file_md5 = hashlib.md5(open(local_file, "rb").read()).hexdigest()
+
+        if verify_by_md5 and remote_file_md5 != local_file_md5:
+            print(f'tftp upload {local_file} verify failed, local md5: {local_file_md5}, remote md5: {remote_file_md5}')
+        elif not verify_by_md5 and remote_file_size != local_file_size:
+            print(f'tftp upload {local_file} verify failed, local size: {local_file_size}, remote size: {remote_file_size}')
+
         return remote_file_md5 == local_file_md5 if verify_by_md5 else remote_file_size == local_file_size
+
+    def _wait_transfer_settle(self, remote_file: str, local_size: int,
+                              interval: float = 2.0, max_checks: int = 30, stable_times: int = 2):
+        """Wait remote file transfer settle (size reach local_size or stop growing)
+
+        :param remote_file: remote file absolute path
+        :param local_size: local file size in bytes
+        :param interval: check interval in seconds
+        :param max_checks: max check times
+        :param stable_times: consider settled after this many consecutive unchanged sizes
+        """
+        last_size, stable = -2, 0
+        for _ in range(max_checks):
+            time.sleep(interval)
+            size = self.get_file_size(remote_file)
+            if size == local_size:
+                break
+
+            stable = stable + 1 if size == last_size else 0
+            if stable >= stable_times:
+                break
+
+            last_size = size
 
 
 class RMISTelnetClient(RMIShellClient):
@@ -339,7 +373,7 @@ class RMISTelnetClient(RMIShellClient):
             result = self.client.read_until(tail, timeout=timeout).decode().split("\n")
             return "\n".join(result[1:] if tail != self._shell_prompt else result[1:-1])
         except (AttributeError, EOFError, UnicodeDecodeError) as err:
-            print("Exec:[{}] error:{}".format(command, err))
+            print("Exec:[{}] error: {!r}".format(cmd.strip(), err))
             self.clear_read_buffer()
             return ""
 
@@ -400,5 +434,56 @@ class RMISSecureShellClient(RMIShellClient):
             result = (out.read() + err.read()).decode()
             return "\n".join(result.split("\n"))[:-1]
         except (paramiko.SSHException, socket.timeout, AttributeError, UnicodeDecodeError) as err:
-            print("Exec:[{}] error:{}".format(command, err))
+            print("Exec:[{}] error: {!r}".format(cmd.strip(), err))
             return ""
+
+    def sftp_upload_file(self, local_file: str, remote_path: str = "/tmp", remote_name: str = "",
+                         callback: Optional[Callable] = None, verify_by_md5: bool = True) -> bool:
+        """Upload a local_file from local to remote via SFTP (over the SSH connection)
+
+        Upload to a temporary .part file first then rename it atomically,
+        so a truncated transfer will never be mistaken for a complete file.
+
+        :param local_file: file to upload
+        :param remote_path: file upload to remote path
+        :param remote_name: if is not empty will rename to this name
+        :param callback: progress callback(transferred_bytes, total_bytes)
+        :param verify_by_md5: if set compare local and remote file md5 else only compare file size
+        :return: success return true, failed return false
+        """
+        if not os.path.isfile(local_file):
+            return False
+
+        remote_name = remote_name or os.path.basename(local_file)
+        remote_file = FTPClient.join(remote_path, remote_name)
+        remote_temp = f'{remote_file}.part'
+
+        sftp = None
+        try:
+            sftp = self.client.open_sftp()
+            sftp.put(local_file, remote_temp, callback=callback)
+            self.exec(f'mv {remote_temp} {remote_file} && sync')
+        except Exception as err:
+            print(f'sftp upload {local_file} error: {err!r}')
+            self.exec(f'rm -f {remote_temp}')
+            return False
+        finally:
+            if sftp is not None:
+                sftp.close()
+
+        # Check if upload success
+        if not self.is_file_exist(remote_file):
+            return False
+
+        remote_file_md5 = self.get_file_md5(remote_file)
+        remote_file_size = self.get_file_size(remote_file)
+
+        local_file_size = os.path.getsize(local_file)
+        local_file_md5 = hashlib.md5(open(local_file, "rb").read()).hexdigest()
+
+        if verify_by_md5 and remote_file_md5 != local_file_md5:
+            print(f'sftp upload {local_file} verify failed, local md5: {local_file_md5}, remote md5: {remote_file_md5}')
+        elif not verify_by_md5 and remote_file_size != local_file_size:
+            print(f'sftp upload {local_file} verify failed, local size: {local_file_size}, remote size: {remote_file_size}')
+
+        return remote_file_md5 == local_file_md5 if verify_by_md5 else remote_file_size == local_file_size
