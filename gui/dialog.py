@@ -642,7 +642,12 @@ class ProgressDialog(QProgressDialog):
             print('!!!!!!!!!!!!!!!!!!!!!!', value)
             self.setValue(0)
 
-        if value != self.maximum():
+        # Modal QProgressDialog.setValue() internally calls QApplication.processEvents(),
+        # queued events (eg: slotHidden) may run nested inside this call and reset/hide
+        # the dialog (value becomes -1). A suspended frame resuming with a stale value
+        # must not re-show the dialog, otherwise the zombie dialog (window-modal and
+        # not closeable) blocks the whole application.
+        if value != self.maximum() and value == self.value():
             self.show()
         x = self.parent().geometry().x() + self.parent().width() / 2 - self.width() / 2
         y = self.parent().geometry().y() + self.parent().height() / 2 - self.height() / 2
