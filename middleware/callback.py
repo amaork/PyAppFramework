@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import typing
 import subprocess
 import collections
@@ -18,6 +19,7 @@ from ..core.datatype import CustomEvent
 from ..misc.windpi import system_open_file
 from ..misc.settings import BinarySettings
 from ..core.threading import ThreadConditionWrap
+from ..misc.utils import is_frozen
 from ..misc.process import subprocess_startup_info
 from ..protocol.serialport import SerialTransferProtocol
 __all__ = ['QtGuiCallback',
@@ -196,6 +198,61 @@ class SoftwareUpdateCallback(QtGuiCallback):
     def stop(self):
         self.showMessage(MB_TYPE_INFO, title=self.tr("Download canceled"), content=self.tr("Software update canceled"))
 
+    @staticmethod
+    def launch_installer_after_app_quit(installer: str, app_timeout: int = 300, helper_timeout: int = 90):
+        """Create a detached PowerShell launcher script, it will wait the application
+        and AppHelper exit then start the installer, and clean up after installation.
+
+        Waiting AppHelper exit (instead of killing it) keeps its pyd temp dir cleanup working.
+        """
+        app_path = os.path.abspath(sys.executable)
+        helper_path = os.path.join(os.path.dirname(app_path), 'AppHelper.exe')
+        script_path = os.path.splitext(installer)[0] + '_install.ps1'
+
+        # Escape single quotes for PowerShell single-quoted strings
+        main, helper, setup = (x.replace("'", "''") for x in (app_path, helper_path, installer))
+
+        # UTF-16 LE (with BOM) so PowerShell 2.0+ reads non-ASCII paths correctly
+        with open(script_path, 'w', encoding='utf-16') as fp:
+            fp.write(
+                "$main = '%s'\n"
+                "$helper = '%s'\n"
+                "$installer = '%s'\n"
+                "\n"
+                "function Wait-ProcessExit([string]$path, [int]$timeoutSec) {\n"
+                "    $name = [System.IO.Path]::GetFileName($path)\n"
+                "    $deadline = (Get-Date).AddSeconds($timeoutSec)\n"
+                "    while ((Get-Date) -lt $deadline) {\n"
+                "        $running = @(Get-WmiObject Win32_Process -Filter \"Name='$name'\""
+                " | Where-Object { $_.ExecutablePath -eq $path })\n"
+                "        if ($running.Count -eq 0) { return $true }\n"
+                "        Start-Sleep -Milliseconds 500\n"
+                "    }\n"
+                "    return $false\n"
+                "}\n"
+                "\n"
+                "# Wait the application exit, abort install if it is still running (user canceled closing)\n"
+                "if (-not (Wait-ProcessExit $main %d)) {\n"
+                "    Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n"
+                "    exit\n"
+                "}\n"
+                "\n"
+                "# Wait AppHelper exit, start install anyway on timeout (installer will handle locked files)\n"
+                "Wait-ProcessExit $helper %d | Out-Null\n"
+                "\n"
+                "Start-Process -Wait -FilePath $installer\n"
+                "Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue\n"
+                "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue\n"
+                % (main, helper, setup, app_timeout, helper_timeout)
+            )
+
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW (Python 3.6 compatible constants)
+        subprocess.Popen(
+            ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script_path],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            startupinfo=subprocess_startup_info(), creationflags=0x00000008 | 0x00000200 | 0x08000000
+        )
+
     def success(self, release: GogsSoftwareReleaseDesc, path: str,
                 start_update_callback: typing.Optional[typing.Callable[[bool, str], None]] = None):
         try:
@@ -213,12 +270,29 @@ class SoftwareUpdateCallback(QtGuiCallback):
                 finally:
                     os.unlink(os.path.join(path, release.name))
 
+            installer = os.path.join(path, release_name)
             if callable(start_update_callback):
-                self.mail.send(CallbackFuncMail(start_update_callback, args=(True, os.path.join(path, release_name))))
+                self.mail.send(CallbackFuncMail(start_update_callback, args=(True, installer)))
 
-            subprocess.Popen("{}".format(release_name),
-                             cwd=path, shell=True,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=subprocess_startup_info())
+            # Development mode: launch the installer directly
+            if not is_frozen():
+                subprocess.Popen("{}".format(release_name),
+                                 cwd=path, shell=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, startupinfo=subprocess_startup_info())
+                return
+
+            # Frozen mode: quit the application first, the detached launcher will wait
+            # AppHelper exit then start the installer, avoid files locked by AppHelper
+            if not self.showQuestion(
+                    self.tr('Software upgrade package is downloaded, '
+                            'the application will quit and start the installation, continue ?'),
+                    self.tr('Software update')):
+                msg = self.tr("Software update canceled")
+                self.sendMail(StatusBarMail(Qt.blue, msg, 3))
+                return self.showMessage(MB_TYPE_INFO, content=msg)
+
+            self.launch_installer_after_app_quit(installer)
+            self.mail.send(CallbackFuncMail(self._parent.close))
         except Exception as error:
             msg = self.tr("Launch software upgrade install package failed") + ": {}, ".format(error) + \
                   self.tr("please manual install!")
