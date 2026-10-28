@@ -25,8 +25,8 @@ __all__ = ['JsonSettings', 'JsonSettingsDecodeError', 'SystemTrayIconSettings', 
 
 Font = NamedTuple('Font', [('name', str), ('point', int), ('weight', int)])
 Time = NamedTuple('Time', [('hour', int), ('minute', int), ('second', int)])
-Unit = collections.namedtuple('Unit', 'time_s time_ms temp_c vol_v vol_mv')(*(
-    ' (S)', ' (ms)', ' (°C)', ' (V)', ' (mV)'
+Unit = collections.namedtuple('Unit', 'time_s time_ms temp_c vol_v vol_mv len_mm')(*(
+    ' (S)', ' (ms)', ' (°C)', ' (V)', ' (mV)', ' (mm)'
 ))
 
 Color = Tuple[int, int, int]
