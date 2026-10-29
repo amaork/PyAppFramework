@@ -53,7 +53,7 @@ from ..dashboard.input import VirtualNumberInput
 from ..gui.msgbox import showQuestionBox
 from ..misc.windpi import get_program_scale_factor
 from ..misc.debug import LoggerWrap, get_debug_timestamp
-from .misc import SerialPortSelector, NetworkInterfaceSelector
+from .misc import SerialPortSelector, NetworkInterfaceSelector, setSpinBoxSteppers
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..protocol.transmit import TCPSocketTransmit, TCPClientTransmit, TransmitException, TransmitWarning
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
@@ -132,6 +132,7 @@ class BasicWidget(QWidget):
         input_.setProperty(cls.Tag, key)
 
         if isinstance(input_, (QSpinBox, QDoubleSpinBox)):
+            setSpinBoxSteppers(input_)
             if range_ and len(range_) == 2:
                 input_.setRange(*range_)
 
@@ -1980,6 +1981,7 @@ class TableWidget(QTableWidget):
             elif len(filters) == 2 and isinstance(filters[0], type(filters[1])) and \
                     isinstance(filters[0], (int, float)):
                 spinbox = QSpinBox() if isinstance(filters[0], int) else QDoubleSpinBox()
+                setSpinBoxSteppers(spinbox)
                 spinbox.setRange(filters[0], filters[1])
                 value = self.getItemData(row, column)
                 value = str2number(value) if isinstance(filters[0], int) else str2float(value)
@@ -2554,7 +2556,7 @@ class SerialPortSettingWidget(QWidget):
             values = self.OPTIONS.get(option).get("values")
 
             # Create option element
-            element = QComboBox() if isinstance(values, tuple) else QSpinBox()
+            element = QComboBox() if isinstance(values, tuple) else setSpinBoxSteppers(QSpinBox())
             if isinstance(element, QComboBox):
                 # If user settings is invalid then using default settings
                 value = self.DEFAULTS.get(option) if value not in values else value
@@ -2938,7 +2940,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                                                 max_=setting.get_check()[UiIntegerInput.CHECK.MAX])
                     widget.setProperty("format", "int")
                 else:
-                    widget = QSpinBox(parent)
+                    widget = setSpinBoxSteppers(QSpinBox(parent))
                     widget.setMinimum(setting.get_check()[UiIntegerInput.CHECK.MIN])
                     widget.setMaximum(setting.get_check()[UiIntegerInput.CHECK.MAX])
                     widget.setValue(setting.get_data())
@@ -2969,7 +2971,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                                                 decimals=setting.get_check()[UiDoubleInput.CHECK.DECIMALS])
                     widget.setProperty("format", "float")
                 else:
-                    widget = QDoubleSpinBox(parent)
+                    widget = setSpinBoxSteppers(QDoubleSpinBox(parent))
                     widget.setMinimum(setting.get_check()[UiDoubleInput.CHECK.MIN])
                     widget.setMaximum(setting.get_check()[UiDoubleInput.CHECK.MAX])
                     widget.setValue(setting.get_data())
@@ -3006,7 +3008,7 @@ class JsonSettingWidget(BasicJsonSettingWidget):
                 text_input.setVisible(False)
                 text_input.setProperty("data", name)
 
-                number_input = QSpinBox(parent=parent)
+                number_input = setSpinBoxSteppers(QSpinBox(parent=parent))
                 number_input.setVisible(False)
                 number_input.setProperty("data", name)
 

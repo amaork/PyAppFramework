@@ -26,7 +26,7 @@ __all__ = ['SerialPortSelector', 'NetworkInterfaceSelector', 'ServicePortSelecto
            'DateTimeEdit', 'TabBar', 'ExpandWidget', 'CustomTextEditor', 'CustomSpinBox', 'PageNumberBox',
            'NavigationItem', 'NavigationBar', 'CustomEventFilterHandler',
            'ThreadSafeLabel', 'HyperlinkLabel', 'Separator',
-           'updateFilterMenu', 'qtTranslate', 'qtTranslateAuto']
+           'updateFilterMenu', 'qtTranslate', 'qtTranslateAuto', 'setSpinBoxSteppers']
 
 
 class SerialPortSelector(QtWidgets.QComboBox):
@@ -973,6 +973,12 @@ class CustomTextEditor(QtWidgets.QTextEdit):
                 cursor.movePosition(QtGui.QTextCursor.EndOfLine, QtGui.QTextCursor.KeepAnchor)
 
                 cursor.mergeCharFormat(fmt)
+
+
+def setSpinBoxSteppers(spinbox: QtWidgets.QAbstractSpinBox) -> QtWidgets.QAbstractSpinBox:
+    """Use arrow stepper buttons styled by the app theme (see ui/light.qss)"""
+    spinbox.setButtonSymbols(QtWidgets.QAbstractSpinBox.UpDownArrows)
+    return spinbox
 
 
 class CustomSpinBox(QtWidgets.QSpinBox):

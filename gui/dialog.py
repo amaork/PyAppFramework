@@ -16,7 +16,7 @@ from PySide2.QtGui import QColor, QCloseEvent, QShowEvent, QFont
 
 from .msgbox import *
 from .button import RectButton
-from .misc import CustomSpinBox, ServicePortSelector, ServiceDiscoverySelector
+from .misc import CustomSpinBox, ServicePortSelector, ServiceDiscoverySelector, setSpinBoxSteppers
 
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
@@ -143,9 +143,9 @@ class SimpleColorDialog(QDialog):
         self.__preview = QLabel()
 
         # Color value spinbox
-        self.__red = QSpinBox()
-        self.__green = QSpinBox()
-        self.__blue = QSpinBox()
+        self.__red = setSpinBoxSteppers(QSpinBox())
+        self.__green = setSpinBoxSteppers(QSpinBox())
+        self.__blue = setSpinBoxSteppers(QSpinBox())
         valueLayout = QHBoxLayout()
         for text, spinbox in (
                 (self.tr("Red"), self.__red), (self.tr("Green"), self.__green), (self.tr("Blue"), self.__blue)
