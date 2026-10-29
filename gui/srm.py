@@ -16,7 +16,7 @@ from ..misc.qrcode import qrcode_generate, qrcode_decode
 from ..core.threading import ThreadLockAndDataWrap
 
 from .widget import BasicWidget, ImageWidget
-from .dialog import showFileImportDialog, showFileExportDialog, BasicDialog
+from .dialog import showFileImportDialog, showFileExportDialog, BasicDialog, TextInputDialog
 __all__ = ['SoftwareRegistrationDialog', 'SoftwareRegistrationMachineWidget']
 
 
@@ -197,9 +197,9 @@ class SoftwareRegistrationMachineWidget(BasicWidget):
         except (ValueError, OSError) as e:
             # Private key in encrypted, ask input cipher
             if 'encrypted' in f'{e}':
-                cipher, ret = QtWidgets.QInputDialog.getText(
+                cipher, ret = TextInputDialog.getText(
                     self, self.tr('Please input private key cipher'),
-                    self.tr('Cipher') + ' ' * 50, QtWidgets.QLineEdit.EchoMode.Password,
+                    self.tr('Cipher'), mode=QtWidgets.QLineEdit.EchoMode.Password,
                 )
 
                 if ret and cipher:

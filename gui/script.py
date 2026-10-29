@@ -12,7 +12,7 @@ from ..misc.settings import *
 from ..gui.model import AbstractTableModel
 from .widget import BasicWidget, LogMessageWidget
 from .misc import CustomTextEditor, qtTranslateAuto
-from .dialog import showFileImportDialog, BasicDialog
+from .dialog import showFileImportDialog, BasicDialog, TextInputDialog
 
 __all__ = [
     'Script', 'RemoteScriptUiMsg',
@@ -193,8 +193,8 @@ class RemoteScriptSelectDialog(BasicDialog):
 
     def slotRename(self):
         old_name = self.ui_model.getScriptName(self.ui_view.getCurrentRow())
-        new_name, ret = QtWidgets.QInputDialog.getText(
-            self, self.tr('Please enter new name'), self.tr('Name') + ' ' * 40, QtWidgets.QLineEdit.Normal, old_name
+        new_name, ret = TextInputDialog.getText(
+            self, self.tr('Please enter new name'), self.tr('Name'), text=old_name
         )
 
         if not new_name or not ret:

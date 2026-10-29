@@ -33,7 +33,7 @@ __all__ = ['BasicDialog',
            'SimpleColorDialog', 'AboutDialog',
            'TextInputDialog', 'TextDisplayDialog',
            'SerialPortSettingDialog', 'FileDialog', 'ScalableCanvasImageDialog',
-           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
+           'ProgressDialog', 'PasswordDialog', 'OptionDialog', 'ItemSelectDialog', 'ServiceDiscoveryDialog', 'ServicePortSelectDialog',
            'SerialPortSelectDialog', 'NetworkAddressSelectDialog', 'NetworkInterfaceSelectDialog',
            'JsonSettingDialog', 'MultiJsonSettingsDialog', 'MultiTabJsonSettingsDialog', 'MultiGroupJsonSettingsDialog',
            'showFileImportDialog', 'showFileExportDialog', 'showPasswordAuthDialog', 'checkSocketSingleInstanceLock']
@@ -42,6 +42,10 @@ __showFileImportDialogRecentPathDict = dict()
 __showFileExportDialogRecentPathDict = dict()
 DialogApplyFunction = Callable[[dict], None]
 PasswordHashFunction = Callable[[Union[bytes, bytearray, memoryview]], str]
+
+# Unified small dialog geometry (selector / input type dialogs)
+SMALL_DIALOG_SIZE = QSize(320, 120)
+SMALL_DIALOG_MARGIN = 12
 
 
 class BasicDialog(QDialog):
@@ -316,13 +320,16 @@ class SerialPortSelectDialog(QDialog):
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
 
+        layout.addStretch(1)
         layout.addWidget(self._ports)
-        layout.addWidget(QSplitter())
+        layout.addStretch(1)
         layout.addWidget(button)
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
         self.setLayout(layout)
-        self.setFixedSize(self.sizeHint())
+        self.setFixedSize(SMALL_DIALOG_SIZE)
         self.setWindowTitle(title or self.tr('Please select serial port'))
-        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(self.windowTitle()) * 1.5)
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -380,6 +387,53 @@ class SerialPortSettingDialog(QDialog):
         return dialog.getSerialSetting()
 
 
+class ItemSelectDialog(BasicDialog):
+    """Unified small combo-select dialog: label + combo + OK/Cancel, vertically centered"""
+
+    def __init__(self, items: Sequence[str], label: str = '', current: int = 0,
+                 title: str = '', parent: Optional[QWidget] = None):
+        self._items = list(items)
+        self._label = label
+        self._current = current
+        super().__init__(parent)
+        self.setWindowTitle(title or self.tr('Please select'))
+
+    def _initUi(self):
+        self.ui_combo = QComboBox(self)
+        self.ui_combo.addItems(self._items)
+        self.ui_combo.setCurrentIndex(max(0, min(self._current, len(self._items) - 1)))
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
+        layout.addStretch(1)
+        if self._label:
+            layout.addWidget(QLabel(self._label))
+        layout.addWidget(self.ui_combo)
+        layout.addStretch(1)
+        layout.addWidget(self.ui_buttons)
+        self.setLayout(layout)
+
+    def sizeHint(self) -> QSize:
+        return QSize(SMALL_DIALOG_SIZE)
+
+    def getData(self) -> typing.Union[DynamicObject, dict, None]:
+        if not self.result():
+            return None
+        return DynamicObject(text=self.ui_combo.currentText(), index=self.ui_combo.currentIndex())
+
+    @classmethod
+    def getItem(cls, parent: Optional[QWidget], title: str, label: str,
+                items: Sequence[str], current: int = 0) -> typing.Tuple[str, bool]:
+        """Drop-in replacement for QInputDialog.getItem with unified size"""
+        dialog = cls(items, label=label, current=current, title=title, parent=parent)
+        dialog.setWindowModality(Qt.WindowModal)
+        dialog.exec_()
+        data = dialog.getData()
+        return (data.text, True) if data else ('', False)
+
+
 class ServiceDiscoveryDialog(BasicDialog):
     def __init__(self, service: str, port: int,
                  network: str = get_default_network(),
@@ -400,14 +454,17 @@ class ServiceDiscoveryDialog(BasicDialog):
         self.ui_layout.addWidget(label)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
+        layout.addStretch(1)
         layout.addLayout(self.ui_layout)
-        layout.addWidget(QLabel(' ' * 35))
-        layout.addWidget(QSplitter())
+        layout.addStretch(1)
         layout.addWidget(self.ui_buttons)
         self.setLayout(layout)
 
     def sizeHint(self) -> QSize:
-        return QSize(210, 80)
+        return QSize(SMALL_DIALOG_SIZE)
 
     def pauseDiscovery(self):
         self.ui_address.pauseDiscovery()
@@ -440,14 +497,18 @@ class ServicePortSelectDialog(BasicDialog):
         self.ui_combox = ServicePortSelector(**self._kwargs)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
+        layout.addStretch(1)
         layout.addWidget(self.ui_combox)
-        layout.addWidget(QSplitter())
+        layout.addStretch(1)
         layout.addWidget(self.ui_buttons)
 
         self.setLayout(layout)
 
     def sizeHint(self) -> QtCore.QSize:
-        return QSize(265, 80)
+        return QSize(SMALL_DIALOG_SIZE)
 
     def getData(self) -> typing.Union[DynamicObject, dict, None]:
         if not self.result():
@@ -471,12 +532,16 @@ class NetworkAddressSelectDialog(QDialog):
         button.accepted.connect(self.accept)
         button.rejected.connect(self.reject)
 
+        layout.addStretch(1)
         layout.addWidget(self._address_list)
-        layout.addWidget(QSplitter())
+        layout.addStretch(1)
         layout.addWidget(button)
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
         self.setLayout(layout)
+        self.setFixedSize(SMALL_DIALOG_SIZE)
         self.setWindowTitle(title or self.tr('Please select address'))
-        self.setMinimumWidth(self.fontMetrics().horizontalAdvance(self.windowTitle()) * 1.5)
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
@@ -510,11 +575,15 @@ class NetworkInterfaceSelectDialog(QDialog):
 
         self._nic_list.setCurrentIndex(idx)
 
+        layout.addStretch(1)
         layout.addWidget(self._nic_list)
-        layout.addWidget(QSplitter())
+        layout.addStretch(1)
         layout.addWidget(button)
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
         self.setLayout(layout)
-        self.setFixedSize(self.sizeHint())
+        self.setFixedSize(SMALL_DIALOG_SIZE)
         self.setWindowTitle(self.tr("Please Select Network Interface"))
         # noinspection PyUnresolvedReferences
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
@@ -1131,11 +1200,18 @@ class TextInputDialog(BasicDialog):
 
     def _initUi(self):
         layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(
+            SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN, SMALL_DIALOG_MARGIN
+        )
+        layout.addStretch(1)
         layout.addWidget(self.ui_label)
         layout.addWidget(self.ui_input)
-        layout.addWidget(QtWidgets.QSplitter())
+        layout.addStretch(1)
         layout.addWidget(self.ui_buttons)
         self.setLayout(layout)
+
+    def sizeHint(self) -> QSize:
+        return QSize(SMALL_DIALOG_SIZE)
 
     def getInputText(self) -> typing.Tuple[str, bool]:
         return self.ui_input.text(), bool(self.result())
@@ -1295,7 +1371,7 @@ def showFileImportDialog(parent: QWidget, fmt: str, path: str = "",
 def showPasswordAuthDialog(parent: QWidget, name: str,
                            auth: typing.Callable[[str], bool],
                            success_action: typing.Callable[[], Any] = None,
-                           retry_times: int = 3, space_size: int = 60,
+                           retry_times: int = 3,
                            auto_lock: bool = True,
                            disable_ui: typing.Callable[[], None] = None,
                            delay_enable_ui: typing.Callable[[], Any] = None):
@@ -1303,12 +1379,12 @@ def showPasswordAuthDialog(parent: QWidget, name: str,
     retry_count = retry_times
     while retry_count > 0:
         try:
-            # noinspection PyTypeChecker
-            raw_password, ret = QtWidgets.QInputDialog.getText(
+            raw_password, ret = TextInputDialog.getText(
                 parent,
                 QApplication.translate('dialog', 'Please Input') +
                 f' {name} ' + QApplication.translate('dialog', 'Password'),
-                QApplication.translate('dialog', 'Password') + ' ' * space_size, QtWidgets.QLineEdit.Password,
+                QApplication.translate('dialog', 'Password'),
+                mode=QtWidgets.QLineEdit.Password,
             )
             if not ret:
                 return False
