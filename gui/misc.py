@@ -216,6 +216,12 @@ class ServiceDiscoverySelector(QtWidgets.QComboBox):
         self._discovery.resume()
 
     def setNetwork(self, network: str):
+        # Empty network means "not configured yet" (e.g. first launch):
+        # keep the constructor-time default network silently instead of
+        # popping a warning before the main window is even shown
+        if not (network or '').strip():
+            return
+
         try:
             network = str(ipaddress.IPv4Network(network))
             ifc = get_network_ifc(network)

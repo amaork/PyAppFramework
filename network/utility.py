@@ -18,6 +18,7 @@ from ..core.datatype import DynamicObject
 __all__ = ['get_system_nic', 'get_address_source_network', 'get_default_network',
            'get_host_address', 'get_broadcast_address', 'get_address_prefix_len',
            'connect_device', 'scan_lan_port', 'scan_lan_alive', 'get_network_ifc',
+           'is_network_available',
            'set_keepalive', 'enable_broadcast', 'set_linger_option',
            'enable_multicast', 'join_multicast', 'leave_multicast',
            'create_socket_and_connect', 'wait_device_reboot',
@@ -109,6 +110,14 @@ def get_network_ifc(network: str) -> typing.Optional[NicInfo]:
             return ifc
 
     return None
+
+
+def is_network_available(network: str) -> bool:
+    """Check the network is well-formed and a matching local interface exists"""
+    try:
+        return get_network_ifc(str(ipaddress.IPv4Network(network))) is not None
+    except ValueError:
+        return False
 
 
 def get_host_address(network: Optional[ipaddress.IPv4Network] = None) -> List[str]:
