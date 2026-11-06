@@ -150,6 +150,15 @@ def _qcolor_to_hex(c: QColor) -> str:
     return c.name().upper()
 
 
+def make_pixel_font(family: str, px: int, weight: int = QFont.Normal) -> QFont:
+    """Pixel-sized font: scales with pixel-based geometry at any DPI scale
+    (point sizes would grow with the screen logical DPI and overflow)."""
+    font = QFont(family)
+    font.setPixelSize(px)
+    font.setWeight(weight)
+    return font
+
+
 # StatusDot — 状态指示灯
 
 class StatusDot(QWidget):
@@ -346,13 +355,15 @@ class InstrumentStatusWidget(QWidget):
         self._custom_spacing = True
 
         # 字体
-        self._font_title = QFont("Segoe UI", 11, QFont.Bold)
-        self._font_label = QFont("Segoe UI", 9)
-        self._font_value = QFont("Courier New", 18, QFont.Bold)
-        self._font_value_small = QFont("Courier New", 14, QFont.Bold)
-        self._font_method = QFont("Courier New", 20, QFont.Bold)
-        self._font_status = QFont("Segoe UI", 22, QFont.Bold)
-        self._font_unit = QFont("Segoe UI", 9)
+        # Pixel sizes keep custom-painted text proportional to the pixel-based
+        # layout at any DPI scale (point sizes grow with the screen logical DPI)
+        self._font_title = make_pixel_font("Segoe UI", 15, QFont.Bold)
+        self._font_label = make_pixel_font("Segoe UI", 12)
+        self._font_value = make_pixel_font("Courier New", 24, QFont.Bold)
+        self._font_value_small = make_pixel_font("Courier New", 19, QFont.Bold)
+        self._font_method = make_pixel_font("Courier New", 27, QFont.Bold)
+        self._font_status = make_pixel_font("Segoe UI", 29, QFont.Bold)
+        self._font_unit = make_pixel_font("Segoe UI", 12)
 
         self.setMinimumSize(600, 400)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -786,9 +797,9 @@ class ThemeConfigDialog(QDialog):
         preset_row = QHBoxLayout()
         preset_row.setSpacing(10)
         lbl = QLabel(self.tr("预设主题"))
-        lbl.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        lbl.setFont(make_pixel_font("Segoe UI", 12, QFont.Bold))
         self._ui_preset_combo = QComboBox()
-        self._ui_preset_combo.setFont(QFont("Segoe UI", 9))
+        self._ui_preset_combo.setFont(make_pixel_font("Segoe UI", 12))
         self._ui_preset_combo.setFixedHeight(32)
         self._ui_preset_combo.addItem("— Custom —")
         for name in BUILTIN_PRESETS:
@@ -808,11 +819,11 @@ class ThemeConfigDialog(QDialog):
         self._ui_color_btns: Dict[str, QPushButton] = {}
         for row_i, (key, label) in enumerate(THEME_KEY_LABELS.items()):
             lbl2 = QLabel(label)
-            lbl2.setFont(QFont("Segoe UI", 9))
+            lbl2.setFont(make_pixel_font("Segoe UI", 12))
             lbl2.setFixedWidth(170)
             btn = QPushButton()
             btn.setFixedSize(80, 26)
-            btn.setFont(QFont("Segoe UI", 8))
+            btn.setFont(make_pixel_font("Segoe UI", 11))
             btn.setCursor(Qt.PointingHandCursor)
             self._refreshBtn(btn, key)
             btn.clicked.connect(lambda checked=False, k=key: self._pickColor(k))
@@ -830,22 +841,22 @@ class ThemeConfigDialog(QDialog):
         btn_row.setSpacing(8)
 
         export_btn = QPushButton(self.tr("导出 JSON"))
-        export_btn.setFont(QFont("Segoe UI", 9))
+        export_btn.setFont(make_pixel_font("Segoe UI", 12))
         export_btn.setFixedHeight(32)
         export_btn.clicked.connect(self._exportJson)
 
         copy_btn = QPushButton(self.tr("复制 Dict"))
-        copy_btn.setFont(QFont("Segoe UI", 9))
+        copy_btn.setFont(make_pixel_font("Segoe UI", 12))
         copy_btn.setFixedHeight(32)
         copy_btn.clicked.connect(self._copyDict)
 
         import_btn = QPushButton(self.tr("导入 JSON"))
-        import_btn.setFont(QFont("Segoe UI", 9))
+        import_btn.setFont(make_pixel_font("Segoe UI", 12))
         import_btn.setFixedHeight(32)
         import_btn.clicked.connect(self._importJson)
 
         close_btn = QPushButton(self.tr("关闭"))
-        close_btn.setFont(QFont("Segoe UI", 9))
+        close_btn.setFont(make_pixel_font("Segoe UI", 12))
         close_btn.setFixedHeight(32)
         close_btn.clicked.connect(self.accept)
 

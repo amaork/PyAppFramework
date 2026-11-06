@@ -70,6 +70,13 @@ __all__ = ['BasicWidget', 'BasicWindow', 'BasicGroupBox', 'PaintWidget',
 TableDataFilter = Union[list, tuple, str, UiInputSetting]
 
 
+def _make_font(family: str, px: int) -> QFont:
+    """Pixel-sized font: DPI-scale independent (pt * 96/72)"""
+    font = QFont(family)
+    font.setPixelSize(px)
+    return font
+
+
 class BasicWidget(QWidget):
     Tag = ComponentManager.DefaultObjectNameKey
 
@@ -723,7 +730,7 @@ class ColorWidget(PaintWidget):
     # When mouse release send this signal
     colorStopChange = Signal(int, int, int)
 
-    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Color grab widget double click mouse left button change color, mouse horizontal move change color brightness
 
         ColorWidget provide two signal 'colorChanged' and 'colorStopChange', when mouse horizontal moved, the color
@@ -741,7 +748,7 @@ class ColorWidget(PaintWidget):
         self.showFullScreen()
 
         # Default setting
-        self.font = QFont("Times New Roman", 10)
+        self.font = _make_font("Times New Roman", 13)
         if isinstance(font, QFont):
             self.font = font
 
@@ -822,7 +829,7 @@ class CursorWidget(ColorWidget):
     # When cursor stop changed will send this signal
     cursorStopChange = Signal(int, int, int)
 
-    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
 
         CursorWidget provide two signal 'cursorChanged' and 'cursorStopChange', when mouse moved, the cursor position
@@ -964,7 +971,7 @@ class LumWidget(PaintWidget):
     CT_MODE = 5
     LUM_MODE = (CE1_MODE, CE2_MODE, LF_MODE, UD_MODE, CT_MODE)
 
-    def __init__(self, font: QFont = QFont("Times New Roman", 10), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Luminance grab widget, double click mouse left button change mode, mouse moved change windows Luminance
 
         Press mouse left button, then move mouse will change the low luminance
@@ -984,7 +991,7 @@ class LumWidget(PaintWidget):
         self.showFullScreen()
 
         if isinstance(font, QFont):
-            self.font = QFont("Times New Roman", 10)
+            self.font = _make_font("Times New Roman", 13)
 
         # Default is center windows
         self.lumIndex = 0

@@ -27,7 +27,9 @@ class CheckBoxStyleSheet(DynamicObject):
         try:
             return QFont(*self.font)
         except TypeError:
-            return QFont("等线 Light", 11)
+            font = QFont("等线 Light")
+            font.setPixelSize(15)
+            return font
 
     def getBoxColor(self) -> QColor:
         try:

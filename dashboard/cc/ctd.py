@@ -154,6 +154,15 @@ def _qcolor_to_hex(c: QColor) -> str:
     return c.name().upper()
 
 
+def make_pixel_font(family: str, px: int, weight: int = QFont.Normal) -> QFont:
+    """Pixel-sized font: scales with pixel-based geometry at any DPI scale
+    (point sizes would grow with the screen logical DPI and overflow)."""
+    font = QFont(family)
+    font.setPixelSize(px)
+    font.setWeight(weight)
+    return font
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # MasterBar
 # ══════════════════════════════════════════════════════════════════════════════
@@ -502,15 +511,16 @@ class CountdownDashboard(QWidget):
         w, h = self.width(), self.height()
 
         # 基于高度计算字体大小（设置最小/最大限制）
-        title_size = max(12, min(16, h // 18))
-        time_size = max(28, min(54, int(h * 0.35)))
-        status_size = max(8, min(10, h // 30))
-        pct_size = max(9, min(11, h // 28))
+        # Pixel sizes (pt * 96/72) keep text proportional to the pixel geometry
+        title_size = max(16, min(21, h * 2 // 27))
+        time_size = max(37, min(72, int(h * 0.4667)))
+        status_size = max(11, min(13, h * 2 // 45))
+        pct_size = max(12, min(15, h // 21))
 
-        self.ui_title_label.setFont(QFont("Arial", title_size, QFont.Bold))
-        self.ui_big_time.setFont(QFont("Arial", time_size, QFont.Bold))
-        self.ui_status_text.setFont(QFont("Arial", status_size))
-        self.ui_pct_label.setFont(QFont("Arial", pct_size, QFont.Bold))
+        self.ui_title_label.setFont(make_pixel_font("Arial", title_size, QFont.Bold))
+        self.ui_big_time.setFont(make_pixel_font("Arial", time_size, QFont.Bold))
+        self.ui_status_text.setFont(make_pixel_font("Arial", status_size))
+        self.ui_pct_label.setFont(make_pixel_font("Arial", pct_size, QFont.Bold))
 
     def paintEvent(self, _):
         p = QPainter(self)
@@ -553,9 +563,9 @@ class ThemeEditorDialog(QDialog):
         preset_row = QHBoxLayout()
         preset_row.setSpacing(10)
         lbl = QLabel("PRESET")
-        lbl.setFont(QFont("Arial", 8, QFont.Bold))
+        lbl.setFont(make_pixel_font("Arial", 11, QFont.Bold))
         self._preset_combo = QComboBox()
-        self._preset_combo.setFont(QFont("Arial", 9))
+        self._preset_combo.setFont(make_pixel_font("Arial", 12))
         self._preset_combo.setFixedHeight(32)
         self._preset_combo.addItem("— Custom —")
         for name in BUILTIN_PRESETS:
@@ -578,11 +588,11 @@ class ThemeEditorDialog(QDialog):
         self._color_btns: Dict[str, QPushButton] = {}
         for row_i, (key, label) in enumerate(THEME_KEY_LABELS.items()):
             lbl2 = QLabel(label)
-            lbl2.setFont(QFont("Arial", 9))
+            lbl2.setFont(make_pixel_font("Arial", 12))
             lbl2.setFixedWidth(170)
             btn = QPushButton()
             btn.setFixedSize(80, 26)
-            btn.setFont(QFont("Arial", 8))
+            btn.setFont(make_pixel_font("Arial", 11))
             btn.setCursor(Qt.PointingHandCursor)
             self._refresh_btn(btn, key)
             btn.clicked.connect(lambda checked=False, k=key: self._pick_color(k))
@@ -603,22 +613,22 @@ class ThemeEditorDialog(QDialog):
         btn_row.setSpacing(8)
 
         export_btn = QPushButton("💾  Export JSON")
-        export_btn.setFont(QFont("Arial", 9))
+        export_btn.setFont(make_pixel_font("Arial", 12))
         export_btn.setFixedHeight(32)
         export_btn.clicked.connect(self._export_json)
 
         copy_btn = QPushButton("📋  Copy as dict")
-        copy_btn.setFont(QFont("Arial", 9))
+        copy_btn.setFont(make_pixel_font("Arial", 12))
         copy_btn.setFixedHeight(32)
         copy_btn.clicked.connect(self._copy_dict)
 
         import_btn = QPushButton("📂  Import JSON")
-        import_btn.setFont(QFont("Arial", 9))
+        import_btn.setFont(make_pixel_font("Arial", 12))
         import_btn.setFixedHeight(32)
         import_btn.clicked.connect(self._import_json)
 
         close_btn = QPushButton("✕  Close")
-        close_btn.setFont(QFont("Arial", 9))
+        close_btn.setFont(make_pixel_font("Arial", 12))
         close_btn.setFixedHeight(32)
         close_btn.clicked.connect(self.accept)
 

@@ -324,7 +324,11 @@ class TemperatureDashboard(QWidget):
         minor_divs: int = 5
         half: float = step / 2.0
 
-        p.setFont(QFont("Arial", max(7, int(R * 0.082))))
+        # Pixel size keeps tick labels proportional to the pixel-based radius
+        # at any DPI scale (point sizes grow with the screen logical DPI)
+        tick_font = QFont("Arial")
+        tick_font.setPixelSize(max(9, int(R * 0.11)))
+        p.setFont(tick_font)
         fm = QFontMetrics(p.font())
 
         # Build ordered list of major-tick values
@@ -400,7 +404,9 @@ class TemperatureDashboard(QWidget):
     def _draw_rv_text(self, p: QPainter, cx: float, cy: float, R: float) -> None:
         """Draw the large current-value readout in the centre of the arc."""
         text: str = f"{self._rv:.1f} {self._unit}"
-        font: QFont = QFont("Arial", int(R * 0.22), QFont.Bold)
+        # Pixel size: same unit as the pixel-based radius, DPI-scale independent
+        font: QFont = QFont("Arial", -1, QFont.Bold)
+        font.setPixelSize(int(R * 0.29))
         p.setFont(font)
         p.setPen(QPen(self._colors["text_value"]))
         fm = QFontMetrics(font)
@@ -440,7 +446,9 @@ class TemperatureDashboard(QWidget):
 
         # Name + SV text
         label_text: str = "{} {:.1f} {}".format(self._name, self._sv, self._unit)
-        font: QFont = QFont("Arial", max(9, int(R * 0.115)))
+        # Pixel size: same unit as the pixel-based radius, DPI-scale independent
+        font: QFont = QFont("Arial")
+        font.setPixelSize(max(12, int(R * 0.15)))
         p.setFont(font)
         fm = QFontMetrics(font)
         p.setPen(QPen(self._colors["text_label"]))
