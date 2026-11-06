@@ -17,6 +17,7 @@ from PySide2.QtGui import QColor, QCloseEvent, QShowEvent, QFont
 from .msgbox import *
 from .button import RectButton
 from .misc import CustomSpinBox, ServicePortSelector, ServiceDiscoverySelector, setSpinBoxSteppers
+from .font import make_pixel_font
 
 from ..network.utility import *
 from ..protocol.serialport import SerialPort
@@ -1254,21 +1255,14 @@ class TextDisplayDialog(BasicDialog):
         return dialog.result()
 
 
-def _pixel_font(family: str, px: int) -> QtGui.QFont:
-    """Pixel-sized font: DPI-scale independent (pt * 96/72)"""
-    font = QtGui.QFont(family)
-    font.setPixelSize(px)
-    return font
-
-
 class AboutDialog(QtWidgets.QDialog):
     CompanyInfo = collections.namedtuple('CompanyInfo', 'start_year en_name ch_name')
 
     def __init__(self, logo: str, logo_width: int, ver_str: str, company_info: CompanyInfo,
                  margin: int = 20, change_log: str = '',
-                 ver_font: QtGui.QFont = _pixel_font('宋体', 24),
-                 copyright_font: QtGui.QFont = _pixel_font('宋体', 12),
-                 changelog_font: QtGui.QFont = _pixel_font('宋体', 15),
+                 ver_font: QtGui.QFont = make_pixel_font('宋体', 24),
+                 copyright_font: QtGui.QFont = make_pixel_font('宋体', 12),
+                 changelog_font: QtGui.QFont = make_pixel_font('宋体', 15),
                  parent: typing.Optional[QtWidgets.QWidget] = None):
         super().__init__(parent)
         self._change_log = change_log if os.path.isfile(change_log) else ''

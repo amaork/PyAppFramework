@@ -54,6 +54,7 @@ from ..gui.msgbox import showQuestionBox
 from ..misc.windpi import get_program_scale_factor
 from ..misc.debug import LoggerWrap, get_debug_timestamp
 from .misc import SerialPortSelector, NetworkInterfaceSelector, setSpinBoxSteppers
+from .font import make_pixel_font
 from ..core.datatype import str2number, str2float, DynamicObject, DynamicObjectDecodeError
 from ..protocol.transmit import TCPSocketTransmit, TCPClientTransmit, TransmitException, TransmitWarning
 from ..misc.settings import UiInputSetting, UiLogMessage, UiLayout, UiFontInput, UiColorInput, \
@@ -68,13 +69,6 @@ __all__ = ['BasicWidget', 'BasicWindow', 'BasicGroupBox', 'PaintWidget',
            'MultiGroupJsonSettingsWidget', 'MultiTabJsonSettingsWidget']
 
 TableDataFilter = Union[list, tuple, str, UiInputSetting]
-
-
-def _make_font(family: str, px: int) -> QFont:
-    """Pixel-sized font: DPI-scale independent (pt * 96/72)"""
-    font = QFont(family)
-    font.setPixelSize(px)
-    return font
 
 
 class BasicWidget(QWidget):
@@ -730,7 +724,7 @@ class ColorWidget(PaintWidget):
     # When mouse release send this signal
     colorStopChange = Signal(int, int, int)
 
-    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = make_pixel_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Color grab widget double click mouse left button change color, mouse horizontal move change color brightness
 
         ColorWidget provide two signal 'colorChanged' and 'colorStopChange', when mouse horizontal moved, the color
@@ -748,7 +742,7 @@ class ColorWidget(PaintWidget):
         self.showFullScreen()
 
         # Default setting
-        self.font = _make_font("Times New Roman", 13)
+        self.font = make_pixel_font("Times New Roman", 13)
         if isinstance(font, QFont):
             self.font = font
 
@@ -829,7 +823,7 @@ class CursorWidget(ColorWidget):
     # When cursor stop changed will send this signal
     cursorStopChange = Signal(int, int, int)
 
-    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = make_pixel_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Cursor grab widget, double click mouse left button change color, mouse moved change cursor position
 
         CursorWidget provide two signal 'cursorChanged' and 'cursorStopChange', when mouse moved, the cursor position
@@ -971,7 +965,7 @@ class LumWidget(PaintWidget):
     CT_MODE = 5
     LUM_MODE = (CE1_MODE, CE2_MODE, LF_MODE, UD_MODE, CT_MODE)
 
-    def __init__(self, font: QFont = _make_font("Times New Roman", 13), parent: Optional[QWidget] = None):
+    def __init__(self, font: QFont = make_pixel_font("Times New Roman", 13), parent: Optional[QWidget] = None):
         """Luminance grab widget, double click mouse left button change mode, mouse moved change windows Luminance
 
         Press mouse left button, then move mouse will change the low luminance
@@ -991,7 +985,7 @@ class LumWidget(PaintWidget):
         self.showFullScreen()
 
         if isinstance(font, QFont):
-            self.font = _make_font("Times New Roman", 13)
+            self.font = make_pixel_font("Times New Roman", 13)
 
         # Default is center windows
         self.lumIndex = 0

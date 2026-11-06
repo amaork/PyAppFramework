@@ -31,6 +31,8 @@ from PySide2.QtGui import (
     QLinearGradient, QRadialGradient
 )
 
+from ...gui.font import make_pixel_font
+
 __all__ = [
     'ColorTheme', 'THEME_KEY_LABELS',
     'PRESET_DEFAULT', 'PRESET_OCEAN', 'PRESET_SLATE', 'PRESET_MONO',
@@ -152,15 +154,6 @@ def _qcolor_to_hex(c: QColor) -> str:
     if c.alpha() < 255:
         return f"#{c.red():02X}{c.green():02X}{c.blue():02X}{c.alpha():02X}"
     return c.name().upper()
-
-
-def make_pixel_font(family: str, px: int, weight: int = QFont.Normal) -> QFont:
-    """Pixel-sized font: scales with pixel-based geometry at any DPI scale
-    (point sizes would grow with the screen logical DPI and overflow)."""
-    font = QFont(family)
-    font.setPixelSize(px)
-    font.setWeight(weight)
-    return font
 
 
 # ══════════════════════════════════════════════════════════════════════════════

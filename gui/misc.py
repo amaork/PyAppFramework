@@ -19,6 +19,7 @@ from raspi_io import Query, RaspiSocketError
 from typing import Optional, Union, Sequence, Tuple, Callable, Iterable
 
 from .msgbox import *
+from .font import make_pixel_font
 from ..misc.settings import Color, CustomAction
 from ..network.discovery import ServiceDiscovery, DiscoveryEvent
 from ..network.utility import get_system_nic, get_default_network, get_network_ifc
@@ -718,16 +719,9 @@ class CustomEventFilterHandler(QtCore.QObject):
                 obj.removeEventFilter(self)
 
 
-def _make_font(family: str, px: int) -> QtGui.QFont:
-    """Pixel-sized font: DPI-scale independent (pt * 96/72)"""
-    font = QtGui.QFont(family)
-    font.setPixelSize(px)
-    return font
-
-
 class ThreadSafeLabel(QtWidgets.QWidget):
     def __init__(self, parent: Optional[QtWidgets.QWidget] = None,
-                 text: str = "", font: QtGui.QFont = _make_font("等线 Light", 12),
+                 text: str = "", font: QtGui.QFont = make_pixel_font("等线 Light", 12),
                  color: Union[QtGui.QColor, Qt.GlobalColor] = Qt.black, align: Qt.AlignmentFlag = Qt.AlignCenter):
         super(ThreadSafeLabel, self).__init__(parent)
         self._text = text
@@ -782,7 +776,7 @@ class ThreadSafeLabel(QtWidgets.QWidget):
 
 class HyperlinkLabel(ThreadSafeLabel):
     signalClicked = Signal(object)
-    DEFAULT_FONT = _make_font("等线 Light", 12)
+    DEFAULT_FONT = make_pixel_font("等线 Light", 12)
 
     def __init__(self, text: str = "",
                  font: QtGui.QFont = DEFAULT_FONT,
