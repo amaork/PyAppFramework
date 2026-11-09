@@ -3527,22 +3527,35 @@ class MultiTabJsonSettingsWidget(QTabWidget):
 
 class LogMessageWidget(QTextEdit):
     signalRemoteLogging = QtCore.Signal(object)
-    LOG_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
     DISPLAY_DEBUG, DISPLAY_INFO, DISPLAY_WARN, DISPLAY_ERROR = (0x1, 0x2, 0x4, 0x8)
     DISPLAY_ALL = DISPLAY_INFO | DISPLAY_DEBUG | DISPLAY_ERROR | DISPLAY_WARN
+
+    # Upper bound of lines kept in the widget and in the in-memory history.
+    # Old lines are dropped automatically: bounding the document keeps tab
+    # switching (full re-layout on show) and level filtering cheap.
+    DefaultMaxBlocks = 5000
+    # Lines appended per event-loop tick when flushing a hidden widget's
+    # backlog, keeps showing the log page responsive after a long absence
+    FlushChunkSize = 500
 
     # noinspection SpellCheckingInspection
     def __init__(self, filename: str, log_format: str = "%(asctime)s %(levelname)s %(message)s",
                  level: int = logging.DEBUG, propagate: bool = False, display_filter: int = DISPLAY_ALL,
                  remote: TCPClientTransmit.Address = None, get_remote_log_level: typing.Callable[[str], int] = None,
-                 parent: Optional[QWidget] = None):
+                 max_blocks: int = DefaultMaxBlocks, parent: Optional[QWidget] = None):
         super(LogMessageWidget, self).__init__(parent)
         self._remote_exit = threading.Event()
         self._get_remote_log_level = get_remote_log_level
 
         self._logger = LoggerWrap(filename, log_format, level, logging.ERROR, propagate)
         self.setReadOnly(True)
-        self._startTime = datetime.now()
+        self._max_blocks = max(100, int(max_blocks))
+        self.document().setMaximumBlockCount(self._max_blocks)
+        # All messages since creation (ignoring the display filter), lets
+        # filterLog rebuild the view without reading/parsing the log file
+        self._history = collections.deque(maxlen=self._max_blocks)
+        # Messages received while the widget is hidden, appended on show
+        self._pending = collections.deque(maxlen=self._max_blocks)
         self._displayFilter = display_filter
         self.textChanged.connect(self.slotAutoScroll)
         self.signalRemoteLogging.connect(self.logging)
@@ -3629,62 +3642,87 @@ class LogMessageWidget(QTextEdit):
         if not isinstance(message, UiLogMessage):
             return
 
-        # Show log
+        # Keep every message (regardless of the display filter) so that level
+        # filtering can rebuild the view from memory later
+        self._history.append(message)
+
         if self._displayFilter & self.getLevelMask(message.level):
-            self.append("<font color='{}' size={}>{}: {}</font>".format(
-                message.color, message.font_size,
-                logging.getLevelName(message.level),
-                html.escape(message.content))
-            )
+            if self.isVisible() and not self._pending:
+                self.append(self._formatMessage(message))
+            else:
+                # Hidden widgets (or an unfinished backlog flush) skip text
+                # layout entirely, queued messages are flushed on show
+                self._pending.append(message)
 
         # Write to log file if write_to_log set
         write_to_log and self._logger.logging(message)
+
+    @staticmethod
+    def _formatMessage(message: UiLogMessage) -> str:
+        return "<font color='{}' size={}>{}: {}</font>".format(
+            message.color, message.font_size,
+            logging.getLevelName(message.level),
+            html.escape(message.content))
+
+    def _appendMessages(self, messages: typing.Iterable[UiLogMessage]):
+        """Insert messages in one batch, without per-line layout/scroll work."""
+        if not messages:
+            return
+
+        self.blockSignals(True)
+        self.setUpdatesEnabled(False)
+        try:
+            # Replicates QTextEdit.append() semantics (insert a block first
+            # unless the document is empty) in a single edit block: one
+            # layout pass, no trailing blank line, no merged lines
+            cursor = QTextCursor(self.document())
+            cursor.beginEditBlock()
+            cursor.movePosition(QTextCursor.End)
+            empty = self.document().isEmpty()
+            for message in messages:
+                if not empty:
+                    cursor.insertBlock()
+                cursor.insertHtml(self._formatMessage(message))
+                empty = False
+            cursor.endEditBlock()
+            # blockSignals suppresses textChanged, scroll to the end manually
+            self.setTextCursor(cursor)
+        finally:
+            self.setUpdatesEnabled(True)
+            self.blockSignals(False)
+
+    def showEvent(self, event):
+        super(LogMessageWidget, self).showEvent(event)
+        self._flushPending()
+
+    def _flushPending(self):
+        """Append the hidden backlog in small chunks to keep the UI responsive."""
+        if not self._pending or not self.isVisible():
+            return
+
+        chunk_size = min(len(self._pending), self.FlushChunkSize)
+        self._appendMessages([self._pending.popleft() for _ in range(chunk_size)])
+
+        if self._pending:
+            QtCore.QTimer.singleShot(0, self._flushPending)
 
     @Slot(object)
     def filterLog(self, levels: List[int]):
         if not isinstance(levels, list):
             return
 
-        try:
-            # First read all log to memory
-            with open(self._logger.filename, encoding="utf-8") as fp:
-                text = fp.read()
-        except UnicodeDecodeError:
-            # Loading failed delete log
-            text = ""
-
-        # Process data
-        valid_record = list()
-        for level in levels:
-            level_name = logging.getLevelName(level)
-
-            for record in text.split("\n"):
-                record.strip()
-                time_end = record.find(",")
-                time_str = record[:time_end]
-
-                try:
-                    record_time = datetime.strptime(time_str, self.LOG_TIME_FORMAT)
-                    record_time = record_time.replace(microsecond=int(record[time_end + 1: time_end + 4]) * 1000)
-                except ValueError:
-                    continue
-
-                if record_time < self._startTime:
-                    continue
-
-                level_name_start = record.find(level_name)
-                if level_name_start == -1:
-                    continue
-
-                # Append to record list
-                valid_record.append(UiLogMessage.genDefaultMessage(record[level_name_start + len(level_name):], level))
-
-        # Append to browser
+        # Rebuild the view from the in-memory history (current session) instead
+        # of reading and parsing the whole log file on the UI thread
+        allowed = set(levels)
+        self._pending.clear()
         self.clear()
-        for record in valid_record:
-            self.logging(record, False)
+        self._appendMessages([m for m in self._history if m.level in allowed])
 
     def slotAutoScroll(self):
+        # No cursor/scroll work for hidden widgets (they are flushed on show)
+        if not self.isVisible():
+            return
+
         cursor = self.textCursor()
         cursor.movePosition(QTextCursor.End)
         self.setTextCursor(cursor)
