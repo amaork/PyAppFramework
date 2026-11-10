@@ -3293,6 +3293,7 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
     def __initUi(self):
         row = 0
         widget_layout = self.createLayout(row_stretch_mode=True)
+        max_columns = max((len(groups) for groups in self.items_name), default=1)
         for groups in self.items_name:
             column = 0
             for group in groups:
@@ -3323,7 +3324,10 @@ class MultiGroupJsonSettingsWidget(BasicJsonSettingWidget):
                     box_widget.setProperty(self.Property.Group, box)
                     group_layout.addWidget(box_widget)
                     box.setLayout(group_layout)
-                    widget_layout.addWidget(box, row, column)
+                    # Last group of a row spans the remaining columns,
+                    # so a row with fewer groups stretches to full width
+                    span = max_columns - column if column == len(groups) - 1 else 1
+                    widget_layout.addWidget(box, row, column, 1, span)
                     self.widget_list.append(box_widget)
                     column += 1
                 except (TypeError, ValueError, IndexError, json.JSONDecodeError, DynamicObjectDecodeError) as err:
